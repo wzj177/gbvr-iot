@@ -40,21 +40,17 @@ class MakeVipCommand extends Command
         $question = new Question('请输入需要生成的会员用户名: ');
         // 获取用户输入的 ID
         $nickname = $helper->ask($input, $output, $question);
-        $existVip = $this->getVipService()->getVIPByNickname($nickname);
-        if (!empty($existVip)) {
-            $output->writeln('用户名已存在');
-            return self::SUCCESS;
-        }
-
-        $result = $this->getVipService()->createSystemVIP($nickname);
-        if (!empty($result)) {
+        try {
+            $result = $this->getVipService()->createSystemVIP($nickname);
+            if (empty($result)) {
+                throw new \Exception('未知错误');
+            }
             $output->writeln("创建成功，用户名：{$nickname}, 初始密码：{$result['password']}");
             return self::SUCCESS;
+        } catch (\Exception $e) {
+            $output->writeln("创建失败，{$e->getMessage()}");
+            return self::FAILURE;
         }
-
-        $output->writeln('创建失败');
-
-        return self::FAILURE;
     }
 
     /**

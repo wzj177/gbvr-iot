@@ -357,7 +357,7 @@ class VIPServiceImpl extends BaseService implements VIPService
     {
         $password = substr($this->getRandomChar(), 0, 6);
         $vip = $this->createVIP([
-            'nickname' => $this->generateNickname('qq'),
+            'nickname' => $nickname,
             'truename' => '内部会员_' . $nickname,
             'avatar' => '',
             'gender' => 'secret',
