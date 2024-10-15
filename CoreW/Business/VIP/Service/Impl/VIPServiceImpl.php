@@ -309,7 +309,18 @@ class VIPServiceImpl extends BaseService implements VIPService
         $profile = $this->getProfileDao()->get($vip['id']);
 
         return array_merge($vip, $profile);
+    }
 
+    public function getVIPByNickname(string $nickname): ?array
+    {
+        $vip = $this->getVIPDao()->getByNickname($nickname);
+        if (empty($vip)) {
+            return null;
+        }
+
+        $profile = $this->getProfileDao()->get($vip['id']);
+
+        return array_merge($vip, $profile);
     }
 
     public function countVIPs(array $conditions)
@@ -340,6 +351,26 @@ class VIPServiceImpl extends BaseService implements VIPService
         Client::send('vip-email-verify-notification', $vip);
 
         return $vip;
+    }
+
+    public function createSystemVIP(string $nickname)
+    {
+        $password = substr($this->getRandomChar(), 0, 6);
+        $vip = $this->createVIP([
+            'nickname' => $this->generateNickname('qq'),
+            'truename' => '内部会员_' . $nickname,
+            'avatar' => '',
+            'gender' => 'secret',
+            'email' => $this->generateEmail(),
+            'password' => $password
+        ]);
+        if ($vip) {
+            return [
+                'password' => $password
+            ];
+        }
+
+        return null;
     }
 
 

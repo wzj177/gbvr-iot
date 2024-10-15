@@ -29,6 +29,13 @@ interface VIPService
     public function register(array $fields);
 
     /**
+     * 创建系统内部会员
+     * @param string $nickname
+     * @return mixed
+     */
+    public function createSystemVIP(string $nickname);
+
+    /**
      * 生成会员认证token
      *
      * @param $type
@@ -80,6 +87,8 @@ interface VIPService
      * @return array|null
      */
     public function getVIPByUUID($uuid);
+
+    public function getVIPByNickname(string $nickname):  ?array;
 
     /**
      * 给账号发送邮箱
