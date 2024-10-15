@@ -1,0 +1,366 @@
+<?php
+/**
+ * 考虑对菜单使用json编辑器来处理
+ */
+return [
+    "code" => 0,
+    "data" => [
+        [
+            "path" => "/home",
+            "name" => "home",
+            "component" => "home",
+            "meta" => [
+                "title" => "message.router.dashboard",
+                "isLink" => "",
+                "isHide" => false,
+                "isKeepAlive" => true,
+                "isAffix" => true,
+                "isIframe" => false,
+                "roles" => ["ROLE_SUPER_ADMIN"],
+                "icon" => "iconfont icon-shouye"
+            ]
+        ],
+        [
+            "path" => "/system",
+            "name" => "system",
+            "component" => "layout/routerView/parent",
+            "redirect" => "/system/setting",
+            "meta" => [
+                "title" => "message.router.system",
+                "isHide" => false,
+                "isKeepAlive" => true,
+                "isAffix" => false,
+                "isIframe" => false,
+                "roles" => ["ROLE_SUPER_ADMIN"],
+                "icon" => "svg-icon-system"
+            ],
+            "children" => [
+                [
+                    "path" => "/system/setting",
+                    "name" => "setting",
+                    "component" => "system/setting/index",
+                    "meta" => [
+                        "title" => "message.router.setting",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-setting"
+                    ]
+                ],
+                [
+                    "path" => "/system/auth",
+                    "name" => "setting",
+                    "component" => "system/setting/auth",
+                    "meta" => [
+                        "title" => "message.router.authSetting",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-auth-setting"
+                    ]
+                ],
+                [
+                    "path" => "/system/storage",
+                    "name" => "setting",
+                    "component" => "system/setting/storage",
+                    "meta" => [
+                        "title" => "message.router.storageSetting",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-storage"
+                    ]
+                ],
+                [
+                    "path" => "/system/mail",
+                    "name" => "setting",
+                    "component" => "system/setting/mail",
+                    "meta" => [
+                        "title" => "message.router.mailSetting",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-mail-setting"
+                    ]
+                ],
+                [
+                    "path" => "/system/attachment",
+                    "name" => "attachment",
+                    "component" => "system/attachment/index",
+                    "meta" => [
+                        "title" => "message.router.attachment",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-attachment"
+                    ]
+                ],
+                [
+                    "path" => "/system/log",
+                    "name" => "systemLog",
+                    "component" => "system/log/index",
+                    "meta" => [
+                        "title" => "message.router.systemLog",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-log"
+                    ]
+                ]
+            ]
+        ],
+        [
+            "path" => "/systemAuth",
+            "name" => "systemAuth",
+            "component" => "layout/routerView/parent",
+            "redirect" => "/systemAuth/role",
+            "meta" => [
+                "title" => "message.router.systemAuth",
+                "isHide" => false,
+                "isKeepAlive" => true,
+                "isAffix" => false,
+                "isIframe" => false,
+                "roles" => ["ROLE_SUPER_ADMIN"],
+                "icon" => "svg-icon-auth-setting"
+            ],
+            "children" => [
+                [
+                    "path" => "/systemAuth/menu",
+                    "name" => "role",
+                    "component" => "systemAuth/menu/index",
+                    "meta" => [
+                        "title" => "message.router.menu",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-menu"
+                    ]
+                ],
+                [
+                    "path" => "/systemAuth/role",
+                    "name" => "role",
+                    "component" => "systemAuth/role/index",
+                    "meta" => [
+                        "title" => "message.router.role",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-role"
+                    ]
+                ],
+                [
+                    "path" => "/systemAuth/admin",
+                    "name" => "admin",
+                    "component" => "systemAuth/admin/index",
+                    "meta" => [
+                        "title" => "message.router.admin",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-admin"
+                    ]
+                ]
+            ]
+        ],
+        [
+            "path" => "/vip",
+            "name" => "vip",
+            "component" => "layout/routerView/parent",
+            "redirect" => "/vip/user",
+            "meta" => [
+                "title" => "message.router.vipManage",
+                "isHide" => false,
+                "isKeepAlive" => true,
+                "isAffix" => false,
+                "isIframe" => false,
+                "roles" => ["ROLE_SUPER_ADMIN"],
+                "icon" => "svg-icon-vip-manage"
+            ],
+            "children" => [
+                [
+                    "path" => "/vip/user",
+                    "name" => "vipUser",
+                    "component" => "vip/user/index",
+                    "meta" => [
+                        "title" => "message.router.vip",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-vip-list"
+                    ]
+                ],
+                [
+                    "path" => "/vip/regCode",
+                    "name" => "vipRegCode",
+                    "component" => "vip/regCode/index",
+                    "meta" => [
+                        "title" => "message.router.regCode", // id user_id code batch_number status bind_vip_id created_time updated_time
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-regCode"
+                    ]
+                ],
+                [
+                    "path" => "/vip/log",
+                    "name" => "vipLog",
+                    "component" => "vip/log/index",
+                    "meta" => [
+                        "title" => "message.router.vipLog",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-log"
+                    ]
+                ],
+                // 微信用户
+            ]
+        ],
+        [
+            "path" => "/product",
+            "name" => "productManage",
+            "component" => "layout/routerView/parent",
+            "redirect" => "/product/index",
+            "meta" => [
+                "title" => "message.router.productManage",
+                "isHide" => false,
+                "isKeepAlive" => true,
+                "isAffix" => false,
+                "isIframe" => false,
+                "roles" => ["ROLE_SUPER_ADMIN"],
+                "icon" => "svg-icon-product"
+            ],
+            "children" => [
+                [
+                    "path" => "/product/catalog",
+                    "name" => "productCatalog",
+                    "component" => "product/catalog/index",
+                    "meta" => [
+                        "title" => "message.router.productCatalog",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-catalog"
+                    ]
+                ],
+//                [
+//                    "path" => "/product/tag",
+//                    "name" => "productTag",
+//                    "component" => "product/tag/index",
+//                    "meta" => [
+//                        "title" => "message.router.productTag",
+//                        "isLink" => "",
+//                        "isHide" => false,
+//                        "isKeepAlive" => true,
+//                        "isAffix" => false,
+//                        "isIframe" => false,
+//                        "roles" => ["ROLE_SUPER_ADMIN"],
+//                        "icon" => "svg-icon-tag"
+//                    ]
+//                ],
+                [
+                    "path" => "/product/index",
+                    "name" => "product",
+                    "component" => "product/index",
+                    "meta" => [
+                        "title" => "message.router.product",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-product"
+                    ]
+                ],
+            ]
+        ],
+        [
+            "path" => "/marketing",
+            "name" => "marketing",
+            "component" => "layout/routerView/parent",
+            "redirect" => "/marketing/ad",
+            "meta" => [
+                "title" => "message.router.marketing",
+                "isLink" => "",
+                "isHide" => false,
+                "isKeepAlive" => true,
+                "isAffix" => false,
+                "isIframe" => false,
+                "roles" => ["ROLE_SUPER_ADMIN"],
+                "icon" => "svg-icon-marketing"
+            ],
+            "children" => [
+                [
+                    "path" => "/marketing/ad",
+                    "name" => "AD",
+                    "component" => "marketing/ad/index",
+                    "meta" => [
+                        "title" => "message.router.ad",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-ad"
+                    ]
+                ],
+                [
+                    "path" => "/marketing/burialPoint",
+                    "name" => "burialPoint",
+                    "component" => "marketing/burialPoint/index",
+                    "meta" => [
+                        "title" => "message.router.burialPoint",
+                        "isLink" => "",
+                        "isHide" => false,
+                        "isKeepAlive" => true,
+                        "isAffix" => false,
+                        "isIframe" => false,
+                        "roles" => ["ROLE_SUPER_ADMIN"],
+                        "icon" => "svg-icon-dataPoint"
+                    ]
+                ],
+            ]
+        ]
+    ]
+];

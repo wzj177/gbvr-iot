@@ -1,0 +1,17 @@
+@startuml
+actor User
+participant App
+participant WeChat
+database Database
+
+User -> App: 点击登录按钮
+App -> App: 生成随机状态和授权链接
+App --> User: 重定向到授权链接
+User -> WeChat: 在微信中确认授权
+WeChat --> App: 返回授权凭证（code）和状态（state）
+App -> WeChat: 使用code和secret向微信请求用户信息
+WeChat --> App: 返回用户信息
+App -> Database: 存储或检索用户信息
+Database --> App: 返回用户数据
+App --> User: 完成登录或注册
+@enduml

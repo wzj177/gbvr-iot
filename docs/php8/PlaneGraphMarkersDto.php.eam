@@ -1,0 +1,21 @@
+<?php
+
+class PlaneGraphMarkersDto
+{
+    public function __construct(
+        public int    $productId,
+        public int    $userId = 0,
+        public string $currentIp = "",
+        public array  $markers = []
+    )
+
+    public static function createFromArray(array $data): self
+    {
+        return new self(
+            productId: (int)($data['productId'] ?? 0),
+            userId: (int)($data['userId'] ?? 0),
+            currentIp: $data['currentIp'] ?? "",
+            markers: $data['markers'] ?? []
+        );
+    }
+}
