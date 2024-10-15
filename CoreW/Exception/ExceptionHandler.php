@@ -41,7 +41,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         list($httpCode, $error) = ExceptionUtil::getErrorAndHttpCodeFromException($exception);
         $error['data'] = null;
         if ($error['code'] === CommonBizException::USER_IP_FORBIDDEN && in_array($request->route->getName(), $this->blobRoutes)) {
-            return response()->file(public_path('assets/images/default/403.png?t=' . time()));
+            return response()->file(public_path('static/images/default/403.png?t=' . time()));
         }
 
         if ($this->requestIsJson($request)) {

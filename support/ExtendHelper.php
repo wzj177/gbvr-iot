@@ -67,7 +67,7 @@ function uploads_path(string $path = '')
 
 function static_assets_path()
 {
-    return public_path() . DIRECTORY_SEPARATOR . 'assets';
+    return public_path() . DIRECTORY_SEPARATOR . 'static';
 }
 
 /**
