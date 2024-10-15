@@ -1,7 +1,8 @@
 <?php
 
-error_reporting(E_ALL);
+//error_reporting(E_ALL);
 //set_time_limit(0);
+error_reporting(0);
 
 function env_get($key)
 {
@@ -105,10 +106,10 @@ try {
 // 定位到分段的起始位置
     fseek($fileHandle, $start);
 // 分段读取并输出文件内容
-    file_put_contents('chunk.log', 'start=' . $start . 'end=' . $end . PHP_EOL, FILE_APPEND);
+//    file_put_contents('chunk.log', 'start=' . $start . 'end=' . $end . PHP_EOL, FILE_APPEND);
     while (!feof($fileHandle) && $start <= $end) {
         $chunkSize = ($end - $start < $chunkSize) ? $end - $start + 1 : $chunkSize;
-        file_put_contents('chunk_size.log', $chunkSize . PHP_EOL, FILE_APPEND);
+//        file_put_contents('chunk_size.log', $chunkSize . PHP_EOL, FILE_APPEND);
         $content = fread($fileHandle, $chunkSize);
         echo $content;
         $start += $chunkSize;
