@@ -78,7 +78,7 @@ class AssetHelper
             $uri = self::getUri();
         }
 
-        return $uri . "/static/{$path}";
+        return $uri . "/api-static/{$path}";
     }
 
     /**
@@ -101,7 +101,7 @@ class AssetHelper
             if (!empty($defaultKey)) {
                 $file = \static_assets_path() . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'default' . DIRECTORY_SEPARATOR . $defaultKey . '.png';
                 if (is_file($file)) {
-                    return $uri . "static/images/default/{$defaultKey}.png";
+                    return $uri . "api-static/images/default/{$defaultKey}.png";
                 }
             }
 
