@@ -8,3 +8,6 @@
 /private/rsa/private_key
 /private/rsa/public_key
 .DS_Store
+/public/index.html
+/public/.user.ini
+/public/.htaccess
