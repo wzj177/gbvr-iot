@@ -10,7 +10,7 @@ class AddProductScenePrFileId extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("ALTER TABLE `vr_product_scene` ADD COLUMN `prFileId` int(10) NOT NULL DEFAULT 0 COMMIT '全景图附件ID' AFTER `panoramaSmall`;");
+        $container['db']->exec("ALTER TABLE `vr_product_scene` ADD COLUMN `prFileId` int(10) NOT NULL DEFAULT 0 COMMENT '全景图附件ID' AFTER `panoramaSmall`;");
     }
 
     /**
