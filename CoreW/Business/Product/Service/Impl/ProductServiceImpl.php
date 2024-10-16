@@ -119,6 +119,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             $index = isset($fields['index']) ? (int)$fields['index'] + 1 : 0;
             $scene = $this->getSceneDao()->create([
                 'productId' => $product['id'],
+                'userId' => $product['userId'],
                 'number' => $index,
                 'title' => '场景' . ($index + 1),
                 'panorama' => $result['path'],
