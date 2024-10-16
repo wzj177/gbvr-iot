@@ -130,6 +130,7 @@ class PanoramaChunkTilesJob implements Consumer
                 }
 
                 $tileSize = $this->getDirectorySize($tilesPath);
+                Log::debug('ok tiles', $item);
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
                 $this->getVIPService()->addUsedSpaceSize($userId, $tileSize);
                 $this->getLogService()->info('product_scene', 'chunk_panorama', '全景图切片完成', [
