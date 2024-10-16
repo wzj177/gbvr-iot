@@ -1307,7 +1307,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $productShareConfig = $this->getProductConfig($productId, 'product_share');
         if (empty($productShareConfig) || !$productShareConfig['val']['time_limit']) {
             return [
-                'url' => sprintf("%s/vr/%s", ltrim(rtrim($uri, '/'), '/api'), $product['code']),
+                'url' => sprintf("%s/vr/%s", str_replace('/api', '', rtrim($uri, '/')), $product['code']),
                 'cover' => $cover
             ];
         }
@@ -1317,7 +1317,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $token = $tokenHandler->generateToken($expired_time);
 
         return [
-            'url' => sprintf("%s/share/%s", rtrim($uri, '/'), $token),
+            'url' => sprintf("%s/share/%s", str_replace('/api', '', rtrim($uri, '/')), $token),
             'cover' => $cover
         ];
     }
