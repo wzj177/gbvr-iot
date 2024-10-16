@@ -124,7 +124,7 @@ class VIPServiceImpl extends BaseService implements VIPService
 
     public function getVIPCompanyByUserId(int $userId)
     {
-       return $this->getVIPCompanyDao()->getByUserId($userId);
+        return $this->getVIPCompanyDao()->getByUserId($userId);
     }
 
     /**
