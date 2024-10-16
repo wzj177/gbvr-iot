@@ -16,6 +16,11 @@ class ProductAnonymousVisitMiddleware implements MiddlewareInterface
 
     public function process(Request $request, callable $handler): Response
     {
+        $tokenKey = config('auth.token_handler') === 'jwt' ? 'authorization' : 'x-auth-token';
+        $token = $request->header($tokenKey);
+        if (!$token) {
+            return $handler($request);
+        }
         $productCode = $request->header('X-Product-Code', $request->get('prod_code'));
         if (!$productCode) {
             throw  UserException::EXPIRED_OR_NOTFOUND_TOKEN();
