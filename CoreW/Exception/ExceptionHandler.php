@@ -45,7 +45,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         }
 
         if ($this->requestIsJson($request)) {
-            if ($this->_debug) {
+            if ($this->debug) {
 //                print_r(debug_backtrace(\PHP_VERSION_ID >= 50400 ? \DEBUG_BACKTRACE_IGNORE_ARGS : false));
                 $error['traces'] = $this->formatExceptionTraces($exception);//explode("\n", (string)$exception);
                 $error['message'] = $exception->getMessage();
@@ -56,7 +56,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
             return \Json($error)->withStatus($httpCode);
         }
 
-        $error = $this->_debug ? nl2br((string)$exception) : 'Server internal error';
+        $error = $this->debug ? nl2br((string)$exception) : 'Server internal error';
         return new Response($httpCode, [], $error);
     }
 
