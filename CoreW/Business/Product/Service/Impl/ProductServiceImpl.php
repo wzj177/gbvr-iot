@@ -401,7 +401,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->generateUserProductTags($fields['userId'], $product['id'], $recommendTagIds, $customTags);
             $this->getVIPService()->addUsedSpaceSize($fields['userId'], $usedSpaceSize);
             $this->commit();
-            $this->getLogService()->info('product', 'create', '创建作品成功,user_id=' . $fields['userId'] . ', id=' . $product['id'], [
+            $this->getLogService()->info('product', 'add', '创建作品成功,user_id=' . $fields['userId'] . ', id=' . $product['id'], [
                 'userId' => $fields['userId'],
                 'currentIp' => $currentIp
             ]);
@@ -413,7 +413,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             return $product['id'];
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getLogService()->error('product', 'create', '创建作品失败,user_id=' . $fields['userId'] . '，' . $e->getMessage(), [
+            $this->getLogService()->error('product', 'add', '创建作品失败,user_id=' . $fields['userId'] . '，' . $e->getMessage(), [
                 'userId' => $fields['userId'],
                 'currentIp' => $currentIp
             ]);
