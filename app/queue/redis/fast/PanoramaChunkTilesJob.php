@@ -62,7 +62,7 @@ class PanoramaChunkTilesJob implements Consumer
 
     protected function generateTiles(?int $userId, ?int $productId, int $index, $image, $panoramaFile, bool $lock = true)
     {
-        Log::debug("开始生成场景切片，${$productId}");
+        Log::debug("开始生成场景切片，{$productId}");
         $partInfo = pathinfo($panoramaFile);
         $key = $partInfo['filename'] . '_p' . $productId . '_' . $index . '_tiles';
         $smallKey = $partInfo['filename'] . '_p' . $productId . '_' . $index . '_small';
