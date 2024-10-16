@@ -120,38 +120,63 @@ upstream webman-vr {
     keepalive 10240;
 }
 server {
-  server_name vr.com.cn;
-  listen 80;
-  access_log /var/logs/nginx/vr.com.cn.access.log;
-  error_log  /var/logs/nginx/vr.com.cn.error.log;
-  root /Users/mac/src/www/webman-vr-panoramic/public;
-  location / {
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header Host $host;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_http_version 1.1;
-      proxy_set_header Connection "";
-      proxy_buffering  on;
-      proxy_buffer_size 500M;
-      proxy_buffers 4 500M;
-      proxy_busy_buffers_size 500M;
-      proxy_temp_file_write_size 500M;
-      if (!-f $request_filename){
-          proxy_pass http://webman-vr;
-      }
-      # 大文件下载借用 fpm, 需要修改.env 配置内的安全参数:BIG_FILE_DOWNLOAD_REFERER_WHITE_LIST='文件分段下载，download.php 允许来源访问白名单(多个 url 以英文｜分割)' 
-      location ^~ admin/download.php {
-            fastcgi_pass   127.0.0.1:9000;
-            fastcgi_index  index.php;
-            fastcgi_split_path_info  ^((?U).+\.php)(/?.+)$;
-            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-            fastcgi_param  PATH_INFO  $fastcgi_path_info;
-            fastcgi_param  PATH_TRANSLATED  $document_root$fastcgi_path_info;
-            include        fastcgi_params;
-            try_files $uri =404;
+    server_name vr.com.cn;
+    listen 80;
+    access_log /var/logs/nginx/vr.com.cn.access.log;
+    error_log  /var/logs/nginx/vr.com.cn.error.log;
+    # 装修前端静态资源目录
+    root /www/wwwroot/vr.com.cn/public/front;
+    # 处理 /api-static/ 的请求
+    location ^~ /api-static {
+        alias /www/wwwroot/vr.com.cn/public/api-static/;  # 指向实际的静态资源目录
+        # 其他配置，例如缓存或 CORS 设置
+        expires 30d;  # 缓存设置，30天过期
+        add_header Cache-Control "public";
+        try_files $uri $uri/ =404;
     }
-   }
-}
+    # 处理 /uploads/ 的请求
+    location ^~ /uploads {
+        alias /www/wwwroot/vr.com.cn/public/uploads/;  # 指向实际的静态资源目录
+        # 其他配置，例如缓存或 CORS 设置
+        expires 30d;  # 缓存设置，30天过期
+        add_header Cache-Control "public";
+        try_files $uri $uri/ =404;
+    }
+    # 运营管理后台静态资源目录
+    location ^~ /admin-ui {
+        alias /www/wwwroot/vr.com.cn/public/admin-ui/;
+        try_files $uri $uri/ /admin-ui/index.html;
+    }
+    # 处理静态文件的请求
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    # 开放api、运营管理后台的请求
+    location ~ ^/(api|admin)/ {
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_http_version 1.1;
+          proxy_set_header Connection "";
+          proxy_buffering  on;
+          proxy_buffer_size 500M;
+          proxy_buffers 4 500M;
+          proxy_busy_buffers_size 500M;
+          proxy_temp_file_write_size 500M;
+          if (!-f $request_filename){
+              proxy_pass http://webman-vr;
+          }
+    }
+    # 大文件下载借用 fpm, 需要修改.env 配置内的安全参数:BIG_FILE_DOWNLOAD_REFERER_WHITE_LIST='文件分段下载，download.php 允许来源访问白名单(多个 url 以英文｜分割)' 
+    location ^~ admin/download.php {
+            try_files $uri =404;
+            fastcgi_pass  unix:/tmp/php-cgi-74.sock;
+            fastcgi_index index.php;
+            include fastcgi.conf;
+            include pathinfo.conf;
+    }
+       }
+    }
 ```
 
 ### 常用业务指令
