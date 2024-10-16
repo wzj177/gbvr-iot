@@ -1307,7 +1307,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $productShareConfig = $this->getProductConfig($productId, 'product_share');
         if (empty($productShareConfig) || !$productShareConfig['val']['time_limit']) {
             return [
-                'url' => sprintf("%s/vr/%s", rtrim($uri, '/'), $product['code']),
+                'url' => sprintf("%s/vr/%s", ltrim(rtrim($uri, '/'), '/api'), $product['code']),
                 'cover' => $cover
             ];
         }
