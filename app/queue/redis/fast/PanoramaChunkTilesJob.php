@@ -10,6 +10,7 @@ use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\VIP\Service\VIPService;
 use CoreW\Core;
 use CoreW\Traits\ImagineTrait;
+use FilesystemIterator;
 use Imagine\Image\Box;
 use Imagine\Image\ImagineInterface;
 use Imagine\Image\ManipulatorInterface;
@@ -207,11 +208,26 @@ class PanoramaChunkTilesJob implements Consumer
     {
         $totalSize = 0;
 
-        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path));
-        foreach ($files as $file) {
-            if ($file->isFile()) {
-                $totalSize += $file->getSize();
+        try {
+            // 使用 FilesystemIterator::SKIP_DOTS 以跳过 . 和 .. 目录
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS)
+            );
+
+            foreach ($files as $file) {
+                // 跳过隐藏文件和目录
+                if (strpos($file->getFilename(), '.') === 0) {
+                    continue; // 跳过隐藏文件或目录
+                }
+
+                // 检查是否是 .jpg 文件
+                if ($file->isFile() && strtolower($file->getExtension()) === 'jpg') {
+                    $totalSize += $file->getSize();
+                }
             }
+        } catch (\Throwable $e) {
+            // 捕获异常并记录日志
+            Log::debug("Error reading tiles file computed file size: " . $e->getMessage());
         }
 
         return $totalSize;
