@@ -16,7 +16,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
     public $dontReport = [
     ];
 
-    public $openHttpCodes = [
+    public array $openHttpCodes = [
         400,
         401,
         422,
@@ -26,10 +26,16 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         500
     ];
 
-    public $blobRoutes = [
+    public array $blobRoutes = [
         'admin.captcha',
         'api.captcha'
     ];
+
+    public function __construct($logger, $debug)
+    {
+        parent::__construct($logger, $debug);
+        $this->debug = config('app.debug') == "true";
+    }
 
     public function report(Throwable $exception)
     {
@@ -38,6 +44,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
 
     public function render(Request $request, Throwable $exception): Response
     {
+
         list($httpCode, $error) = ExceptionUtil::getErrorAndHttpCodeFromException($exception);
         $error['data'] = null;
         if ($error['code'] === CommonBizException::USER_IP_FORBIDDEN && in_array($request->route->getName(), $this->blobRoutes)) {
@@ -45,6 +52,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         }
 
         if ($this->requestIsJson($request)) {
+
             if ($this->debug) {
 //                print_r(debug_backtrace(\PHP_VERSION_ID >= 50400 ? \DEBUG_BACKTRACE_IGNORE_ARGS : false));
                 $error['traces'] = $this->formatExceptionTraces($exception);//explode("\n", (string)$exception);
