@@ -31,7 +31,6 @@ class PanoramaChunkTilesJob implements Consumer
 
     public function consume($data): bool
     {
-        Log::debug('PanoramaChunkTilesJob consume data:', $data);
         if (empty($data['panorama']) || empty($data['productId']) || empty($data['userId'])) {
             return false;
         }
@@ -55,7 +54,6 @@ class PanoramaChunkTilesJob implements Consumer
 
         if ($size > $canChunkTileSize) {
 //            $lockKey = 'panorama_chunk_tiles_' . $data['productId'] . '_' . $data['number'];
-            Log::debug('PanoramaChunkTilesJob consume data: panorama file size > ' . $canChunkTileSize);
             $this->generateTiles($data['userId'], $data['productId'], $data['number'], $image, $panoramaFile);
         }
 
