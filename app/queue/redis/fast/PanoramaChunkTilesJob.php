@@ -16,6 +16,7 @@ use Imagine\Image\ManipulatorInterface;
 use Imagine\Image\Point;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use support\Log;
 use support\utils\AssetHelper;
 use support\utils\FileToolkit;
 use Webman\RedisQueue\Consumer;
@@ -28,14 +29,15 @@ class PanoramaChunkTilesJob implements Consumer
 
     public $connection = 'default';
 
-    public function consume($scene)
+    public function consume($data): bool
     {
-        if (empty($scene['panorama']) || empty($scene['productId']) || empty($scene['userId'])) {
+        Log::debug('PanoramaChunkTilesJob consume data:', $data);
+        if (empty($data['panorama']) || empty($data['productId']) || empty($data['userId'])) {
             return false;
         }
-
-        $panoramaFile = AssetHelper::uploadPath($scene['panorama']);
+        $panoramaFile = AssetHelper::uploadPath($data['panorama']);
         if (!is_file($panoramaFile)) {
+            Log::error('PanoramaChunkTilesJob consume data: panorama file not found');
             return false;
         }
 
@@ -46,13 +48,15 @@ class PanoramaChunkTilesJob implements Consumer
         $imageSize = $image->getSize();
         $width = $imageSize->getWidth();
         $height = $imageSize->getHeight();
-        $this->getProductService()->updateSceneByProductAndIndex($scene['productId'], $scene['number'], [
+        $this->getProductService()->updateSceneByProductAndIndex($data['productId'], $data['number'], [
             'panoramaWidth' => $width,
             'panoramaHeight' => $height
         ]);
 
         if ($size > $canChunkTileSize) {
-            $this->generateTiles($scene['userId'], $scene['productId'], $scene['number'], $image, $panoramaFile);
+//            $lockKey = 'panorama_chunk_tiles_' . $data['productId'] . '_' . $data['number'];
+            Log::debug('PanoramaChunkTilesJob consume data: panorama file size > ' . $canChunkTileSize);
+            $this->generateTiles($data['userId'], $data['productId'], $data['number'], $image, $panoramaFile);
         }
 
         return true;
@@ -130,6 +134,11 @@ class PanoramaChunkTilesJob implements Consumer
                 $tileSize = $this->getDirectorySize($tilesPath);
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
                 $this->getVIPService()->addUsedSpaceSize($userId, $tileSize);
+                $this->getLogService()->info('product_scene', 'chunk_panorama', '全景图切片完成', [
+                    'productId' => $productId,
+                    'panorama_file' => $panoramaFile,
+                    'tile_path' => $tilesPath
+                ]);
             } catch (\Throwable $e) {
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, [
                     'tilePath' => $relativeTilePath,

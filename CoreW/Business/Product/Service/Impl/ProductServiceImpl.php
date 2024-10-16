@@ -27,6 +27,7 @@ use CoreW\Business\User\Service\UserService;
 use CoreW\Business\VIP\Service\VIPService;
 use CoreW\Util\ExpiredTimeToToken;
 use Respect\Validation\Validator as v;
+use support\Log;
 use support\utils\ArrayToolkit;
 use support\utils\AssetHelper;
 use Webman\RedisQueue\Client;
@@ -405,6 +406,7 @@ class ProductServiceImpl extends BaseService implements ProductService
                 'currentIp' => $currentIp
             ]);
             foreach ($sceneItems as $sceneItem) {
+                Log::info("拆分场景瓦片图片，场景路径={$sceneItem['panorama']}");
                 Client::send('scene-panorama-chunk-tiles', $sceneItem);
             }
 

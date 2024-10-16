@@ -17,28 +17,28 @@ return [
         'host' => '127.0.0.1',
         'password' => null,
         'port' => 6379,
-        'database' => 0,
+        'database' => 15,
         'prefix' => 'easy_vr_'
     ],
     'admin_token' => [
         'host' => '127.0.0.1',
         'password' => null,
         'port' => 6379,
-        'database' => 6,
+        'database' => 14,
         'prefix' => 'easy_vr_admin_'
     ],
     'vip_token' => [
         'host' => '127.0.0.1',
         'password' => null,
         'port' => 6379,
-        'database' => 6,
+        'database' => 13,
         'prefix' => 'easy_vr_vip_'
     ],
     'oauth' => [
         'host' => '127.0.0.1',
         'password' => null,
         'port' => 6379,
-        'database' => 6,
+        'database' => 12,
         'prefix' => 'easy_vr_oauth_'
     ]
 //    'dao-cache' => [

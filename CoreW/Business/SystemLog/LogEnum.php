@@ -28,6 +28,7 @@ class LogEnum
     const MODULE_ADMIN = 'admin';
     const MODULE_VIP = 'vip';
     const MODULE_ATTACHMENT = 'attachment';
+    const MODULE_PRODUCT = 'product';
     const MODULE_PRODUCT_CATALOG = 'product_catalog';
     const MODULE_PRODUCT_TAG = 'product_tag';
     const MODULE_SYSTEM = 'system';
@@ -38,6 +39,7 @@ class LogEnum
             self::MODULE_ADMIN => '系统管理员',
             self::MODULE_VIP => '会员',
             self::MODULE_ATTACHMENT => '附件',
+            self::MODULE_PRODUCT => '作品',
             self::MODULE_PRODUCT_CATALOG => '作品分类',
             self::MODULE_PRODUCT_TAG => '作品标签',
             self::MODULE_SYSTEM => '系统',
@@ -60,9 +62,9 @@ class LogEnum
     const ACTION_LOGIN_SUCCESS = 'login_success';
     const ACTION_USER_LOGOUT = 'user_logout';
 
-    public static function getActionItems()
+    public static function getActionItems(): array
     {
-        $items = [
+        return [
             self::MODULE_ADMIN => [
                 self::ACTION_ADD => '新增',
                 self::ACTION_UPDATE => '更新',
@@ -74,6 +76,11 @@ class LogEnum
             ],
             self::MODULE_ATTACHMENT => [
                 self::ACTION_UPLOAD => '上传',
+            ],
+            self::MODULE_PRODUCT => [
+                self::ACTION_ADD => '新增',
+                self::ACTION_UPDATE => '更新',
+                self::ACTION_DELETE => '删除',
             ],
             self::MODULE_PRODUCT_CATALOG => [
                 self::ACTION_ADD => '新增',
@@ -95,8 +102,6 @@ class LogEnum
                 self::ACTION_DELETE => '删除',
             ]
         ];
-
-        return $items;
     }
 
     public static function getModuleActionItems($module)
