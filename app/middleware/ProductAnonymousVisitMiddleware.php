@@ -18,7 +18,7 @@ class ProductAnonymousVisitMiddleware implements MiddlewareInterface
     {
         $tokenKey = config('auth.token_handler') === 'jwt' ? 'authorization' : 'x-auth-token';
         $token = $request->header($tokenKey);
-        if (!$token) {
+        if (!empty($token)) {
             return $handler($request);
         }
         $productCode = $request->header('X-Product-Code', $request->get('prod_code'));
