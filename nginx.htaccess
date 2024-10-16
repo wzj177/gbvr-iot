@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name vr.wanzij.cn;
+    server_name vr.com.cn;
     index index.html index.php;
 
     # 配置 VR 前端

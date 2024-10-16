@@ -947,7 +947,7 @@ class VIPServiceImpl extends BaseService implements VIPService
         return $nickname;
     }
 
-    public function generateEmail($maxLoop = 100, $ext = '@wanzij.cn')
+    public function generateEmail($maxLoop = 100, $ext = '@vr.com.cn')
     {
         for ($i = 0; $i < $maxLoop; ++$i) {
             $email = 'vip_' . substr($this->getRandomChar(), 0, 9) . $ext;
