@@ -103,7 +103,7 @@ class LogEnum
     {
         $items = self::getActionItems();
 
-        return $items[$module] ?: [];
+        return $items[$module] ?? [];
     }
 
     /**
