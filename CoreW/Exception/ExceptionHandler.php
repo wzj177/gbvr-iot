@@ -34,7 +34,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
     public function __construct($logger, $debug)
     {
         parent::__construct($logger, $debug);
-        $this->debug = config('app.debug') == "true";
+        $this->debug = config('app.debug');
     }
 
     public function report(Throwable $exception)

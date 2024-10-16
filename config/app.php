@@ -17,7 +17,7 @@ use support\Request;
 return [
     'name' => getenv('APP_NAME'),
     'id' => 'common',
-    'debug' => getenv('APP_DEBUG'),
+    'debug' => intval(getenv('APP_DEBUG')),
     'biz_config' => [
         'redis.options' => [
             'host' => getenv('REDIS_HOST'),
