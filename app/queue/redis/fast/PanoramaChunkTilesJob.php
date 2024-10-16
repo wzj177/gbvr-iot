@@ -62,17 +62,19 @@ class PanoramaChunkTilesJob implements Consumer
 
     protected function generateTiles(?int $userId, ?int $productId, int $index, $image, $panoramaFile, bool $lock = true)
     {
+        Log::debug("开始生成场景切片，${$productId}");
         $partInfo = pathinfo($panoramaFile);
         $key = $partInfo['filename'] . '_p' . $productId . '_' . $index . '_tiles';
         $smallKey = $partInfo['filename'] . '_p' . $productId . '_' . $index . '_small';
         $tilesPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $key;
         $fn = function () use ($userId, $productId, $index, $key, $tilesPath, $image, $panoramaFile, $partInfo, $smallKey) {
+            $relativeTilePath = str_replace(uploads_path(), 'uploads', $tilesPath);
             try {
-                $relativeTilePath = str_replace(uploads_path(), 'uploads', $tilesPath);
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, [
                     'tilePath' => $relativeTilePath,
                     'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ING
                 ]);
+                Log::debug("生成场景切片进行中，${$productId}");
                 if (!is_dir($tilesPath) && @mkdir($tilesPath, 0755)) {
                 } else {
                     FileToolkit::removeDirFiles($tilesPath);
@@ -115,7 +117,9 @@ class PanoramaChunkTilesJob implements Consumer
                     }
                 }
                 $panoramaSmallPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $smallKey . '.' . $partInfo['extension'];
+                Log::debug("处理场景切片图片分辨率，${$productId}");
                 $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
+                Log::debug("处理场景切片图片分辨率完成，${$productId}");
                 $item = [
                     'tileRows' => $rows,
                     'tileColumns' => $columns,
