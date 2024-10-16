@@ -19,11 +19,17 @@ function is_win_os()
     return strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 }
 
+/**
+ * 判断是否是本地客户端
+ * @param $ip
+ * @param $ipFilters
+ * @return bool
+ */
 function is_local_client($ip, $ipFilters = [
     '127.0.0.1',
     '0.0.0.0',
     '192.168.*.*'
-])
+]): bool
 {
     if (empty($ipFilters)) {
         return true;
