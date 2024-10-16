@@ -7,6 +7,7 @@ use app\api\v1\controller\VIPController;
 use app\api\v1\controller\PublicController;
 use app\middleware\api\CompanyIotMiddleware;
 use app\middleware\api\XAuthTokenIdentityMiddleware;
+use app\middleware\ProductAnonymousVisitMiddleware;
 use support\Request;
 use Webman\Route;
 
@@ -76,7 +77,6 @@ Route::group('/api', function () {
             Route::delete('/tour/node/{id:\d+}', [ProductController::class, 'delProductTour'])->name('api.product-tour-delete');
             Route::post('/tour/nodes/{id:\d+}', [ProductController::class, 'tourNodesSet'])->name('api.product-tour-add-nodes');
             Route::post('/plane/{id:\d+}', [ProductController::class, 'createPlaneGraphMarkers'])->name('api.product-create-plane-graph-markers');
-            Route::get('/plane/{id:\d+}', [ProductController::class, 'getProductPlaneGraph'])->name('api.product-get-plane-graph-markers');
             Route::put('/logo/{id:\d+}', [ProductController::class, 'setLogo'])->name('api.product-set-logo');
             Route::get('/logo/{id:\d+}', [ProductController::class, 'getLogo'])->name('api.product-get-logo');
             Route::put('/config/{id:\d+}', [ProductController::class, 'setConfig'])->name('api.product-set-config');
@@ -89,24 +89,29 @@ Route::group('/api', function () {
         Route::group('/iot', function() {
             Route::get('/device/catalogs', [IotController::class, 'getDeviceCatalogs'])->name('iot.device.catalogs');
            Route::get('/device/list', [IotController::class, 'getDeviceList'])->name('iot.device.list');
-           Route::get('/device/info/{deviceCode}', [IotController::class, 'getDeviceInfo'])->name('iot.device.info');
-           Route::get('/device/real-data/{deviceCode}', [IotController::class, 'getDeviceRealData'])->name('iot.device.real-data');
-           Route::get('/device/history-data/{deviceCode}', [IotController::class, 'getDeviceHistoryData'])->name('iot.device.history-data');
-           Route::get('/camera/live-url/{deviceCode}', [IotController::class, 'getCameraLiveUrl'])->name('iot.camera.live-url');
-           Route::get('/gis/tiles-url', [IotController::class, 'getGisTilesUrl'])->name('iot.gis.tiles-url');
         })->middleware([
             XAuthTokenIdentityMiddleware::class,
             CompanyIotMiddleware::class
         ]);
 
         // 作品:无需认证,游客也可访问
-        Route::get('/product/vr/{id}', [ProductController::class, 'getProductViewInfo'])->name('api.product-vr');
-        Route::get('/product/scene/{id:\d+}', [ProductController::class, 'showScene'])->name('api.product-scene-info');
-        Route::get('/product/scenes', [ProductController::class, 'sceneList'])->name('api.product-scene-list');
-        Route::get('/product/scene/hots/{id:\d+}', [ProductController::class, 'getSceneHotPoints'])->name('api.product-scene-hotpoint-list');
-        Route::post('/product/check-pwd', [ProductController::class, 'validateViewPassword'])->name('api.product-validate-view-password');
-        Route::get('/product/share/{id:\d+}', [ProductController::class, 'makeShareUrl'])->name('api.product-make-share-url');
-        Route::post('/product/share/check', [ProductController::class, 'checkShareToken'])->name('api.product-check-share-token');
+        Route::group('', function () {
+            Route::get('/product/vr/{id}', [ProductController::class, 'getProductViewInfo'])->name('api.product-vr');
+            Route::get('/product/scene/{id:\d+}', [ProductController::class, 'showScene'])->name('api.product-scene-info');
+            Route::get('/product/scenes', [ProductController::class, 'sceneList'])->name('api.product-scene-list');
+            Route::get('/product/scene/hots/{id:\d+}', [ProductController::class, 'getSceneHotPoints'])->name('api.product-scene-hotpoint-list');
+            Route::post('/product/check-pwd', [ProductController::class, 'validateViewPassword'])->name('api.product-validate-view-password');
+            Route::get('/product/share/{id:\d+}', [ProductController::class, 'makeShareUrl'])->name('api.product-make-share-url');
+            Route::post('/product/share/check', [ProductController::class, 'checkShareToken'])->name('api.product-check-share-token');
+            Route::get('/product/plane/{id:\d+}', [ProductController::class, 'getProductPlaneGraph'])->name('api.product-get-plane-graph-markers');
+            Route::get('/iot/device/info/{deviceCode}', [IotController::class, 'getDeviceInfo'])->name('iot.device.info');
+            Route::get('/iot/device/real-data/{deviceCode}', [IotController::class, 'getDeviceRealData'])->name('iot.device.real-data');
+            Route::get('/iot/device/history-data/{deviceCode}', [IotController::class, 'getDeviceHistoryData'])->name('iot.device.history-data');
+            Route::get('/iot/camera/live-url/{deviceCode}', [IotController::class, 'getCameraLiveUrl'])->name('iot.camera.live-url');
+            Route::get('/iot/gis/tiles-url', [IotController::class, 'getGisTilesUrl'])->name('iot.gis.tiles-url');
+        })->middleware([
+            ProductAnonymousVisitMiddleware::class
+        ]);
 
         // 上传
         Route::post('/upload/file', [\app\api\v1\controller\UploadController::class, 'singleFile'])->name('api.common.upload.file')->middleware([

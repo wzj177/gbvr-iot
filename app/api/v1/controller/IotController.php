@@ -3,12 +3,20 @@
 namespace app\api\v1\controller;
 
 use app\api\BaseController;
+use CoreW\Business\Product\Service\ProductService;
 use CoreW\Business\VIP\Service\VIPService;
 use CoreW\Sdk\Iot\IotDriverFactory;
 use support\Request;
 
 class IotController extends BaseController
 {
+    protected ?string $productCode;
+
+    public function __construct()
+    {
+        $this->productCode = \request()->header('X-Product-Code', \request()->get('prod_code'));
+    }
+
     public function getDeviceCatalogs(Request $request)
     {
         $items = $this->iotDriver()->deviceCatalogs();
@@ -72,16 +80,34 @@ class IotController extends BaseController
 
     protected function iotDriver(): \CoreW\Sdk\Iot\Driver\IotInterface
     {
-       $iotConfig =  $this->getVIPService()->getCompanyIotConfigByUserId($this->getUserId());
+        if ($this->productCode) {
+            $userId = 0;
+            $product = $this->getProductService()->getProductByCode($this->productCode);
+            if (!empty($product)) {
+                $userId = $product['userId'];
+            }
+        } else {
+            $userId = $this->getUserId();
+        }
 
-       return IotDriverFactory::create($iotConfig['serviceType'], $iotConfig);
+        $iotConfig = $this->getVIPService()->getCompanyIotConfigByUserId($userId);
+
+        return IotDriverFactory::create($iotConfig['serviceType'], $iotConfig);
     }
 
     /**
      * @return VIPService
      */
-    protected function getVIPService()
+    protected function getVIPService(): VIPService
     {
         return $this->createService('VIP:VIPService');
+    }
+
+    /**
+     * @return ProductService
+     */
+    protected function getProductService(): ProductService
+    {
+        return $this->createService('Product:ProductService');
     }
 }
