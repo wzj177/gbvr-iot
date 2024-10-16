@@ -11,7 +11,7 @@ class AddProductPasswordField extends Migration
     {
         $container = $this->getContainer();
         $container['db']->exec("ALTER TABLE `vr_product` 
-ADD COLUMN `password` varchar(20) NOT NULL COMMENT '访问密码' AFTER `brandWebsite`;");
+ADD COLUMN `password` varchar(20) NOT NULL DEFAULT '' COMMENT '访问密码' AFTER `brandWebsite`;");
     }
 
     /**

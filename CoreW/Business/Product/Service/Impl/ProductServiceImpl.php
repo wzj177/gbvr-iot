@@ -410,6 +410,7 @@ class ProductServiceImpl extends BaseService implements ProductService
 
             return $product['id'];
         } catch (\Throwable $e) {
+            $this->rollback();
             $this->getLogService()->error('product', 'create', '创建作品失败,user_id=' . $fields['userId'] . '，' . $e->getMessage(), [
                 'userId' => $fields['userId'],
                 'currentIp' => $currentIp
