@@ -175,44 +175,6 @@ server {
     }
 ```
 
-### 前端打包
-- 打包二级目录
-```js
-
-module.exports = {
-  publicPath: process.env.NODE_ENV === 'production' ? '/your-subdirectory/' : '/'
-}
-
-```
-2. 下载代码
-3. 包安装
-```shell script
-composer install -vvv
-```
-4. 修改环境配置文件`.env`，将自己的环境参数配置（一定阅读`.env.example`的注释)
-```shell script
-cp .env.example .env
-```
-5. 系统初始化
-    - 数据迁移
-    ```shell
-    bin/phpmig migrate 
-   ```
-
-    - 系统初始
-    ```shell
-   php webman system:init 
-   ```
-
-6. 运行
-```shell script
-php start.php start 
-php start.php stop
-php start.php status
-php start.php restart
-php start.php reload
-```
-
 ### 常用业务指令
 
 #### 生成业务层指令
