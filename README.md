@@ -207,21 +207,6 @@ module.exports = {
 }
 
 ```
-### nginx 配置
-```apacheconf
-# webman-vr-panoramic
-基于webman搭建的vr 全景装修平台
-## 快速开始
-
-### 安装
-#### 环境要求
-- PHP >= 7.2
-- Composer >= 2.0
-#### omposer 安装
-1. omposer 安装
-```shell script
-composer config -g --unset repos.packagist
-```
 2. 下载代码
 3. 包安装
 ```shell script
