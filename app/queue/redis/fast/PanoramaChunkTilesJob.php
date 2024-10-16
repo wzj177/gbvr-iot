@@ -74,7 +74,7 @@ class PanoramaChunkTilesJob implements Consumer
                     'tilePath' => $relativeTilePath,
                     'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ING
                 ]);
-                Log::debug("生成场景切片进行中，${$productId}");
+                Log::debug("生成场景切片进行中，{$productId}");
                 if (!is_dir($tilesPath) && @mkdir($tilesPath, 0755)) {
                 } else {
                     FileToolkit::removeDirFiles($tilesPath);
@@ -117,9 +117,9 @@ class PanoramaChunkTilesJob implements Consumer
                     }
                 }
                 $panoramaSmallPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $smallKey . '.' . $partInfo['extension'];
-                Log::debug("处理场景切片图片分辨率，${$productId}");
+                Log::debug("处理场景切片图片分辨率，{$productId}");
                 $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
-                Log::debug("处理场景切片图片分辨率完成，${$productId}");
+                Log::debug("处理场景切片图片分辨率完成，{$productId}");
                 $item = [
                     'tileRows' => $rows,
                     'tileColumns' => $columns,
