@@ -24,7 +24,7 @@ return [
         \app\middleware\admin\AppIDMiddleware::class
     ],
     'api' => [
+        \app\middleware\api\AppIDMiddleware::class,
         \app\middleware\AccessCorsControlMiddleware::class,
-        \app\middleware\api\AppIDMiddleware::class
     ]
 ];
