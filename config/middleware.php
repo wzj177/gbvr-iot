@@ -17,7 +17,7 @@ use Webman\Http\Request;
 
 return [
     '' => [
-//        \app\middleware\AccessCorsControlMiddleware::class,
+        \app\middleware\AccessCorsControlMiddleware::class,
         \app\middleware\IpCheckMiddleware::class
     ],
     'admin' => [
@@ -25,6 +25,5 @@ return [
     ],
     'api' => [
         \app\middleware\api\AppIDMiddleware::class,
-        \app\middleware\AccessCorsControlMiddleware::class,
     ]
 ];
