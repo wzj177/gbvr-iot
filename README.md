@@ -199,7 +199,7 @@ php webman make:biz -i Student -s students
 
 ## 注意
 ### daoProxy
-当开启了dao层缓存后，在dao里面以以下单词开头命名或直接命名的方法需要需要，因为会走daoProxy
+当开启了dao层缓存后，在dao里面以以下单词开头命名或直接命名的方法会被代理从而缓存dao层拿到的db数据，因为会走daoProxy
 `'get', 'find', 'search', 'count', 'create', 'batchCreate', 'batchUpdate', 'batchDelete', 'update', 'wave', 'delete'`
 
 ## 工具和资料
