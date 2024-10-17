@@ -118,10 +118,6 @@ class PanoramaChunkTilesJob implements Consumer
                     }
                 }
                 $panoramaSmallPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $smallKey . '.' . $partInfo['extension'];
-//                Log::debug("处理场景切片图片分辨率，{$productId}");
-//                $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
-                $result = false;
-//                Log::debug("处理场景切片图片分辨率完成，{$productId}");
                 $item = [
                     'tileRows' => $rows,
                     'tileColumns' => $columns,
@@ -129,16 +125,20 @@ class PanoramaChunkTilesJob implements Consumer
                     'tileSize' => $tileSize,
                     'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_OK
                 ];
+                $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
+                $tileSize = $this->getDirectorySize($tilesPath);
+                $this->getVIPService()->addUsedSpaceSize($userId, $tileSize);
+                Log::debug("处理场景切片图片分辨率，{$productId}");
+                $item = [];
+                $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
                 if ($result !== false) {
                     $panoramaSize = filesize($panoramaFile) + $result[1];
                     $item['panoramaSize'] = $panoramaSize;
                     $item['panoramaSmall'] = str_replace(uploads_path(), 'uploads', $panoramaSmallPath);
+                    $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
+                    Log::debug("处理场景切片图片分辨率完成，{$productId}");
                 }
 
-                $tileSize = $this->getDirectorySize($tilesPath);
-                Log::debug('ok tiles', $item);
-                $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
-                $this->getVIPService()->addUsedSpaceSize($userId, $tileSize);
                 $this->getLogService()->info('product_scene', 'chunk_panorama', '全景图切片完成', [
                     'productId' => $productId,
                     'panorama_file' => $panoramaFile,
@@ -176,8 +176,9 @@ class PanoramaChunkTilesJob implements Consumer
                 return false;
             }
             $image = $this->getImagine()->open($originalImagePath);
+            Log::debug('打开低分辨率的全景图图片成功');
         } catch (\Throwable $e) {
-            Log::error('打开图片资源失败, ' . $e->getMessage());
+            Log::error('打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
         }
         $minSize = 500 * 1024; // 500KB（以字节为单位）
         // 初始图像质量
