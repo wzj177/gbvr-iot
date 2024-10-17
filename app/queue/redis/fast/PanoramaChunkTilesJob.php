@@ -171,6 +171,88 @@ class PanoramaChunkTilesJob implements Consumer
      */
     protected function compressPanoramaSmallImage(string $originalImagePath, string $targetImagePath, int $maxSize = 1024 * 1024, int $quality = 80)
     {
+        if (!extension_loaded('imagick')) {
+            return false;
+        }
+
+        try {
+            if (filesize($originalImagePath) <= $maxSize) {
+                return false;
+            }
+
+            // 打开图像，限制内存使用
+            $image = new \Imagick($originalImagePath);
+            $image->setResourceLimit(\Imagick::RESOURCETYPE_MEMORY, 256);  // 限制内存使用到 256MB
+            $image->setResourceLimit(\Imagick::RESOURCETYPE_DISK, 1024);   // 限制磁盘使用到 1024MB
+
+            Log::debug('打开低分辨率的全景图图片成功');
+        } catch (\Throwable $e) {
+            Log::error('打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            return false;
+        }
+
+        $minSize = 500 * 1024;  // 500KB（以字节为单位）
+        $fileSize = 0;
+
+        // 调整图像质量和尺寸的循环
+        do {
+            try {
+                // 保存当前图像并更新文件大小
+                $image->setImageFormat('jpeg');  // 设置输出格式为 JPEG
+                $image->stripImage();            // 去除不必要的元数据
+                $image->setImageCompressionQuality($quality);  // 设置图像质量
+                $image->writeImage($targetImagePath);  // 保存图像
+                clearstatcache(true, $targetImagePath);  // 清除缓存
+                $fileSize = filesize($targetImagePath);
+
+                Log::debug('当前图像大小：', [$fileSize, '期望最小值：', $minSize]);
+
+                // 若文件大小小于最小值，结束循环
+                if ($fileSize <= $minSize) {
+                    break;
+                }
+
+                // 按比例缩小图像尺寸，调整质量
+                $size = $image->getImageGeometry();
+                $newWidth = $size['width'] * 0.9;  // 缩小为原来的 90%
+                $newHeight = $size['height'] * 0.9;  // 缩小为原来的 90%
+                $image->resizeImage($newWidth, $newHeight, \Imagick::FILTER_LANCZOS, 1);  // 使用 Lanczos 滤镜缩放
+                $quality = max(5, $quality - 2);  // 递减质量，最小为 5
+            } catch (\Throwable $e) {
+                Log::error('调整图像质量或尺寸失败, ' . $e->getMessage());
+                break;
+            }
+        } while ($fileSize > $maxSize);
+
+        // 最终保存图像
+        try {
+            $image->writeImage($targetImagePath);
+            Log::debug('保存低分辨率的全景图图片资源成功');
+        } catch (\Throwable $e) {
+            Log::error('保存低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            return false;
+        } finally {
+            // 释放资源
+            $image->clear();
+            $image->destroy();
+        }
+
+        Log::debug('返回低分辨率图片大小', [$targetImagePath, $fileSize]);
+        return [$targetImagePath, $fileSize];
+    }
+
+
+    /**
+     * 生成低分辨率的全景图（大小控制在500kb～1mb）
+     * @param string $originalImagePath
+     * @param string $targetImagePath
+     * @param int $maxSize
+     * @param int $quality 初始图像质量
+     * @return array|false
+     * @deprecated
+     */
+    protected function compressPanoramaSmallImageOld(string $originalImagePath, string $targetImagePath, int $maxSize = 1024 * 1024, int $quality = 80)
+    {
         try {
             if (filesize($originalImagePath) <= $maxSize) {
                 return false;

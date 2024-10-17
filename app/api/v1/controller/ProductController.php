@@ -615,7 +615,7 @@ class ProductController extends BaseController
         return $this->getProductViewInfo($request, $productId);
     }
 
-    protected function checkAspectRatio($imagePath, $aspectRatioWidth = 2, $aspectRatioHeight = 1)
+    protected function checkAspectRatio($imagePath, $aspectRatioWidth = 2, $aspectRatioHeight = 1): bool
     {
         // 获取图片尺寸
         $imageSize = getimagesize($imagePath);
