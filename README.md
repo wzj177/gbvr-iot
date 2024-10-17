@@ -5,6 +5,7 @@
 #### 环境要求
 - PHP >= 7.2
 - Composer >= 2.0
+- 内存至少 4GB （系统会使用ImageMagick处理全景图片，生成对应全景图片的低分辨率图：如果全景图片在20mb以上就会有很大的内存开销，如果内存不足会导致生成低分辨率图失败的可能）
 #### composer 安装
 ```shell script
 composer config -g --unset repos.packagist
@@ -196,6 +197,15 @@ php webman make:biz -i Student -s students
  php webman make:biz-dao -i Product -d ProductCatalog 
 ```
 
+## 系统消息队列任务表
+- 删除全景场景任务：
+- 生成大文件分片任务：
+- 清理大文件分片上传的临时片段文件：
+- 文件上传后异步任务：对视频文件进行取帧、计算时长等
+- 全景图片矢量图分片任务：
+- 删除文件任务：
+- 发送邮件任务：
+- 会员邮箱验证任务：
 
 ## 注意
 ### daoProxy
