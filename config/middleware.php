@@ -17,13 +17,14 @@ use Webman\Http\Request;
 
 return [
     '' => [
-        \app\middleware\AccessCorsControlMiddleware::class,
+//        \app\middleware\AccessCorsControlMiddleware::class,
         \app\middleware\IpCheckMiddleware::class
     ],
     'admin' => [
         \app\middleware\admin\AppIDMiddleware::class
     ],
     'api' => [
+        \app\middleware\AccessCorsControlMiddleware::class,
         \app\middleware\api\AppIDMiddleware::class
     ]
 ];
