@@ -35,7 +35,8 @@ foreach ($folders as $folder) {
 
 
 Route::fallback(function (Request $request) {
-    if (strtoupper($request->method()) === 'OPTIONS' && config('app.debug')) {
+    // && config('app.debug')
+    if (strtoupper($request->method()) === 'OPTIONS') {
         $response = response('', 204);
     } elseif ($request->isAjax()
         || $request->isPjax()
