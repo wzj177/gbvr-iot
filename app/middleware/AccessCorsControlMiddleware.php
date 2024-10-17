@@ -9,9 +9,9 @@ class AccessCorsControlMiddleware implements MiddlewareInterface
 {
     public function process(Request $request, callable $next) : Response
     {
-        if (!config('app.debug')) {
-            return $next($request);
-        }
+//        if (!config('app.debug')) {
+//            return $next($request);
+//        }
 
         if (0 === strpos($request->path(), '/api') || 0 === strpos($request->path(), '/admin') || 0 === strpos($request->path(), '/uploads')) {
             // 如果是options请求，不处理业务
