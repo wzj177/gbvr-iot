@@ -118,9 +118,10 @@ class PanoramaChunkTilesJob implements Consumer
                     }
                 }
                 $panoramaSmallPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $smallKey . '.' . $partInfo['extension'];
-                Log::debug("处理场景切片图片分辨率，{$productId}");
-                $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
-                Log::debug("处理场景切片图片分辨率完成，{$productId}");
+//                Log::debug("处理场景切片图片分辨率，{$productId}");
+//                $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
+                $result = false;
+//                Log::debug("处理场景切片图片分辨率完成，{$productId}");
                 $item = [
                     'tileRows' => $rows,
                     'tileColumns' => $columns,
