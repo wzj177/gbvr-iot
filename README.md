@@ -89,7 +89,7 @@ return [
   ```
 - 如何开启多端认证
   修改`config/app.php`文件,将jwt_的主要参数配置到对应端:
-  ```php
+```php
     'api' => [
         'auth_ttl' => '{默认token登录过期时间：7天}', 
         'jwt_ttl' => '{jwt access token 过期时间，如果设置则会覆盖默认的jwt配置}'
@@ -102,15 +102,11 @@ return [
         //
     ],
 ```
-
 - 切换认证存储方式为redis（目前支持db和redis，默认为db）
-
+  修改配置文件`.env`:
 ```
-   修改配置文件`.env`
-   ```php
-    AUTH_TOKEN_STORAGE='redis'
-   ```
-
+AUTH_TOKEN_STORAGE='redis'
+```
 ### nginx
 ```shell
 upstream webman-vr {
