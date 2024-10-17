@@ -102,8 +102,10 @@ return [
         //
     ],
 ```
+
 - 切换认证存储方式为redis（目前支持db和redis，默认为db）
 
+```
    修改配置文件`.env`
    ```php
     AUTH_TOKEN_STORAGE='redis'
