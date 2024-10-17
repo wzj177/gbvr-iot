@@ -14,6 +14,7 @@
 
 namespace support;
 
+use CoreW\Webman\UploadFile;
 use support\utils\DeviceToolkit;
 
 /**
@@ -75,4 +76,8 @@ class Request extends \Webman\Http\Request
         return $postData;
     }
 
+    protected function parseFile(array $file): UploadFile
+    {
+        return new UploadFile($file['tmp_name'], $file['name'], $file['type'], $file['error']);
+    }
 }

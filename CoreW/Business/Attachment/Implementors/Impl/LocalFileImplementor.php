@@ -7,11 +7,10 @@ namespace CoreW\Business\Attachment\Implementors\Impl;
 use CoreW\Business\Attachment\Exception\AttachmentException;
 use CoreW\Business\Attachment\Implementors\AbstractFileImplementor;
 use CoreW\Business\Attachment\Implementors\FileImplementor;
-use Illuminate\Support\Facades\Storage;
 use Imagine\Image\Box;
 use support\utils\StringToolkit;
-use Webman\Http\UploadFile;
-
+//use Webman\Http\UploadFile;
+use CoreW\Webman\UploadFile;
 class LocalFileImplementor extends AbstractFileImplementor implements FileImplementor
 {
 
@@ -74,7 +73,7 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
         $type = $this->getAttachmentTypeByUploadFile($file);
         $thumbPath = '';
         $absolutePath = uploads_path() . DIRECTORY_SEPARATOR . $path;
-        $file->move($absolutePath);
+        $file->move($absolutePath, 0755);
         if ($isSaveThumbImage) {
             list($thumbWidth, $thumbHeight) = $thumbImageOptions['box'] ?? [];
             if (!empty($thumbWidth) && !empty($thumbHeight)) {

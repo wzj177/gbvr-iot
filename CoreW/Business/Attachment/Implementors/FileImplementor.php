@@ -4,7 +4,8 @@
 namespace CoreW\Business\Attachment\Implementors;
 
 
-use Webman\Http\UploadFile;
+//use Webman\Http\UploadFile;
+use CoreW\Webman\UploadFile;
 
 /**
  * Interface FileImplementor
