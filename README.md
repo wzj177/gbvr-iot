@@ -92,7 +92,7 @@ return [
   ```php
     'api' => [
         'auth_ttl' => '{默认token登录过期时间：7天}', 
-        'jwt_ttl' => '{jwt access token 过期时间，如果设置则会覆盖默认的jwt配置}
+        'jwt_ttl' => '{jwt access token 过期时间，如果设置则会覆盖默认的jwt配置}'
         'jwt_refresh_ttl' => '{jwt refresh token 过期时间，如果设置则会覆盖默认的jwt配置}',
         'jwt_secret' => '',
         'jwt_private_key' => '',
