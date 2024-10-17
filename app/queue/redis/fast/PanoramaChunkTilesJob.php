@@ -170,11 +170,10 @@ class PanoramaChunkTilesJob implements Consumer
      */
     protected function compressPanoramaSmallImage(string $originalImagePath, string $targetImagePath, int $maxSize = 1024 * 1024, int $quality = 80)
     {
-        if (filesize($originalImagePath) <= $maxSize) {
-            return false;
-        }
-
         try {
+            if (filesize($originalImagePath) <= $maxSize) {
+                return false;
+            }
             $image = $this->getImagine()->open($originalImagePath);
         } catch (\Throwable $e) {
             Log::error('打开图片资源失败, ' . $e->getMessage());
