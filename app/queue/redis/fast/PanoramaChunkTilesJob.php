@@ -174,7 +174,11 @@ class PanoramaChunkTilesJob implements Consumer
             return false;
         }
 
-        $image = $this->getImagine()->open($originalImagePath);
+        try {
+            $image = $this->getImagine()->open($originalImagePath);
+        } catch (\Throwable $e) {
+            Log::error('打开图片资源失败, ' . $e->getMessage());
+        }
         $minSize = 500 * 1024; // 500KB（以字节为单位）
         // 初始图像质量
         do {
@@ -183,7 +187,7 @@ class PanoramaChunkTilesJob implements Consumer
             clearstatcache($targetImagePath);
             // 检查文件大小
             $fileSize = filesize($targetImagePath);
-//            echo 'current $fileSize:', $fileSize, PHP_EOL;
+            Log::debug('compressPanoramaSmallImage', [$fileSize, $quality]);
             if ($fileSize <= $minSize) {
                 break;
             }
