@@ -128,7 +128,4 @@ Route::group('/api', function () {
             Route::get('/dict/{key}', [PublicController::class, 'getDictItems'])->name('api.public.dict-items');
         });
     });
-})->middleware([
-    \app\middleware\AccessCorsControlMiddleware::class,
-    \app\middleware\IpCheckMiddleware::class
-]);
+});
