@@ -182,8 +182,11 @@ class PanoramaChunkTilesJob implements Consumer
 
             // 打开图像，限制内存使用
             $image = new \Imagick($originalImagePath);
-            $image->setResourceLimit(\Imagick::RESOURCETYPE_MEMORY, 256);  // 限制内存使用到 256MB
-            $image->setResourceLimit(\Imagick::RESOURCETYPE_DISK, 1024);   // 限制磁盘使用到 1024MB
+            // 增加内存和磁盘资源限制
+            $image->setResourceLimit(\Imagick::RESOURCETYPE_MEMORY, 512);  // 增加内存限制到 512MB
+            $image->setResourceLimit(\Imagick::RESOURCETYPE_DISK, 2048);   // 增加磁盘缓存限制到 2GB
+            $image->setResourceLimit(\Imagick::RESOURCETYPE_MAP, 1024);    // 增加映射文件大小
+            $image->setResourceLimit(\Imagick::RESOURCETYPE_FILE, 100);    // 增加文件资源限制
 
             Log::debug('打开低分辨率的全景图图片成功');
         } catch (\Throwable $e) {
