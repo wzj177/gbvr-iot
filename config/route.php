@@ -50,15 +50,15 @@ Route::fallback(function (Request $request) {
         $response = view('404', ['error' => '404 not found!!!'])->withStatus(404);
     }
 
-    if (config('app.debug')) {
-        $response->withHeaders([
-            'Access-Control-Allow-Credentials' => 'true',
-            'Access-Control-Allow-Origin' => $request->header('origin', '*'),
-            'Access-Control-Allow-Methods' => $request->header('access-control-request-method', '*'),
-            'Access-Control-Allow-Headers' => $request->header('access-control-request-headers', '*'),
-        ]);
-    }
-
+//    if (config('app.debug')) {
+//
+//    }
+    $response->withHeaders([
+        'Access-Control-Allow-Credentials' => 'true',
+        'Access-Control-Allow-Origin' => $request->header('origin', '*'),
+        'Access-Control-Allow-Methods' => $request->header('access-control-request-method', '*'),
+        'Access-Control-Allow-Headers' => $request->header('access-control-request-headers', '*'),
+    ]);
 
     return $response;
 });
