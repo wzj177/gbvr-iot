@@ -179,20 +179,21 @@ class PanoramaChunkTilesJob implements Consumer
             Log::debug('打开低分辨率的全景图图片成功');
         } catch (\Throwable $e) {
             Log::error('打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            return false;
         }
         $minSize = 500 * 1024; // 500KB（以字节为单位）
         // 初始图像质量
+        $fileSize = 0;
         do {
             // 调整图像质量
-            $image->save($targetImagePath, ['quality' => $quality]);
-            clearstatcache($targetImagePath);
-            // 检查文件大小
-            $fileSize = filesize($targetImagePath);
-            Log::debug('compressPanoramaSmallImage', [$fileSize, $minSize]);
-            if ($fileSize <= $minSize) {
-                break;
-            }
             try {
+                $image->save($targetImagePath, ['quality' => $quality]);
+                clearstatcache($targetImagePath);
+                $fileSize = filesize($targetImagePath);
+                Log::debug('低分辨率的全景图图片 原图大小：', [$fileSize, $minSize]);
+                if ($fileSize <= $minSize) {
+                    break;
+                }
                 // 如果大小超过上限，则按比例缩小图像
                 $size = $image->getSize();
                 $newWidth = $size->getWidth() * 0.9; // 缩小为原来的 90%
@@ -212,7 +213,9 @@ class PanoramaChunkTilesJob implements Consumer
             Log::debug('保存低分辨率的全景图图片资源成功');
         } catch (\Throwable $e) {
             Log::error('保存低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            return false;
         }
+
         Log::debug('返回低分辨率图片大小', [$targetImagePath, $fileSize]);
         return [$targetImagePath, $fileSize];
     }
