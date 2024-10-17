@@ -18,21 +18,25 @@ composer install -vvv
 cp .env.example .env
 ```
 #### 系统初始化
-   - 数据迁移
-    ```shell
-    bin/phpmig migrate 
-   ```
+
+- 数据迁移
+
+```shell
+bin/phpmig migrate 
+```
    
-   - 系统初始
-    ```shell
-   php webman system:init 
-   ```
-#### 运行
+- 系统初始化
+```shell
+php webman system:init 
+```
+#### 运行系统
 ```shell script
 php start.php start 
 php start.php stop
 php start.php status
 php start.php restart
+# 守护进程启动
+php start.php restart -d
 php start.php reload
 ```
 ### 基础配置
