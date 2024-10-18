@@ -4,7 +4,6 @@
 namespace app\middleware\security\firewall;
 
 
-use app\middleware\security\authentication\token\ApiToken;
 use CoreW\Bfw as Biz;
 use CoreW\Business\BizEnum;
 use CoreW\Business\Common\UserException;
