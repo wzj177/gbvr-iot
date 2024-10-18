@@ -2,28 +2,44 @@
 
 namespace app\middleware;
 
+use app\middleware\api\firewall\XAuthTokenAuthenticationListener;
 use CoreW\Bfw;
 use CoreW\Business\BizEnum;
-use CoreW\Business\Common\UserException;
+use CoreW\Business\Common\VIPException;
 use CoreW\Business\Product\Service\ProductService;
 use CoreW\Core;
 use Webman\Http\Request;
 use Webman\Http\Response;
 use Webman\MiddlewareInterface;
 
-class ProductAnonymousVisitMiddleware implements MiddlewareInterface
+class ProductAnonymousVisitMiddleware extends AbstractAuthIdentity implements MiddlewareInterface
 {
+    protected $currentUserIndex = 'vip';
 
     public function process(Request $request, callable $handler): Response
     {
         $tokenKey = config('auth.token_handler') === 'jwt' ? 'authorization' : 'x-auth-token';
         $token = $request->header($tokenKey);
         if (!empty($token)) {
-            return $handler($request);
+            // TODO: 验证token
+            try {
+                $authenticationListener = new XAuthTokenAuthenticationListener($this->getBiz());
+                $result = $authenticationListener->handle($request);
+                if (is_array($result) && isset($result['key']) && $result['key'] === 'Authorization') {
+                    $this->identity();
+                    return $handler($request)->withHeaders([
+                        'Authorization' => $result['token'],
+                        'AuthorizationType' => $result['type']
+                    ]);
+                }
+                return $handler($request);
+            } catch (\Throwable $e) {
+                throw $e;
+            }
         }
         $productCode = $request->header('X-Product-Code', $request->get('prod_code'));
         if (!$productCode) {
-            throw  UserException::EXPIRED_OR_NOTFOUND_TOKEN();
+            throw  VIPException::EXPIRED_OR_NOTFOUND_TOKEN();
         }
 
         $product = $this->getProductService()->getProductByCode($productCode);
