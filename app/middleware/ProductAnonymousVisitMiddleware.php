@@ -32,6 +32,7 @@ class ProductAnonymousVisitMiddleware extends AbstractAuthIdentity implements Mi
                         'AuthorizationType' => $result['type']
                     ]);
                 }
+                $this->identity();
                 return $handler($request);
             } catch (\Throwable $e) {
                 throw $e;
