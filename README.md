@@ -196,6 +196,10 @@ server {
 ```shell
 php webman make:vip
 ```
+#### 审核公司命令
+```shell
+php webman company:check
+```
 #### 生成业务层指令
 ```shell
 # 例如:生成商品业务层
