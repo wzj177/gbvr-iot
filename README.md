@@ -115,7 +115,7 @@ AUTH_TOKEN_STORAGE='redis'
 ### nginx
 ```shell
 upstream webman-vr {
-    server 127.0.0.1:8787;
+    server 127.0.0.1:8886;
     keepalive 10240;
 }
 server {
@@ -125,6 +125,9 @@ server {
     error_log  /var/logs/nginx/vr.com.cn.error.log;
     # 装修前端静态资源目录
     root /www/wwwroot/vr.com.cn/public/front;
+    client_max_body_size 50m;
+    client_body_buffer_size 2m;
+    # ssl 配置
     # 处理 /api-static/ 的请求
     location ^~ /api-static {
         alias /www/wwwroot/vr.com.cn/public/api-static/;  # 指向实际的静态资源目录
@@ -168,13 +171,22 @@ server {
     }
     # 大文件下载借用 fpm, 需要修改.env 配置内的安全参数:BIG_FILE_DOWNLOAD_REFERER_WHITE_LIST='文件分段下载，download.php 允许来源访问白名单(多个 url 以英文｜分割)' 
     location ^~ admin/download.php {
+            fastcgi_pass   unix:/var/run/php/php7.4-fpm.sock;
+            fastcgi_index  index.php;
+            fastcgi_split_path_info  ^((?U).+\.php)(/?.+)$;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            fastcgi_param  PATH_INFO  $fastcgi_path_info;
+            fastcgi_param  PATH_TRANSLATED  $document_root$fastcgi_path_info;
+            include        fastcgi_params;
             try_files $uri =404;
-            fastcgi_pass  unix:/tmp/php-cgi-74.sock;
-            fastcgi_index index.php;
-            include fastcgi.conf;
-            include pathinfo.conf;
+#            try_files $uri =404;
+#            fastcgi_pass  unix:/tmp/php-cgi-74.sock;
+#            fastcgi_index index.php;
+#            include fastcgi.conf;
+#            include pathinfo.conf;
     }
-       }
+       
+  }
     }
 ```
 

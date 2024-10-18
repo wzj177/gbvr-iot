@@ -21,7 +21,7 @@ class SystemCommand extends Command
     protected static $defaultName = 'system:init';
     protected static $defaultDescription = '系统初始化';
 
-    const DEFAULT_USER_PWD = 'Aa12345678';
+    const DEFAULT_USER_PWD = 'qwe123456@vr';
 
     /**
      * @return void
