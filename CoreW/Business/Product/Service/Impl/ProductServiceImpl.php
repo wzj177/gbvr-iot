@@ -588,10 +588,91 @@ class ProductServiceImpl extends BaseService implements ProductService
             'iconMarkerParams',
             'iconTitleMarkerParams'
         ]);
+        //https://v.douyin.com/CeiG1C32/ - 7436887548753906981
+        if (!empty($fields['videoUrl'])) {
+            preg_match('/src=\"(.*?)\"/i', $fields['videoUrl'], $matches);
+            if (!empty($matches[1])) {
+                $fields['videoUrl'] = $matches[1];
+                if (!empty($fields['iconMarkerParams']['data']['videoUrl'])) {
+                    $fields['iconMarkerParams']['data']['videoUrl'] = $fields['videoUrl'];
+                }
+            }
+
+            if (preg_match('/^https:\/\/v\.douyin\.com\/[A-Za-z0-9]+\/$/', $fields['videoUrl'])) {
+                $fields['videoUrl'] = $this->getDouYinVideoRedirectUrl($fields['videoUrl']);
+                if (!empty($fields['iconMarkerParams']['data']['videoUrl'])) {
+                    $fields['iconMarkerParams']['data']['videoUrl'] = $fields['videoUrl'];
+                }
+            }
+        }
         empty($fields['toSceneId']) && $fields['toSceneId'] = 0;
         empty($fields['iconTitleMarkerParams']) && $fields['iconTitleMarkerParams'] = [];
         $hotpoint = $this->getHotpointByUUID($fields['uuid']);
         return $hotpoint ? $this->getHotPointDao()->update($hotpoint['id'], array_merge($hotpoint, $fields)) : $this->getHotPointDao()->create($fields);
+    }
+
+    /**
+     * 获取抖音视频重定向地址
+     * @param $url
+     * @return string
+     */
+    protected function getDouYinVideoRedirectUrl($url): string
+    {
+        $ch = curl_init();
+        $finalUrl = null;
+        $headers = [
+            'Referer: https://www.douyin.com/',
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'
+        ];
+        curl_setopt($ch, CURLOPT_URL, $url);            // 设置完整的请求 URL
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);      // 设置返回数据为字符串
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);      // 设置请求头
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);     // 禁止自动重定向
+        curl_setopt($ch, CURLOPT_HEADER, true);              // 返回响应头信息
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if (!$response) {
+            return $url;
+        }
+
+        // 分离响应头和正文
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $headers = substr($response, 0, $headerSize);
+        // 检查是否是 30x 状态码
+        if (substr((string)$httpCode, 0, 2) === '30') {
+            // 提取 "Location" 重定向位置
+            preg_match('/Location:\s*(.+?)\s*\n/i', $headers, $matches);
+            if (!empty($matches[1])) {
+                $finalUrl = trim($matches[1]);
+            }
+        }
+        curl_close($ch);
+        if (!empty($finalUrl)) {
+            preg_match('/[video|note]\/([0-9]+)\//i', $finalUrl, $matches);
+            if (isset($matches[1])) {
+                $videoId = $matches[1];
+                $apiUrl = "https://open.douyin.com/api/douyin/v1/video/get_iframe_by_video?video_id={$videoId}";
+                // 初始化 cURL 会话
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $apiUrl);             // 设置请求的 URL
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);   // 设置返回数据作为字符串
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);   // 允许跳转
+                curl_setopt($ch, CURLOPT_HEADER, false);          // 不返回头信息
+                $response = curl_exec($ch);
+                if (!empty($response)) {
+                    $json = json_decode($response, true);
+                    if (!empty($json['data']['iframe_code'])) {
+                        preg_match('/src=\"(.*?)\"/i', $json['data']['iframe_code'], $matches);
+                        if (!empty($matches[1])) {
+                            return $matches[1];
+                        }
+                    }
+                }
+            }
+        }
+
+        return !empty($finalUrl) ? $finalUrl : $url;
     }
 
     public function deleteHotPoint(int $id)
@@ -780,7 +861,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             'center' => $dto->center,
             'rotation' => $dto->rotation,
         ];
-        if (!empty( $dto->gisParam)) {
+        if (!empty($dto->gisParam)) {
             $fields['gisParam'] = $dto->gisParam;
         }
 
