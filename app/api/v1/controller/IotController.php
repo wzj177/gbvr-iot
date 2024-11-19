@@ -66,7 +66,13 @@ class IotController extends BaseController
     public function getCameraLiveUrl(Request $request, $deviceCode)
     {
         $item = $this->iotDriver()->cameraLiveUrl($deviceCode);
-
+//        $item = [
+//            'code' => 0,
+//            'data' => [
+//                'url' => 'https://zlm.boyuntong.com/rtp/24FE7973/hls.m3u8'
+//            ],
+//            'message' => 'ok'
+//        ];
         return json($item);
     }
 
