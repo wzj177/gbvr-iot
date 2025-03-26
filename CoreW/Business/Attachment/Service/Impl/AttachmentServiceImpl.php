@@ -440,8 +440,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         // 这里需要处理逻辑：记录最后一次写入的分片号，如果当前的分片号<上次的分片号，则抛弃---需要使用循环
         $path = pathinfo($chunkFile, PATHINFO_DIRNAME);
         $tmpIndexFile = sprintf("%s/index_tmp", $path);
-        if (!is_file($tmpIndexFile) && touch($tmpIndexFile)) {
-        }
+        if (!is_file($tmpIndexFile) && touch($tmpIndexFile)) {}
         $tmpIndexFp = fopen($tmpIndexFile, 'r');
         if (flock($tmpIndexFp, LOCK_EX)) {
             try {
