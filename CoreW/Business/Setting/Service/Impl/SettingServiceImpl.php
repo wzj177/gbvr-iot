@@ -130,7 +130,7 @@ class SettingServiceImpl extends BaseService implements SettingService
      * @param string $namespace
      * @param $setting
      */
-    protected function setCache($name, $namespace = 'default', $setting)
+    protected function setCache($name, $namespace, $setting)
     {
         $key = $this->getCacheKey($name, $namespace);
         $this->getRedisCache()->del($key);

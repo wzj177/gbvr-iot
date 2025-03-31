@@ -226,6 +226,7 @@ abstract class Base
                 $rawResponse = $this->client->get($uri, $params, $headers);
             }
 
+
             list($rawHeaders, $rawBody) = $this->extractResponseHeadersAndBody($rawResponse);
             $response = new HttpResponse($rawHeaders, $rawBody);
             $this->log("[{$uri}] RESPONSE_BODY {$response->getBody()}", [], 'debug');
@@ -235,7 +236,7 @@ abstract class Base
         } catch (\Exception $e) {
             $this->log("[$uri] GET ERROR", [
                 'errCode' => $e->getCode(),
-                'errInfo' => $e->getMessage(),
+                'errInfo' => $e->getTraceAsString(),
             ], 'error');
             return [
                 'code' => $this->responseFailCode,

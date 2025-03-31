@@ -41,4 +41,9 @@ class Common extends Base implements IotInterface
     {
         return $this->getFuncData(BizEnum::VIP_COMPANY_IOT_API_GIS_TILES_URL, $params);
     }
+
+    protected function getDeviceTypeFormat(array $device): ?string
+    {
+        // TODO: Implement getDeviceTypeFormat() method.
+    }
 }
