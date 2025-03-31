@@ -46,4 +46,9 @@ class Common extends Base implements IotInterface
     {
         // TODO: Implement getDeviceTypeFormat() method.
     }
+
+    public function auth(string $token): ?array
+    {
+        return null;
+    }
 }

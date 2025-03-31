@@ -220,13 +220,7 @@ abstract class Base
         }
 
         try {
-            if ('POST' === $method) {
-                $rawResponse = $this->client->post($uri, $params, [], $headers);
-            } else {
-                $rawResponse = $this->client->get($uri, $params, $headers);
-            }
-
-
+            $rawResponse = 'POST' === $method ? $this->client->post($uri, $params, [], $headers) : $this->client->get($uri, $params, $headers);
             list($rawHeaders, $rawBody) = $this->extractResponseHeadersAndBody($rawResponse);
             $response = new HttpResponse($rawHeaders, $rawBody);
             $this->log("[{$uri}] RESPONSE_BODY {$response->getBody()}", [], 'debug');

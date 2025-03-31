@@ -3,6 +3,7 @@
 namespace CoreW\Sdk\Iot\Driver;
 
 use CoreW\Business\BizEnum;
+use Illuminate\Support\Str;
 
 class BytV4 extends Base implements IotInterface
 {
@@ -126,5 +127,19 @@ class BytV4 extends Base implements IotInterface
         }
 
         return $this->request($setting['url'], $setting['method'], $params);
+    }
+
+    public function auth(string $token): ?array
+    {
+        if (Str::startsWith($token, "Bearer ") === false) {
+            $token = "Bearer " . $token;
+        }
+
+        // 保证物联网后台管理登录的token验证有效
+        $this->host = str_replace('api', 'admin', $this->host);
+
+        return $this->request('/auth/user','GET', [], [
+            'Authorization' => $token
+        ]);
     }
 }

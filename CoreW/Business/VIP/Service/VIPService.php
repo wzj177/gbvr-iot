@@ -77,7 +77,7 @@ interface VIPService
      * @param LoginFormDto $dto
      * @return array
      */
-    public function login(LoginFormDto $dto);
+    public function login(LoginFormDto $dto): array;
 
 
     /**
@@ -175,4 +175,6 @@ interface VIPService
     public function searchCompanyList(array $conditions, array $orderBys, $start, $limit, $columns = []);
 
     public function getCompanyIotConfigByUserId(int $userId);
+
+    public function getCompanyIotConfigByAppId(string $appId);
 }

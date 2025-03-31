@@ -3,7 +3,10 @@
 namespace app\api\v1\controller;
 
 use app\api\BaseController;
+use app\api\filters\VIPFilter;
+use CoreW\Business\BizEnum;
 use CoreW\Business\Product\Service\ProductService;
+use CoreW\Business\VIP\Dao\LoginFormDto;
 use CoreW\Business\VIP\Service\VIPService;
 use CoreW\Sdk\Iot\IotDriverFactory;
 use support\Request;
@@ -15,6 +18,42 @@ class IotController extends BaseController
     public function __construct()
     {
         $this->productCode = \request()->header('X-Product-Code', \request()->get('prod_code'));
+    }
+
+    public function auth(Request $request)
+    {
+        $iotToken = $request->post('token', '');
+        $appId = $request->post('app', '');
+        if (empty($iotToken) || empty($appId)) {
+            return $this->createErrorJsonResponse('参数错误');
+        }
+
+        $iotDriver = $this->getIotDriverByAppId($appId);
+        if (empty($iotDriver)) {
+            return $this->createErrorJsonResponse('未找到对应的配置');
+        }
+
+
+        $result = $iotDriver->auth($iotToken);
+        if ($result['code'] === 0 && !empty($result['data']['uuid'])) {
+            // iot 授权成功后自动登录
+            $iotConfig = $this->getVIPService()->getCompanyIotConfigByAppId($appId);
+            $dto = new LoginFormDto();
+            $dto->mode = 'silent_login';
+            $dto->userId = $iotConfig['userId'];
+            $dto->clientType = BizEnum::TOKEN_TYPE_VIP_PC_LOGIN;
+            $dto->requestIp = $request->getRealIp();
+            list($vip, $token) = $this->getVIPService()->login($dto);
+            $filter = new VIPFilter();
+            $filter->filter($vip);
+
+            return $this->createSuccessJsonResponse([
+                'token' => $token,
+                'user' => $vip
+            ], '授权成功');
+        }
+
+        return $this->createErrorJsonResponse('授权失败');
     }
 
     public function getDeviceCatalogs(Request $request)
@@ -97,6 +136,16 @@ class IotController extends BaseController
         }
 
         $iotConfig = $this->getVIPService()->getCompanyIotConfigByUserId($userId);
+
+        return IotDriverFactory::create($iotConfig['serviceType'], $iotConfig);
+    }
+
+    protected function getIotDriverByAppId(string $appId): ?\CoreW\Sdk\Iot\Driver\IotInterface
+    {
+        $iotConfig = $this->getVIPService()->getCompanyIotConfigByAppId($appId);
+        if (empty($iotConfig)) {
+            return null;
+        }
 
         return IotDriverFactory::create($iotConfig['serviceType'], $iotConfig);
     }

@@ -26,6 +26,9 @@ Route::group('/api', function () {
             Route::post('/qq-login', [AuthController::class, 'qqLogin'])->name('api.qq-login');
         });
 
+        Route::post('/iot/sso/login', [IotController::class, 'auth'])->name('iot.auth');
+
+
         // 退出
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout')->middleware([
             XAuthTokenIdentityMiddleware::class

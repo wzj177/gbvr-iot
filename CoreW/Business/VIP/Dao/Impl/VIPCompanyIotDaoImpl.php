@@ -20,6 +20,11 @@ class VIPCompanyIotDaoImpl extends AdvancedDaoImpl implements VIPCompanyIotDao
         return $this->getByFields(['userId' => $userId]);
     }
 
+    public function getByAppId(string $appId)
+    {
+        return $this->getByFields(['appId' => $appId]);
+    }
+
     public function declares(): array
     {
         return [

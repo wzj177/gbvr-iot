@@ -5,6 +5,7 @@ namespace app\middleware;
 use app\middleware\api\firewall\XAuthTokenAuthenticationListener;
 use CoreW\Bfw;
 use CoreW\Business\BizEnum;
+use CoreW\Business\User\Exception\UserException;
 use CoreW\Business\VIP\Exception\VIPException;
 use CoreW\Business\Product\Service\ProductService;
 use CoreW\Core;

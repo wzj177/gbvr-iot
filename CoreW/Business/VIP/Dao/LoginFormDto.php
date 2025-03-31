@@ -8,6 +8,8 @@ class LoginFormDto
 {
     public $mode = 'default';
 
+    public $userId;
+
     public  $username;
 
     public  $password;

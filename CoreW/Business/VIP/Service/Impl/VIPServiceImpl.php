@@ -245,6 +245,11 @@ class VIPServiceImpl extends BaseService implements VIPService
         return $this->getVIPCompanyIotDao()->getByUserId($userId);
     }
 
+    public function getCompanyIotConfigByAppId(string $appId)
+    {
+        return $this->getVIPCompanyIotDao()->getByAppId($appId);
+    }
+
     /**
      * 设置企业物联网配置
      * @param int $companyId
@@ -613,8 +618,23 @@ class VIPServiceImpl extends BaseService implements VIPService
      * @param LoginFormDto $dto
      * @return array
      */
-    public function login(LoginFormDto $dto)
+    public function login(LoginFormDto $dto): array
     {
+        if ($dto->mode === 'silent_login') {
+            // 静默登录
+            $user = $this->getVIPById($dto->userId);
+            if (empty($user)) {
+                throw VIPException::NOTFOUND_USER();
+            }
+
+            $currentUser = new CurrentUser();
+            $user['currentIp'] = $dto->requestIp;
+            $token = $this->makeAuthToken($dto->clientType, $user['id']);
+            $currentUser->fromArray($user);
+            $this->bfw->offsetSet('vip', $currentUser);
+
+            return [$user, $token];
+        }
         if (empty($dto->username)) {
             throw VIPException::PASSWORD_ERROR();
         }

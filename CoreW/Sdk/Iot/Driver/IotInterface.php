@@ -26,4 +26,7 @@ interface IotInterface
 
     public function gisTilesUrl(array $params = []);
 
+
+    public function auth(string $token): ?array;
+
 }

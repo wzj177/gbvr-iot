@@ -45,6 +45,8 @@ class BizEnum
     const VIP_COMPANY_IOT_API_CAMERA_LIVE_URL = 'camera_live_url';
     const VIP_COMPANY_IOT_API_GIS_TILES_URL = 'gis_tiles_url';
 
+    const VIP_COMPANY_IOT_API_AUTH = 'auth';
+
     public static function getCompanyIotApiItems($key = null)
     {
         $items = [
