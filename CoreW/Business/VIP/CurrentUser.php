@@ -12,7 +12,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * @method string getUserIdentifier()
  */
-class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAccess, \Serializable
+class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAccess
 {
     protected $data = [];
     protected $context = [];
@@ -22,34 +22,44 @@ class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAcc
         return [];
     }
 
-    public function offsetExists($offset)
+    public function offsetExists($offset): bool
     {
         return $this->__isset($offset);
     }
 
-    public function offsetGet($offset)
+    public function offsetGet($offset): mixed
     {
         return $this->__get($offset);
     }
 
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value): void
     {
-        return $this->__set($offset, $value);
+        $this->__set($offset, $value);
     }
 
-    public function offsetUnset($offset)
+    public function offsetUnset($offset): void
     {
-        return $this->__unset($offset);
+        $this->__unset($offset);
     }
 
-    public function serialize()
+//    public function serialize()
+//    {
+//        return serialize($this->data);
+//    }
+//
+//    public function unserialize($serialized)
+//    {
+//        $this->data = unserialize($serialized);
+//    }
+
+    public function __serialize(): array
     {
-        return serialize($this->data);
+        return $this->data;
     }
 
-    public function unserialize($serialized)
+    public function __unserialize(array $data): void
     {
-        $this->data = unserialize($serialized);
+        $this->data = $data;
     }
 
     public function __set($name, $value)

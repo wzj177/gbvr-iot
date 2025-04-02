@@ -20,7 +20,7 @@ interface ProductCatalogService
      * @param array $columns
      * @return array
      */
-    public function searchProductCatalogs(array $conditions, array $orderBys = [], int $start, int $limit, array $columns = []): array;
+    public function searchProductCatalogs(array $conditions, array $orderBys, int $start, int $limit, array $columns = []): array;
 
     /**
      * @param array $fields
