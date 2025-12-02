@@ -8,7 +8,7 @@ use CoreW\Business\Product\Dao\ProductDao;
 class ProductDaoImpl extends AdvancedDaoImpl implements ProductDao
 {
 
-    protected $table = 'vr_product';
+    protected $table = 'gv_product';
 
     /**
      * @param string $code

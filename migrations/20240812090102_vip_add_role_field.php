@@ -10,7 +10,7 @@ class VipAddRoleField extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("ALTER TABLE `vr_vip` 
+        $container['db']->exec("ALTER TABLE `gv_vip` 
 ADD COLUMN `role` tinyint(0) UNSIGNED NOT NULL DEFAULT 0 COMMENT '会员角色,0=个人,1=企业' AFTER `destroyed`;");
     }
 

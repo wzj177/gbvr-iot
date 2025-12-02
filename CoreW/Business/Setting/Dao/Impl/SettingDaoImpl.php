@@ -8,7 +8,7 @@ use CoreW\Business\Setting\Dao\SettingDao;
 class SettingDaoImpl extends AdvancedDaoImpl implements SettingDao 
 {
 
-    protected $table = 'vr_setting';
+    protected $table = 'gv_setting';
 
     /**
      * @param $name

@@ -10,7 +10,7 @@ class InitRoleData extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("INSERT INTO `vr_role`(`name`, `code`, `data`, `createdTime`, `createdUserId`, `updatedTime`) VALUES ('超级管理员', 'ROLE_SUPER_ADMIN', '',1632322205,0,0);");
+        $container['db']->exec("INSERT INTO `gv_role`(`name`, `code`, `data`, `createdTime`, `createdUserId`, `updatedTime`) VALUES ('超级管理员', 'ROLE_SUPER_ADMIN', '',1632322205,0,0);");
     }
 
     /**

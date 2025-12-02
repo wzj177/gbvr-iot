@@ -9,7 +9,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 
 class TagDaoImpl extends AdvancedDaoImpl implements TagDao
 {
-    protected $table = 'vr_tag';
+    protected $table = 'gv_tag';
 
     public function getAllByIds(array $ids): array
     {

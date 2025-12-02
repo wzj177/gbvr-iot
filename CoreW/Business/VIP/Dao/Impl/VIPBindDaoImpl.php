@@ -7,7 +7,7 @@ use CoreW\Dao\GeneralDaoImpl;
 
 class VIPBindDaoImpl extends GeneralDaoImpl implements VIPBindDao
 {
-    protected $table = 'vr_vip_bind';
+    protected $table = 'gv_vip_bind';
 
     public function getByFromId($fromId)
     {

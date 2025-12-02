@@ -10,7 +10,7 @@ class AddProductSceneField extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("ALTER TABLE `vr_product_scene` 
+        $container['db']->exec("ALTER TABLE `gv_product_scene` 
 ADD COLUMN `number` int(10) NOT NULL DEFAULT 0 COMMENT '序号' AFTER `id`;");
     }
 

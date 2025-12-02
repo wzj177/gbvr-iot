@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class EasyProcessor extends BaseProcessor
 {
-    private $templates = [
+    private array $templates = [
         'daoInterface' => DaoInterfaceTemplate::class,
         'daoImpl' => DaoImplTemplate::class,
         'serviceInterface' => ServiceInterfaceTemplate::class,
@@ -19,12 +19,12 @@ class EasyProcessor extends BaseProcessor
         'exception' => ExceptionTemplate::class
     ];
 
-    public function getTemplates()
+    public function getTemplates(): array
     {
         return $this->templates;
     }
 
-    public function render(array $args = [])
+    public function render(array $args = []): string
     {
         $args['bizId'] = ucwords($args['bizId']);
         if (Str::contains($this->namespacePrefix, 'Plugins')) {
@@ -38,7 +38,12 @@ class EasyProcessor extends BaseProcessor
             throw GiiException::pathNotOpen();
         }
 
-        $path = base_path() . DIRECTORY_SEPARATOR . $path . DIRECTORY_SEPARATOR . $args['bizId'];
+        // For make-service, make-exception and make-dao scenes, we don't append bizId to the path
+        if (!empty($args['scene']) && in_array($args['scene'], ['make-service', 'make-exception', 'make-dao'])) {
+            $path = base_path() . DIRECTORY_SEPARATOR . $path;
+        } else {
+            $path = base_path() . DIRECTORY_SEPARATOR . $path . DIRECTORY_SEPARATOR . $args['bizId'];
+        }
 
         $args['rootPath'] = $path;
         $templates = $this->templates;
@@ -48,12 +53,27 @@ class EasyProcessor extends BaseProcessor
             unset($args['templates']);
         }
 
-        if (is_dir($path) && isset($templates['serviceInterface'])) {
+        if (is_dir($path) && isset($templates['serviceInterface']) && empty($args['scene'])) {
             throw GiiException::serviceExisted($path, "the {$args['bizId']} biz already exist!");
         }
 
         if (!empty($args['useDao']) && strtolower($args['useDao']) === 'n') {
             unset($templates['daoInterface'], $templates['daoImpl']);
+        }
+        
+        // Handle service creation scene
+        if (!empty($args['scene']) && $args['scene'] === 'make-service') {
+            unset($templates['daoInterface'], $templates['daoImpl'], $templates['exception']);
+        }
+        
+        // Handle exception creation scene
+        if (!empty($args['scene']) && $args['scene'] === 'make-exception') {
+            unset($templates['daoInterface'], $templates['daoImpl'], $templates['serviceInterface'], $templates['serviceImpl']);
+        }
+        
+        // Handle dao creation scene
+        if (!empty($args['scene']) && $args['scene'] === 'make-dao') {
+            unset($templates['serviceInterface'], $templates['serviceImpl'], $templates['exception']);
         }
         $templates = array_values($templates);
         try {

@@ -8,7 +8,7 @@ use CoreW\Business\Product\Dao\ProductPlaneGraphDao;
 class ProductPlaneGraphDaoImpl extends AdvancedDaoImpl implements ProductPlaneGraphDao 
 {
 
-    protected $table = 'vr_product_plane_graph';
+    protected $table = 'gv_product_plane_graph';
 
     public function getByProductId(int $productId)
     {

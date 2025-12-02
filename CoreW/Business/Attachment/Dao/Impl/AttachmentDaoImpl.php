@@ -8,7 +8,7 @@ use CoreW\Business\Attachment\Dao\AttachmentDao;
 class AttachmentDaoImpl extends AdvancedDaoImpl implements AttachmentDao 
 {
 
-    protected $table = 'vr_attachment';
+    protected $table = 'gv_attachment';
 
     public function getByHashId(string $hashId)
     {

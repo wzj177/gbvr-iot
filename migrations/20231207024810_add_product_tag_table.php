@@ -10,7 +10,7 @@ class AddProductTagTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product_tag` (
+        $container['db']->exec("CREATE TABLE `gv_product_tag` (
   `productId` int(10) unsigned NOT NULL DEFAULT '0',
   `userId` int(10) unsigned NOT NULL DEFAULT '0',
   `tagId` int(10) unsigned NOT NULL DEFAULT '0',
@@ -25,6 +25,6 @@ class AddProductTagTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_product_tag`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_product_tag`;");
     }
 }

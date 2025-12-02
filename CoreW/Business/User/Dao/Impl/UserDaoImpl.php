@@ -7,7 +7,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 
 class UserDaoImpl extends AdvancedDaoImpl implements UserDao
 {
-    protected $table = 'vr_user';
+    protected $table = 'gv_user';
 
     public function getByEmail($email)
     {
@@ -48,14 +48,6 @@ class UserDaoImpl extends AdvancedDaoImpl implements UserDao
         return $this->db()->fetchColumn($sql, [], 0);
     }
 
-    public function findUnlockedUsersWithMobile($start, $limit)
-    {
-        $sql = "SELECT * FROM `user` AS u, `user_profile` AS up WHERE u.id = up.id AND u.`locked` = 0 AND `mobile` != '' AND type <> 'system'";
-
-        $sql = $this->sql($sql, ['createdTime' => 'ASC'], $start, $limit);
-
-        return $this->db()->fetchAll($sql);
-    }
 
     public function getByVerifiedMobile($mobile)
     {

@@ -10,7 +10,7 @@ class CreateVipCompanyIotTable extends Migration
     public function up()
     {
         $biz = $this->getContainer();
-        $biz['db']->exec("CREATE TABLE `vr_vip_company_iot` (
+        $biz['db']->exec("CREATE TABLE `gv_vip_company_iot` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `userId` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '会员ID',
   `companyId` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '企业ID',
@@ -33,6 +33,6 @@ class CreateVipCompanyIotTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_vip_company_iot`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_vip_company_iot`;");
     }
 }

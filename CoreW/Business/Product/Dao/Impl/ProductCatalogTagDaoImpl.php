@@ -10,7 +10,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 class ProductCatalogTagDaoImpl extends AdvancedDaoImpl implements ProductCatalogTagDao
 {
 
-    protected $table = 'vr_product_catalog_tag';
+    protected $table = 'gv_product_catalog_tag';
 
     public function getAllByCatalogId($catalogId): array
     {

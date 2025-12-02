@@ -12,9 +12,19 @@ class ServiceInterfaceTemplate extends BaseTemplate implements TemplateInterface
     {
         $service = $args['bizId'];
         $className = "{$service}Service";
+        
+        // For make-service scene, we need to adjust the namespace
+        $namespace = $this->prefix;
+        if (!empty($args['scene']) && $args['scene'] === 'make-service' && substr_count($this->prefix, '\\') > 2) {
+            // Extract the parent namespace for service generation
+            $parts = explode('\\', $this->prefix);
+            array_pop($parts); // Remove the last part (business entity name)
+            $namespace = implode('\\', $parts);
+        }
+        
         $phpCode = "<?php\n"
             . "\n"
-            . "namespace {$this->prefix}\\{$service}\\Service;\n"
+            . "namespace {$namespace}\\Service;\n"
             . "\n"
             . "interface {$className}\n"
             . "{\n"

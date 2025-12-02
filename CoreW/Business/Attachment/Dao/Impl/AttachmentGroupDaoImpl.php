@@ -11,7 +11,7 @@ use CoreW\Dao\DynamicQueryBuilder;
 class AttachmentGroupDaoImpl extends AdvancedDaoImpl implements AttachmentGroupDao
 {
 
-    protected $table = 'vr_attachment_group';
+    protected $table = 'gv_attachment_group';
 
     /**
      * 获取指定编码集合的分组

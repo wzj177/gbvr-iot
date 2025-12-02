@@ -8,7 +8,7 @@ use CoreW\Business\IpBlacklist\Dao\IpBlacklistDao;
 class IpBlacklistDaoImpl extends AdvancedDaoImpl implements IpBlacklistDao 
 {
 
-    protected $table = 'vr_ip_blacklist';
+    protected $table = 'gv_ip_blacklist';
 
     public function getByIpAndType($ip, $type)
     {

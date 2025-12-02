@@ -8,7 +8,7 @@ use CoreW\Business\VIP\Dao\VIPDao;
 class VIPDaoImpl extends AdvancedDaoImpl implements VIPDao 
 {
 
-    protected $table = 'vr_vip';
+    protected $table = 'gv_vip';
 
     public function getByNickname($nickname)
     {

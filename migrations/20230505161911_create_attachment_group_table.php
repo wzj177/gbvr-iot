@@ -10,7 +10,7 @@ class CreateAttachmentGroupTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_attachment_group` (
+        $container['db']->exec("CREATE TABLE `gv_attachment_group` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `code` char(32) NOT NULL COMMENT '分组编码',
   `title` varchar(255) NOT NULL COMMENT '分组标题',
@@ -24,10 +24,10 @@ class CreateAttachmentGroupTable extends Migration
   UNIQUE KEY `idx_code` (`code`),
   UNIQUE KEY `idx_title` (`title`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-        $container['db']->exec("INSERT INTO `vr_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (1, 'default', '默认分组', 1, 0, 1683274689, 1683274689);
-INSERT INTO `vr_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (2, 'product', '作品', 1, 1, 1683274689, 1683274689);
-INSERT INTO `vr_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (3, 'scene', '场景', 1, 2, 1683274689, 1683274689);
-INSERT INTO `vr_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (4, 'vip', '会员', 1, 3, 1683274689, 1683274689);
+        $container['db']->exec("INSERT INTO `gv_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (1, 'default', '默认分组', 1, 0, 1683274689, 1683274689);
+INSERT INTO `gv_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (2, 'product', '作品', 1, 1, 1683274689, 1683274689);
+INSERT INTO `gv_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (3, 'scene', '场景', 1, 2, 1683274689, 1683274689);
+INSERT INTO `gv_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `createdTime`, `updatedTime`) VALUES (4, 'vip', '会员', 1, 3, 1683274689, 1683274689);
 ");
     }
 
@@ -37,6 +37,6 @@ INSERT INTO `vr_attachment_group`(`id`, `code`, `title`, `isDefault`, `sort`, `c
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_attachment_group`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_attachment_group`;");
     }
 }

@@ -8,7 +8,7 @@ use CoreW\Business\Role\Dao\RoleDao;
 class RoleDaoImpl extends AdvancedDaoImpl implements RoleDao 
 {
 
-    protected $table = 'vr_role';
+    protected $table = 'gv_role';
 
     public function getByCode($code)
     {

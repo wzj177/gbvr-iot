@@ -8,12 +8,12 @@ use CoreW\Business\SystemLog\Dao\SystemLogDao;
 class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
 {
 
-    protected $table = 'vr_log';
+    protected $table = 'gv_log';
 
     protected function createUserJoinQueryBuilder($conditions)
     {
         $builder = $this->createQueryBuilder($conditions);
-        $builder->leftJoin($this->table, 'vr_user', 'u', 'u.id = ' . $this->table . '.userID');
+        $builder->leftJoin($this->table, 'gv_user', 'u', 'u.id = ' . $this->table . '.userID');
 
         return $builder;
     }
@@ -48,21 +48,21 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
                 'createdTime',
             ],
             'conditions' => [
-                'vr_log.id = :id',
-                'vr_log.id >= :id_GE',
-                'vr_log.id <= :id_LE',
-                'vr_log.id IN (:ids)',
-                'vr_log.module = :module',
-                'vr_log.action = :action',
-                'vr_log.level = :level',
-                'vr_log.userId = :userId',
-                'vr_log.userId IN (:userIds)',
-                'vr_log.createdTime > :startDateTime',
-                'vr_log.createdTime < :endDateTime',
-                'vr_log.createdTime >= :startDateTime_GE',
-                'vr_log.createdTime <= :startDateTime_LE',
-                'vr_log.userId IN ( :userIds )',
-                'vr_log.action IN ( :actions )',
+                'gv_log.id = :id',
+                'gv_log.id >= :id_GE',
+                'gv_log.id <= :id_LE',
+                'gv_log.id IN (:ids)',
+                'gv_log.module = :module',
+                'gv_log.action = :action',
+                'gv_log.level = :level',
+                'gv_log.userId = :userId',
+                'gv_log.userId IN (:userIds)',
+                'gv_log.createdTime > :startDateTime',
+                'gv_log.createdTime < :endDateTime',
+                'gv_log.createdTime >= :startDateTime_GE',
+                'gv_log.createdTime <= :startDateTime_LE',
+                'gv_log.userId IN ( :userIds )',
+                'gv_log.action IN ( :actions )',
                 '(vr_log.action LIKE :keywordsLike OR vr_log.message LIKE :keywordsLike OR vr_log.ip LIKE :keywordsLike OR ipArea LIKE :keywordsLike)'
             ],
             'timestamps' => [

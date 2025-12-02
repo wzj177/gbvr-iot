@@ -33,7 +33,7 @@ class GiiException extends \Exception
         return new self($message, self::CODE_BIZ_TEMPLATE_EXIST);
     }
 
-    public static function pathNotOpen($message = "Make Biz Not Open")
+    public static function pathNotOpen($message = "Make Biz Path Is Not Open")
     {
         return new self($message, self::CODE_PATH_NOT_OPEN);
     }

@@ -13,14 +13,24 @@ class ServiceImplTemplate extends BaseTemplate implements TemplateInterface
         $service = $args['bizId'];
         $className = "{$service}ServiceImpl";
         $daoClass = "{$service}Dao";
+        
+        // For make-service scene, we need to adjust the namespace
+        $namespace = $this->prefix;
+        if (!empty($args['scene']) && $args['scene'] === 'make-service' && substr_count($this->prefix, '\\') > 2) {
+            // Extract the parent namespace for service generation
+            $parts = explode('\\', $this->prefix);
+            array_pop($parts); // Remove the last part (business entity name)
+            $namespace = implode('\\', $parts);
+        }
+        
         $phpCode = "<?php\n"
             . "\n"
-            . "namespace {$this->prefix}\\{$service}\\Service\\Impl;\n"
+            . "namespace {$namespace}\\Service\\Impl;\n"
             . "\n"
-            . "use {$this->prefix}\\BaseService;\n"
+            . "use {$namespace}\\BaseService;\n"
             . "\n"
-            . "use {$this->prefix}\\{$service}\\Service\\{$service}Service;\n"
-            . "use {$this->prefix}\\{$service}\\Dao\\{$daoClass};\n"
+            . "use {$namespace}\\Service\\{$service}Service;\n"
+            . "use {$namespace}\\Dao\\{$daoClass};\n"
             . "\n"
             . "class {$className} extends BaseService implements {$service}Service \n"
             . "{\n"
@@ -55,11 +65,11 @@ class ServiceImplTemplate extends BaseTemplate implements TemplateInterface
             . "    }\n"
             . "\n"
             . '    /**' . "\n"
-            . "      * @return ${daoClass}\n"
+            . "      * @return {$daoClass}\n"
             . "      */\n"
             . "    protected function get{$daoClass}()\n"
             . "    {\n"
-            . "        return \$this->createDao('${service}:${daoClass}');\n"
+            . "        return \$this->createDao('{$service}:{$daoClass}');\n"
             . "    \n"
             . "    }\n"
             . "\n"

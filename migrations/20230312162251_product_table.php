@@ -10,7 +10,7 @@ class ProductTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product` (
+        $container['db']->exec("CREATE TABLE `gv_product` (
     `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键id',
   `title` varchar(255) NOT NULL DEFAULT '' COMMENT '作品标题',
   `cover` varchar(255) NOT NULL DEFAULT '' COMMENT '作品封面',
@@ -40,6 +40,6 @@ class ProductTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_product`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_product`;");
     }
 }

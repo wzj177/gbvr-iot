@@ -10,7 +10,7 @@ class SceneTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product_scene` (
+        $container['db']->exec("CREATE TABLE `gv_product_scene` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `productId` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '作品id',
   `title` varchar(255) NOT NULL DEFAULT '' COMMENT '场景标题',
@@ -38,6 +38,6 @@ class SceneTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_scene`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_scene`;");
     }
 }

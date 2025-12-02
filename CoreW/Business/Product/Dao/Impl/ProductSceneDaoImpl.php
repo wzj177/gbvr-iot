@@ -8,7 +8,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 class ProductSceneDaoImpl extends AdvancedDaoImpl implements ProductSceneDao
 {
 
-    protected $table = 'vr_product_scene';
+    protected $table = 'gv_product_scene';
 
     /**
      * @param int $productId

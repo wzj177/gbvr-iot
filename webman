@@ -18,6 +18,7 @@ if (!in_array($argv[1] ?? '', ['start', 'restart', 'stop', 'status', 'reload', '
     }
 }
 
+
 $cli = new Command();
 $cli->setName('webman cli');
 $cli->installInternalCommands();

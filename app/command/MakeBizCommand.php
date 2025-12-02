@@ -41,6 +41,11 @@ class MakeBizCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $bizId = $input->getOption('id');
+        if (empty($bizId)) {
+            $output->writeln(ShellColor::showError("请输入业务名称"));
+            return self::FAILURE;
+        }
+
         $table = $input->getOption('table');
         $namespace = $input->getOption('namespace');
         $useDao = $input->getOption('dao');

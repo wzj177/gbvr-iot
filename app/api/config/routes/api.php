@@ -131,4 +131,35 @@ Route::group('/api', function () {
             Route::get('/dict/{key}', [PublicController::class, 'getDictItems'])->name('api.public.dict-items');
         });
     });
+
+    Route::group('/v2', function () {
+        Route::group('/gb', function () {
+            Route::post('/server/hock', [\app\api\v2\controller\GBServerHockController::class, 'index'])->middleware([
+                \app\middleware\GBHock::class
+            ]);
+        });
+        
+        // GB28181 设备管理
+        Route::group('/gb28181', function () {
+            // 设备列表
+            Route::get('/devices', [\app\api\v2\controller\GB28181DeviceController::class, 'index']);
+            // 设备详情
+            Route::get('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'show']);
+            // 设备通道列表
+            Route::get('/devices/{id}/channels', [\app\api\v2\controller\GB28181DeviceController::class, 'channels']);
+            // 查询设备目录（主动向设备发起Catalog查询）
+            Route::post('/devices/{id}/catalog', [\app\api\v2\controller\GB28181DeviceController::class, 'queryCatalog']);
+            // 删除设备
+            Route::delete('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'destroy']);
+            
+            // 流控制
+            Route::post('/channels/start-live', [\app\api\v2\controller\GB28181StreamController::class, 'startLive']);
+            Route::post('/channels/stop-live', [\app\api\v2\controller\GB28181StreamController::class, 'stopLive']);
+            Route::get('/channels/play-urls', [\app\api\v2\controller\GB28181StreamController::class, 'getPlayUrls']);
+            Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
+            Route::post('/channels/ptz', [\app\api\v2\controller\GB28181StreamController::class, 'ptzControl']);
+        })->middleware([
+            XAuthTokenIdentityMiddleware::class
+        ]);
+    });
 });

@@ -9,7 +9,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 
 class ProductCatalogDaoImpl extends AdvancedDaoImpl implements ProductCatalogDao
 {
-    protected $table = 'vr_product_catalog';
+    protected $table = 'gv_product_catalog';
 
     /**
      * @param string $name

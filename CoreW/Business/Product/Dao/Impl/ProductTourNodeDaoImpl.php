@@ -8,7 +8,7 @@ use CoreW\Business\Product\Dao\ProductTourNodeDao;
 class ProductTourNodeDaoImpl extends AdvancedDaoImpl implements ProductTourNodeDao 
 {
 
-    protected $table = 'vr_product_tour_node';
+    protected $table = 'gv_product_tour_node';
 
     public function getAllByProductId(int $productId, array $fields = [])
     {

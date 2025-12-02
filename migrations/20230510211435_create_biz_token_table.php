@@ -10,7 +10,7 @@ class CreateBizTokenTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_biz_token` (
+        $container['db']->exec("CREATE TABLE `gv_biz_token` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `place` varchar(32) COLLATE utf8_unicode_ci NOT NULL DEFAULT '' COMMENT '使用场景',
   `_key` varchar(32) COLLATE utf8_unicode_ci NOT NULL DEFAULT '' COMMENT 'KEY',
@@ -31,6 +31,6 @@ class CreateBizTokenTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_biz_token`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_biz_token`;");
     }
 }

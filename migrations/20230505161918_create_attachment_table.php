@@ -10,7 +10,7 @@ class CreateAttachmentTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_attachment` (
+        $container['db']->exec("CREATE TABLE `gv_attachment` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `globalId` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '云文件ID',
   `status` enum('uploading','ok','error') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'uploading' COMMENT '文件上传状态',
@@ -43,6 +43,6 @@ class CreateAttachmentTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_attachment`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_attachment`;");
     }
 }

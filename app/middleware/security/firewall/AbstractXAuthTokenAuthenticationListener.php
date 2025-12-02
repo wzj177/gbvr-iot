@@ -62,6 +62,7 @@ abstract class AbstractXAuthTokenAuthenticationListener extends AbstractAuthenti
             $rawToken = $this->refreshAccessToken($rawToken['oldToken']);
 
             $token = $this->createApiTokenFromRequest($request, $rawToken[$this->userIdKey], $rawToken['token']);
+            // TODO: 2025-05-07 没用
             $this->getApiTokenStorage()->setToken($token);
 
             return $rawToken;

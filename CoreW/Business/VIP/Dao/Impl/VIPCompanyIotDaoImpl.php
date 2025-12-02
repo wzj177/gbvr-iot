@@ -8,7 +8,7 @@ use CoreW\Business\VIP\Dao\VIPCompanyIotDao;
 class VIPCompanyIotDaoImpl extends AdvancedDaoImpl implements VIPCompanyIotDao
 {
 
-    protected $table = 'vr_vip_company_iot';
+    protected $table = 'gv_vip_company_iot';
 
     public function getByCompanyId(int $companyId)
     {

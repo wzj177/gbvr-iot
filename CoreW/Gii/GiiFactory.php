@@ -15,7 +15,7 @@ class GiiFactory
      * @return BaseProcessor
      * @throws GiiException
      */
-    public static function create($type, $namespacePrefix = '', Bfw $biz)
+    public static function create($type, string $namespacePrefix, Bfw $biz)
     {
         $type = ucfirst($type);
         $class = __NAMESPACE__ . "\\Template\\{$type}\\{$type}Processor";

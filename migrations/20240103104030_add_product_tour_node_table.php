@@ -10,7 +10,7 @@ class AddProductTourNodeTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product_tour_node` (
+        $container['db']->exec("CREATE TABLE `gv_product_tour_node` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `productId` int(10) unsigned NOT NULL DEFAULT '0',
   `tourId` int(10) unsigned NOT NULL DEFAULT '0',
@@ -34,6 +34,6 @@ class AddProductTourNodeTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_product_tour_node`");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_product_tour_node`");
     }
 }

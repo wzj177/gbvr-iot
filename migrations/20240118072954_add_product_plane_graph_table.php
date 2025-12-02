@@ -10,7 +10,7 @@ class AddProductPlaneGraphTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product_plane_graph` (
+        $container['db']->exec("CREATE TABLE `gv_product_plane_graph` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `productId` int(10) unsigned NOT NULL DEFAULT '0',
   `type` enum('default','gis') NOT NULL DEFAULT 'default',
@@ -31,6 +31,6 @@ class AddProductPlaneGraphTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_product_plane_graph`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_product_plane_graph`;");
     }
 }

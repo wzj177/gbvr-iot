@@ -9,7 +9,7 @@ use CoreW\Dao\GeneralDaoImpl;
 
 class VIPProfileDaoImpl extends GeneralDaoImpl implements VIPProfileDao
 {
-    protected $table = 'vr_vip_profile';
+    protected $table = 'gv_vip_profile';
 
     public function findByIds(array $ids)
     {

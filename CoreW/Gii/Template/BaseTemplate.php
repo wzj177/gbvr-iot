@@ -12,7 +12,7 @@ class BaseTemplate
 
     protected $biz;
 
-    public function __construct($prefix = null, Bfw $biz)
+    public function __construct($prefix, Bfw $biz)
     {
         $this->biz = $biz;
         if (!empty($prefix) && false !== strpos($prefix, "Business")) {

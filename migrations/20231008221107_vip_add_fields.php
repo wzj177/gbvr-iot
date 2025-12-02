@@ -10,7 +10,7 @@ class VipAddFields extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("ALTER TABLE `vr_vip` 
+        $container['db']->exec("ALTER TABLE `gv_vip` 
     ADD COLUMN `phone` varchar(16) NOT NULL DEFAULT '' COMMENT '手机号' AFTER `inviteCode`,
 ADD COLUMN `status` tinyint(1) NOT NULL COMMENT ' 状态，0=封禁，1=正常' AFTER `loginTime`,
 ADD COLUMN `integral` int(10) NOT NULL DEFAULT 0 COMMENT '积分' AFTER `status`,

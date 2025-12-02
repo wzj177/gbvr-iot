@@ -8,7 +8,7 @@ use CoreW\Business\Product\Dao\ProductSettingDao;
 class ProductSettingDaoImpl extends AdvancedDaoImpl implements ProductSettingDao 
 {
 
-    protected $table = 'vr_product_setting';
+    protected $table = 'gv_product_setting';
 
     public function findByProductId(int $productId)
     {

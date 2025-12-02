@@ -10,7 +10,7 @@ class CreateProductCatalogTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product_catalog` (
+        $container['db']->exec("CREATE TABLE `gv_product_catalog` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `parentId` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '父级ID',
   `icon` varchar(50) NOT NULL DEFAULT '' COMMENT '图标',
@@ -35,6 +35,6 @@ class CreateProductCatalogTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_product_catalog`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_product_catalog`;");
     }
 }

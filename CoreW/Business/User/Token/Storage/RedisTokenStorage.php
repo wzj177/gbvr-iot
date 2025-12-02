@@ -13,8 +13,8 @@ class RedisTokenStorage implements TokenStorageInterface
 {
     use BfwAware;
 
-    const HASH_TABLE_NAME = 'vr_user_tokens';
-    const COUNT_KEY = 'vr_user_tokens:count';
+    const HASH_TABLE_NAME = 'gv_user_tokens';
+    const COUNT_KEY = 'gv_user_tokens:count';
 
     use \CoreW\Traits\Token\RedisTokenStorage;
 

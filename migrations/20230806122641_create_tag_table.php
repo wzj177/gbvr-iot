@@ -10,7 +10,7 @@ class CreateTagTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_tag` (
+        $container['db']->exec("CREATE TABLE `gv_tag` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `type` enum('system','custom') DEFAULT 'system' COMMENT '类型 system=系统标签 ;custom=自定义生成',
   `name` varchar(100) NOT NULL COMMENT '标签名称',
@@ -28,6 +28,6 @@ class CreateTagTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_tag`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_tag`;");
     }
 }

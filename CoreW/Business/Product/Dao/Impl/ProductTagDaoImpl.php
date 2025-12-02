@@ -7,7 +7,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 
 class ProductTagDaoImpl extends AdvancedDaoImpl implements ProductTagDao
 {
-    protected $table = 'vr_product_tag';
+    protected $table = 'gv_product_tag';
 
     public function declares():array
     {

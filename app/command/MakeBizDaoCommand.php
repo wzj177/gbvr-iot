@@ -18,20 +18,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 class MakeBizDaoCommand extends Command
 {
     protected static $defaultName = 'make:biz-dao';
-    protected static $defaultDescription = '生成biz dao';
+    protected static $defaultDescription = '生成业务数据访问对象（DAO Interface & Implementation）';
 
     /**
+     * Configure the command options.
      *
-     * eg1: php webman make:biz -i Idem -t idem -s Plugins\\YangYang\\ApiIdempotent -d N
-     * eg2: php webman make:biz -i User
-     * eg3: php webman make:biz -i User -t user
      * @return void
      */
     protected function configure()
     {
-        $this->addOption('id', '-i', InputOption::VALUE_REQUIRED, '业务名称');
-        $this->addOption('dao', '-d', InputOption::VALUE_OPTIONAL, 'dao名称')
-            ->addOption('namespace', '-s', InputOption::VALUE_OPTIONAL,'命名空间');
+        $this->addOption('id', '-i', InputOption::VALUE_REQUIRED, '业务名称')
+            ->addOption('dao', '-d', InputOption::VALUE_OPTIONAL, 'dao名称')
+            ->addOption('namespace', '-s', InputOption::VALUE_OPTIONAL, '命名空间');
     }
 
     /**
@@ -46,7 +44,7 @@ class MakeBizDaoCommand extends Command
         empty($dao) && $dao = $bizId;
         $namespace = $input->getOption('namespace');
         empty($namespace) && $namespace = "CoreW\\Business";
-        $output->writeln(sprintf("正在生成Biz: %s", ShellColor::showInfo($bizId)));
+        $output->writeln(sprintf("正在生成DAO: %s", ShellColor::showInfo($bizId)));
         try {
             $gii = GiiFactory::create('easy', $namespace, $this->getBiz());
             $path = $gii->render([

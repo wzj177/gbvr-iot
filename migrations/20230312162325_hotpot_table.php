@@ -10,7 +10,7 @@ class HotpotTable extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("CREATE TABLE `vr_product_hotpot` (
+        $container['db']->exec("CREATE TABLE `gv_product_hotpot` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `sceneId` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '场景id',
   `productId` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '作品id',
@@ -46,6 +46,6 @@ class HotpotTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_hotpot`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_hotpot`;");
     }
 }

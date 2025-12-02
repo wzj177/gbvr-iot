@@ -9,7 +9,7 @@ use CoreW\Dao\GeneralDaoImpl;
 
 class TokenDaoImpl extends GeneralDaoImpl implements TokenDao
 {
-    protected $table = 'vr_user_token';
+    protected $table = 'gv_user_token';
 
     public function getByToken($token)
     {

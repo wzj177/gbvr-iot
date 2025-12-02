@@ -9,7 +9,7 @@ use CoreW\Dao\GeneralDaoImpl;
 
 class UserBindDaoImpl extends GeneralDaoImpl implements UserBindDao
 {
-    protected $table = 'vr_user_bind';
+    protected $table = 'gv_user_bind';
 
     public function getByFromId($fromId)
     {

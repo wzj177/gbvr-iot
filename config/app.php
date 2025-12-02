@@ -15,14 +15,14 @@
 use support\Request;
 
 return [
-    'name' => getenv('APP_NAME'),
+    'name' => env('APP_NAME'),
     'id' => 'common',
-    'debug' => intval(getenv('APP_DEBUG')),
+    'debug' => intval(env('APP_DEBUG')),
     'biz_config' => [
         'redis.options' => [
-            'host' => getenv('REDIS_HOST'),
+            'host' => env('REDIS_HOST'),
         ],
-        'debug' => getenv('APP_DEBUG'),
+        'debug' => env('APP_DEBUG'),
         'log_dir' => dirname(__DIR__) . '/runtime/biz/logs',
         'run_dir' => dirname(__DIR__) . '/runtime/biz/run',
         'cache_directory' => dirname(__DIR__) . '/runtime/biz/cache',
@@ -40,16 +40,20 @@ return [
         'auth_ttl' => 3600 * 24 * 7, // 默认token登录过期时间：7天
         'jwt_ttl' => '', // access token 过期时间，如果设置则会覆盖默认的jwt配置
         'jwt_refresh_ttl' => '',// refresh token 过期时间，如果设置则会覆盖默认的jwt配置
-        'no_required_auth_routes' => getenv('ADMIN_NO_REQUIRED_AUTH_ROUTES')
+        'no_required_auth_routes' => env('ADMIN_NO_REQUIRED_AUTH_ROUTES')
     ],
     'api' => [
         'auth_ttl' => 3600 * 24 * 7,// 默认token登录过期时间：7天
         'jwt_ttl' => '', // access token 过期时间，如果设置则会覆盖默认的jwt配置
         'jwt_refresh_ttl' => '',// refresh token 过期时间，如果设置则会覆盖默认的jwt配置
-        'no_required_auth_routes' => getenv('API_NO_REQUIRED_AUTH_ROUTES'),
+        'no_required_auth_routes' => env('API_NO_REQUIRED_AUTH_ROUTES'),
         'register_user_send_integral' => 80, // 注册用户赠送80积分
         'register_user_send_space_size' => 1024 * 1024 * 1024 * 1, // 注册用户赠送1G空间
     ],
-    'design_site_url' => getenv('DESIGN_SITE_URL'),
-    'upload_chunk_tmp_file' => dirname(__DIR__) . '/runtime/upload-chunks' // 上传大文件分片切片目录
+    'design_site_url' => env('DESIGN_SITE_URL'),
+    'upload_chunk_tmp_file' => dirname(__DIR__) . '/runtime/upload-chunks', // 上传大文件分片切片目录
+    'gb' => [
+        'api_hock_secret' => env('API_HOOK_SECRET', 'DADA!@DFSF!@#!@#!@111'),
+        'api_hock_allow_ips' => env('API_HOOK_ALLOW_IPS', '127.0.0.1|192.168.1.*'),
+    ]
 ];

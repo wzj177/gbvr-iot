@@ -10,7 +10,7 @@ class CreateVipCompanyTable extends Migration
     public function up()
     {
         $biz = $this->getContainer();
-        $biz['db']->exec("CREATE TABLE `vr_vip_company` (
+        $biz['db']->exec("CREATE TABLE `gv_vip_company` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `userId` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '会员ID',
   `name` varchar(255) NOT NULL DEFAULT '' COMMENT '企业名称',
@@ -35,6 +35,6 @@ class CreateVipCompanyTable extends Migration
     public function down()
     {
         $container = $this->getContainer();
-        $container['db']->exec("DROP TABLE IF EXISTS `vr_vip_company`;");
+        $container['db']->exec("DROP TABLE IF EXISTS `gv_vip_company`;");
     }
 }
