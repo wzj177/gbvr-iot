@@ -57,12 +57,12 @@ class DaoProxy
 
     protected function getProxyMethod($method)
     {
-        if (0 === strpos($method, 'getAll')) {
+        if (str_starts_with($method, 'getAll')) {
             return 'getAll';
         }
 
         foreach (['get', 'find', 'search', 'count', 'create', 'batchCreate', 'batchUpdate', 'batchDelete', 'update', 'wave', 'delete'] as $prefix) {
-            if (0 === strpos($method, $prefix)) {
+            if (str_starts_with($method, $prefix)) {
                 return $prefix;
             }
         }

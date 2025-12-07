@@ -30,7 +30,7 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
             throw $this->createDaoException('Insert error.');
         }
 
-        $lastInsertId = isset($fields['id']) ? $fields['id'] : $this->db()->lastInsertId();
+        $lastInsertId = $fields['id'] ?? $this->db()->lastInsertId();
 
         return $this->get($lastInsertId);
     }
@@ -78,7 +78,8 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
 
         $sql = "UPDATE {$this->table()} SET " . implode(', ', $sets) . " WHERE id IN ($marks)";
 
-        return $this->db()->executeUpdate($sql, array_merge(array_values($diffs), $ids));
+//        return $this->db()->executeUpdate($sql, array_merge(array_values($diffs), $ids));
+        return $this->db()->executeStatement($sql, array_merge(array_values($diffs), $ids));
     }
 
     public function increment($id, $field, $value = 1): int
@@ -281,7 +282,8 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         $marks = str_repeat('?,', count($values) - 1) . '?';
         $sql = "SELECT * FROM {$this->table} WHERE {$field} IN ({$marks});";
 
-        return $this->db()->fetchAll($sql, $values);
+        return $this->db()->fetchAllAssociative($sql, $values);
+//        return $this->db()->fetchAll($sql, $values);
     }
 
     protected function findByFields($fields)
@@ -295,10 +297,10 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
 
         $sql = "SELECT * FROM {$this->table()} WHERE " . implode(' AND ', $placeholders);
 
-        return $this->db()->fetchAll($sql, array_values($fields));
+        return $this->db()->fetchAllAssociative($sql, array_values($fields));
     }
 
-    protected function createQueryBuilder($conditions)
+    protected function createQueryBuilder($conditions): DynamicQueryBuilder
     {
         $conditions = array_filter(
             $conditions,
@@ -319,7 +321,7 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         $builder->from($this->table(), $this->table());
 
         $declares = $this->declares();
-        $declares['conditions'] = isset($declares['conditions']) ? $declares['conditions'] : array();
+        $declares['conditions'] = $declares['conditions'] ?? [];
 
         foreach ($declares['conditions'] as $condition) {
             $builder->andWhere($condition);
@@ -358,7 +360,7 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
 
     public function pickIdAndUpdatedTimesByUpdatedTimeGT($timestamp, $start, $limit, $updatedTimeColumn = 'updatedTime')
     {
-        return $this->db()->fetchAll(
+        return $this->db()->fetchAllAssociative(
             $this->sql("SELECT id, {$updatedTimeColumn} FROM {$this->table()} WHERE {$updatedTimeColumn} > ?", array($updatedTimeColumn => 'ASC'), $start, $limit),
             array($timestamp)
         );

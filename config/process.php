@@ -51,5 +51,8 @@ return [
 //    'http-chunk' => [
 //        'listen' => 'http://0.0.0.0:8585',
 //        'handler' => \process\HttpChunk::class,
-//    ]
+//    ],
+    'task' => [
+        'handler' => app\process\Task::class
+    ],
 ];

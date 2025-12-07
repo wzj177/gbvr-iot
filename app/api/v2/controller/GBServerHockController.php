@@ -3,13 +3,15 @@
 namespace app\api\v2\controller;
 
 use app\api\BaseController;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
+use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Log;
 use support\Request;
 
 /**
  * GB28181 信令网关 Hook 接收器
- * 
+ *
  * 接收信令网关推送的事件：
  * - register: 设备注册
  * - update_heartbeat: 心跳更新
@@ -20,132 +22,171 @@ use support\Request;
  */
 class GBServerHockController extends BaseController
 {
-    private ZLMClient $zlmClient;
-    
-    public function __construct()
-    {
-        parent::__construct();
-        
-        $this->zlmClient = new ZLMClient([
-            'host' => config('zlm.host', '127.0.0.1'),
-            'port' => config('zlm.port', 80),
-            'secret' => config('zlm.secret', ''),
-            'debug' => config('zlm.debug', false),
-        ]);
-    }
-    
-    public function index(Request $request)
+
+    public function index(Request $request): \support\Response
     {
         $scene = $request->post('scene');
         $body = $request->post('body', []);
-        
+
         Log::channel('sip')->info('GBServer Hook Received', [
             'scene' => $scene,
             'body' => $body,
         ]);
-        
+
         try {
-            switch ($scene) {
-                case 'register':
-                    $this->handleRegister($body);
-                    break;
-                
-                case 'update_heartbeat':
-                    $this->handleHeartbeat($body);
-                    break;
-                
-                case 'save_catalog':
-                    $this->handleCatalog($body);
-                    break;
-                
-                case 'media_ready':
-                    $this->handleMediaReady($body);
-                    break;
-                
-                case 'device_status':
-                    $this->handleDeviceStatus($body);
-                    break;
-                
-                case 'alarm':
-                    $this->handleAlarm($body);
-                    break;
-                
-                default:
-                    Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]);
-            }
-            
+            match ($scene) {
+                'register' => $this->handleRegister($body),
+                'device_unregister' => $this->handleUnRegister($body),
+                'device_expired' => $this->handleExpired($body),
+                'device_offline' => $this->handleOffline($body),
+                'update_heartbeat' => $this->handleHeartbeat($body),
+                'save_catalog' => $this->handleCatalog($body),
+                'media_ready' => $this->handleMediaReady($body),
+                'voice_invite' => $this->handleVoiceInvite($body),
+                'session_bye' => $this->handleSessionBye($body),
+                'device_status' => $this->handleDeviceStatus($body),
+                'alarm' => $this->handleAlarm($body),
+                default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
+            };
+
             return $this->createSuccessJsonResponse();
-            
+
         } catch (\Exception $e) {
             Log::channel('sip')->error('Hook handler exception', [
                 'scene' => $scene,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return $this->createErrorJsonResponse($e->getMessage(), 500);
         }
     }
-    
+
     /**
      * 处理设备注册
      */
     private function handleRegister(array $body): void
     {
         $deviceId = $body['device_id'] ?? '';
-        $fromUri = $body['from_uri'] ?? '';
-        
+        if (!$deviceId) {
+            Log::channel('sip')->warning('Register without device_id', ['body' => $body]);
+            return;
+        }
+
+        try {
+            $device = $this->getDeviceService()->handleDeviceRegister($deviceId, $body);
+
+            Log::channel('sip')->info('Device registered', [
+                'device_id' => $deviceId,
+                'status' => $device['status'] ?? 'unknown',
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Register failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * 处理设备注销 (主动注销)
+     */
+    private function handleUnRegister(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
             return;
         }
-        
-        // 检查设备是否存在
-        $device = Db::table('devices')->where('device_id', $deviceId)->first();
-        
-        if ($device) {
-            // 更新设备状态
-            Db::table('devices')
-                ->where('device_id', $deviceId)
-                ->update([
-                    'status' => 'online',
-                    'registered_at' => date('Y-m-d H:i:s'),
-                    'last_heartbeat_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
-        } else {
-            // 创建设备记录
-            Db::table('devices')->insert([
+
+        try {
+            // 更新设备状态为已注销
+            $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::UNREGISTERED->value);
+
+            Log::channel('sip')->info('Device unregistered', [
                 'device_id' => $deviceId,
-                'status' => 'online',
-                'registered_at' => date('Y-m-d H:i:s'),
-                'last_heartbeat_at' => date('Y-m-d H:i:s'),
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Unregister failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
             ]);
         }
-        
-        Log::channel('sip')->info('Device registered', ['device_id' => $deviceId]);
     }
-    
+
+    /**
+     * 处理设备心跳超时
+     */
+    private function handleExpired(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        if (!$deviceId) {
+            return;
+        }
+
+        try {
+            // 更新设备状态为超时
+            $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::EXPIRED->value);
+
+            Log::channel('sip')->warning('Device heartbeat expired', [
+                'device_id' => $deviceId,
+                'last_heartbeat' => $body['last_heartbeat'] ?? 0,
+                'timeout' => $body['timeout'] ?? 0,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Expired handler failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * 处理设备长期离线 (清理)
+     */
+    private function handleOffline(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        if (!$deviceId) {
+            return;
+        }
+
+        try {
+            // 更新设备状态为离线
+            $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::OFFLINE->value);
+
+            Log::channel('sip')->info('Device offline (cleaned)', [
+                'device_id' => $deviceId,
+                'registered_at' => $body['registered_at'] ?? 0,
+                'last_heartbeat' => $body['last_heartbeat'] ?? 0,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Offline handler failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     /**
      * 处理心跳更新
      */
     private function handleHeartbeat(array $body): void
     {
         $deviceId = $body['device_id'] ?? '';
-        
         if (!$deviceId) {
             return;
         }
-        
-        Db::table('devices')
-            ->where('device_id', $deviceId)
-            ->update([
-                'last_heartbeat_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
+
+        try {
+            $this->getDeviceService()->updateDeviceHeartbeat($deviceId);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Heartbeat update failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
             ]);
+        }
     }
-    
+
     /**
      * 处理设备目录
      */
@@ -153,89 +194,215 @@ class GBServerHockController extends BaseController
     {
         $deviceId = $body['device_id'] ?? '';
         $devices = $body['devices'] ?? [];
-        
+
         if (!$deviceId || empty($devices)) {
+            Log::channel('sip')->warning('Catalog missing data', [
+                'device_id' => $deviceId,
+                'count' => count($devices),
+            ]);
             return;
         }
-        
-        foreach ($devices as $item) {
-            $channelId = $item['DeviceID'] ?? '';
-            $channelName = $item['Name'] ?? '';
-            $manufacturer = $item['Manufacturer'] ?? '';
-            $parentId = $item['ParentID'] ?? '';
-            
-            if (!$channelId) {
-                continue;
-            }
-            
-            // 检查通道是否存在
-            $channel = Db::table('device_channels')
-                ->where('device_id', $deviceId)
-                ->where('channel_id', $channelId)
-                ->first();
-            
-            $channelData = [
-                'channel_name' => $channelName,
-                'manufacturer' => $manufacturer,
-                'parent_id' => $parentId,
-                'updated_at' => date('Y-m-d H:i:s'),
-            ];
-            
-            if ($channel) {
-                // 更新通道
-                Db::table('device_channels')
-                    ->where('id', $channel->id)
-                    ->update($channelData);
-            } else {
-                // 创建通道
-                $channelData['device_id'] = $deviceId;
-                $channelData['channel_id'] = $channelId;
-                $channelData['ssrc'] = $this->generateUniqueSsrc();
-                $channelData['stream_id'] = "{$deviceId}_{$channelId}";
-                $channelData['status'] = 'offline';
-                $channelData['enabled'] = false;
-                $channelData['media_server_id'] = 'default';
-                $channelData['created_at'] = date('Y-m-d H:i:s');
-                
-                Db::table('device_channels')->insert($channelData);
-            }
+
+        try {
+            $count = $this->getDeviceService()->batchUpdateOrCreateChannels($deviceId, $devices);
+
+            Log::channel('sip')->info('Device catalog saved', [
+                'device_id' => $deviceId,
+                'count' => $count,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Catalog save failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
         }
-        
-        Log::channel('sip')->info('Device catalog saved', [
-            'device_id' => $deviceId,
-            'count' => count($devices),
-        ]);
     }
-    
+
     /**
      * 处理媒体流就绪（收到设备200 OK，包含设备SSRC）
      */
     private function handleMediaReady(array $body): void
     {
-        $callId = $body['call_id'] ?? '';
+        $callId = $body['call_id'] ?? 0;
         $deviceSsrc = $body['device_ssrc'] ?? '';
         $sdp = $body['sdp'] ?? [];
-        $playUrls = $body['play_urls'] ?? null;
-        
+
         Log::channel('sip')->info('Media ready', [
             'call_id' => $callId,
             'device_ssrc' => $deviceSsrc,
-            'has_play_urls' => !empty($playUrls),
         ]);
-        
-        // TODO: 通知ZLM更新设备SSRC
-        // 从会话中查找stream_id，然后调用ZLM API更新
-        // 由于会话管理在信令网关，这里可能需要通过其他方式获取stream_id
-        // 或者在media_ready事件中包含stream_id
-        
-        // 暂时记录日志
-        if ($deviceSsrc) {
-            Log::channel('sip')->info('Device SSRC received, should update ZLM', [
-                'device_ssrc' => $deviceSsrc,
+
+        if (!$callId) {
+            Log::channel('sip')->warning('Media ready without call_id');
+            return;
+        }
+
+        try {
+            // 查找会话
+            $session = $this->getDeviceService()->getSessionByCallId((int)$callId);
+            if (!$session) {
+                Log::channel('sip')->warning('Session not found', ['call_id' => $callId]);
+                return;
+            }
+
+            $streamId = $session['stream_id'] ?? '';
+
+            // 更新会话状态和设备 SSRC
+            $updateData = [
+                'status' => 'active',
+                'device_ip' => $sdp['device_ip'] ?? null,
+                'device_port' => $sdp['device_port'] ?? null,
+            ];
+
+            if ($deviceSsrc) {
+                $updateData['device_ssrc'] = $deviceSsrc;
+            }
+
+            $this->getDeviceService()->updateSessionByCallId((int)$callId, $updateData);
+
+            // 如果有设备 SSRC，更新 ZLM
+            if ($deviceSsrc && $streamId) {
+                try {
+                    $result = $this->getZlmClient()->updateRtpServerSsrc($streamId, $deviceSsrc);
+
+                    if ($result) {
+                        Log::channel('sip')->info('ZLM SSRC updated', [
+                            'stream_id' => $streamId,
+                            'device_ssrc' => $deviceSsrc,
+                        ]);
+                    } else {
+                        Log::channel('sip')->warning('ZLM SSRC update failed', [
+                            'stream_id' => $streamId,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::channel('sip')->error('ZLM update error', [
+                        'stream_id' => $streamId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // 获取播放地址
+            if ($streamId) {
+                try {
+                    $playUrls = $this->getZlmClient()->getPlayUrls('rtp', $streamId);
+
+                    // 更新会话的播放地址
+                    $this->getDeviceService()->updateSessionByCallId((int)$callId, [
+                        'play_urls' => json_encode($playUrls),
+                    ]);
+
+                    Log::channel('sip')->info('Play URLs generated', [
+                        'stream_id' => $streamId,
+                        'urls' => $playUrls,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::channel('sip')->warning('Get play URLs failed', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Media ready handler failed', [
+                'call_id' => $callId,
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
+    /**
+     * 处理语音对讲 INVITE
+     */
+    private function handleVoiceInvite(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $channelId = $body['channel_id'] ?? '';
+        $mode = $body['mode'] ?? 'talk';
+
+        Log::channel('sip')->info('Voice invite', [
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'mode' => $mode,
+        ]);
+
+        // TODO: 实现语音对讲业务逻辑
+        // 1. 分配 ZLM 端口接收音频
+        // 2. 生成 SDP 响应
+        // 3. 返回音频推流地址给前端
+
+        Log::channel('sip')->warning('Voice invite not implemented yet', [
+            'device_id' => $deviceId,
+        ]);
+    }
+
+    /**
+     * 处理会话结束（BYE）
+     */
+    private function handleSessionBye(array $body): void
+    {
+        $callId = $body['call_id'] ?? 0;
+        $deviceId = $body['device_id'] ?? '';
+
+        Log::channel('sip')->info('Session bye', [
+            'call_id' => $callId,
+            'device_id' => $deviceId,
+        ]);
+
+        if (!$callId) {
+            return;
+        }
+
+        try {
+            // 查找会话
+            $session = $this->getDeviceService()->getSessionByCallId((int)$callId);
+            if (!$session) {
+                Log::channel('sip')->warning('Session not found for BYE', ['call_id' => $callId]);
+                return;
+            }
+
+            $streamId = $session['stream_id'] ?? '';
+            $port = $session['zlm_port'] ?? 0;
+
+            // 关闭 ZLM 流
+            if ($streamId) {
+                try {
+                    $this->getZlmClient()->closeStream('rtp', $streamId);
+                    Log::channel('sip')->info('Stream closed', ['stream_id' => $streamId]);
+                } catch (\Exception $e) {
+                    Log::channel('sip')->warning('Close stream failed', [
+                        'stream_id' => $streamId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // 关闭 RTP 端口
+            if ($port > 0) {
+                try {
+                    $this->getZlmClient()->closeRtpServer($streamId, $port);
+                    Log::channel('sip')->info('RTP port closed', ['port' => $port]);
+                } catch (\Exception $e) {
+                    Log::channel('sip')->warning('Close RTP port failed', [
+                        'port' => $port,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // 删除会话记录
+            $this->getDeviceService()->deleteSessionByCallId((int)$callId);
+
+            Log::channel('sip')->info('Session cleaned up', ['call_id' => $callId]);
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Session bye handler failed', [
+                'call_id' => $callId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     /**
      * 处理设备状态变化
      */
@@ -243,26 +410,28 @@ class GBServerHockController extends BaseController
     {
         $deviceId = $body['device_id'] ?? '';
         $online = $body['online'] ?? 'OFFLINE';
-        
+
         if (!$deviceId) {
             return;
         }
-        
-        $status = ($online === 'ONLINE') ? 'online' : 'offline';
-        
-        Db::table('devices')
-            ->where('device_id', $deviceId)
-            ->update([
+
+        $status = ($online === 'ONLINE') ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::OFFLINE->value;
+
+        try {
+            $this->getDeviceService()->updateDeviceStatus($deviceId, $status);
+
+            Log::channel('sip')->info('Device status changed', [
+                'device_id' => $deviceId,
                 'status' => $status,
-                'updated_at' => date('Y-m-d H:i:s'),
             ]);
-        
-        Log::channel('sip')->info('Device status changed', [
-            'device_id' => $deviceId,
-            'status' => $status,
-        ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Status update failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
-    
+
     /**
      * 处理报警信息
      */
@@ -271,27 +440,31 @@ class GBServerHockController extends BaseController
         $deviceId = $body['device_id'] ?? '';
         $priority = $body['priority'] ?? '1';
         $method = $body['method'] ?? '';
-        
+
         Log::channel('sip')->warning('Device alarm', [
             'device_id' => $deviceId,
             'priority' => $priority,
             'method' => $method,
             'data' => $body['data'] ?? [],
         ]);
-        
+
         // TODO: 存储报警记录到数据库
         // TODO: 推送报警通知
     }
+
+    /**
+     * @return DeviceService
+     */
+    private function getDeviceService(): DeviceService
+    {
+        return $this->createService('Devices:DeviceService');
+    }
     
     /**
-     * 生成唯一SSRC
+     * @return ZlmClient
      */
-    private function generateUniqueSsrc(): string
+    private function getZlmClient(): ZlmClient
     {
-        do {
-            $ssrc = str_pad((string)rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
-        } while (Db::table('device_channels')->where('ssrc', $ssrc)->exists());
-        
-        return $ssrc;
+        return $this->getBiz()->offsetGet('zlm_sdk');
     }
 }

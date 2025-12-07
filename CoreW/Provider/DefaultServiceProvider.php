@@ -12,9 +12,9 @@ use Pimple\ServiceProviderInterface;
 
 class DefaultServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    private $defaultRootNamespace = "CoreW\\Business\\";
+    private string $defaultRootNamespace = "CoreW\\Business\\";
 
-    public function register(Container $app)
+    public function register(Container $app): void
     {
         $app['autoload.object_maker.service'] = function ($app) {
             return function ($namespace, $name) use ($app) {
@@ -25,7 +25,7 @@ class DefaultServiceProvider implements ServiceProviderInterface, BootableProvid
         $app['autoload.object_maker.dao'] = function ($app) {
             return function ($namespace, $name) use ($app) {
                 $class = "{$namespace}\\Dao\\Impl\\{$name}Impl";
-                if ($this->defaultRootNamespace === substr($namespace, 0, strlen($this->defaultRootNamespace))) {
+                if (str_starts_with($namespace, $this->defaultRootNamespace)) {
                     $ctNamespace = "{$this->getNamespace()}\\{$namespace}";
                     $ctClass = "{$ctNamespace}\\Dao\\Impl\\{$name}Impl";
                     if (class_exists($ctClass)) {
@@ -47,7 +47,7 @@ class DefaultServiceProvider implements ServiceProviderInterface, BootableProvid
     {
         $class = "{$namespace}\\Service\\Impl\\{$name}Impl";
         // 比如目录是:Modules/Api/Bfw/User,这样的结构的命名空间就是 Modules/Api/Bfw/User/Service/UserServiceImpl
-        if ($this->defaultRootNamespace === substr($namespace, 0, strlen($this->defaultRootNamespace))) {
+        if (str_starts_with($namespace, $this->defaultRootNamespace)) {
             $ctNamespace = "{$this->getNamespace()}\\{$namespace}";
             $ctClass = "{$ctNamespace}\\Service\\Impl\\{$name}Impl";
             if (class_exists($ctClass)) {

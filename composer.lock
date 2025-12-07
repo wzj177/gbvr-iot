@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6fc273df63ae570372468dd6d085a916",
+    "content-hash": "caa39c92c621292c9987f5c0d2f3c4c1",
     "packages": [
         {
             "name": "alchemy/binary-driver",
@@ -6335,23 +6335,17 @@
         },
         {
             "name": "symfony/process",
-            "version": "v5.4.28",
+            "version": "v5.4.47",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/process.git",
-                "reference": "45261e1fccad1b5447a8d7a8e67aa7b4a9798b7b"
+                "reference": "5d1662fb32ebc94f17ddb8d635454a776066733d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/process/zipball/45261e1fccad1b5447a8d7a8e67aa7b4a9798b7b",
-                "reference": "45261e1fccad1b5447a8d7a8e67aa7b4a9798b7b",
-                "shasum": "",
-                "mirrors": [
-                    {
-                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
-                        "preferred": true
-                    }
-                ]
+                "url": "https://api.github.com/repos/symfony/process/zipball/5d1662fb32ebc94f17ddb8d635454a776066733d",
+                "reference": "5d1662fb32ebc94f17ddb8d635454a776066733d",
+                "shasum": ""
             },
             "require": {
                 "php": ">=7.2.5",
@@ -6383,7 +6377,7 @@
             "description": "Executes commands in sub-processes",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/process/tree/v5.4.28"
+                "source": "https://github.com/symfony/process/tree/v5.4.47"
             },
             "funding": [
                 {
@@ -6399,7 +6393,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-08-07T10:36:04+00:00"
+            "time": "2024-11-06T11:36:42+00:00"
         },
         {
             "name": "symfony/security-acl",
@@ -7601,23 +7595,17 @@
         },
         {
             "name": "workerman/crontab",
-            "version": "v1.0.6",
+            "version": "v1.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/walkor/crontab.git",
-                "reference": "b78f1556f2977715b9cb5653129e6d9cf160d966"
+                "reference": "74f51ca8204e8eb628e57bc0e640561d570da2cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/walkor/crontab/zipball/b78f1556f2977715b9cb5653129e6d9cf160d966",
-                "reference": "b78f1556f2977715b9cb5653129e6d9cf160d966",
-                "shasum": "",
-                "mirrors": [
-                    {
-                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
-                        "preferred": true
-                    }
-                ]
+                "url": "https://api.github.com/repos/walkor/crontab/zipball/74f51ca8204e8eb628e57bc0e640561d570da2cb",
+                "reference": "74f51ca8204e8eb628e57bc0e640561d570da2cb",
+                "shasum": ""
             },
             "require": {
                 "php": ">=7.0",
@@ -7653,7 +7641,7 @@
                 "source": "https://github.com/walkor/crontab",
                 "wiki": "http://doc.workerman.net/"
             },
-            "time": "2022-10-17T01:59:19+00:00"
+            "time": "2025-01-15T07:20:50+00:00"
         },
         {
             "name": "workerman/globaldata",
@@ -8086,7 +8074,7 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=7.4",
+        "php": ">=8.2",
         "ext-openssl": "*",
         "ext-json": "*"
     },

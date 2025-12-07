@@ -25,7 +25,7 @@
     "source": "https://github.com/walkor/webman"
   },
   "require": {
-    "php": ">=7.4",
+    "php": ">=8.2",
     "workerman/webman-framework": "~2.1",
     "monolog/monolog": "^2.0",
     "webman/console": "^1.2",
@@ -61,7 +61,8 @@
     "webman/log": "~2.1",
     "webman/redis": "^2.1",
     "illuminate/events": "^12.39",
-    "guzzlehttp/guzzle": "^7.10"
+    "guzzlehttp/guzzle": "^7.10",
+    "symfony/process": "^5.4"
   },
   "suggest": {
     "ext-event": "For better performance. "

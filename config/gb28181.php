@@ -194,7 +194,7 @@ return [
     /**
      * SIP User-Agent 标识
      */
-    'user_agent' => 'PHP-eXosip GB28181 Server/1.0',
+    'user_agent' => 'PHP GB28181 Server/1.0',
 
     /**
      * 最大SIP消息大小（字节）
@@ -206,10 +206,31 @@ return [
      */
     'transaction_timeout' => 32000,
 
+    // ========== 持久化配置 ==========
+
     /**
-     * API Hook Secret
-     * 用于API请求的身份验证
+     * 设备缓存文件路径
+     * 用于重启后恢复设备列表
      */
-    'api_hock_token' => env('API_HOOK_TOKEN', '$2y$10$qjicMvLdYYq3halZUae9Eu1d.guBoagRtb/DQwcGKF8I7AgrQEwzu
-'),
+    'device_cache_file' => '/tmp/gb28181_devices.cache',
+
+    'redis' => [
+        'host' => '127.0.0.1',
+        'password' => null,
+        'port' => 6379,
+        'database' => 11,
+        'prefix' => 'gbvr_iot_sip_gateway_'
+    ],
+
+    // 流媒体
+    'zlm' => [
+        'media_server_ip' => '',
+        'media_server_port_start' => 30000,
+        'media_server_port_end' => 40000,
+    ],
+    'api' => [
+        'hock_url' => 'http://127.0.0.1:8886/api/v2/gb/server/hock',
+        'pull_url' => 'http://127.0.0.1:8886/api/v2/gb/devices/pulll',
+        'token' => '$2y$10$DfjYrMs2Vvl2t3xw65LQXO3dZbs085qr7XJMzAnhSQixKnPejzgTm'
+    ]
 ];

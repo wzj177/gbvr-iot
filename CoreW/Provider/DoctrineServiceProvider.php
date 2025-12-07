@@ -83,11 +83,11 @@ class DoctrineServiceProvider implements ServiceProviderInterface
             $app['dbs.options.initializer']();
 
             $configs = new Container();
-            $addLogger = isset($app['logger']) && null !== $app['logger'] && class_exists('CoreW\Context\DbalLogger');
+            $addLogger = isset($app['logger']) && class_exists('CoreW\Context\DbalLogger');
             foreach ($app['dbs.options'] as $name => $options) {
                 $configs[$name] = new Configuration();
                 if ($addLogger) {
-                    $configs[$name]->setSQLLogger(new DbalLogger($app['logger'], isset($app['stopwatch']) ? $app['stopwatch'] : null));
+                    $configs[$name]->setSQLLogger(new DbalLogger($app['logger'], $app['stopwatch'] ?? null));
                 }
             }
 
@@ -109,7 +109,7 @@ class DoctrineServiceProvider implements ServiceProviderInterface
         $this->registerLock($app);
     }
 
-    private function registerShortcutForFirstDb($app)
+    private function registerShortcutForFirstDb($app): void
     {
         $app['db'] = function ($app) {
             $dbs = $app['dbs'];
@@ -130,7 +130,7 @@ class DoctrineServiceProvider implements ServiceProviderInterface
         };
     }
 
-    private function registerLock($app)
+    private function registerLock($app): void
     {
         $app['lock'] = function ($app) {
             return new Lock($app);

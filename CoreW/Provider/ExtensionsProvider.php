@@ -11,6 +11,7 @@ use CoreW\Sdk\AMapSdk\AMapClient;
 use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\LeChangeSdk\Controller as LeChangeSdk;
 use CoreW\Sdk\Ys7Sdk\OpenYs7;
+use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\RotatingFileHandler;
 use Monolog\Logger;
@@ -92,6 +93,15 @@ class ExtensionsProvider implements ServiceProviderInterface
             return function ($params, $debug) {
                 return new LeChangeSdk($params['appKey'], $params['appSecret'], $debug, $params['apiUrl'] ??  null);
             };
+        };
+
+        $biz['zlm_sdk'] = function () {
+            return new ZLMClient([
+                'host' => config('zlm.host', '127.0.0.1'),
+                'port' => config('zlm.port', 80),
+                'secret' => config('zlm.secret', ''),
+                'debug' => config('zlm.debug', false),
+            ]);
         };
     }
 }

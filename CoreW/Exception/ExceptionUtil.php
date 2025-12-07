@@ -10,7 +10,7 @@ use Respect\Validation\Exceptions\ValidationException;
 
 class ExceptionUtil
 {
-    public static function getErrorAndHttpCodeFromException($exception)
+    public static function getErrorAndHttpCodeFromException($exception): array
     {
         $error = [
             'code' => $exception->getCode() ?: -1,
@@ -30,8 +30,8 @@ class ExceptionUtil
             $error['code'] = CommonBizException::INPUT_PARAMETER_ERROR;
             $httpCode = 400;
         } else {
-//            $error['message'] = 'Internal server error';
-//            $error['code'] = $exception->getCode() ?: -1;
+            $error['message'] = config('app.debug') ? $exception->getMessage() : 'Internal server error';
+            $error['code'] = $exception->getCode() ?: -1;
             $httpCode = 500;
         }
 

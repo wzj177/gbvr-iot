@@ -10,7 +10,7 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
 
     protected $table = 'gv_log';
 
-    protected function createUserJoinQueryBuilder($conditions)
+    protected function createUserJoinQueryBuilder($conditions): \CoreW\Dao\DynamicQueryBuilder
     {
         $builder = $this->createQueryBuilder($conditions);
         $builder->leftJoin($this->table, 'gv_user', 'u', 'u.id = ' . $this->table . '.userID');

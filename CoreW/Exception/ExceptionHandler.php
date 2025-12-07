@@ -44,7 +44,6 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
 
     public function render(Request $request, Throwable $exception): Response
     {
-
         list($httpCode, $error) = ExceptionUtil::getErrorAndHttpCodeFromException($exception);
         $error['data'] = null;
         if ($error['code'] === CommonBizException::USER_IP_FORBIDDEN && in_array($request->route->getName(), $this->blobRoutes)) {
@@ -52,7 +51,6 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         }
 
         if ($this->requestIsJson($request)) {
-
             if ($this->debug) {
 //                print_r(debug_backtrace(\PHP_VERSION_ID >= 50400 ? \DEBUG_BACKTRACE_IGNORE_ARGS : false));
                 $error['traces'] = $this->formatExceptionTraces($exception);//explode("\n", (string)$exception);
@@ -113,10 +111,10 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         return $httpCode;
     }
 
-    protected function requestIsJson(Request $request)
+    protected function requestIsJson(Request $request): bool
     {
         return $request->expectsJson()
-            || false !== strpos(strtolower($request->header('content-type')), 'application/json')
-            || false !== strpos(strtolower($request->header('content-type')), 'text/json');
+            || ($request->header('content-type')  && str_contains(strtolower($request->header('content-type')), 'application/json'))
+            || ($request->header('content-type')  &&  str_contains(strtolower($request->header('content-type')), 'text/json'));
     }
 }

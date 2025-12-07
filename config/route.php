@@ -39,7 +39,7 @@ Route::fallback(function (Request $request) {
         $response = response('', 204);
     } elseif ($request->isAjax()
         || $request->isPjax()
-        || strpos(strtolower($request->header('content-type')), 'application/json') !== false) {
+        || ($request->header('content-type') && str_contains(strtolower($request->header('content-type')), 'application/json'))) {
         $response = json([
             'code' => 4041001,
             'message' => '404 not found!!!',

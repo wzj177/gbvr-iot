@@ -137,6 +137,7 @@ Route::group('/api', function () {
             Route::post('/server/hock', [\app\api\v2\controller\GBServerHockController::class, 'index'])->middleware([
                 \app\middleware\GBHock::class
             ]);
+            Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pullOnLineList']);
         });
         
         // GB28181 设备管理

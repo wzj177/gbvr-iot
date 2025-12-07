@@ -19,7 +19,7 @@ abstract class AdvancedDaoImpl extends GeneralDaoImpl implements AdvancedDaoInte
     public function batchDelete(array $conditions)
     {
         $declares = $this->declares();
-        $declareConditions = isset($declares['conditions']) ? $declares['conditions'] : array();
+        $declareConditions = $declares['conditions'] ?? array();
         array_walk($conditions, function (&$condition, $key) use ($declareConditions) {
             $isInDeclareCondition = false;
             foreach ($declareConditions as $declareCondition) {
