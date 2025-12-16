@@ -46,6 +46,10 @@ class MediaServer
             timeout: null // 不自动 kill
         );
 
+        $this->process->setOptions([
+            'create_process_group' => true
+        ]);
+
         $this->bindSignals(); // 支持 Ctrl+C
 
         // 前台阻塞运行（核心）
@@ -67,6 +71,7 @@ class MediaServer
         if ($exitCode !== 0) {
             throw new ProcessFailedException($this->process);
         }
+
     }
 
     /**
@@ -88,6 +93,13 @@ class MediaServer
         pcntl_signal(SIGTERM, function () {
             echo "Received SIGTERM, stopping ZLM...\n";
             $this->stop();
+        });
+
+        pcntl_signal(SIGHUP, function () {
+            echo "Received SIGHUP, stopping ZLM...\n";
+            if ($this->process?->getPid()) {
+                posix_kill(-$this->process->getPid(), SIGTERM); // kill group
+            }
         });
     }
 

@@ -3,6 +3,8 @@
 namespace app\api\v2\controller;
 
 use app\api\BaseController;
+use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\GB\Gb28181Service;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Log;
 use support\Redis;
@@ -13,21 +15,6 @@ use support\Request;
  */
 class GB28181StreamController extends BaseController
 {
-    private ZLMClient $zlmClient;
-    
-    public function __construct()
-    {
-        parent::__construct();
-        
-        // 初始化ZLM客户端
-        $this->zlmClient = new ZLMClient([
-            'host' => config('zlm.host', '127.0.0.1'),
-            'port' => config('zlm.port', 80),
-            'secret' => config('zlm.secret', ''),
-            'debug' => config('zlm.debug', false),
-        ]);
-    }
-    
     /**
      * 开始实时视频
      */
@@ -41,105 +28,83 @@ class GB28181StreamController extends BaseController
         }
         
         // 1. 检查设备是否在线
-        $device = Db::table('devices')
-            ->where('device_id', $deviceId)
-            ->first();
+        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
         
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
         }
         
-        if ($device->status !== 'online') {
+        if ($device['status'] !== 'online') {
             return $this->createErrorJsonResponse('设备离线', 400);
         }
         
         // 2. 获取或创建通道记录
-        $channel = Db::table('device_channels')
-            ->where('device_id', $deviceId)
-            ->where('channel_id', $channelId)
-            ->first();
+        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
         
         if (!$channel) {
-            // 创建通道
-            $ssrc = $this->generateUniqueSsrc();
-            $streamId = $this->generateStreamId($deviceId, $channelId);
-            
-            $channelData = [
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'ssrc' => $ssrc,
-                'stream_id' => $streamId,
-                'status' => 'offline',
-                'enabled' => true,
-                'media_server_id' => 'default',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ];
-            
-            Db::table('device_channels')->insert($channelData);
-            $channel = (object)$channelData;
-        } else if (!$channel->ssrc) {
-            // 补充SSRC
-            $ssrc = $this->generateUniqueSsrc();
-            Db::table('device_channels')
-                ->where('id', $channel->id)
-                ->update(['ssrc' => $ssrc]);
-            $channel->ssrc = $ssrc;
+            return $this->createErrorJsonResponse('通道不存在', 404);
         }
         
-        // 3. 调用ZLM分配端口
+        // 3. 创建直播会话
         $tcpMode = config('zlm.default_tcp_mode', 1); // 0=UDP, 1=TCP被动(推荐), 2=TCP主动
-        $zlmResult = $this->zlmClient->openRtpServer(
-            $channel->stream_id,
-            0,  // 自动分配端口
-            $tcpMode,  // 传输模式
-            true,   // 录制MP4
-            $channel->ssrc
-        );
-        
-        if (!$zlmResult || $zlmResult['code'] !== 0) {
-            return $this->createErrorJsonResponse('ZLM端口分配失败: ' . ($zlmResult['msg'] ?? 'Unknown error'), 500);
+        try {
+            $sessionResult = $this->getGb28181Service()->createLiveSession(
+                $deviceId,
+                $channelId,
+                $tcpMode
+            );
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('创建直播会话失败: ' . $e->getMessage(), 500);
         }
         
-        $zlmPort = $zlmResult['port'];
+        if (!$sessionResult) {
+            return $this->createErrorJsonResponse('创建直播会话失败', 500);
+        }
+        
+        $zlmPort = $sessionResult['zlm_port'];
+        $ssrc = $sessionResult['ssrc'];
+        $streamId = $sessionResult['stream_id'];
         
         // 4. 发送命令到信令网关
-        $requestId = uniqid('live_');
-        Redis::publish('gb28181:commands', json_encode([
-            'action' => 'start_live_video',
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'request_id' => $requestId,
-            'params' => [
-                'ssrc' => $channel->ssrc,
-                'zlm_port' => $zlmPort,
-                'tcp_mode' => $tcpMode, // 传递给信令网关
-                'stream_id' => $channel->stream_id,
-            ],
-            'timestamp' => time(),
-        ]));
+        try {
+            $result = $this->getGb28181Service()->startLiveVideo(
+                $deviceId,
+                $channelId,
+                $ssrc,
+                $zlmPort,
+                $tcpMode, // 传递给信令网关
+                $streamId
+            );
+            
+            if (!$result) {
+                // 如果发送失败，关闭已分配的端口
+                $this->getGb28181Service()->closeRtpServer($streamId);
+                return $this->createErrorJsonResponse('发送实时视频请求失败', 500);
+            }
+        } catch (\Exception $e) {
+            // 如果发生异常，关闭已分配的端口
+            $this->getGb28181Service()->closeRtpServer($streamId);
+            return $this->createErrorJsonResponse('发送实时视频请求异常: ' . $e->getMessage(), 500);
+        }
         
         // 5. 更新通道状态
-        Db::table('device_channels')
-            ->where('id', $channel->id)
-            ->update([
-                'status' => 'streaming',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
+        $this->getDeviceService()->updateChannel($channel['id'], [
+            'status' => 'streaming',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
         
         Log::channel('sip')->info('Start live video command sent', [
             'device_id' => $deviceId,
             'channel_id' => $channelId,
-            'ssrc' => $channel->ssrc,
+            'ssrc' => $ssrc,
             'zlm_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
-            'stream_id' => $channel->stream_id,
+            'stream_id' => $streamId,
         ]);
         
         return $this->createSuccessJsonResponse([
-            'request_id' => $requestId,
-            'stream_id' => $channel->stream_id,
-            'ssrc' => $channel->ssrc,
+            'stream_id' => $streamId,
+            'ssrc' => $ssrc,
             'zlm_port' => $zlmPort,
             'message' => 'INVITE命令已发送，请等待设备响应',
         ]);
@@ -157,37 +122,40 @@ class GB28181StreamController extends BaseController
             return $this->createErrorJsonResponse('缺少参数device_id或channel_id', 400);
         }
         
-        $channel = Db::table('device_channels')
-            ->where('device_id', $deviceId)
-            ->where('channel_id', $channelId)
-            ->first();
+        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
         
         if (!$channel) {
             return $this->createErrorJsonResponse('通道不存在', 404);
         }
         
         // 1. 发送BYE到信令网关
-        $requestId = uniqid('stop_');
-        Redis::publish('gb28181:commands', json_encode([
-            'action' => 'stop_live_video',
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'request_id' => $requestId,
-            'timestamp' => time(),
-        ]));
+        try {
+            $result = $this->getGb28181Service()->stopLiveVideo($deviceId, $channelId);
+            
+            if (!$result) {
+                return $this->createErrorJsonResponse('发送停止实时视频请求失败', 500);
+            }
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('发送停止实时视频请求异常: ' . $e->getMessage(), 500);
+        }
         
         // 2. 关闭ZLM端口
-        if ($channel->stream_id) {
-            $this->zlmClient->closeRtpServer($channel->stream_id);
+        if (isset($channel['stream_id']) && $channel['stream_id']) {
+            try {
+                $this->getGb28181Service()->closeRtpServer($channel['stream_id']);
+            } catch (\Exception $e) {
+                Log::channel('sip')->warning('Close RTP server failed', [
+                    'stream_id' => $channel['stream_id'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
         
         // 3. 更新通道状态
-        Db::table('device_channels')
-            ->where('id', $channel->id)
-            ->update([
-                'status' => 'offline',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
+        $this->getDeviceService()->updateChannel($channel['id'], [
+            'status' => 'offline',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
         
         Log::channel('sip')->info('Stop live video command sent', [
             'device_id' => $deviceId,
@@ -195,7 +163,6 @@ class GB28181StreamController extends BaseController
         ]);
         
         return $this->createSuccessJsonResponse([
-            'request_id' => $requestId,
             'message' => 'BYE命令已发送',
         ]);
     }
@@ -212,24 +179,25 @@ class GB28181StreamController extends BaseController
             return $this->createErrorJsonResponse('缺少参数device_id或channel_id', 400);
         }
         
-        $channel = Db::table('device_channels')
-            ->where('device_id', $deviceId)
-            ->where('channel_id', $channelId)
-            ->first();
+        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
         
         if (!$channel) {
             return $this->createErrorJsonResponse('通道不存在', 404);
         }
         
-        if ($channel->status !== 'streaming') {
+        if ($channel['status'] !== 'streaming') {
             return $this->createErrorJsonResponse('通道未在推流', 400);
         }
         
         // 获取播放地址
-        $playUrls = $this->zlmClient->getPlayUrls($channel->stream_id);
+        try {
+            $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $channel['stream_id']);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('获取播放地址失败: ' . $e->getMessage(), 500);
+        }
         
         return $this->createSuccessJsonResponse([
-            'stream_id' => $channel->stream_id,
+            'stream_id' => $channel['stream_id'],
             'play_urls' => $playUrls,
         ]);
     }
@@ -254,59 +222,63 @@ class GB28181StreamController extends BaseController
         }
         
         // 获取通道
-        $channel = Db::table('device_channels')
-            ->where('device_id', $deviceId)
-            ->where('channel_id', $channelId)
-            ->first();
+        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
         
         if (!$channel) {
             return $this->createErrorJsonResponse('通道不存在', 404);
         }
         
-        // 为回放生成独立的Stream ID
-        $playbackStreamId = $this->generateStreamId($deviceId, $channelId, 'playback_' . time());
-        $playbackSsrc = $this->generateUniqueSsrc();
-        
-        // 调用ZLM分配端口
-        $zlmResult = $this->zlmClient->openRtpServer(
-            $playbackStreamId,
-            0,
-            false,
-            true,
-            $playbackSsrc
-        );
-        
-        if (!$zlmResult || $zlmResult['code'] !== 0) {
-            return $this->createErrorJsonResponse('ZLM端口分配失败', 500);
+        // 创建回放会话
+        try {
+            $sessionResult = $this->getGb28181Service()->createPlaybackSession(
+                $deviceId,
+                $channelId,
+                $startTime,
+                $endTime,
+                1 // tcpMode
+            );
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('创建回放会话失败: ' . $e->getMessage(), 500);
         }
         
+        if (!$sessionResult) {
+            return $this->createErrorJsonResponse('创建回放会话失败', 500);
+        }
+        
+        $playbackStreamId = $sessionResult['stream_id'];
+        $playbackSsrc = $sessionResult['ssrc'];
+        $zlmPort = $sessionResult['zlm_port'];
+        
         // 发送命令到信令网关
-        $requestId = uniqid('playback_');
-        // use sdk
-//        Redis::publish('gb28181:commands', json_encode([
-//            'action' => 'start_playback',
-//            'device_id' => $deviceId,
-//            'channel_id' => $channelId,
-//            'request_id' => $requestId,
-//            'params' => [
-//                'ssrc' => $playbackSsrc,
-//                'zlm_port' => $zlmResult['port'],
-//                'stream_id' => $playbackStreamId,
-//                'start_time' => $startTime,
-//                'end_time' => $endTime,
-//            ],
-//            'timestamp' => time(),
-//        ]));
-        $this->getBiz()->offsetGet('gb28181_gateway_sdk')->sendCommand($deviceId, 'start_playback', [
-            'channel_id' => $channelId,
-            'request_id' => $requestId,
-            'ssrc' => $playbackSsrc,
-            'zlm_port' => $zlmResult['port'],
-            'stream_id' => $playbackStreamId,
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'timestamp' => time(),
-        ]);
+        try {
+            $result = $this->getGb28181Service()->startPlayback(
+                $deviceId,
+                $channelId,
+                $startTime,
+                $endTime,
+                $playbackSsrc,
+                $zlmPort,
+                1, // tcpMode
+                $playbackStreamId
+            );
+            
+            if (!$result) {
+                // 如果发送失败，关闭已分配的端口
+                $this->getGb28181Service()->closeRtpServer($playbackStreamId);
+                return $this->createErrorJsonResponse('发送回放请求失败', 500);
+            }
+        } catch (\Exception $e) {
+            // 如果发生异常，关闭已分配的端口
+            $this->getGb28181Service()->closeRtpServer($playbackStreamId);
+            return $this->createErrorJsonResponse('发送回放请求异常: ' . $e->getMessage(), 500);
+        }
+        
+        try {
+            $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $playbackStreamId);
+        } catch (\Exception $e) {
+            $playUrls = [];
+        }
+        
         Log::channel('sip')->info('Start playback command sent', [
             'device_id' => $deviceId,
             'channel_id' => $channelId,
@@ -315,70 +287,29 @@ class GB28181StreamController extends BaseController
         ]);
         
         return $this->createSuccessJsonResponse([
-            'request_id' => $requestId,
             'stream_id' => $playbackStreamId,
             'ssrc' => $playbackSsrc,
-            'zlm_port' => $zlmResult['port'],
-            'play_urls' => $this->zlmClient->getPlayUrls($playbackStreamId),
+            'zlm_port' => $zlmPort,
+            'play_urls' => $playUrls,
         ]);
     }
     
+
+    
     /**
-     * PTZ控制
+     * @return Gb28181Service
      */
-    public function ptzControl(Request $request)
+    private function getGb28181Service(): Gb28181Service
     {
-        $deviceId = $request->post('device_id');
-        $channelId = $request->post('channel_id');
-        $command = $request->post('command'); // up, down, left, right, zoom_in, zoom_out, stop
-        $speed = $request->post('speed', 5); // 1-255
-        
-        if (!$deviceId || !$channelId || !$command) {
-            return $this->createErrorJsonResponse('缺少必要参数', 400);
-        }
-        
-        // 发送命令到信令网关
-        $requestId = uniqid('ptz_');
-        Redis::publish('gb28181:commands', json_encode([
-            'action' => 'ptz_control',
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'request_id' => $requestId,
-            'params' => [
-                'command' => $command,
-                'speed' => $speed,
-            ],
-            'timestamp' => time(),
-        ]));
-        
-        return $this->createSuccessJsonResponse([
-            'request_id' => $requestId,
-            'message' => 'PTZ命令已发送',
-        ]);
+        return $this->createService('GB:Gb28181Service');
     }
     
     /**
-     * 生成唯一SSRC
+     * @return DeviceService
      */
-    private function generateUniqueSsrc(): string
+    private function getDeviceService(): DeviceService
     {
-        do {
-            $ssrc = str_pad((string)rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
-        } while (Db::table('device_channels')->where('ssrc', $ssrc)->exists());
-        
-        return $ssrc;
-    }
-    
-    /**
-     * 生成Stream ID
-     */
-    private function generateStreamId(string $deviceId, string $channelId, ?string $suffix = null): string
-    {
-        $streamId = "{$deviceId}_{$channelId}";
-        if ($suffix) {
-            $streamId .= "_{$suffix}";
-        }
-        return $streamId;
+        return $this->createService('Devices:DeviceService');
     }
     
     /**

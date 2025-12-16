@@ -1,0 +1,60 @@
+<?php
+/**
+ * GB28181Test.php 的补充方法
+ * 
+ * 将以下方法添加到 GB28181Test 类的末尾，在最后一个 } 之前
+ */
+
+    /**
+     * 查询设备位置 (MobilePosition)
+     * 
+     * 适用于移动设备(车载、无人机等)的GPS位置查询
+     */
+    private function handleQueryMobilePosition(InputInterface $input, OutputInterface $output, $helper): void
+    {
+        $deviceId = $this->askDeviceId($input, $output, $helper);
+        
+        $output->writeln('');
+        $output->writeln('<fg=cyan>位置查询参数：</>');
+        
+        $intervalQuestion = new ChoiceQuestion(
+            '请选择上报方式',
+            [
+                'once' => '查询一次',
+                '5' => '每5秒上报',
+                '10' => '每10秒上报',
+                '30' => '每30秒上报',
+                '60' => '每60秒上报'
+            ],
+            'once'
+        );
+        $intervalChoice = $helper->ask($input, $output, $intervalQuestion);
+        $interval = $intervalChoice === 'once' ? null : (int)$intervalChoice;
+        
+        $output->writeln("<comment>正在发送位置查询命令...</comment>");
+        
+        try {
+            $result = $this->gb28181Service->queryMobilePosition($deviceId, $interval);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 位置查询命令已发送</info>");
+                if ($interval) {
+                    $output->writeln("  上报间隔: {$interval} 秒");
+                    $output->writeln("<comment>  设备将每{$interval}秒上报一次位置信息</comment>");
+                } else {
+                    $output->writeln("  查询模式: 单次查询");
+                }
+                $output->writeln('');
+                $output->writeln("<comment>💡 设备会通过 MESSAGE 或 NOTIFY 上报位置，包含:</comment>");
+                $output->writeln("<comment>   - 经纬度坐标 (Longitude/Latitude)</comment>");
+                $output->writeln("<comment>   - 速度 (Speed, km/h)</comment>");
+                $output->writeln("<comment>   - 方向 (Direction, 0-360度)</comment>");
+                $output->writeln("<comment>   - 海拔 (Altitude, 米)</comment>");
+                $output->writeln("<comment>   - 时间戳 (Time)</comment>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+        }
+    }

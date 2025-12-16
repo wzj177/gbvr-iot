@@ -4,6 +4,7 @@ namespace app\command;
 
 use CoreW\Bfw;
 use CoreW\Business\BizEnum;
+use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\VIP\Service\VIPService;
 use CoreW\Core;
 use support\utils\ArrayToolkit;
@@ -96,6 +97,14 @@ class CheckCompanyCommand extends Command
     {
         return $this->getBiz()->service('VIP:VIPService');
     }
+    
+    /**
+     * @return Gb28181Service
+     */
+    protected function getGb28181Service(): Gb28181Service
+    {
+        return $this->getBiz()->service('GB:Gb28181Service');
+    }
 
     /**
      * @return Bfw
@@ -104,4 +113,6 @@ class CheckCompanyCommand extends Command
     {
         return Core::initCiBiz();
     }
+    
+    // 移除原来的 generateSsrc 方法，改用 service 中的方法
 }

@@ -27,11 +27,13 @@ interface DeviceService
 
     public function createChannel(array $fields);
     public function updateChannel($id, array $fields);
+    public function updateChannelByMainId(string $mainId, array $fields);
     public function batchUpdateOrCreateChannels(string $deviceId, array $devices): int;
 
     // 流会话操作
     public function getSessionById($id);
     public function getSessionByCallId(int $callId);
+    public function getSessionBySsrc(string $ssrc);
     public function getSessionByStreamId(string $streamId);
     public function createSession(array $fields);
     public function updateSession($id, array $fields);
@@ -42,4 +44,7 @@ interface DeviceService
 
     // SSRC 管理
     public function generateUniqueSsrc(): string;
+    
+    // 端口管理
+    public function getCoolingPorts(int $coolingTime = 20): array;
 }

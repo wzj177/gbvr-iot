@@ -3,11 +3,14 @@
 namespace CoreW\Business\Devices\Service\Impl;
 
 use CoreW\Business\BaseService;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Dao\DeviceDao;
 use CoreW\Business\Devices\Dao\DeviceChannelsDao;
 use CoreW\Business\Devices\Dao\StreamSessionsDao;
+use CoreW\Business\GB\Gb28181Service;
 use CoreW\Dao\DaoProxy;
+use support\exception\NotFoundException;
 
 class DeviceServiceImpl extends BaseService implements DeviceService
 {
@@ -111,7 +114,9 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         }
 
         if ($device) {
-            return $this->updateDevice($device['id'], $deviceData);
+            $resp = $this->updateDevice($device['id'], $deviceData);
+            $this->updateChannelsStatusByDeviceId($deviceId, $resp['status']);
+            return $resp;
         } else {
             return $this->createDevice($deviceData);
         }
@@ -136,12 +141,24 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             return false;
         }
 
+
+        if ($device['status'] === $status) {
+            // 状态未改变
+            return true;
+        }
+
+        if ($device['status'] === DeviceStatusEnum::UNREGISTERED->value && in_array($status, [DeviceStatusEnum::EXPIRED->value, DeviceStatusEnum::OFFLINE->value])) {
+            // 已注销状态，不能修改为心跳超时 或者离线
+            return true;
+        }
+
         $this->beginTransaction();
         try {
             $this->updateDevice($device['id'], [
                 'status' => $status,
+                'expires' => $status === DeviceStatusEnum::UNREGISTERED->value ? 0 : $device['expires']
             ]);
-            $this->updateChannelsStatusByDeviceId($deviceId , $status);
+            $this->updateChannelsStatusByDeviceId($deviceId, $status);
             $this->commit();
 
             return true;
@@ -196,15 +213,20 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ], $fields);
+        // 获取到音视频通道时会自动向数据库VideoChannel表写入此通道的数据，同时确定了此通道的SSRC值和ZLMediaKit的StreamId值，数据库中这条记录的MainId则是SSRC的crc32后的16进制字符串，也同时是ZLMediaKit的StreamId
+        [$ssrc, $streamId] = $this->getGb28181Service()->getSSRCInfo($channel['device_id'], $channel['channel_id']);
+        $channel['ssrc'] = $ssrc;
+        $channel['main_id'] = $streamId; // 保持和akstream一致，效果和stream_id一样
+        $channel['stream_id'] = $streamId; // ZLM 流ID
 
-        if (empty($channel['ssrc'])) {
-            $channel['ssrc'] = $this->generateUniqueSsrc();
-            $channel['main_id'] = $this->ssrcIdToCrc32Hex($channel['ssrc']);
-        }
-
-        if (empty($channel['stream_id']) && !empty($channel['device_id']) && !empty($channel['channel_id'])) {
-            $channel['stream_id'] = "{$channel['device_id']}_{$channel['channel_id']}";
-        }
+//        if (empty($channel['ssrc'])) {
+//            $channel['ssrc'] = $this->generateUniqueSsrc();
+//            $channel['main_id'] = $this->ssrcIdToCrc32Hex($channel['ssrc']);
+//        }
+//
+//        if (empty($channel['stream_id']) && !empty($channel['device_id']) && !empty($channel['channel_id'])) {
+//            $channel['stream_id'] = "{$channel['device_id']}_{$channel['channel_id']}";
+//        }
 
         return $this->getDeviceChannelsDao()->create($channel);
     }
@@ -213,6 +235,15 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     {
         $fields['updated_at'] = date('Y-m-d H:i:s');
         return $this->getDeviceChannelsDao()->update($id, $fields);
+    }
+
+    public function updateChannelByMainId(string $mainId, array $fields)
+    {
+        $channel = $this->getDeviceChannelsDao()->getByMainId($mainId);
+        if (!$channel) {
+            throw new NotFoundException('设备通道不存在');
+        }
+        return $this->updateChannel($channel['id'], $fields);
     }
 
     /**
@@ -240,7 +271,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                 }
 
                 $channel = $this->getChannelByDeviceAndChannel($deviceId, $channelId);
-
+                [$ssrc, $streamId] = $this->getGb28181Service()->getSSRCInfo($deviceId, $channelId);
                 $channelData = [
                     'channel_name' => $item['Name'] ?? '',
                     'manufacturer' => $item['Manufacturer'] ?? '',
@@ -264,10 +295,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     'status' => ($item['Status'] ?? 'OFF') === 'ON' ? 'online' : 'offline',
                     'lng' => $item['Longitude'] ?? 0.0,
                     'lat' => $item['Latitude'] ?? 0.0,
-                    'ssrc' => '',
                     'channel_type' => $this->parseDeviceChanelTypeByDeviceId($channelId),
                 ];
-
+                $channelData['ssrc'] = $ssrc;
+                $channelData['main_id'] = $streamId; // 保持和akstream一致，效果和stream_id一样
+                $channelData['stream_id'] = $streamId; // ZLM 流ID
                 if ($channel) {
                     $this->updateChannel($channel['id'], $channelData);
                 } else {
@@ -276,20 +308,23 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     $channelData['created_at'] = date('Y-m-d H:i:s');
                     $channelData['updated_at'] = date('Y-m-d H:i:s');
                     $channels[] = $channelData;
+                    $count++;
 //                $this->createChannel($channelData);
                 }
 
-                $count++;
             }
 
             if (!empty($channels)) {
                 $this->getDeviceChannelsDao()->batchCreate($channels);
             }
 
-            $this->updateDevice($device['id'], [
-                'sum_num' => $count,
-                'device_name' => $count === 1 ? $channels[0]['channel_name'] : $devices['device_name']
-            ]);
+            if ($count > 0) {
+                $this->updateDevice($device['id'], [
+                    'sum_num' => $count,
+                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name']
+                ]);
+            }
+
             $this->commit();
 
             return $count;
@@ -420,6 +455,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->getByStreamId($streamId);
     }
 
+    public function getSessionBySsrc(string $ssrc): array
+    {
+        return $this->getStreamSessionsDao()->getBySsrc($ssrc);
+    }
+
     public function createSession(array $fields)
     {
         $session = array_merge([
@@ -473,6 +513,17 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 //            ->whereIn('status', ['inviting', 'ringing'])
 //            ->delete();
     }
+    
+    /**
+     * 获取冷却中的端口
+     * 
+     * @param int $coolingTime 冷却时间（秒），默认20秒
+     * @return array 端口列表
+     */
+    public function getCoolingPorts(int $coolingTime = 20): array
+    {
+        return $this->getStreamSessionsDao()->getCoolingPorts($coolingTime);
+    }
 
     // ==================== SSRC 管理 ====================
 
@@ -514,5 +565,10 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     protected function getStreamSessionsDao(): StreamSessionsDao|DaoProxy
     {
         return $this->createDao('Devices:StreamSessionsDao');
+    }
+
+    protected function getGb28181Service(): Gb28181Service
+    {
+        return new Gb28181Service($this->bfw);
     }
 }

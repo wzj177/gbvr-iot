@@ -18,11 +18,12 @@ echo -e "${YELLOW}[1/4] 检查ZLMediaKit...${NC}"
 if pgrep -x "MediaServer" > /dev/null; then
     echo -e "${GREEN}✓ ZLMediaKit已运行${NC}"
 else
-    echo -e "${RED}✗ ZLMediaKit未运行${NC}"
-    echo "请先启动ZLMediaKit："
-    echo "  cd /path/to/ZLMediaKit"
-    echo "  ./MediaServer -d"
-    exit 1
+#    echo -e "${RED}✗ ZLMediaKit未运行${NC}"
+#    echo "请先启动ZLMediaKit："
+#    echo "  cd /path/to/ZLMediaKit"
+#    echo "  ./MediaServer -d"
+#    exit 1
+    nohub php webman zlm:start > /dev/null 2>&1 &
 fi
 
 # 检查Redis
@@ -46,28 +47,6 @@ else
     exit 1
 fi
 
-# 检查数据库表
-echo -e "${YELLOW}[4/4] 检查数据库表...${NC}"
-DB_NAME="gbvr_iot"
-TABLES=("devices" "device_channels" "stream_sessions")
-ALL_EXIST=true
-
-for table in "${TABLES[@]}"; do
-    if mysql -h127.0.0.1 -uroot -e "USE $DB_NAME; DESCRIBE $table" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ 表 $table 存在${NC}"
-    else
-        echo -e "${RED}✗ 表 $table 不存在${NC}"
-        ALL_EXIST=false
-    fi
-done
-
-if [ "$ALL_EXIST" = false ]; then
-    echo ""
-    echo -e "${YELLOW}请先执行数据库迁移：${NC}"
-    echo "  mysql -u root -p $DB_NAME < database/migrations/gb28181_tables.sql"
-    exit 1
-fi
-
 echo ""
 echo -e "${GREEN}======================================"
 echo "  环境检查完成，开始启动服务"
@@ -80,7 +59,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # 启动信令网关
 echo -e "${YELLOW}启动信令网关...${NC}"
 cd "$SCRIPT_DIR" || exit
-php gb28181_server.php > /dev/null 2>&1 &
+nohub php gb28181_server.php > /dev/null 2>&1 &
 GATEWAY_PID=$!
 echo -e "${GREEN}✓ 信令网关已启动 (PID: $GATEWAY_PID)${NC}"
 
@@ -96,7 +75,7 @@ fi
 # 启动API服务
 echo -e "${YELLOW}启动API服务...${NC}"
 cd "$SCRIPT_DIR/gbvr-iot" || exit
-php start.php start -d > /dev/null 2>&1
+php webman start -d > /dev/null 2>&1 &
 echo -e "${GREEN}✓ API服务已启动${NC}"
 
 echo ""
@@ -107,7 +86,7 @@ echo ""
 echo "服务状态："
 echo "  - 信令网关: 0.0.0.0:5060 (SIP)"
 echo "  - API服务: http://127.0.0.1:8787"
-echo "  - ZLMediaKit: http://127.0.0.1:80"
+echo "  - ZLMediaKit: http://127.0.0.1:8086"
 echo ""
 echo "日志查看："
 echo "  - 信令网关: tail -f logs/gb28181.log"

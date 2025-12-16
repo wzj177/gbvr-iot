@@ -66,7 +66,7 @@ class ExtensionsProvider implements ServiceProviderInterface
         };
 
         $biz['gb28181_gateway_sdk'] = function ($app) {
-            return new Gb28181Client();
+            return new Gb28181Client(Redis::connection('gb_gateway'));
         };
 
         $biz['redis.api.cache'] = function ($biz) {

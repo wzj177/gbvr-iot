@@ -35,10 +35,24 @@ return [
     'listen_addr' => '0.0.0.0',
 
     /**
+     * 公网IP地址 (用于NAT穿透,设置SIP Via/Contact头) - 非必填
+     *
+     * 这是GB28181平台自己的IP,用于SIP信令通信
+     *
+     * 使用场景:
+     * - 服务器在 NAT 后面,需要设置公网IP
+     * - 多网卡环境,需要指定特定网卡的IP
+     *
+     * 示例: '192.168.31.119'
+     * 留空则自动检测第一个非回环IP
+     */
+    'public_ip' => '',
+
+    /**
      * PID 文件
      * 默认: /tmp/gb28181_server.pid
      */
-    'pid_file' => '/tmp/gb28181_server.pid',
+    'pid_file' => runtime_path('gb28181_server.pid'),
 
     /**
      * 任务进程数
@@ -219,18 +233,34 @@ return [
         'password' => null,
         'port' => 6379,
         'database' => 11,
-        'prefix' => 'gbvr_iot_sip_gateway_'
+        'prefix' => 'gbvr_iot_gb_gateway_',
+        'queue_name' => 'gb28181:commands'
     ],
 
-    // 流媒体
+
+    // ========== ZLMediaKit 流媒体服务器配置 ==========
+
+    /**
+     * 关键配置: ZLM流媒体服务器
+     *
+     * media_server_ip: ZLM服务器的IP地址
+     *   - 设备会向这个IP推送RTP流!
+     *   - INVITE SDP中的 c=IN IP4 将使用此IP
+     *   - 如果ZLM和GB28181在同一台机器,设置为 public_ip 的值
+     *   - 如果ZLM在另一台机器,设置为ZLM服务器的实际IP
+     *
+     * 示例:
+     *   'media_server_ip' => '192.168.31.119',  // 同机器部署
+     *   'media_server_ip' => '192.168.1.200',  // ZLM在另一台机器
+     */
     'zlm' => [
-        'media_server_ip' => '',
+        'media_server_ip' => env('ZLM_SERVER_IP', '127.0.0.1'),  // ← 设备会向这个IP推流!
         'media_server_port_start' => 30000,
         'media_server_port_end' => 40000,
     ],
     'api' => [
         'hock_url' => 'http://127.0.0.1:8886/api/v2/gb/server/hock',
-        'pull_url' => 'http://127.0.0.1:8886/api/v2/gb/devices/pulll',
+        'pull_url' => 'http://127.0.0.1:8886/api/v2/gb/devices/pull',
         'token' => '$2y$10$DfjYrMs2Vvl2t3xw65LQXO3dZbs085qr7XJMzAnhSQixKnPejzgTm'
     ]
 ];

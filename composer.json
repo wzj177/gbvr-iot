@@ -73,7 +73,8 @@
       "app\\": "./app",
       "App\\": "./app",
       "app\\View\\Components\\": "./app/view/components",
-      "CoreW\\": "./CoreW"
+      "CoreW\\": "./CoreW",
+      "Gb28181\\GateWay\\": "./Gb28181Gateway/src"
     },
     "files": [
       "./support/helpers.php",

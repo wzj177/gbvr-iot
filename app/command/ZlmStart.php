@@ -35,7 +35,6 @@ class ZlmStart extends Command
             $maxRetry = 10;
             $mediaServer = new MediaServer(config('zlm'));
             $mediaServer->start();
-
             while (!$mediaServer->isRunning()) {
                 if ($maxRetry-- <= 0) {
                     $output->writeln('zlm start failed');

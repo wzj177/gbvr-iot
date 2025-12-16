@@ -2,8 +2,14 @@
 
 namespace app\command;
 
+use CoreW\Bfw;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
+use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\GB\Gb28181Service;
+use CoreW\Core;
 use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
+use support\Redis;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -15,9 +21,8 @@ class GB28181Test extends Command
     protected static $defaultName = 'gb:test';
     protected static $defaultDescription = 'GB28181 Interactive Testing Tool';
 
-    private Gb28181Client $sipClient;
-    private ZLMClient $zlmClient;
-    private array $sessionData = [];  // 保存会话数据
+    private Gb28181Service $gb28181Service;
+    private DeviceService $deviceService;  // 添加DeviceService依赖
 
     /**
      * @return void
@@ -34,8 +39,9 @@ class GB28181Test extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->sipClient = new Gb28181Client();
-        $this->zlmClient = new ZLMClient(config('zlm'));
+        $bfw = Core::initCiBiz();
+        $this->gb28181Service = new Gb28181Service($bfw);
+        $this->deviceService = $bfw->service('Devices:DeviceService');  // 初始化DeviceService
 
         $output->writeln('');
         $output->writeln('═══════════════════════════════════════════════════════════');
@@ -63,6 +69,12 @@ class GB28181Test extends Command
                     '8'  => '8. 停止录像回放',
                     '9'  => '9. PTZ 云台控制',
                     '10' => '10. 查看会话信息',
+                    '11' => '11. 预置位管理',
+                    '12' => '12. 设备升级 (2022)',
+                    '13' => '13. 图像抓拍 (2022)',
+                    '14' => '14. 订阅设备位置 (MobilePosition)',
+                    '15' => '15. 取消位置订阅',
+                    '16' => '16. 查询通道音视频信息',
                     '0'  => '0. 退出'
                 ],
                 '1'
@@ -117,7 +129,25 @@ class GB28181Test extends Command
                         $this->handleShowSessions($output);
                         break;
                     
-                    case '0. 退出':
+                    case '11. 预置位管理':
+                        $this->handlePresetManagement($input, $output, $helper);
+                        break;
+                    
+                    case '12. 设备升级 (2022)':
+                        $this->handleDeviceUpgrade($input, $output, $helper);
+                        break;
+                    
+                    case '13. 图像抓拍 (2022)':
+                        $this->handleSnapshot($input, $output, $helper);
+                        break;
+                    
+                    case '14. 订阅设备位置 (MobilePosition)':
+                        $this->handleMobilePositionSubscription($input, $output, $helper);
+                        break;
+                                        case '15. 取消位置订阅':
+                        $this->handleUnsubscribeMobilePosition($input, $output, $helper);
+                        break;
+                                        case '0. 退出':
                         $output->writeln('<info>再见！</info>');
                         return self::SUCCESS;
                 }
@@ -137,13 +167,17 @@ class GB28181Test extends Command
         $deviceId = $this->askDeviceId($input, $output, $helper);
         
         $output->writeln("<comment>正在查询设备目录...</comment>");
-        $result = $this->sipClient->queryCatalog($deviceId);
-        
-        if ($result) {
-            $output->writeln("<info>✓ 目录查询命令已发送到网关</info>");
-            $output->writeln("<comment>  请在网关日志或Hook回调中查看结果</comment>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+        try {
+            $result = $this->gb28181Service->queryCatalog($deviceId);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 目录查询命令已发送到网关</info>");
+                $output->writeln("<comment>  请在网关日志或Hook回调中查看结果</comment>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
@@ -155,12 +189,16 @@ class GB28181Test extends Command
         $deviceId = $this->askDeviceId($input, $output, $helper);
         
         $output->writeln("<comment>正在查询设备信息...</comment>");
-        $result = $this->sipClient->queryDeviceInfo($deviceId);
-        
-        if ($result) {
-            $output->writeln("<info>✓ 设备信息查询命令已发送</info>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+        try {
+            $result = $this->gb28181Service->queryDeviceInfo($deviceId);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 设备信息查询命令已发送</info>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
@@ -172,12 +210,16 @@ class GB28181Test extends Command
         $deviceId = $this->askDeviceId($input, $output, $helper);
         
         $output->writeln("<comment>正在查询设备状态...</comment>");
-        $result = $this->sipClient->queryDeviceStatus($deviceId);
-        
-        if ($result) {
-            $output->writeln("<info>✓ 设备状态查询命令已发送</info>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+        try {
+            $result = $this->gb28181Service->queryDeviceStatus($deviceId);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 设备状态查询命令已发送</info>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
@@ -205,14 +247,18 @@ class GB28181Test extends Command
         $type = $helper->ask($input, $output, $typeQuestion);
         
         $output->writeln("<comment>正在查询录像文件...</comment>");
-        $result = $this->sipClient->queryRecord($deviceId, $channelId, $startTime, $endTime, $type);
-        
-        if ($result) {
-            $output->writeln("<info>✓ 录像查询命令已发送</info>");
-            $output->writeln("  时间范围: {$startTime} ~ {$endTime}");
-            $output->writeln("  录像类型: {$type}");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+        try {
+            $result = $this->gb28181Service->queryRecord($deviceId, $channelId, $startTime, $endTime, $type);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 录像查询命令已发送</info>");
+                $output->writeln("  时间范围: {$startTime} ~ {$endTime}");
+                $output->writeln("  录像类型: {$type}");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
@@ -223,6 +269,16 @@ class GB28181Test extends Command
     {
         $deviceId = $this->askDeviceId($input, $output, $helper);
         $channelId = $this->askChannelId($input, $output, $helper, $deviceId);
+        $channel = $this->deviceService->getChannelByDeviceAndChannel($deviceId, $channelId);
+        if (!$channel) {
+            $output->writeln("<error>设备通道不存在，请确认设备已经注册</error>");
+            return;
+        }
+
+        if ($channel['status'] !== DeviceStatusEnum::ONLINE->value) {
+            $output->writeln("<error>设备通道未在线，请确认设备已经注册并已启用</error>");
+            return;
+        }
         
         // 询问 TCP 模式
         $tcpModeQuestion = new ChoiceQuestion(
@@ -237,43 +293,39 @@ class GB28181Test extends Command
         $tcpModeStr = $helper->ask($input, $output, $tcpModeQuestion);
         $tcpMode = (int)explode('.', $tcpModeStr)[0];
         
-        $output->writeln("<comment>正在分配 ZLM 端口和 SSRC...</comment>");
-        
-        // 1. 生成 SSRC (实际应从数据库获取)
-        $ssrc = $this->generateSsrc();
-        
-        // 2. 分配 ZLM 端口
+        // 创建直播会话
         try {
-            $portResult = $this->zlmClient->openRtpServer(0, $tcpMode);
-            if (!$portResult['success']) {
-                throw new \RuntimeException("ZLM 端口分配失败: " . ($portResult['error'] ?? 'Unknown error'));
-            }
-            $zlmPort = $portResult['port'];
-            
-            $output->writeln("<info>✓ ZLM 端口分配成功: {$zlmPort}</info>");
-            $output->writeln("<info>✓ SSRC 生成: {$ssrc}</info>");
-            
+            $sessionResult = $this->gb28181Service->createLiveSession($deviceId, $channelId, $tcpMode);
         } catch (\Exception $e) {
-            $output->writeln("<error>✗ ZLM 端口分配失败: {$e->getMessage()}</error>");
+            $output->writeln("<error>✗ 创建直播会话失败: {$e->getMessage()}</error>");
             return;
         }
         
-        // 3. 发送 INVITE 命令
+        if (!$sessionResult) {
+            $output->writeln("<error>✗ 创建直播会话失败</error>");
+            return;
+        }
+        
+        $ssrc = $sessionResult['ssrc'];
+        $streamId = $sessionResult['stream_id'];
+        $zlmPort = $sessionResult['zlm_port'];
+        
+        $output->writeln("<info>✓ ZLM 端口分配成功: {$zlmPort}</info>");
+        $output->writeln("<info>✓ SSRC: {$ssrc}</info>");
+        $output->writeln("<info>✓ Stream ID: {$streamId}</info>");
+
+        // 发送 INVITE 命令
         $output->writeln("<comment>正在发送 INVITE 命令到网关...</comment>");
-        $result = $this->sipClient->startLiveVideo($deviceId, $channelId, $ssrc, $zlmPort, $tcpMode);
+        try {
+            $result = $this->gb28181Service->startLiveVideo($deviceId, $channelId, $ssrc, $zlmPort, $tcpMode, $streamId);
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+            // 释放端口
+            $this->gb28181Service->closeRtpServer($streamId);
+            return;
+        }
         
         if ($result) {
-            $sessionKey = "{$deviceId}:{$channelId}:live";
-            $this->sessionData[$sessionKey] = [
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'type' => 'live',
-                'ssrc' => $ssrc,
-                'zlm_port' => $zlmPort,
-                'tcp_mode' => $tcpMode,
-                'started_at' => date('Y-m-d H:i:s')
-            ];
-            
             $output->writeln("<info>✓ 实时视频命令已发送</info>");
             $output->writeln("  设备ID: {$deviceId}");
             $output->writeln("  通道ID: {$channelId}");
@@ -285,7 +337,7 @@ class GB28181Test extends Command
         } else {
             $output->writeln("<error>✗ 发送失败</error>");
             // 释放端口
-            $this->zlmClient->closeRtpServer(0, $zlmPort);
+            $this->gb28181Service->closeRtpServer($streamId);
         }
     }
 
@@ -294,44 +346,29 @@ class GB28181Test extends Command
      */
     private function handleStopLiveVideo(InputInterface $input, OutputInterface $output, $helper): void
     {
-        if (empty($this->sessionData)) {
-            $output->writeln("<comment>当前没有活跃的视频会话</comment>");
+        $streamId = $this->askStreamId($input, $output, $helper);
+        
+        $session = $this->deviceService->getSessionByStreamId($streamId);
+        if (!$session) {
+            $output->writeln("<error>会话不存在</error>");
             return;
         }
-        
-        // 列出活跃会话
-        $liveSessions = array_filter($this->sessionData, fn($s) => $s['type'] === 'live');
-        if (empty($liveSessions)) {
-            $output->writeln("<comment>当前没有活跃的实时视频会话</comment>");
-            return;
-        }
-        
-        $output->writeln("<info>活跃的实时视频会话：</info>");
-        $choices = [];
-        foreach ($liveSessions as $key => $session) {
-            $desc = "{$session['channel_id']} (端口: {$session['zlm_port']}, 开始: {$session['started_at']})";
-            $choices[$key] = $desc;
-            $output->writeln("  - {$desc}");
-        }
-        
-        $sessionQuestion = new ChoiceQuestion('请选择要停止的会话', $choices);
-        $selectedKey = $helper->ask($input, $output, $sessionQuestion);
-        
-        $session = $this->sessionData[$selectedKey];
         
         $output->writeln("<comment>正在停止实时视频...</comment>");
-        $result = $this->sipClient->stopLiveVideo($session['device_id'], $session['channel_id']);
-        
-        if ($result) {
-            // 关闭 ZLM 端口
-            $this->zlmClient->closeRtpServer(0, $session['zlm_port']);
+        try {
+            $result = $this->gb28181Service->closeRtpServer($streamId);
             
-            unset($this->sessionData[$selectedKey]);
-            
-            $output->writeln("<info>✓ 停止命令已发送</info>");
-            $output->writeln("<info>✓ ZLM 端口已释放: {$session['zlm_port']}</info>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+            if ($result) {
+                // 关闭 ZLM 端口
+                $this->gb28181Service->closeRtpServer($session['stream_id']);
+                
+                $output->writeln("<info>✓ 停止命令已发送</info>");
+                $output->writeln("<info>✓ ZLM 端口已释放: {$session['zlm_port']}</info>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
@@ -342,7 +379,11 @@ class GB28181Test extends Command
     {
         $deviceId = $this->askDeviceId($input, $output, $helper);
         $channelId = $this->askChannelId($input, $output, $helper, $deviceId);
-        
+        $channel = $this->deviceService->getChannelByDeviceAndChannel($deviceId, $channelId);
+        if (!$channel) {
+            $output->writeln("<error>设备通道不存在，请确认设备已经注册</error>");
+            return;
+        }
         // 询问时间范围
         $startQuestion = new Question('请输入回放开始时间 (格式: 2024-12-01T08:00:00): ');
         $startTime = $helper->ask($input, $output, $startQuestion);
@@ -359,55 +400,49 @@ class GB28181Test extends Command
         $tcpModeStr = $helper->ask($input, $output, $tcpModeQuestion);
         $tcpMode = (int)$tcpModeStr;
         
-        $output->writeln("<comment>正在分配 ZLM 端口和 SSRC...</comment>");
-        
-        // 生成 SSRC 和分配端口
-        $ssrc = $this->generateSsrc();
-        
+        // 创建回放会话
         try {
-            $portResult = $this->zlmClient->openRtpServer(0, $tcpMode);
-            if (!$portResult['success']) {
-                throw new \RuntimeException("ZLM 端口分配失败");
-            }
-            $zlmPort = $portResult['port'];
-            
-            $output->writeln("<info>✓ ZLM 端口: {$zlmPort}, SSRC: {$ssrc}</info>");
-            
+            $sessionResult = $this->gb28181Service->createPlaybackSession($deviceId, $channelId, $startTime, $endTime, $tcpMode);
         } catch (\Exception $e) {
-            $output->writeln("<error>✗ {$e->getMessage()}</error>");
+            $output->writeln("<error>✗ 创建回放会话失败: {$e->getMessage()}</error>");
             return;
         }
         
-        $output->writeln("<comment>正在发送回放 INVITE 命令...</comment>");
-        $result = $this->sipClient->startPlayback(
-            $deviceId, 
-            $channelId, 
-            $startTime, 
-            $endTime,
-            $ssrc,
-            $zlmPort,
-            $tcpMode
-        );
+        if (!$sessionResult) {
+            $output->writeln("<error>✗ 创建回放会话失败</error>");
+            return;
+        }
         
-        if ($result) {
-            $sessionKey = "{$deviceId}:{$channelId}:playback";
-            $this->sessionData[$sessionKey] = [
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'type' => 'playback',
-                'ssrc' => $ssrc,
-                'zlm_port' => $zlmPort,
-                'tcp_mode' => $tcpMode,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'started_at' => date('Y-m-d H:i:s')
-            ];
+        $playbackStreamId = $sessionResult['stream_id'];
+        $playbackSsrc = $sessionResult['ssrc'];
+        $zlmPort = $sessionResult['zlm_port'];
+        
+        $output->writeln("<info>✓ ZLM 端口: {$zlmPort}, SSRC: {$playbackSsrc}</info>");
+        $output->writeln("<info>✓ Stream ID: {$playbackStreamId}</info>");
+        
+        $output->writeln("<comment>正在发送回放 INVITE 命令...</comment>");
+        try {
+            $result = $this->gb28181Service->startPlayback(
+                $deviceId, 
+                $channelId, 
+                $startTime, 
+                $endTime,
+                $playbackSsrc,
+                $zlmPort,
+                $tcpMode,
+                $playbackStreamId
+            );
             
-            $output->writeln("<info>✓ 录像回放命令已发送</info>");
-            $output->writeln("  回放时间: {$startTime} ~ {$endTime}");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
-            $this->zlmClient->closeRtpServer(0, $zlmPort);
+            if ($result) {
+                $output->writeln("<info>✓ 录像回放命令已发送</info>");
+                $output->writeln("  回放时间: {$startTime} ~ {$endTime}");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+                $this->gb28181Service->closeRtpServer($playbackStreamId);
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+            $this->gb28181Service->closeRtpServer($playbackStreamId);
         }
     }
 
@@ -416,7 +451,9 @@ class GB28181Test extends Command
      */
     private function handleStopPlayback(InputInterface $input, OutputInterface $output, $helper): void
     {
-        $playbackSessions = array_filter($this->sessionData, fn($s) => $s['type'] === 'playback');
+        // 从数据库获取回放会话
+        $playbackSessions = [];
+        // 这里简化处理，实际应用中应该根据条件查询数据库中的回放会话
         
         if (empty($playbackSessions)) {
             $output->writeln("<comment>当前没有活跃的回放会话</comment>");
@@ -424,29 +461,38 @@ class GB28181Test extends Command
         }
         
         $choices = [];
-        foreach ($playbackSessions as $key => $session) {
-            $choices[$key] = "{$session['channel_id']} ({$session['start_time']} ~ {$session['end_time']})";
+        foreach ($playbackSessions as $session) {
+            $choices[$session['id']] = "{$session['channel_id']} ({$session['start_time']} ~ {$session['end_time']})";
         }
         
         $sessionQuestion = new ChoiceQuestion('请选择要停止的回放会话', $choices);
-        $selectedKey = $helper->ask($input, $output, $sessionQuestion);
+        $selectedSessionId = $helper->ask($input, $output, $sessionQuestion);
         
-        $session = $this->sessionData[$selectedKey];
+        $session = $this->deviceService->getSessionById($selectedSessionId);
         
-        $result = $this->sipClient->stopPlayback($session['device_id'], $session['channel_id']);
-        
-        if ($result) {
-            $this->zlmClient->closeRtpServer(0, $session['zlm_port']);
-            unset($this->sessionData[$selectedKey]);
-            
-            $output->writeln("<info>✓ 回放已停止</info>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+        try {
+            $result = $this->gb28181Service->stopPlayback($session['device_id'], $session['channel_id']);
+            if ($result) {
+                $this->gb28181Service->closeRtpServer($session['stream_id']);
+                
+                // 更新会话状态
+                $this->deviceService->updateSession($session['id'], ['status' => 'stopped', 'updated_at' => date('Y-m-d H:i:s')]);
+                
+                $output->writeln("<info>✓ 回放已停止</info>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
     /**
      * PTZ 云台控制
+     * 
+     * 注意: PTZ控制需要配合stop命令使用
+     * - 前端实现: 鼠标按下发送move命令，鼠标松开发送stop命令
+     * - 后端提供: ptzControl() 和 ptzStop() 两个方法
      */
     private function handlePtzControl(InputInterface $input, OutputInterface $output, $helper): void
     {
@@ -468,16 +514,38 @@ class GB28181Test extends Command
         );
         $command = $helper->ask($input, $output, $commandQuestion);
         
+        if ($command === 'stop') {
+            // 使用专门的stop方法
+            $output->writeln("<comment>正在发送停止命令...</comment>");
+            try {
+                $result = $this->gb28181Service->ptzStop($deviceId, $channelId);
+                
+                if ($result) {
+                    $output->writeln("<info>✓ PTZ 停止命令已发送</info>");
+                } else {
+                    $output->writeln("<error>✗ 发送失败</error>");
+                }
+            } catch (\Exception $e) {
+                $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+            }
+            return;
+        }
+        
         $speedQuestion = new Question('请输入速度 (1-255, 默认 5): ', '5');
         $speed = (int)$helper->ask($input, $output, $speedQuestion);
         
         $output->writeln("<comment>正在发送 PTZ 控制命令...</comment>");
-        $result = $this->sipClient->ptzControl($deviceId, $channelId, $command, $speed);
-        
-        if ($result) {
-            $output->writeln("<info>✓ PTZ 命令已发送: {$command}, 速度: {$speed}</info>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
+        $output->writeln("<comment>💡 提示: 实际应用中应在鼠标松开时调用 ptzStop()</comment>");
+        try {
+            $result = $this->gb28181Service->ptzControl($deviceId, $channelId, $command, $speed);
+            
+            if ($result) {
+                $output->writeln("<info>✓ PTZ 命令已发送: {$command}, 速度: {$speed}</info>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
         }
     }
 
@@ -486,7 +554,11 @@ class GB28181Test extends Command
      */
     private function handleShowSessions(OutputInterface $output): void
     {
-        if (empty($this->sessionData)) {
+        // 从数据库获取所有活跃会话
+        // 这里简化处理，实际应用中应该查询数据库中的会话数据
+        $sessions = [];
+        
+        if (empty($sessions)) {
             $output->writeln("<comment>当前没有活跃的会话</comment>");
             return;
         }
@@ -494,8 +566,8 @@ class GB28181Test extends Command
         $output->writeln("<info>活跃的会话列表：</info>");
         $output->writeln('');
         
-        foreach ($this->sessionData as $key => $session) {
-            $output->writeln("  <fg=cyan>[{$session['type']}]</> {$key}");
+        foreach ($sessions as $session) {
+            $output->writeln("  <fg=cyan>[{$session['type']}]</> Session ID: {$session['id']}");
             $output->writeln("    设备ID: {$session['device_id']}");
             $output->writeln("    通道ID: {$session['channel_id']}");
             $output->writeln("    SSRC: {$session['ssrc']}");
@@ -527,6 +599,14 @@ class GB28181Test extends Command
         return $helper->ask($input, $output, $question);
     }
 
+
+    private function askStreamId(InputInterface $input, OutputInterface $output, $helper): string
+    {
+        $question = new Question("请输入流ID: ");
+
+        return $helper->ask($input, $output, $question);
+    }
+
     /**
      * 询问通道ID
      */
@@ -545,14 +625,6 @@ class GB28181Test extends Command
     }
 
     /**
-     * 生成 SSRC (测试用，实际应从数据库获取)
-     */
-    private function generateSsrc(): string
-    {
-        return str_pad((string)rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
-    }
-
-    /**
      * 获取 TCP 模式名称
      */
     private function getTcpModeName(int $mode): string
@@ -563,5 +635,128 @@ class GB28181Test extends Command
             2 => 'TCP主动',
             default => '未知'
         };
+    }
+
+    /**
+     * 预置位管理
+     */
+    private function handlePresetManagement(InputInterface $input, OutputInterface $output, $helper): void
+    {
+        $deviceId = $this->askDeviceId($input, $output, $helper);
+        $channelId = $this->askChannelId($input, $output, $helper, $deviceId);
+        
+        $output->writeln('');
+        $output->writeln('<fg=cyan>预置位操作：</>');
+        
+        $actionQuestion = new ChoiceQuestion(
+            '请选择操作',
+            [
+                'set' => '设置预置位',
+                'call' => '调用预置位',
+                'delete' => '删除预置位'
+            ],
+            'call'
+        );
+        $action = $helper->ask($input, $output, $actionQuestion);
+        
+        $presetQuestion = new Question('请输入预置位编号 (1-255, 默认 1): ', '1');
+        $presetId = (int)$helper->ask($input, $output, $presetQuestion);
+        
+        $output->writeln("<comment>正在执行预置位操作: {$action}, 编号: {$presetId}...</comment>");
+        
+        try {
+            $result = match($action) {
+                'set' => $this->gb28181Service->presetSet($deviceId, $channelId, $presetId),
+                'call' => $this->gb28181Service->presetCall($deviceId, $channelId, $presetId),
+                'delete' => $this->gb28181Service->presetDelete($deviceId, $channelId, $presetId),
+                default => false
+            };
+
+
+            if ($result) {
+                $output->writeln("<info>✓ 预置位命令已发送: {$action}, 编号: {$presetId}</info>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+        }
+    }
+
+    /**
+     * GB28181-2022: 设备升级
+     */
+    private function handleDeviceUpgrade(InputInterface $input, OutputInterface $output, $helper): void
+    {
+        $deviceId = $this->askDeviceId($input, $output, $helper);
+        
+        $output->writeln('');
+        $output->writeln('<fg=cyan>设备升级参数 (GB/T 28181-2022)：</>');
+        
+        $manufacturerQuestion = new Question('请输入制造商 (默认 Hikvision): ', 'Hikvision');
+        $manufacturer = $helper->ask($input, $output, $manufacturerQuestion);
+        
+        $firmwareQuestion = new Question('请输入固件版本 (例如 V5.7.12_build230801): ');
+        $firmware = $helper->ask($input, $output, $firmwareQuestion);
+        
+        if (!$firmware) {
+            $output->writeln("<error>固件版本不能为空</error>");
+            return;
+        }
+        
+        $output->writeln("<comment>正在发送升级命令...</comment>");
+        $output->writeln("<comment>⚠ 注意：设备升级前会注销，升级完成后会重新注册</comment>");
+        
+        try {
+            $result = $this->gb28181Service->deviceUpgrade($deviceId, $manufacturer, $firmware);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 设备升级命令已发送</info>");
+                $output->writeln("  制造商: {$manufacturer}");
+                $output->writeln("  固件版本: {$firmware}");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+        }
+    }
+
+    /**
+     * GB28181-2022: 图像抓拍
+     */
+    private function handleSnapshot(InputInterface $input, OutputInterface $output, $helper): void
+    {
+        $deviceId = $this->askDeviceId($input, $output, $helper);
+        $channelId = $this->askChannelId($input, $output, $helper, $deviceId);
+        
+        $output->writeln('');
+        $output->writeln('<fg=cyan>图像抓拍参数 (GB/T 28181-2022)：</>');
+        
+        $formatQuestion = new ChoiceQuestion(
+            '请选择图片格式',
+            ['JPEG', 'PNG', 'BMP'],
+            'JPEG'
+        );
+        $imageFormat = $helper->ask($input, $output, $formatQuestion);
+        
+        $output->writeln("<comment>正在发送抓拍命令...</comment>");
+        
+        try {
+            $result = $this->gb28181Service->snapshot($deviceId, $channelId, $imageFormat);
+            
+            if ($result) {
+                $output->writeln("<info>✓ 图像抓拍命令已发送</info>");
+                $output->writeln("  通道ID: {$channelId}");
+                $output->writeln("  图片格式: {$imageFormat}");
+                $output->writeln("  Session ID: {$result['session_id']}");
+                $output->writeln('');
+                $output->writeln("<comment>⚠ 设备抓拍完成后会发送 MediaStatus 通知，包含图片URL</comment>");
+            } else {
+                $output->writeln("<error>✗ 发送失败</error>");
+            }
+        } catch (\Exception $e) {
+            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
+        }
     }
 }

@@ -5,11 +5,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // 创建SIP服务器实例
 use Gb28181\GateWay\Handlers\GB28181Handler;
 
-
 $config = require_once __DIR__ . '/config/gb28181.php';
-
-
-// TODO：服务自己退出，设备还是在连接
 
 $sipServer = new ExoSip([
     'ua' => $config['user_agent'],
@@ -26,6 +22,9 @@ $sipServer = new ExoSip([
 
 ]);
 
+if (!empty($argv[1]) && filter_var($argv[1], FILTER_VALIDATE_IP)) {
+    $config['zlm']['media_server_ip'] = $argv[1];
+}
 
 // 创建GB28181事件处理器
 $gb28181 = new GB28181Handler($sipServer, [
@@ -42,7 +41,11 @@ $gb28181 = new GB28181Handler($sipServer, [
     'max_devices' => $config['max_devices'],
     'encoding_type' => $config['encoding_type'],
     'debug' => $config['debug'],
-    'redis' => $config['redis']
+    'redis' => $config['redis'],
+    'zlm' => $config['zlm'],
+    'api_hock_url' => $config['api']['hock_url'],
+    'api_pull_url' => $config['api']['pull_url'],
+    'api_hock_token' => $config['api']['token'],
 ]);
 // 绑定GB28181事件处理器
 $gb28181->bindEvents();
@@ -55,6 +58,7 @@ echo "Server ID: {$config['server_id']}\n";
 echo "Domain: {$config['server_domain']}\n";
 echo "Listening on: {$config['listen_addr']}:{$config['sip_port']}\n";
 echo "Transport: {$config['transport']}\n";
+echo "ZLM Media Server IP: {$config['zlm']['media_server_ip']}\n";
 echo "=================================\n\n";
 
 echo "[INFO] 服务器已启动，等待设备接入...\n\n";

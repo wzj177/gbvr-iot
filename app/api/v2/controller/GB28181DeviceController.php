@@ -5,7 +5,7 @@ namespace app\api\v2\controller;
 use app\api\BaseController;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
-use CoreW\Sdk\ZLMediaKit\ZLMClient;
+use CoreW\Business\GB\Gb28181Service;
 use support\Log;
 use support\Redis;
 use support\Request;
@@ -133,29 +133,26 @@ class GB28181DeviceController extends BaseController
             return $this->createErrorJsonResponse('设备不存在', 404);
         }
         
-        if ($device->status !== 'online') {
+        if ($device['status'] !== 'online') {
             return $this->createErrorJsonResponse('设备离线', 400);
         }
         
-        // 发送命令到Redis，信令网关订阅
-        $requestId = uniqid('catalog_');
-//        Redis::publish('gb28181:commands', json_encode([
-//            'action' => 'query_catalog',
-//            'device_id' => $deviceId,
-//            'request_id' => $requestId,
-//            'timestamp' => time(),
-//        ]));
-        $this->getBiz()->offsetGet('gb28181_gateway_sdk')->sendCommand($deviceId, 'query_catalog', [
-            'request_id' => $requestId,
-        ]);
+        // 发送命令到信令网关
+        try {
+            $result = $this->getGb28181Service()->queryCatalog($deviceId);
+            
+            if (!$result) {
+                return $this->createErrorJsonResponse('发送目录查询请求失败', 500);
+            }
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('发送目录查询请求异常: ' . $e->getMessage(), 500);
+        }
         
         Log::channel('sip')->info('Query catalog command sent', [
             'device_id' => $deviceId,
-            'request_id' => $requestId,
         ]);
         
         return $this->createSuccessJsonResponse([
-            'request_id' => $requestId,
             'message' => '目录查询命令已发送，请等待设备响应',
         ]);
     }
@@ -183,10 +180,39 @@ class GB28181DeviceController extends BaseController
                 'device_id' => $deviceId,
             ]);
 
-            return $this->createErrorJsonResponse('删除设备失败', );
+            return $this->createErrorJsonResponse('删除设备失败', 500);
         }
     }
 
+    /**
+     * PTZ控制
+     */
+    public function ptzControl(Request $request)
+    {
+        $deviceId = $request->post('device_id');
+        $channelId = $request->post('channel_id');
+        $command = $request->post('command'); // up, down, left, right, zoom_in, zoom_out, stop
+        $speed = $request->post('speed', 5); // 1-255
+
+        if (!$deviceId || !$channelId || !$command) {
+            return $this->createErrorJsonResponse('缺少必要参数', 400);
+        }
+
+        // 发送命令到信令网关
+        try {
+            $result = $this->getGb28181Service()->ptzControl($deviceId, $channelId, $command, (int)$speed);
+
+            if (!$result) {
+                return $this->createErrorJsonResponse('发送PTZ控制请求失败', 500);
+            }
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('发送PTZ控制请求异常: ' . $e->getMessage(), 500);
+        }
+
+        return $this->createSuccessJsonResponse([
+            'message' => 'PTZ命令已发送',
+        ]);
+    }
 
     /**
      * @return DeviceService
@@ -194,5 +220,13 @@ class GB28181DeviceController extends BaseController
     private function getDeviceService(): DeviceService
     {
         return $this->createService('Devices:DeviceService');
+    }
+    
+    /**
+     * @return Gb28181Service
+     */
+    private function getGb28181Service(): Gb28181Service
+    {
+        return $this->createService('GB:Gb28181Service');
     }
 }

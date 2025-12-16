@@ -40,12 +40,12 @@ return [
         'database' => 12,
         'prefix' => 'easy_vr_oauth_'
     ],
-    'sip_gateway' => [
+    'gb_gateway' => [
         'host' => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
         'port' => env('REDIS_PORT', 6379),
         'database' => 11,
-        'prefix' => 'gbvr_iot_sip_gateway_'
+        'prefix' => 'gbvr_iot_gb_gateway_'
     ],
     'api_cache' => [
         'host' => env('REDIS_HOST', '127.0.0.1'),

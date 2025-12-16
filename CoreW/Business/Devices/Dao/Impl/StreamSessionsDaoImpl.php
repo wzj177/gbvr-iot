@@ -34,6 +34,13 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
         ]);
     }
 
+    public function getBySsrc(string $ssrc)
+    {
+        return $this->getByFields([
+            'ssrc' => $ssrc
+        ]);
+    }
+
 
     /**
      * 删除设备下的所有频道
@@ -44,6 +51,27 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
     public function deleteByDeviceId(string $deviceId): int|string
     {
         return  $this->db()->delete($this->table(), ['device_id' => $deviceId]);
+    }
+    
+    /**
+     * 获取冷却中的端口
+     * 
+     * @param int $coolingTime 冷却时间（秒），默认20秒
+     * @return array 端口列表
+     */
+    public function getCoolingPorts(int $coolingTime = 20): array
+    {
+        $coolingTimeAgo = date('Y-m-d H:i:s', time() - $coolingTime);
+        
+        $sql = "SELECT DISTINCT zlm_port FROM {$this->table()} 
+                WHERE zlm_port IS NOT NULL 
+                AND updated_at > ? 
+                AND status IN ('stopped', 'error')";
+                
+        $stmt = $this->db()->prepare($sql);
+        $result = $stmt->executeQuery([$coolingTimeAgo]);
+        
+        return $result->fetchAllAssociative();
     }
 
     public function declares(): array

@@ -133,8 +133,8 @@ class Core implements Bootstrap
     /**
      * @return Bfw
      */
-    public static function instance()
+    public static function instance(): Bfw
     {
-        return self::$_bizInstance;
+        return self::$_bizInstance ?? self::initCiBiz();
     }
 }

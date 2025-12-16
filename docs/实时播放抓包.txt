@@ -1,0 +1,145 @@
+(RINVITE sip:34020000001310000001@10.20.2.10:15060 SIP/2.0
+Via: SIP/2.0/UDP 10.20.2.8:15060;rport;branch=z9hG4bK1876439090
+From: <sip:34020000002000000001@3402000000>;tag=1940868580
+To: <sip:34020000001310000001@10.20.2.10:15060>
+Call-ID: 2080560732
+CSeq: 20 INVITE
+Contact: <sip:34020000002000000001@10.20.2.8:15060>
+Content-Type: application/sdp
+Max-Forwards: 70
+User-Agent: PHP GB28181 Server/1.0
+Subject: 34020000001310000001:34020000001310000001,34020000002000000001:0
+Content-Length:   256
+
+v=0
+o=34020000002000000001 0 0 IN IP4 10.20.2.8
+s=Play
+c=IN IP4 10.20.2.8
+t=0 0
+m=video 33624 TCP/RTP/AVP 96 98 97
+a=recvonly
+a=setup:active
+a=connection:new
+a=rtpmap:96 PS/90000
+a=rtpmap:98 H264/90000
+a=rtpmap:97 MPEG4/90000
+y=6119175324
+f=
+
+
+
+SIP/2.0 100 Trying
+Via: SIP/2.0/UDP 10.20.2.8:15060;rport;branch=z9hG4bK1876439090
+From: <sip:34020000002000000001@3402000000>;tag=1940868580
+To: <sip:34020000001310000001@10.20.2.10:15060>;tag=42a684d2
+Call-ID: 2080560732
+CSeq: 20 INVITE
+User-Agent: Easy GB28181 Device V7.0
+Content-Length: 0
+
+
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 10.20.2.8:15060;rport;branch=z9hG4bK1876439090
+From: <sip:34020000002000000001@3402000000>;tag=1940868580
+To: <sip:34020000001310000001@10.20.2.10:15060>;tag=42a684d2
+Contact: <sip:34020000001310000001@10.20.2.10:15060>
+Call-ID: 2080560732
+CSeq: 20 INVITE
+Max-Forwards: 70
+User-Agent: Easy GB28181 Device V7.0
+Content-Type: application/sdp
+Content-Length: 221
+
+v=0
+o=34020000001320948622 0 0 IN IP4 10.204.58.47
+s=Play
+c=IN IP4 10.204.58.47
+t=0 0
+m=video 20002 TCP/RTP/AVP 96
+a=setup:passive
+a=connection:new
+a=rtpmap:96 PS/90000
+a=sendonly
+y=6119175324
+f=v/5////a/1//1
+
+
+
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 10.20.2.8:15060;rport;branch=z9hG4bK1876439090
+From: <sip:34020000002000000001@3402000000>;tag=1940868580
+To: <sip:34020000001310000001@10.20.2.10:15060>;tag=42a684d2
+Contact: <sip:34020000001310000001@10.20.2.10:15060>
+Call-ID: 2080560732
+CSeq: 20 INVITE
+Max-Forwards: 70
+User-Agent: Easy GB28181 Device V7.0
+Content-Type: application/sdp
+Content-Length: 221
+
+v=0
+o=34020000001320948622 0 0 IN IP4 10.204.58.47
+s=Play
+c=IN IP4 10.204.58.47
+t=0 0
+m=video 20002 TCP/RTP/AVP 96
+a=setup:passive
+a=connection:new
+a=rtpmap:96 PS/90000
+a=sendonly
+y=6119175324
+f=v/5////a/1//1
+
+
+
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 10.20.2.8:15060;rport;branch=z9hG4bK1876439090
+From: <sip:34020000002000000001@3402000000>;tag=1940868580
+To: <sip:34020000001310000001@10.20.2.10:15060>;tag=42a684d2
+Contact: <sip:34020000001310000001@10.20.2.10:15060>
+Call-ID: 2080560732
+CSeq: 20 INVITE
+Max-Forwards: 70
+User-Agent: Easy GB28181 Device V7.0
+Content-Type: application/sdp
+Content-Length: 221
+
+v=0
+o=34020000001320948622 0 0 IN IP4 10.204.58.47
+s=Play
+c=IN IP4 10.204.58.47
+t=0 0
+m=video 20002 TCP/RTP/AVP 96
+a=setup:passive
+a=connection:new
+a=rtpmap:96 PS/90000
+a=sendonly
+y=6119175324
+f=v/5////a/1//1
+
+
+
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 10.20.2.8:15060;rport;branch=z9hG4bK1876439090
+From: <sip:34020000002000000001@3402000000>;tag=1940868580
+To: <sip:34020000001310000001@10.20.2.10:15060>;tag=42a684d2
+Contact: <sip:34020000001310000001@10.20.2.10:15060>
+Call-ID: 2080560732
+CSeq: 20 INVITE
+Max-Forwards: 70
+User-Agent: Easy GB28181 Device V7.0
+Content-Type: application/sdp
+Content-Length: 221
+
+v=0
+o=34020000001320948622 0 0 IN IP4 10.204.58.47
+s=Play
+c=IN IP4 10.204.58.47
+t=0 0
+m=video 20002 TCP/RTP/AVP 96
+a=setup:passive
+a=connection:new
+a=rtpmap:96 PS/90000
+a=sendonly
+y=6119175324
+f=v/5////a/1//1

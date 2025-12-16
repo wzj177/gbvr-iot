@@ -13,7 +13,7 @@ return [
     'log_dir' => env('ZLM_LOG_DIR', runtime_path('logs/zlm')),
     'pid_file' => env('ZLM_PID_FILE', runtime_path('zlm.pid')),
 
-
+    'server_ip' => env('ZLM_SERVER_IP', '127.0.0.1'),
     // ZLM HTTP API地址
     'host' => env('ZLM_HOST', '127.0.0.1'),
     

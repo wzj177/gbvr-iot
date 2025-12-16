@@ -158,7 +158,7 @@ Route::group('/api', function () {
             Route::post('/channels/stop-live', [\app\api\v2\controller\GB28181StreamController::class, 'stopLive']);
             Route::get('/channels/play-urls', [\app\api\v2\controller\GB28181StreamController::class, 'getPlayUrls']);
             Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
-            Route::post('/channels/ptz', [\app\api\v2\controller\GB28181StreamController::class, 'ptzControl']);
+            Route::post('/channels/ptz', [\app\api\v2\controller\GB28181DeviceController::class, 'ptzControl']);
         })->middleware([
             XAuthTokenIdentityMiddleware::class
         ]);

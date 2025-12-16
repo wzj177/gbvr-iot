@@ -7,6 +7,7 @@ use CoreW\Dao\AdvancedDaoInterface;
 interface DeviceChannelsDao extends AdvancedDaoInterface
 {
     public function getByDeviceAndChannel(string $deviceId, string $channelId);
+    public function getByMainId(string $mainId);
 
     public function existBySsrc(string $ssrc);
 

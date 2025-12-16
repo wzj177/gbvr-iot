@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PHP-GB28181 功能演示平台</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+    .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; text-align: center; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .feature-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: #fafafa; }
+    .feature-card h3 { margin-top: 0; color: #555; }
+    .feature-card ul { padding-left: 20px; }
+    .feature-card li { margin: 5px 0; }
+    .log { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; margin-top: 20px; background-color: #000; color: #00ff00; font-family: monospace; overflow-y: scroll; white-space: pre-wrap; }
+    .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; }
+    .connected { background-color: #4CAF50; }
+    .disconnected { background-color: #f44336; }
+    .btn-group { margin-top: 10px; }
+    button { background-color: #4CAF50; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; margin: 3px; font-size: 12px; }
+    button:hover { background-color: #45a049; }
+    button.primary { background-color: #2196F3; }
+    button.primary:hover { background-color: #0b7dda; }
+    button.danger { background-color: #f44336; }
+    button.danger:hover { background-color: #d32f2f; }
+    .video-preview { width: 100%; height: 200px; background-color: #000; display: flex; align-items: center; justify-content: center; color: white; margin: 10px 0; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>PHP-GB28181 功能演示平台</h1>
+
+  <div>
+    <label>平台状态: <span class="status-indicator connected" id="statusIndicator"></span><span id="statusText">运行中</span></label>
+  </div>
+
+  <div class="feature-grid">
+    <!-- 视频设备管理 -->
+    <div class="feature-card">
+      <h3>视频设备管理</h3>
+      <ul>
+        <li>接入设备：支持无限制路数</li>
+        <li>设备信息同步</li>
+        <li>离在线监控</li>
+        <li>手动添加设备</li>
+        <li>设备密码设置</li>
+      </ul>
+      <div class="btn-group">
+        <button class="primary" onclick="addDevice()">添加设备</button>
+        <button onclick="syncDeviceInfo()">同步信息</button>
+        <button onclick="queryOnlineStatus()">查询状态</button>
+      </div>
+    </div>
+
+    <!-- 视频预览 -->
+    <div class="feature-card">
+      <h3>视频预览</h3>
+      <ul>
+        <li>主码流/子码流切换</li>
+        <li>支持H.264/H.265</li>
+        <li>无人观看自动断流</li>
+        <li>多种协议输出</li>
+        <li>过滤音频杂音</li>
+      </ul>
+      <div class="video-preview">视频预览区域</div>
+      <div class="btn-group">
+        <button onclick="startPreview()">开始预览</button>
+        <button onclick="switchStream()">切换码流</button>
+        <button onclick="stopPreview()">停止预览</button>
+      </div>
+    </div>
+
+    <!-- 云台控制 -->
+    <div class="feature-card">
+      <h3>云台控制</h3>
+      <ul>
+        <li>设备转向控制</li>
+        <li>拉近/拉远</li>
+        <li>预置位查询/设置</li>
+        <li>巡航轨迹控制</li>
+        <li>PTZ精准控制</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="ptzControl('up')">上</button>
+        <button onclick="ptzControl('down')">下</button>
+        <button onclick="ptzControl('left')">左</button>
+        <button onclick="ptzControl('right')">右</button>
+        <button onclick="ptzControl('zoom_in')">变焦+</button>
+        <button onclick="ptzControl('zoom_out')">变焦-</button>
+        <button onclick="managePreset()">预置位</button>
+      </div>
+    </div>
+
+    <!-- 录像管理 -->
+    <div class="feature-card">
+      <h3>录像管理</h3>
+      <ul>
+        <li>查询NVR/IPC录像</li>
+        <li>指定时间播放</li>
+        <li>录像下载</li>
+        <li>云端录像</li>
+        <li>录制计划</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="queryRecordings()">查询录像</button>
+        <button onclick="playRecording()">播放录像</button>
+        <button onclick="downloadRecording()">下载录像</button>
+        <button onclick="scheduleRecording()">录制计划</button>
+      </div>
+    </div>
+
+    <!-- 国标信令 -->
+    <div class="feature-card">
+      <h3>国标信令</h3>
+      <ul>
+        <li>注册/心跳保活</li>
+        <li>UDP/TCP传输模式</li>
+        <li>网络校时</li>
+        <li>通道选择/推送</li>
+        <li>点播/云台控制</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="registerDevice()">注册</button>
+        <button onclick="sendHeartbeat()">心跳</button>
+        <button onclick="channelSelect()">通道选择</button>
+        <button onclick="startPlay()">点播</button>
+      </div>
+    </div>
+
+    <!-- 平台级联 -->
+    <div class="feature-card">
+      <h3>平台级联</h3>
+      <ul>
+        <li>平台对接接入</li>
+        <li>国标级联</li>
+        <li>多上级平台</li>
+        <li>目录订阅/通知</li>
+        <li>通道向上级联</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="addUpperPlatform()">添加上级</button>
+        <button onclick="cascadeDirectory()">级联目录</button>
+        <button onclick="subscribeEvents()">订阅事件</button>
+      </div>
+    </div>
+
+    <!-- 报警与通知 -->
+    <div class="feature-card">
+      <h3>报警与通知</h3>
+      <ul>
+        <li>报警信息处理</li>
+        <li>前端推送报警</li>
+        <li>移动位置订阅</li>
+        <li>报警事件订阅</li>
+        <li>设备目录订阅</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="handleAlarm()">处理报警</button>
+        <button onclick="subscribeLocation()">位置订阅</button>
+        <button onclick="subscribeAlarm()">报警订阅</button>
+      </div>
+    </div>
+
+    <!-- 流媒体服务 -->
+    <div class="feature-card">
+      <h3>流媒体服务</h3>
+      <ul>
+        <li>RTSP/RTMP输出</li>
+        <li>HTTP-FLV/WebSocket-FLV</li>
+        <li>HLS多种协议</li>
+        <li>流媒体节点集群</li>
+        <li>负载均衡</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="getRtspUrl()">获取RTSP</button>
+        <button onclick="getRtmpUrl()">获取RTMP</button>
+        <button onclick="getFlvUrl()">获取FLV</button>
+      </div>
+    </div>
+
+    <!-- 高级功能 -->
+    <div class="feature-card">
+      <h3>高级功能</h3>
+      <ul>
+        <li>语音对讲</li>
+        <li>GPS订阅</li>
+        <li>业务分组</li>
+        <li>电子地图</li>
+        <li>录像保存至S3</li>
+      </ul>
+      <div class="btn-group">
+        <button onclick="startTalkback()">语音对讲</button>
+        <button onclick="subscribeGPS()">GPS订阅</button>
+        <button onclick="showMap()">电子地图</button>
+      </div>
+    </div>
+  </div>
+
+  <h3>系统日志</h3>
+  <div id="log" class="log"></div>
+</div>
+
+<script>
+  // 日志函数
+  function logMessage(message) {
+    const logDiv = document.getElementById('log');
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+    logDiv.scrollTop = logDiv.scrollHeight;
+  }
+
+  // 生成随机设备ID
+  function generateDeviceId() {
+    return '3402000000' + Math.floor(Math.random() * 1000000000).toString().padStart(10, '0');
+  }
+
+  // 添加设备
+  function addDevice() {
+    const deviceId = generateDeviceId();
+    logMessage(`添加设备: ${deviceId}`);
+    logMessage(`SIP REGISTER 请求发送到: sip:${deviceId}@192.168.1.100:5060`);
+    logMessage(`设备认证: 用户名=admin, 密码=123456`);
+    logMessage(`设备添加成功，等待注册响应...`);
+    logMessage('---');
+  }
+
+  // 同步设备信息
+  function syncDeviceInfo() {
+    logMessage(`发送设备信息查询请求:`);
+    const xmlContent = `<Query>
+<CmdType>DeviceInfo</CmdType>
+<SN>${Math.floor(Date.now()/1000)}</SN>
+<DeviceID>34020000001320000001</DeviceID>
+</Query>`;
+    logMessage(`SIP MESSAGE 发送:`);
+    logMessage(`MESSAGE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    logMessage(`Content-Type: Application/MANSCDP+xml`);
+    logMessage(xmlContent);
+    logMessage(`等待设备信息响应...`);
+    logMessage('---');
+  }
+
+  // 查询在线状态
+  function queryOnlineStatus() {
+    logMessage(`查询设备在线状态:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`状态: ONLINE`);
+    logMessage(`最后心跳时间: ${new Date().toISOString()}`);
+    logMessage(`注册时间: ${new Date(Date.now() - 3600000).toISOString()}`);
+    logMessage(`心跳间隔: 60秒`);
+    logMessage('---');
+  }
+
+  // 开始预览
+  function startPreview() {
+    logMessage(`开始视频预览:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`码流类型: 主码流`);
+    logMessage(`SIP INVITE 请求发送:`);
+    logMessage(`INVITE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    logMessage(`SDP协商中...`);
+    logMessage(`RTP流开始接收，端口: 30000-30002`);
+    logMessage(`视频预览已启动`);
+    logMessage('---');
+  }
+
+  // 切换码流
+  function switchStream() {
+    logMessage(`切换码流:`);
+    logMessage(`当前码流: 主码流 -> 子码流`);
+    logMessage(`重新发送INVITE请求:`);
+    logMessage(`码流参数调整:`);
+    logMessage(`- 分辨率: 720P -> 360P`);
+    logMessage(`- 码率: 2Mbps -> 512Kbps`);
+    logMessage(`- 帧率: 25fps -> 15fps`);
+    logMessage(`切换成功`);
+    logMessage('---');
+  }
+
+  // 停止预览
+  function stopPreview() {
+    logMessage(`停止视频预览:`);
+    logMessage(`发送SIP BYE请求:`);
+    logMessage(`BYE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    logMessage(`RTP流停止接收`);
+    logMessage(`释放端口资源: 30000-30002`);
+    logMessage(`无人观看，自动断流节省流量`);
+    logMessage('---');
+  }
+
+  // PTZ控制
+  function ptzControl(action) {
+    let hexCommand = '';
+    let description = '';
+
+    switch(action) {
+      case 'up':
+        hexCommand = 'A50F01080A0A50E7';
+        description = '向上转动';
+        break;
+      case 'down':
+        hexCommand = 'A50F01040A0A50E3';
+        description = '向下转动';
+        break;
+      case 'left':
+        hexCommand = 'A50F01020A0A50E1';
+        description = '向左转动';
+        break;
+      case 'right':
+        hexCommand = 'A50F01010A0A50E0';
+        description = '向右转动';
+        break;
+      case 'zoom_in':
+        hexCommand = 'A50F01100A0A50F0';
+        description = '变焦拉近';
+        break;
+      case 'zoom_out':
+        hexCommand = 'A50F01200A0A50F1';
+        description = '变焦拉远';
+        break;
+    }
+
+    logMessage(`PTZ控制: ${description}`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`控制命令: ${hexCommand}`);
+    logMessage(`SIP MESSAGE 发送设备控制:`);
+    logMessage(`MESSAGE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    const xmlContent = `<Control>
+<CmdType>DeviceControl</CmdType>
+<SN>${Math.floor(Date.now()/1000)}</SN>
+<DeviceID>34020000001320000001</DeviceID>
+<PTZCmd>${hexCommand}</PTZCmd>
+<Info>
+  <ControlPriority>5</ControlPriority>
+</Info>
+</Control>`;
+    logMessage(`XML内容:`);
+    logMessage(xmlContent);
+    logMessage(`PTZ控制命令已发送`);
+    logMessage('---');
+  }
+
+  // 预置位管理
+  function managePreset() {
+    logMessage(`预置位管理:`);
+    logMessage(`查询预置位列表:`);
+    logMessage(`SIP MESSAGE 发送:`);
+    logMessage(`MESSAGE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    const queryXml = `<Query>
+<CmdType>PresetQuery</CmdType>
+<SN>${Math.floor(Date.now()/1000)}</SN>
+<DeviceID>34020000001320000001</DeviceID>
+</Query>`;
+    logMessage(queryXml);
+    logMessage(`预置位列表响应:`);
+    logMessage(`预置位1: 名称-大门入口, 状态-已设置`);
+    logMessage(`预置位2: 名称-停车场, 状态-已设置`);
+    logMessage(`预置位3: 名称-办公室, 状态-空闲`);
+    logMessage(`预置位4: 名称-仓库, 状态-已设置`);
+    logMessage(`预置位5: 名称-出口, 状态-已设置`);
+    logMessage('---');
+  }
+
+  // 查询录像
+  function queryRecordings() {
+    logMessage(`查询录像文件:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`查询时间段: 2025-01-01 00:00:00 - 2025-01-02 00:00:00`);
+    logMessage(`SIP MESSAGE 发送录像查询:`);
+    logMessage(`MESSAGE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    const recordQueryXml = `<Query>
+<CmdType>RecordInfo</CmdType>
+<SN>${Math.floor(Date.now()/1000)}</SN>
+<DeviceID>34020000001320000001</DeviceID>
+<ChannelID>34020000001320000001132</ChannelID>
+<StartTime>2025-01-01T00:00:00</StartTime>
+<EndTime>2025-01-02T00:00:00</EndTime>
+<Secrecy>0</Secrecy>
+<Type>all</Type>
+</Query>`;
+    logMessage(recordQueryXml);
+    logMessage(`录像文件列表:`);
+    logMessage(`- 2025-01-01 08:30:00-09:00:00 [报警录像] 150MB`);
+    logMessage(`- 2025-01-01 14:20:00-15:45:00 [定时录像] 320MB`);
+    logMessage(`- 2025-01-01 20:15:00-21:30:00 [移动侦测] 280MB`);
+    logMessage('---');
+  }
+
+  // 播放录像
+  function playRecording() {
+    logMessage(`播放录像:`);
+    logMessage(`选择录像: 2025-01-01 14:20:00-15:45:00`);
+    logMessage(`开始时间: 14:20:00`);
+    logMessage(`结束时间: 15:45:00`);
+    logMessage(`发送录像回放请求:`);
+    logMessage(`SIP MESSAGE 发送:`);
+    const playbackXml = `<Control>
+<CmdType>DeviceControl</CmdType>
+<SN>${Math.floor(Date.now()/1000)}</SN>
+<DeviceID>34020000001320000001</DeviceID>
+<Info>
+  <RecordPlay>
+    <StartTime>2025-01-01T14:20:00</StartTime>
+    <EndTime>2025-01-01T15:45:00</EndTime>
+  </RecordPlay>
+</Info>
+</Control>`;
+    logMessage(playbackXml);
+    logMessage(`录像回放已启动，RTP流端口: 30010-30012`);
+    logMessage(`录像播放中...`);
+    logMessage('---');
+  }
+
+  // 下载录像
+  function downloadRecording() {
+    logMessage(`下载录像:`);
+    logMessage(`选择录像: 2025-01-01 08:30:00-09:00:00`);
+    logMessage(`文件大小: 150MB`);
+    logMessage(`下载格式: MP4`);
+    logMessage(`云端录制存储路径: /recordings/2025/01/01/`);
+    logMessage(`开始下载...`);
+    logMessage(`进度: 10%...`);
+    logMessage(`进度: 25%...`);
+    logMessage(`进度: 50%...`);
+    logMessage(`进度: 75%...`);
+    logMessage(`进度: 100%`);
+    logMessage(`录像下载完成，保存至: recordings/2025-01-01_08-30-00.mp4`);
+    logMessage('---');
+  }
+
+  // 录制计划
+  function scheduleRecording() {
+    logMessage(`录制计划设置:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`计划类型: 定时录制`);
+    logMessage(`录制时间: 每天 08:00-18:00`);
+    logMessage(`录制策略: 连续录制`);
+    logMessage(`存储位置: 云端服务器`);
+    logMessage(`创建录制计划...`);
+    logMessage(`计划ID: REC_PLAN_001`);
+    logMessage(`下次执行时间: 2025-01-02 08:00:00`);
+    logMessage(`录制计划已激活`);
+    logMessage('---');
+  }
+
+  // 注册设备
+  function registerDevice() {
+    logMessage(`设备注册:`);
+    logMessage(`SIP REGISTER 请求:`);
+    logMessage(`REGISTER sip:192.168.1.100:5060 SIP/2.0`);
+    logMessage(`Via: SIP/2.0/UDP 192.168.1.101:5062`);
+    logMessage(`From: <sip:34020000001320000001@192.168.1.100:5060>`);
+    logMessage(`To: <sip:34020000001320000001@192.168.1.100:5060>`);
+    logMessage(`Contact: <sip:34020000001320000001@192.168.1.101:5062>`);
+    logMessage(`Expires: 3600`);
+    logMessage(`等待注册响应...`);
+    logMessage(`200 OK - 注册成功`);
+    logMessage(`注册有效期: 3600秒`);
+    logMessage('---');
+  }
+
+  // 发送心跳
+  function sendHeartbeat() {
+    logMessage(`发送心跳保活:`);
+    logMessage(`SIP OPTIONS 请求:`);
+    logMessage(`OPTIONS sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    logMessage(`保持注册状态活跃...`);
+    logMessage(`心跳发送成功`);
+    logMessage(`下次心跳时间: ${new Date(Date.now() + 60000).toLocaleTimeString()}`);
+    logMessage('---');
+  }
+
+  // 通道选择
+  function channelSelect() {
+    logMessage(`通道选择:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`可用通道:`);
+    logMessage(`- 34020000001320000001132 [在线] 主通道`);
+    logMessage(`- 34020000001320000001133 [在线] 子通道`);
+    logMessage(`- 34020000001320000001134 [离线] 备用通道`);
+    logMessage(`选择通道: 34020000001320000001132`);
+    logMessage(`通道选择成功`);
+    logMessage('---');
+  }
+
+  // 开始点播
+  function startPlay() {
+    logMessage(`开始点播:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`发送SIP INVITE请求:`);
+    logMessage(`INVITE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0`);
+    logMessage(`SDP协商...`);
+    logMessage(`RTP端口分配: 30020-30022`);
+    logMessage(`媒体流建立成功`);
+    logMessage(`点播开始`);
+    logMessage('---');
+  }
+
+  // 添加上级平台
+  function addUpperPlatform() {
+    logMessage(`添加上级平台:`);
+    logMessage(`上级平台ID: 34010000002000000001`);
+    logMessage(`上级平台地址: 192.168.2.100:5060`);
+    logMessage(`传输协议: UDP`);
+    logMessage(`认证信息: 用户名=platform, 密码=123456`);
+    logMessage(`发送注册请求到上级平台...`);
+    logMessage(`等待上级平台注册响应...`);
+    logMessage(`200 OK - 级联注册成功`);
+    logMessage(`级联状态: 已连接`);
+    logMessage('---');
+  }
+
+  // 级联目录
+  function cascadeDirectory() {
+    logMessage(`目录向上级级联:`);
+    logMessage(`上级平台ID: 34010000002000000001`);
+    logMessage(`推送目录信息:`);
+    logMessage(`设备总数: 45`);
+    logMessage(`在线设备: 42`);
+    logMessage(`推送设备列表...`);
+    logMessage(`设备1: 34020000001320000001 - Camera001 [在线]`);
+    logMessage(`设备2: 34020000001320000002 - Camera002 [在线]`);
+    logMessage(`设备3: 34020000001320000003 - Camera003 [离线]`);
+    logMessage(`...`);
+    logMessage(`目录推送完成`);
+    logMessage(`收到上级确认: 200 OK`);
+    logMessage('---');
+  }
+
+  // 订阅事件
+  function subscribeEvents() {
+    logMessage(`事件订阅:`);
+    logMessage(`订阅类型: 设备目录变更`);
+    logMessage(`订阅有效期: 3600秒`);
+    logMessage(`发送SUBSCRIBE请求:`);
+    logMessage(`SUBSCRIBE sip:34010000002000000001@192.168.1.100:5060 SIP/2.0`);
+    logMessage(`Event: presence`);
+    logMessage(`Expires: 3600`);
+    logMessage(`等待订阅确认...`);
+    logMessage(`200 OK - 订阅成功`);
+    logMessage(`订阅ID: sub_001`);
+    logMessage(`订阅激活，等待通知...`);
+    logMessage('---');
+  }
+
+  // 处理报警
+  function handleAlarm() {
+    logMessage(`报警信息处理:`);
+    logMessage(`报警类型: 移动侦测`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`报警时间: ${new Date().toISOString()}`);
+    logMessage(`报警级别: 中等`);
+    logMessage(`触发原因: 区域入侵`);
+    logMessage(`处理动作: 推送前端报警通知`);
+    logMessage(`推送报警到Web界面...`);
+    logMessage(`报警信息已记录到数据库`);
+    logMessage(`报警处理完成`);
+    logMessage('---');
+  }
+
+  // 位置订阅
+  function subscribeLocation() {
+    logMessage(`GPS位置订阅:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`订阅类型: 移动位置`);
+    logMessage(`更新频率: 10秒/次`);
+    logMessage(`发送位置订阅请求...`);
+    logMessage(`等待设备位置信息...`);
+    logMessage(`位置信息接收:`);
+    logMessage(`经度: 116.397428`);
+    logMessage(`纬度: 39.909234`);
+    logMessage(`高度: 52.3米`);
+    logMessage(`速度: 0 km/h`);
+    logMessage(`方向: 0 度`);
+    logMessage(`位置订阅激活`);
+    logMessage('---');
+  }
+
+  // 报警订阅
+  function subscribeAlarm() {
+    logMessage(`报警事件订阅:`);
+    logMessage(`订阅设备: 34020000001320000001`);
+    logMessage(`报警类型: 全部`);
+    logMessage(`发送报警订阅请求...`);
+    logMessage(`等待报警事件...`);
+    logMessage(`订阅激活，等待报警通知...`);
+    logMessage(`报警订阅状态: 激活`);
+    logMessage('---');
+  }
+
+  // 获取RTSP URL
+  function getRtspUrl() {
+    logMessage(`获取RTSP流地址:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`码流类型: 主码流`);
+    logMessage(`RTSP URL:`);
+    logMessage(`rtsp://192.168.1.100:554/live/34020000001320000001132`);
+    logMessage(`该地址可直接用于播放器观看`);
+    logMessage('---');
+  }
+
+  // 获取RTMP URL
+  function getRtmpUrl() {
+    logMessage(`获取RTMP流地址:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`RTMP URL:`);
+    logMessage(`rtmp://192.168.1.100/live/34020000001320000001132`);
+    logMessage(`适用于直播推流场景`);
+    logMessage('---');
+  }
+
+  // 获取FLV URL
+  function getFlvUrl() {
+    logMessage(`获取FLV流地址:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`通道ID: 34020000001320000001132`);
+    logMessage(`HTTP-FLV URL:`);
+    logMessage(`http://192.168.1.100:8080/flv?app=live&stream=34020000001320000001132`);
+    logMessage(`WebSocket-FLV URL:`);
+    logMessage(`ws://192.168.1.100:8080/ws_flv?app=live&stream=34020000001320000001132`);
+    logMessage(`适用于网页播放`);
+    logMessage('---');
+  }
+
+  // 语音对讲
+  function startTalkback() {
+    logMessage(`启动语音对讲:`);
+    logMessage(`设备ID: 34020000001320000001`);
+    logMessage(`建立双向音频通道...`);
+    logMessage(`RTP音频端口: 30030 (发送), 30031 (接收)`);
+    logMessage(`音频编码: G.711`);
+    logMessage(`开始语音对讲...`);
+    logMessage(`按住说话，松开停止...`);
+    logMessage(`语音对讲已激活`);
+    logMessage('---');
+  }
+
+  // 显示电子地图
+  function showMap() {
+    logMessage(`打开电子地图:`);
+    logMessage(`加载地图数据...`);
+    logMessage(`设备位置标记:`);
+    logMessage(`- Camera001: [116.397428, 39.909234]`);
+    logMessage(`- Camera002: [116.398123, 39.908567]`);
+    logMessage(`- Camera003: [116.396789, 39.907890]`);
+    logMessage(`地图缩放级别: 15`);
+    logMessage(`显示设备状态图标...`);
+    logMessage(`在线设备: 绿色图标`);
+    logMessage(`离线设备: 红色图标`);
+    logMessage(`地图展示已激活`);
+    logMessage('---');
+  }
+
+  // 页面加载完成后的初始化
+  window.onload = function() {
+    logMessage('PHP-GB28181 功能演示平台已启动');
+    logMessage('系统版本: 1.0.0/beta');
+    logMessage('支持协议: GB/T 28181-2016, GB/T 28181-2022');
+    logMessage('支持设备类型: IPC, NVR, DVR, 车载设备');
+    logMessage('流媒体服务: ZLMediaKit 集成');
+    logMessage('数据库: MySQL 8.0');
+    logMessage('准备就绪，等待功能操作...');
+    logMessage('---');
+  };
+</script>
+</body>
+</html>
+

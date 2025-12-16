@@ -18,6 +18,13 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
         ]);
     }
 
+    public function getByMainId(string $mainId)
+    {
+        return $this->getByFields([
+            'main_id' => $mainId
+        ]);
+    }
+
     public function findByDeviceId(string $deviceId): array
     {
         return $this->findByFields([

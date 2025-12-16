@@ -1,0 +1,544 @@
+<?php
+
+namespace Gb28181\GateWay\Device;
+
+use \Exception;
+use Gb28181\GateWay\Libs\Logger;
+
+/**
+ * 设备管理器 - 管理 GB28181 服务器端设备
+ *
+ * 功能：
+ * - 设备注册/注销监控
+ * - 心跳超时检测
+ * - 设备状态统计
+ * - 设备信息管理
+ */
+class DeviceManager
+{
+    // 设备对象列表 (服务器端 - 管理连接进来的设备)
+    // [deviceId => Device]
+    private array $devices = [];
+
+    private int $heartbeatTimeout = 180;  // 3分钟心跳超时（GB28181建议值）
+    private int $checkInterval = 30;      // 30秒检查一次
+    private int $lastCheckTime = 0;
+    private Logger $logger;
+    
+    // 持久化配置
+    private string $cacheFile = '/tmp/gb28181_devices.cache';
+    /** @var callable|null */
+    private $apiLoader = null;
+    private int $lastCacheSave = 0;
+    private int $cacheSaveInterval = 60;  // 每60秒保存一次缓存
+
+    /**
+     * 构造函数
+     *
+     * @param int $heartbeatTimeout 心跳超时时间（秒）
+     * @param int $checkInterval 检查间隔（秒）
+     * @param array $options 可选配置 ['cache_file', 'api_loader']
+     */
+    public function __construct(int $heartbeatTimeout = 180, int $checkInterval = 30, array $options = [])
+    {
+        $this->heartbeatTimeout = $heartbeatTimeout;
+        $this->checkInterval = $checkInterval;
+        $this->lastCheckTime = time();
+        $this->logger = Logger::getInstance();
+        
+        // 持久化配置
+        if (isset($options['cache_file'])) {
+            $this->cacheFile = $options['cache_file'];
+        }
+        if (isset($options['api_loader']) && is_callable($options['api_loader'])) {
+            $this->apiLoader = $options['api_loader'];
+        }
+
+        $this->log("DeviceManager 已初始化");
+        
+        // 启动时加载设备列表
+        $this->loadDevices();
+    }
+
+    /**
+     * 添加新设备（从 REGISTER 事件创建）
+     *
+     * @param string $deviceId 设备ID
+     * @param array $info 设备初始信息 ['uri', 'ip', 'port', 'registered_at', 'expires']
+     * @return Device
+     */
+    public function addDevice(string $deviceId, array $info): Device
+    {
+        if (isset($this->devices[$deviceId])) {
+            throw new \Exception("设备已存在: {$deviceId}");
+        }
+
+        $device = new Device($deviceId, $info);
+        $device->markRegistered();
+        $this->devices[$deviceId] = $device;
+
+        $this->log("设备已添加: {$deviceId}");
+
+        return $device;
+    }
+
+    /**
+     * 移除设备
+     */
+    public function removeDevice(string $deviceId): void
+    {
+        unset($this->devices[$deviceId]);
+        $this->log("设备已移除: {$deviceId}");
+    }
+
+    /**
+     * 更新设备信息（只更新已存在的设备）
+     *
+     * @param string $deviceId 设备ID
+     * @param array $info 要更新的信息 ['uri', 'ip', 'port', 'registered_at', 'expires', 'info']
+     * @return bool 是否更新成功
+     */
+    public function updateDeviceInfo(string $deviceId, array $info): bool
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        if (!$device) {
+            $this->log("设备不存在，无法更新: {$deviceId}", 'WARNING');
+            return false;
+        }
+
+        // 更新设备属性
+        if (isset($info['uri'])) $device->uri = $info['uri'];
+        if (isset($info['ip'])) $device->ip = $info['ip'];
+        if (isset($info['received_ip'])) $device->received_ip = $info['received_ip'];
+        if (isset($info['received_port'])) $device->received_port = $info['received_port'];
+        if (isset($info['port'])) $device->port = $info['port'];
+        if (isset($info['registered_at'])) $device->registeredAt = $info['registered_at'];
+        if (isset($info['expires'])) $device->expires = $info['expires'];
+        if (isset($info['info'])) $device->updateInfo($info['info']);
+
+        return true;
+    }
+
+    /**
+     * 获取设备信息（服务器端使用）
+     * @return array|null 返回设备信息数组，兼容旧代码
+     */
+    public function getDevice(string $deviceId): ?array
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        return $device ? $device->toArray() : null;
+    }
+
+    /**
+     * 获取设备对象
+     * @return Device|null
+     */
+    public function getDeviceObject(string $deviceId): ?Device
+    {
+        return $this->devices[$deviceId] ?? null;
+    }
+
+    /**
+     * 更新设备心跳（由 Device 对象内部调用）
+     * 保留此方法用于外部监控
+     */
+    public function recordHeartbeat(string $deviceId): void
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        if ($device) {
+            $wasTimeout = $device->status === 'timeout';
+            $device->recordHeartbeat();
+
+            if ($wasTimeout) {
+                $this->log("设备恢复在线: {$deviceId}");
+            }
+        }
+    }
+
+    /**
+     * 更新设备心跳（兼容旧接口）
+     *
+     * @param string $deviceId 设备ID
+     */
+    public function updateHeartbeat(string $deviceId): void
+    {
+        $this->recordHeartbeat($deviceId);
+    }
+
+    /**
+     * 检查超时设备（定期调用）
+     *
+     * @return array 超时的设备列表
+     */
+    public function checkTimeout(): array
+    {
+        $now = time();
+
+        // 控制检查频率
+        if ($now - $this->lastCheckTime < $this->checkInterval) {
+            return [];
+        }
+
+        $this->lastCheckTime = $now;
+        $timeoutDevices = [];
+
+        foreach ($this->devices as $deviceId => $device) {
+            /** @var Device $device */
+            if ($device->isTimeout($this->heartbeatTimeout)) {
+                $device->markTimeout();
+                $timeSinceHeartbeat = $now - $device->lastHeartbeat;
+
+                $this->log("设备心跳超时: {$deviceId}, 距离上次心跳: {$timeSinceHeartbeat}秒", 'ERROR');
+                $timeoutDevices[] = $device->toArray();
+            } // 预警（超过一半时间没心跳）
+            else if ($device->isOnline()) {
+                $timeSinceHeartbeat = $now - $device->lastHeartbeat;
+                if ($timeSinceHeartbeat > $this->heartbeatTimeout / 2) {
+                    $this->log("设备心跳预警: {$deviceId}, 距离上次心跳: {$timeSinceHeartbeat}秒", 'WARNING');
+                }
+            }
+        }
+        
+        // 定期保存缓存(每分钟一次)
+        if ($now - $this->lastCacheSave >= $this->cacheSaveInterval) {
+            $this->saveCache();
+            $this->lastCacheSave = $now;
+        }
+
+        return $timeoutDevices;
+    }
+
+    /**
+     * 获取所有在线设备
+     *
+     * @return array
+     */
+    public function getOnlineDevices(): array
+    {
+        return array_map(
+            fn($device) => $device->toArray(),
+            array_filter($this->devices, fn($device) => $device->isOnline())
+        );
+    }
+
+    /**
+     * 获取设备状态信息
+     *
+     * @param string $deviceId
+     * @return array|null
+     */
+    public function getDeviceStatus(string $deviceId): ?array
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        return $device ? $device->toArray() : null;
+    }
+
+    /**
+     * 获取所有设备列表
+     *
+     * @return array
+     */
+    public function getAllDevices(): array
+    {
+        return array_map(fn($device) => $device->toArray(), $this->devices);
+    }
+
+    /**
+     * 获取设备统计
+     *
+     * @return array
+     */
+    public function getStats(): array
+    {
+        $created = 0;
+        $starting = 0;
+        $online = 0;
+        $offline = 0;
+        $timeout = 0;
+        $stopped = 0;
+
+        foreach ($this->devices as $device) {
+            switch ($device->status) {
+                case 'created':
+                    $created++;
+                    break;
+                case 'starting':
+                    $starting++;
+                    break;
+                case 'online':
+                    $online++;
+                    break;
+                case 'offline':
+                    $offline++;
+                    break;
+                case 'timeout':
+                    $timeout++;
+                    break;
+                case 'stopped':
+                    $stopped++;
+                    break;
+            }
+        }
+
+        return [
+            'total' => count($this->devices),
+            'created' => $created,
+            'starting' => $starting,
+            'online' => $online,
+            'offline' => $offline,
+            'timeout' => $timeout,
+            'stopped' => $stopped,
+        ];
+    }
+
+    /**
+     * 清理长时间离线的设备
+     *
+     * @param int $days 离线多少天后清理
+     * @return array 被清理的设备列表 [deviceId => deviceData]
+     */
+    public function cleanupOfflineDevices(int $days = 7): array
+    {
+        $threshold = time() - ($days * 86400);
+        $cleanedDevices = [];
+
+        foreach ($this->devices as $deviceId => $device) {
+            if ($device->status === 'stopped' || $device->status === 'offline') {
+                $lastTime = $device->registerTime;
+
+                if ($lastTime > 0 && $lastTime < $threshold) {
+                    // 保存设备信息用于通知
+                    $cleanedDevices[$deviceId] = [
+                        'device_id' => $deviceId,
+                        'ip' => $device->ip,
+                        'port' => $device->port,
+                        'registered_at' => $device->registeredAt,
+                        'last_heartbeat' => $device->lastHeartbeat,
+                        'status' => $device->status,
+                    ];
+                    
+                    $this->removeDevice($deviceId);
+                }
+            }
+        }
+
+        if (count($cleanedDevices) > 0) {
+            $this->log("清理 " . count($cleanedDevices) . " 个长期离线设备");
+        }
+
+        return $cleanedDevices;
+    }
+
+    /**
+     * 加载设备列表（启动时调用）
+     * 优先级：API > 本地缓存 > 空启动
+     */
+    private function loadDevices(): void
+    {
+        // 1. 优先从API拉取(最新数据)
+        if ($this->apiLoader && $devices = ($this->apiLoader)()) {
+            $loadedCount = 0;
+            foreach ($devices as $deviceData) {
+                $deviceId = $deviceData['device_id'] ?? '';
+                if (!$deviceId) continue;
+                
+                try {
+                    // 重建Device对象
+                    $device = new Device($deviceId, $deviceData);
+                    $device->markRegistered();
+                    $device->lastHeartbeat = $deviceData['timestamp'] ?? time();
+                    $device->registeredAt = $deviceData['registered_at'] ?? time();
+                    $device->status = 'online';
+                    
+                    // 恢复通道列表
+                    if (isset($deviceData['channels']) && is_array($deviceData['channels'])) {
+                        $device->setChannels($deviceData['channels']);
+                    }
+                    
+                    $this->devices[$deviceId] = $device;
+                    $loadedCount++;
+                } catch (\Exception $e) {
+                    $this->log("恢复设备失败 {$deviceId}: {$e->getMessage()}", 'WARNING');
+                }
+            }
+            
+            $this->log("从API加载 {$loadedCount} 个在线设备");
+            
+            // 保存到本地缓存(下次启动兜底)
+            $this->saveCache();
+            return;
+        }
+        
+        // 2. API失败,从本地缓存恢复
+        if (file_exists($this->cacheFile)) {
+            $cached = json_decode(file_get_contents($this->cacheFile), true);
+            if ($cached && isset($cached['devices']) && is_array($cached['devices'])) {
+                $loadedCount = 0;
+                foreach ($cached['devices'] as $deviceData) {
+                    $deviceId = $deviceData['device_id'] ?? '';
+                    if (!$deviceId) continue;
+                    
+                    try {
+                        $device = new Device($deviceId, $deviceData);
+                        $device->markRegistered();
+                        $device->lastHeartbeat = $deviceData['last_heartbeat'] ?? time();
+                        $device->registeredAt = $deviceData['registered_at'] ?? time();
+                        $device->status = 'online';
+                        
+                        // 恢复通道列表
+                        if (isset($deviceData['channels']) && is_array($deviceData['channels'])) {
+                            $device->setChannels($deviceData['channels']);
+                        }
+                        
+                        $this->devices[$deviceId] = $device;
+                        $loadedCount++;
+                    } catch (\Exception $e) {
+                        $this->log("恢复缓存设备失败 {$deviceId}: {$e->getMessage()}", 'WARNING');
+                    }
+                }
+                
+                $cacheTime = date('Y-m-d H:i:s', $cached['timestamp'] ?? 0);
+                $this->log("从缓存恢复 {$loadedCount} 个设备 (缓存时间: {$cacheTime})");
+                $this->log("  API不可用,使用本地缓存(可能过期)", 'WARNING');
+                return;
+            }
+        }
+        
+        // 3. 全失败,空启动
+        $this->log("  无法加载设备数据,以空列表启动", 'WARNING');
+    }
+    
+    /**
+     * 保存设备缓存到本地文件
+     */
+    private function saveCache(): void
+    {
+        try {
+            $devicesData = [];
+            foreach ($this->devices as $deviceId => $device) {
+                if ($device->isOnline()) {
+                    $devicesData[] = [
+                        'device_id' => $device->deviceId,
+                        'uri' => $device->uri,
+                        'ip' => $device->ip,
+                        'port' => $device->port,
+                        'user_agent' => $device->info['user_agent'] ?? '',
+                        'registered_at' => $device->registeredAt,
+                        'last_heartbeat' => $device->lastHeartbeat,
+                        'expires' => $device->expires,
+                        'channels' => $device->channels,  // 保存通道列表
+                    ];
+                }
+            }
+            
+            $cacheData = [
+                'timestamp' => time(),
+                'count' => count($devicesData),
+                'devices' => $devicesData,
+            ];
+            
+            file_put_contents(
+                $this->cacheFile,
+                json_encode($cacheData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+            );
+            
+            $this->log("设备缓存已保存: {$cacheData['count']} 个设备", 'DEBUG');
+        } catch (\Exception $e) {
+            $this->log("保存缓存失败: {$e->getMessage()}", 'ERROR');
+        }
+    }
+
+    /**
+     * 日志输出
+     */
+    private function log(string $message, string $level = 'INFO'): void
+    {
+        $time = date('Y-m-d H:i:s');
+        $prefix = match ($level) {
+            'ERROR' => '[ERROR]',
+            'WARNING' => '[WARNING]',
+            default => '[INFO]'
+        };
+
+        echo "[{$time}]  [{$level}] {$message}\n";
+    }
+
+    // ==================== 订阅管理 ====================
+
+    /**
+     * 添加订阅
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $type 订阅类型（mobile_position/catalog等）
+     * @param array $subscription 订阅信息
+     */
+    public function addSubscription(string $deviceId, string $type, array $subscription): void
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        if (!$device) {
+            $this->log("设备不存在，无法添加订阅: {$deviceId}", 'WARNING');
+            return;
+        }
+
+        if (!isset($device->subscriptions)) {
+            $device->subscriptions = [];
+        }
+
+        $device->subscriptions[$type] = $subscription;
+        $this->log("订阅已添加: {$deviceId}, 类型: {$type}");
+    }
+
+    /**
+     * 移除订阅
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $type 订阅类型
+     */
+    public function removeSubscription(string $deviceId, string $type): void
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        if (!$device) {
+            return;
+        }
+
+        if (isset($device->subscriptions[$type])) {
+            unset($device->subscriptions[$type]);
+            $this->log("订阅已移除: {$deviceId}, 类型: {$type}");
+        }
+    }
+
+    /**
+     * 获取订阅信息
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $type 订阅类型
+     * @return array|null
+     */
+    public function getSubscription(string $deviceId, string $type): ?array
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        if (!$device || !isset($device->subscriptions)) {
+            return null;
+        }
+
+        return $device->subscriptions[$type] ?? null;
+    }
+
+    /**
+     * 检查订阅是否过期
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $type 订阅类型
+     * @return bool
+     */
+    public function isSubscriptionExpired(string $deviceId, string $type): bool
+    {
+        $subscription = $this->getSubscription($deviceId, $type);
+        if (!$subscription) {
+            return true;
+        }
+
+        $expireTime = $subscription['expire_time'] ?? 0;
+        return time() >= $expireTime;
+    }
+}

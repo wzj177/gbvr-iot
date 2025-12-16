@@ -2,7 +2,9 @@
 
 namespace CoreW\Sdk\PSipGateway;
 
-use support\Redis;
+
+use Illuminate\Redis\Connections\Connection;
+use Redis;
 
 /**
  * GB28181 客户端 SDK
@@ -12,6 +14,11 @@ use support\Redis;
 class Gb28181Client
 {
     private string $queueName = 'gb28181:commands';
+
+
+    public function __construct(private Connection|Redis $redis)
+    {
+    }
 
     /**
      * 发送命令到网关
@@ -36,7 +43,7 @@ class Gb28181Client
 
         try {
             // 推送到 Redis 队列
-            $result = Redis::lPush($this->queueName, json_encode($command, JSON_UNESCAPED_UNICODE));
+            $result = $this->redis->lPush($this->queueName, json_encode($command, JSON_UNESCAPED_UNICODE));
             return $result !== false;
         } catch (\Exception $e) {
             throw new \RuntimeException("Failed to send command: " . $e->getMessage());
@@ -95,26 +102,29 @@ class Gb28181Client
      * 开始实时视频
      *
      * 注意：ssrc、zlm_port、tcp_mode 由 API 项目的 Controller 层分配后传入
-     * 这里不负责分配，只负责发送命令
+     * 这里不负责分配,只负责发送命令
      *
      * @param string $deviceId 设备ID
      * @param string $channelId 通道ID
      * @param string $ssrc 平台SSRC (由数据库分配)
      * @param int $zlmPort ZLM端口 (由ZLM分配)
      * @param int $tcpMode TCP模式 (0=UDP, 1=TCP被动, 2=TCP主动)
+     * @param string|null $streamId ZLM流ID (用于标识和管理流)
      */
     public function startLiveVideo(
         string $deviceId,
         string $channelId,
         string $ssrc,
         int $zlmPort,
-        int $tcpMode = 1
+        int $tcpMode = 1,
+        ?string $streamId = null
     ): bool {
         return $this->sendCommand($deviceId, 'start_live_video', [
             'channel_id' => $channelId,
             'ssrc' => $ssrc,
             'zlm_port' => $zlmPort,
-            'tcp_mode' => $tcpMode
+            'tcp_mode' => $tcpMode,
+            'stream_id' => $streamId
         ]);
     }
 
@@ -138,6 +148,7 @@ class Gb28181Client
      * @param string $ssrc 平台SSRC
      * @param int $zlmPort ZLM端口
      * @param int $tcpMode TCP模式
+     * @param string|null $streamId ZLM流ID (用于标识和管理流)
      */
     public function startPlayback(
         string $deviceId,
@@ -146,7 +157,8 @@ class Gb28181Client
         string $endTime,
         string $ssrc,
         int $zlmPort,
-        int $tcpMode = 1
+        int $tcpMode = 1,
+        ?string $streamId = null
     ): bool {
         return $this->sendCommand($deviceId, 'start_playback', [
             'channel_id' => $channelId,
@@ -154,7 +166,8 @@ class Gb28181Client
             'end_time' => $endTime,
             'ssrc' => $ssrc,
             'zlm_port' => $zlmPort,
-            'tcp_mode' => $tcpMode
+            'tcp_mode' => $tcpMode,
+            'stream_id' => $streamId
         ]);
     }
 
@@ -187,5 +200,81 @@ class Gb28181Client
             'command' => $command,
             'speed' => $speed
         ]);
+    }
+
+    /**
+     * 预置位控制
+     *
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $action 操作类型 (set/call/delete)
+     * @param int $presetId 预置位编号 (1-255)
+     * @return bool
+     */
+    public function presetControl(
+        string $deviceId,
+        string $channelId,
+        string $action,
+        int $presetId
+    ): bool {
+        return $this->sendCommand($deviceId, 'preset_' . $action, [
+            'channel_id' => $channelId,
+            'preset_id' => $presetId
+        ]);
+    }
+
+    /**
+     * GB28181-2022: 设备升级
+     *
+     * @param string $deviceId 设备ID
+     * @param string $manufacturer 制造商
+     * @param string $firmware 固件版本
+     * @return array 返回命令信息 (注意: 这里返回数组以便调用方获取 session_id 等信息)
+     */
+    public function deviceUpgrade(string $deviceId, string $manufacturer, string $firmware): array
+    {
+        $sessionId = strtoupper(md5(uniqid() . microtime(true)));
+        $sn = rand(1, 99999999);
+
+        $success = $this->sendCommand($deviceId, 'device_upgrade', [
+            'manufacturer' => $manufacturer,
+            'firmware' => $firmware,
+            'session_id' => $sessionId,
+            'sn' => $sn
+        ]);
+
+        return [
+            'success' => $success,
+            'session_id' => $sessionId,
+            'sn' => $sn
+        ];
+    }
+
+    /**
+     * GB28181-2022: 图像抓拍
+     *
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $imageFormat 图片格式 (JPEG/PNG/BMP)
+     * @return array 返回命令信息
+     */
+    public function snapshot(string $deviceId, string $channelId, string $imageFormat = 'JPEG'): array
+    {
+        $sessionId = strtoupper(md5(uniqid() . microtime(true)));
+        $sn = rand(1, 99999999);
+
+        $success = $this->sendCommand($deviceId, 'snapshot', [
+            'channel_id' => $channelId,
+            'session_id' => $sessionId,
+            'image_format' => $imageFormat,
+            'sn' => $sn
+        ]);
+
+        return [
+            'success' => $success,
+            'session_id' => $sessionId,
+            'sn' => $sn,
+            'image_format' => $imageFormat
+        ];
     }
 }

@@ -5,6 +5,8 @@ namespace app\api\v2\controller;
 use app\api\BaseController;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\GB\Gb28181Service;
+use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Log;
 use support\Request;
@@ -40,7 +42,8 @@ class GBServerHockController extends BaseController
                 'device_expired' => $this->handleExpired($body),
                 'device_offline' => $this->handleOffline($body),
                 'update_heartbeat' => $this->handleHeartbeat($body),
-                'save_catalog' => $this->handleCatalog($body),
+                'device_catalog' => $this->handleCatalog($body),
+                'device_info' => $this->handleDeviceInfo($body),
                 'media_ready' => $this->handleMediaReady($body),
                 'voice_invite' => $this->handleVoiceInvite($body),
                 'session_bye' => $this->handleSessionBye($body),
@@ -55,7 +58,7 @@ class GBServerHockController extends BaseController
             Log::channel('sip')->error('Hook handler exception', [
                 'scene' => $scene,
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'trace' => $e->getMessage(),
             ]);
 
             return $this->createErrorJsonResponse($e->getMessage(), 500);
@@ -76,6 +79,9 @@ class GBServerHockController extends BaseController
         try {
             $device = $this->getDeviceService()->handleDeviceRegister($deviceId, $body);
 
+            // 发送设备信息查询请求，在handleDeviceInfo收到设备信息后，处理
+            $this->getGb28181Service()->queryDeviceInfo($deviceId);
+
             Log::channel('sip')->info('Device registered', [
                 'device_id' => $deviceId,
                 'status' => $device['status'] ?? 'unknown',
@@ -83,7 +89,7 @@ class GBServerHockController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('Register failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error' => $e->getTraceAsString(),
             ]);
         }
     }
@@ -192,6 +198,7 @@ class GBServerHockController extends BaseController
      */
     private function handleCatalog(array $body): void
     {
+        Log::channel('sip')->debug('Catalog received', $body);
         $deviceId = $body['device_id'] ?? '';
         $devices = $body['devices'] ?? [];
 
@@ -227,10 +234,7 @@ class GBServerHockController extends BaseController
         $deviceSsrc = $body['device_ssrc'] ?? '';
         $sdp = $body['sdp'] ?? [];
 
-        Log::channel('sip')->info('Media ready', [
-            'call_id' => $callId,
-            'device_ssrc' => $deviceSsrc,
-        ]);
+        Log::channel('sip')->info('Media ready', $body);
 
         if (!$callId) {
             Log::channel('sip')->warning('Media ready without call_id');
@@ -239,9 +243,9 @@ class GBServerHockController extends BaseController
 
         try {
             // 查找会话
-            $session = $this->getDeviceService()->getSessionByCallId((int)$callId);
+            $session = $this->getDeviceService()->getSessionBySsrc((string)$deviceSsrc);
             if (!$session) {
-                Log::channel('sip')->warning('Session not found', ['call_id' => $callId]);
+                Log::channel('sip')->warning("{$deviceSsrc} Session not found");
                 return;
             }
 
@@ -252,18 +256,22 @@ class GBServerHockController extends BaseController
                 'status' => 'active',
                 'device_ip' => $sdp['device_ip'] ?? null,
                 'device_port' => $sdp['device_port'] ?? null,
+                'call_id' => $callId,
+                'sdp' => isset($body['sdp']) ? serialize($sdp) : null,
             ];
 
             if ($deviceSsrc) {
                 $updateData['device_ssrc'] = $deviceSsrc;
             }
-
+            $this->getDeviceService()->updateChannelByMainId($session['stream_id'], [
+                'stream_status' => 'pushing'
+            ]);
             $this->getDeviceService()->updateSessionByCallId((int)$callId, $updateData);
 
             // 如果有设备 SSRC，更新 ZLM
             if ($deviceSsrc && $streamId) {
                 try {
-                    $result = $this->getZlmClient()->updateRtpServerSsrc($streamId, $deviceSsrc);
+                    $result = $this->getGb28181Service()->updateRtpServerSsrc($streamId, $deviceSsrc);
 
                     if ($result) {
                         Log::channel('sip')->info('ZLM SSRC updated', [
@@ -286,7 +294,7 @@ class GBServerHockController extends BaseController
             // 获取播放地址
             if ($streamId) {
                 try {
-                    $playUrls = $this->getZlmClient()->getPlayUrls('rtp', $streamId);
+                    $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $streamId);
 
                     // 更新会话的播放地址
                     $this->getDeviceService()->updateSessionByCallId((int)$callId, [
@@ -367,7 +375,7 @@ class GBServerHockController extends BaseController
             // 关闭 ZLM 流
             if ($streamId) {
                 try {
-                    $this->getZlmClient()->closeStream('rtp', $streamId);
+                    $this->getGb28181Service()->closeStream('rtp', $streamId);
                     Log::channel('sip')->info('Stream closed', ['stream_id' => $streamId]);
                 } catch (\Exception $e) {
                     Log::channel('sip')->warning('Close stream failed', [
@@ -380,7 +388,7 @@ class GBServerHockController extends BaseController
             // 关闭 RTP 端口
             if ($port > 0) {
                 try {
-                    $this->getZlmClient()->closeRtpServer($streamId, $port);
+                    $this->getGb28181Service()->closeRtpServer($streamId);
                     Log::channel('sip')->info('RTP port closed', ['port' => $port]);
                 } catch (\Exception $e) {
                     Log::channel('sip')->warning('Close RTP port failed', [
@@ -425,7 +433,45 @@ class GBServerHockController extends BaseController
                 'status' => $status,
             ]);
         } catch (\Exception $e) {
-            Log::channel('sip')->error('Status update failed', [
+            Log::channel('sip')->error('Device Status update failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function handleDeviceInfo(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        if (!$deviceId) {
+            return;
+        }
+
+        $info = $body['device_info'] ?? null;
+        if (!$info) {
+            return;
+        }
+
+        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
+        if (!$device) {
+            return;
+        }
+
+        try {
+            $this->getDeviceService()->updateDevice($device['id'], [
+                'device_name' => $info['DeviceName'] ?? $device['name'],
+                'manufacturer' => $info['Manufacturer'] ?? $device['manufacturer'],
+                'model' => $info['Model'] ?? $device['model'],
+                'firmware' => $info['Firmware'] ?? $device['firmware'],
+                'sum_num' => $info['Channel'] ?? $device['sum_num'],
+            ]);
+
+            Log::channel('sip')->info('Device Info changed', [
+                'device_id' => $deviceId,
+                'info' => $info,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Device Info update failed', [
                 'device_id' => $deviceId,
                 'error' => $e->getMessage(),
             ]);
@@ -459,12 +505,13 @@ class GBServerHockController extends BaseController
     {
         return $this->createService('Devices:DeviceService');
     }
+
     
     /**
-     * @return ZlmClient
+     * @return Gb28181Service
      */
-    private function getZlmClient(): ZlmClient
+    private function getGb28181Service(): Gb28181Service
     {
-        return $this->getBiz()->offsetGet('zlm_sdk');
+        return $this->createService('GB:Gb28181Service');
     }
 }
