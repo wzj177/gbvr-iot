@@ -6,6 +6,7 @@ use Exception;
 use ExoSip;
 use Gb28181\GateWay\Handlers\GB28181Handler;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
@@ -178,127 +179,98 @@ class Gb28181Server extends Command
             $status = ExoSip::getRunStatus($pidFile);
 
             if (!$status) {
-                $output->writeln("错误: 无法获取进程状态\n");
+                $output->writeln("<error>错误: 无法获取进程状态</error>");
                 exit(1);
             }
 
-            // 打印状态信息
-            $output->writeln("=============================================\n");
-            $output->writeln("  GB28181 Server Status\n");
-            $output->writeln("=============================================\n");
-            $output->writeln("  PID File: {$pidFile}\n");
+            $output->writeln("=============================================");
+            $output->writeln("  GB28181 Server Status");
+            $output->writeln("=============================================");
+            $output->writeln("  PID File: {$pidFile}");
+            $output->writeln("");
 
-            // Master 进程
+            // Master Process
             if (isset($status['master'])) {
                 $master = $status['master'];
-                $output->writeln("  [Master Process]\n");
-                $output->writeln("    PID:        {$master['pid']}\n");
-                $output->writeln("    Status:     {$master['status']}\n");
-
-                if (isset($master['memory_rss_kb'])) {
-                    $mem_mb = round($master['memory_rss_kb'] / 1024, 2);
-                    $output->writeln("    Memory:     {$mem_mb} MB\n");
-                }
-
-                if (isset($master['fd_count'])) {
-                    $output->writeln("    FD Count:   {$master['fd_count']}\n");
-                }
-                $output->writeln("\n");
+                $table = new Table($output);
+                $table->setHeaderTitle('[Master Process]')
+                    ->setHeaders(['PID', 'Status', 'Memory', 'FD Count'])
+                    ->setRows([[
+                        $master['pid'] ?? '',
+                        $master['status'] ?? '',
+                        isset($master['memory_rss_kb']) ? round($master['memory_rss_kb']/1024,2).' MB' : '',
+                        $master['fd_count'] ?? ''
+                    ]]);
+                $table->render();
+                $output->writeln("");
             }
 
-            // Worker 进程
+            // Worker Process
             if (isset($status['worker'])) {
                 $worker = $status['worker'];
-                $output->writeln("  [Worker Process]\n");
-                $output->writeln("    PID:           {$worker['pid']}\n");
-                $output->writeln("    Status:        {$worker['status']}\n");
-
-                if (isset($worker['memory_rss_kb'])) {
-                    $mem_mb = round($worker['memory_rss_kb'] / 1024, 2);
-                    $output->writeln("    Memory:        {$mem_mb} MB\n");
-                }
-
-                if (isset($worker['fd_count'])) {
-                    $output->writeln("    FD Count:      {$worker['fd_count']}\n");
-                }
-
-                if (isset($worker['uptime'])) {
-                    $uptime = $worker['uptime'];
-                    $hours = floor($uptime / 3600);
-                    $minutes = floor(($uptime % 3600) / 60);
-                    $seconds = $uptime % 60;
-                    $output->writeln("    Uptime:        {$hours}h {$minutes}m {$seconds}s\n");
-                }
-
-                if (isset($worker['restart_count'])) {
-                    $output->writeln("    Restart Count: {$worker['restart_count']}\n");
-                }
+                $table = new Table($output);
+                $table->setHeaderTitle('[Worker Process]')
+                    ->setHeaders(['PID', 'Status', 'Memory', 'FD Count', 'Uptime', 'Restart Count'])
+                    ->setRows([[
+                        $worker['pid'] ?? '',
+                        $worker['status'] ?? '',
+                        isset($worker['memory_rss_kb']) ? round($worker['memory_rss_kb']/1024,2).' MB' : '',
+                        $worker['fd_count'] ?? '',
+                        isset($worker['uptime']) ? sprintf("%dh %dm %ds",
+                            floor($worker['uptime']/3600),
+                            floor(($worker['uptime']%3600)/60),
+                            $worker['uptime']%60) : '',
+                        $worker['restart_count'] ?? ''
+                    ]]);
+                $table->render();
+                $output->writeln("");
             }
 
-            // Task 进程池
+            // Task Worker Pool
             if (isset($status['tasks']) && is_array($status['tasks'])) {
-                $output->writeln("  [Task Worker Pool]\n");
-                $output->writeln("    Total: " . count($status['tasks']) . " workers\n");
-                $output->writeln("\n");
-
+                $table = new Table($output);
+                $table->setHeaderTitle('[Task Worker Pool]')
+                    ->setHeaders(['Task ID', 'PID', 'Status', 'Memory']);
                 foreach ($status['tasks'] as $task) {
-                    $taskId = $task['id'];
-                    $taskPid = $task['pid'];
-                    $taskStatus = $task['status'];
-
-                    $statusIcon = $taskStatus === 'running' ? '✓' : '✗';
-                    $memInfo = '';
-                    if (isset($task['memory_rss_kb'])) {
-                        $mem_mb = round($task['memory_rss_kb'] / 1024, 2);
-                        $memInfo = " ({$mem_mb} MB)";
-                    }
-
-                    $output->writeln("    Task-{$taskId}: PID {$taskPid} [{$statusIcon} {$taskStatus}]{$memInfo}\n");
+                    $mem = isset($task['memory_rss_kb']) ? round($task['memory_rss_kb']/1024,2).' MB' : '';
+                    $statusIcon = $task['status'] === 'running' ? '✓' : '✗';
+                    $table->addRow([$task['id'], $task['pid'], "{$statusIcon} {$task['status']}", $mem]);
                 }
+                $table->render();
+                $output->writeln("");
             }
 
-            // Long Task 进程池
+            // Long Task Worker Pool
             if (isset($status['long_tasks']) && is_array($status['long_tasks'])) {
-                $output->writeln("  [Long Task Worker Pool]\n");
-                $output->writeln("    Total: " . count($status['long_tasks']) . " workers\n");
+                $table = new Table($output);
+                $table->setHeaderTitle('[Long Task Worker Pool]')
+                    ->setHeaders(['Task ID', 'PID', 'Status', 'Memory']);
                 foreach ($status['long_tasks'] as $task) {
-                    $taskId = $task['id'];
-                    $taskPid = $task['pid'];
-                    $taskStatus = $task['status'];
-
-                    $statusIcon = $taskStatus === 'running' ? '✓' : '✗';
-                    $memInfo = '';
-                    if (isset($task['memory_rss_kb'])) {
-                        $mem_mb = round($task['memory_rss_kb'] / 1024, 2);
-                        $memInfo = " ({$mem_mb} MB)";
-                    }
-
-                    $output->writeln("    LongTask-{$taskId}: PID {$taskPid} [{$statusIcon} {$taskStatus}]{$memInfo}\n");
+                    $mem = isset($task['memory_rss_kb']) ? round($task['memory_rss_kb']/1024,2).' MB' : '';
+                    $statusIcon = $task['status'] === 'running' ? '✓' : '✗';
+                    $table->addRow([$task['id'], $task['pid'], "{$statusIcon} {$task['status']}", $mem]);
                 }
+                $table->render();
+                $output->writeln("");
             }
 
-            // 任务统计
+            // Task Statistics
             if (isset($status['tasks_posted']) || isset($status['tasks_failed'])) {
-                $output->writeln("  [Task Statistics]\n");
-                if (isset($status['tasks_posted'])) {
-                    $output->writeln("    Posted: {$status['tasks_posted']}\n");
-                }
-
-                if (isset($status['tasks_failed'])) {
-                    $output->writeln("    Failed: {$status['tasks_failed']}\n");
-                }
+                $table = new Table($output);
+                $table->setHeaderTitle('[Task Statistics]')
+                    ->setHeaders(['Posted', 'Failed'])
+                    ->setRows([[
+                        $status['tasks_posted'] ?? 0,
+                        $status['tasks_failed'] ?? 0
+                    ]]);
+                $table->render();
+                $output->writeln("");
             }
-
-            $output->writeln("=============================================\n");
 
             // 返回状态码
             $allRunning = true;
-            if (isset($status['master']) && $status['master']['status'] !== 'running') {
-                $allRunning = false;
-            }
-            if (isset($status['worker']) && $status['worker']['status'] !== 'running') {
-                $allRunning = false;
-            }
+            if (isset($status['master']) && $status['master']['status'] !== 'running') $allRunning = false;
+            if (isset($status['worker']) && $status['worker']['status'] !== 'running') $allRunning = false;
             if (isset($status['tasks'])) {
                 foreach ($status['tasks'] as $task) {
                     if ($task['status'] !== 'running') {
@@ -311,7 +283,7 @@ class Gb28181Server extends Command
             exit($allRunning ? 0 : 1);
 
         } catch (Exception $e) {
-            $output->writeln("错误: " . $e->getMessage() . "\n");
+            $output->writeln("<error>错误: {$e->getMessage()}</error>");
             exit(1);
         }
     }
