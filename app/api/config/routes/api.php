@@ -6,7 +6,7 @@ use app\api\v1\controller\ProductController;
 use app\api\v1\controller\VIPController;
 use app\api\v1\controller\PublicController;
 use app\middleware\api\CompanyIotMiddleware;
-use app\middleware\api\XAuthTokenIdentityMiddleware;
+use app\middleware\api\AuthIdentityMiddleware;
 use app\middleware\ProductAnonymousVisitMiddleware;
 use support\Request;
 use Webman\Route;
@@ -31,7 +31,7 @@ Route::group('/api', function () {
 
         // 退出
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout')->middleware([
-            XAuthTokenIdentityMiddleware::class
+            SmartAuthIdentityMiddleware::class
         ]);
 
         // 会员中心
@@ -47,7 +47,7 @@ Route::group('/api', function () {
             Route::put('/edit/{id}', [VIPController::class, 'edit'])->name('api.vip.edit');
             Route::get('/products', [ProductController::class, 'myList'])->name('api.vip.products');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class
+            SmartAuthIdentityMiddleware::class
         ]);
 
         // 作品
@@ -85,7 +85,7 @@ Route::group('/api', function () {
             Route::put('/config/{id:\d+}', [ProductController::class, 'setConfig'])->name('api.product-set-config');
             Route::get('/config/{id:\d+}/{key:\w+}', [ProductController::class, 'getConfig'])->name('api.product-get-config');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class
+            SmartAuthIdentityMiddleware::class
         ]);
 
         // 物联网
@@ -118,7 +118,7 @@ Route::group('/api', function () {
 
         // 上传
         Route::post('/upload/file', [\app\api\v1\controller\UploadController::class, 'singleFile'])->name('api.common.upload.file')->middleware([
-            XAuthTokenIdentityMiddleware::class
+            SmartAuthIdentityMiddleware::class
         ]);
 
         // 邮箱验证
@@ -160,7 +160,7 @@ Route::group('/api', function () {
             Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
             Route::post('/channels/ptz', [\app\api\v2\controller\GB28181DeviceController::class, 'ptzControl']);
         })->middleware([
-            XAuthTokenIdentityMiddleware::class
+            SmartAuthIdentityMiddleware::class
         ]);
     });
 });

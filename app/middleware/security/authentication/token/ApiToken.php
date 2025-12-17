@@ -2,15 +2,12 @@
 
 namespace app\middleware\security\authentication\token;
 
-use \CoreW\Business\User\CurrentUserInterface;
+use CoreW\Business\User\CurrentUserInterface;
 use Symfony\Component\Security\Core\Authentication\Token\AbstractToken;
 
 class ApiToken extends AbstractToken
 {
-    private $credentials;
-    private $providerKey;
-
-    public function __construct(CurrentUserInterface $user, array $roles = array())
+    public function __construct(CurrentUserInterface $user, array $roles = [])
     {
         parent::__construct($roles);
         $this->setUser($user);
@@ -34,17 +31,7 @@ class ApiToken extends AbstractToken
      */
     public function getCredentials()
     {
-        return $this->credentials;
-    }
-
-    /**
-     * Returns the provider key.
-     *
-     * @return string The provider key
-     */
-    public function getProviderKey()
-    {
-        return $this->providerKey;
+        return null; // 凭证信息不在此存储
     }
 
     /**
@@ -53,7 +40,5 @@ class ApiToken extends AbstractToken
     public function eraseCredentials()
     {
         parent::eraseCredentials();
-
-        $this->credentials = null;
     }
 }

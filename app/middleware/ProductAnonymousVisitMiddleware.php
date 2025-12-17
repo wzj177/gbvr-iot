@@ -2,7 +2,7 @@
 
 namespace app\middleware;
 
-use app\middleware\api\firewall\XAuthTokenAuthenticationListener;
+use app\middleware\api\AuthIdentityMiddleware;
 use CoreW\Bfw;
 use CoreW\Business\BizEnum;
 use CoreW\Business\User\Exception\UserException;
@@ -13,7 +13,7 @@ use Webman\Http\Request;
 use Webman\Http\Response;
 use Webman\MiddlewareInterface;
 
-class ProductAnonymousVisitMiddleware extends AbstractAuthIdentity implements MiddlewareInterface
+class ProductAnonymousVisitMiddleware extends AuthIdentityMiddleware implements MiddlewareInterface
 {
     protected $currentUserIndex = 'vip';
 
@@ -24,17 +24,19 @@ class ProductAnonymousVisitMiddleware extends AbstractAuthIdentity implements Mi
         if (!empty($token)) {
             // TODO: 验证token
             try {
-                $authenticationListener = new XAuthTokenAuthenticationListener($this->getBiz());
-                $result = $authenticationListener->handle($request);
-                if (is_array($result) && isset($result['key']) && $result['key'] === 'Authorization') {
-                    $this->identity();
-                    return $handler($request)->withHeaders([
-                        'Authorization' => $result['token'],
-                        'AuthorizationType' => $result['type']
+                $this->handle($request);
+                
+                $response = $handler($request);
+                
+                // 如果需要续签JWT token
+                if (isset($this->jwtRefreshData)) {
+                    $response = $response->withHeaders([
+                        'Authorization' => $this->jwtRefreshData['token'],
+                        'AuthorizationType' => $this->jwtRefreshData['type']
                     ]);
                 }
-                $this->identity();
-                return $handler($request);
+                
+                return $response;
             } catch (\Throwable $e) {
                 throw $e;
             }

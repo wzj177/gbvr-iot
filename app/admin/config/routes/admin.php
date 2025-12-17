@@ -8,8 +8,7 @@ use app\admin\controller\ProductTagController;
 use app\admin\controller\SettingController;
 use app\admin\controller\SystemController;
 use app\admin\controller\UserController;
-use app\middleware\admin\BasicAuthIdentityMiddleware;
-use app\middleware\admin\XAuthTokenIdentityMiddleware;
+use app\middleware\admin\AuthIdentityMiddleware;
 use CoreW\CustomRoute as Route;
 use function Swoole\Coroutine\Http\post;
 
@@ -18,11 +17,11 @@ Route::group('/admin', function () {
     Route::group('/auth', function () {
         Route::get('/config', [SettingController::class, 'getSecure'])->name('admin.login_config');
         Route::post('/login', [AuthController::class, 'login'])->name('admin.login')->middleware([
-            BasicAuthIdentityMiddleware::class,
+            SmartAuthIdentityMiddleware::class,
         ]);
         Route::get('/captcha', [AuthController::class, 'captcha'])->name('admin.captcha');
         Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout')->middleware([
-            XAuthTokenIdentityMiddleware::class
+            SmartAuthIdentityMiddleware::class
         ]);
     });
 
@@ -37,14 +36,14 @@ Route::group('/admin', function () {
         Route::get('/log/actions/{module:\w+}', [SystemController::class, 'logActionOptions'])->name('system.log.action-options');
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 
     // 菜单
     Route::group('/menu', function () {
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 
     // 管理员
@@ -52,7 +51,7 @@ Route::group('/admin', function () {
         Route::get('/menus', [UserController::class, 'getMenuAdmin'])->name('user.menus');
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 
     // 角色权限
@@ -60,14 +59,14 @@ Route::group('/admin', function () {
 
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
     // 会员
     Route::group('/vip', function () {
 
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 
     // 作品
@@ -87,7 +86,7 @@ Route::group('/admin', function () {
         Route::post('/tag/batch-delete', [ProductTagController::class, 'batchDestroy'])->name('product.tag-batch-delete');
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 
 
@@ -114,7 +113,7 @@ Route::group('/admin', function () {
         Route::delete('/{id}', [AttachmentController::class, 'delete'])->name('attachment.delete');
         Route::post('/deletes', [AttachmentController::class, 'deletes'])->name('attachment.deletes');
     })->middleware([
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 
     // 系统设置
@@ -132,6 +131,6 @@ Route::group('/admin', function () {
         Route::post('/vr', [SettingController::class, 'setVR'])->name('setting.vr');
     })->middleware([
 //        BasicAuthIdentity::class,
-        XAuthTokenIdentityMiddleware::class
+        SmartAuthIdentityMiddleware::class
     ]);
 });
