@@ -72,7 +72,7 @@ class UnifiedAuthenticationListener
             throw AdminUserException::USERNAME_PASSWORD_ERROR();
         }
         
-        $user = $this->getUserService()->getUserByUsername($username);
+        $user = $this->getUserService()->getUserByNickname($username);
         if (!$user || !$this->getUserService()->verifyInSaltOut($password, $user['salt'], $user['password'])) {
             throw AdminUserException::USERNAME_PASSWORD_ERROR();
         }
@@ -86,12 +86,12 @@ class UnifiedAuthenticationListener
         $currentUser->fromArray($user);
         
         $token = new ApiToken($currentUser, $currentUser->getRoles());
-        $this->getApiTokenStorage()->setToken($token);
-        
+        $this->setToken($token);
+
         return true;
     }
 
-    protected function handleTokenAuth(Request $request)
+    protected function handleTokenAuth(Request $request): bool
     {
         $token = $request->header($this->tokenKey);
         if (empty($token)) {
@@ -133,7 +133,7 @@ class UnifiedAuthenticationListener
             $rawToken = $this->refreshAccessToken($rawToken['oldToken']);
 
             $token = $this->createApiTokenFromRequest($request, $rawToken[$this->userIdKey], $rawToken['token']);
-            $this->getApiTokenStorage()->setToken($token);
+            $this->setToken($token);
 
             // 保存续签数据供中间件使用
             $this->jwtRefreshData = [
@@ -145,9 +145,16 @@ class UnifiedAuthenticationListener
         }
 
         $token = $this->createApiTokenFromRequest($request, $rawToken[$this->userIdKey], $rawToken['token']);
-        $this->getApiTokenStorage()->setToken($token);
+
+        $this->setToken($token);
 
         return true;
+    }
+
+    protected function setToken(ApiToken $token)
+    {
+        $this->getApiTokenStorage()->setToken($token);
+        $this->getBiz()->offsetSet('user', $this->getApiTokenStorage()->getToken()->getUser());
     }
 
     protected function verifyToken($authType, $token)
@@ -164,11 +171,11 @@ class UnifiedAuthenticationListener
      * 生成api token
      *
      * @param Request $request
-     * @param int|array $userId
+     * @param array|int $userId
      * @param string $loginToken
      * @return ApiToken
      */
-    protected function createApiTokenFromRequest(Request $request, $userId, $loginToken = '')
+    protected function createApiTokenFromRequest(Request $request, array|int $userId, string $loginToken = ''): ApiToken
     {
         if ($this->isApiRequest) {
             // API端处理VIP用户

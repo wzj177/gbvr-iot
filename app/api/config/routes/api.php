@@ -5,7 +5,6 @@ use app\api\v1\controller\IotController;
 use app\api\v1\controller\ProductController;
 use app\api\v1\controller\VIPController;
 use app\api\v1\controller\PublicController;
-use app\middleware\api\CompanyIotMiddleware;
 use app\middleware\api\AuthIdentityMiddleware;
 use app\middleware\ProductAnonymousVisitMiddleware;
 use support\Request;
@@ -31,7 +30,7 @@ Route::group('/api', function () {
 
         // 退出
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout')->middleware([
-            SmartAuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class
         ]);
 
         // 会员中心
@@ -47,7 +46,7 @@ Route::group('/api', function () {
             Route::put('/edit/{id}', [VIPController::class, 'edit'])->name('api.vip.edit');
             Route::get('/products', [ProductController::class, 'myList'])->name('api.vip.products');
         })->middleware([
-            SmartAuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class
         ]);
 
         // 作品
@@ -85,7 +84,7 @@ Route::group('/api', function () {
             Route::put('/config/{id:\d+}', [ProductController::class, 'setConfig'])->name('api.product-set-config');
             Route::get('/config/{id:\d+}/{key:\w+}', [ProductController::class, 'getConfig'])->name('api.product-get-config');
         })->middleware([
-            SmartAuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class
         ]);
 
         // 物联网
@@ -93,8 +92,8 @@ Route::group('/api', function () {
             Route::get('/device/catalogs', [IotController::class, 'getDeviceCatalogs'])->name('iot.device.catalogs');
            Route::get('/device/list', [IotController::class, 'getDeviceList'])->name('iot.device.list');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class,
-            CompanyIotMiddleware::class
+//            XAuthTokenIdentityMiddleware::class,
+//            CompanyIotMiddleware::class
         ]);
 
         // 作品:无需认证,游客也可访问
@@ -118,7 +117,7 @@ Route::group('/api', function () {
 
         // 上传
         Route::post('/upload/file', [\app\api\v1\controller\UploadController::class, 'singleFile'])->name('api.common.upload.file')->middleware([
-            SmartAuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class
         ]);
 
         // 邮箱验证
@@ -160,7 +159,7 @@ Route::group('/api', function () {
             Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
             Route::post('/channels/ptz', [\app\api\v2\controller\GB28181DeviceController::class, 'ptzControl']);
         })->middleware([
-            SmartAuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class
         ]);
     });
 });

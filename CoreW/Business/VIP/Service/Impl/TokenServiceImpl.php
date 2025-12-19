@@ -148,9 +148,9 @@ class TokenServiceImpl extends BaseService implements TokenService
     /**
      * @return TokenStorageInterface
      */
-    public function getTokenStorage()
+    public function getTokenStorage(): TokenStorageInterface
     {
-        $storage = config('app.token_storage');
+        $storage = config('auth.token_storage');
         if (!isset($this->storageMap[$storage])) {
             throw new UnexpectedValueException('token storage not exist');
         }

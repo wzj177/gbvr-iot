@@ -1,60 +1,50 @@
 <?php
 
-
 namespace CoreW\Business\User;
 
-
-use CoreW\Exception\UnexpectedValueException;
+use CoreW\Exception\UnexpectedValueAssistant;
 use Symfony\Component\Security\Core\User\EquatableInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @method string getUserIdentifier()
  */
-class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAccess, \Serializable
+class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAccess
 {
-    protected $data = [];
-    protected $permissions = [];
-    protected $context = [];
+    protected array $data = [];
+    protected array $permissions = [];
+    protected array $context = [];
 
-    public function offsetExists($offset)
+    // ———————— ArrayAccess 实现 ————————
+
+    public function offsetExists(mixed $offset): bool
     {
         return $this->__isset($offset);
     }
 
-    public function offsetGet($offset)
+    public function offsetGet(mixed $offset): mixed
     {
         return $this->__get($offset);
     }
 
-    public function offsetSet($offset, $value)
+    public function offsetSet(mixed $offset, mixed $value): void
     {
-        return $this->__set($offset, $value);
+        $this->__set($offset, $value);
     }
 
-    public function offsetUnset($offset)
+    public function offsetUnset(mixed $offset): void
     {
-        return $this->__unset($offset);
+        $this->__unset($offset);
     }
 
-    public function serialize()
-    {
-        return serialize($this->data);
-    }
+    // ———————— 魔术方法 ————————
 
-    public function unserialize($serialized)
-    {
-        $this->data = unserialize($serialized);
-    }
-
-    public function __set($name, $value)
+    public function __set($name, $value): void
     {
         $this->data[$name] = $value;
-
-        return $this;
     }
 
-    public function __get($name)
+    public function __get($name): mixed
     {
         if (array_key_exists($name, $this->data)) {
             return $this->data[$name];
@@ -62,103 +52,115 @@ class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAcc
         throw new UnexpectedValueException("{$name} is not exist in CurrentUser.");
     }
 
-    public function __isset($name)
+    public function __isset($name): bool
     {
         return isset($this->data[$name]);
     }
 
-    public function __unset($name)
+    public function __unset($name): void
     {
         unset($this->data[$name]);
     }
 
-    public function fromArray(array $user)
+    // ———————— 序列化支持（PHP 8.1+ 推荐方式） ————————
+
+    public function __serialize(): array
+    {
+        return $this->data;
+    }
+
+    public function __unserialize(array $data): void
+    {
+        $this->data = $data;
+    }
+
+    // ———————— 业务方法 ————————
+
+    public function fromArray(array $user): static
     {
         $this->data = $user;
-
         return $this;
     }
 
-    public function isEqualTo(UserInterface $user)
+    public function isEqualTo(UserInterface $user): bool
     {
         if ($this->email !== $user->getUsername()) {
             return false;
         }
 
-        if (array_diff($this->roles, $user->getRoles())) {
-            return false;
-        }
+        $thisRoles = $this->getRoles();
+        $userRoles = $user->getRoles();
 
-        if (array_diff($user->getRoles(), $this->roles)) {
+        if (array_diff($thisRoles, $userRoles) || array_diff($userRoles, $thisRoles)) {
             return false;
         }
 
         return true;
     }
 
-    public function getRoles()
+    public function getRoles(): array
     {
-        return $this->roles;
+        return $this->data['roles'] ?? [];
     }
 
-    public function getPassword()
+    public function getPassword(): ?string
     {
-        return $this->password;
+        return $this->data['password'] ?? null;
     }
 
-    public function getSalt()
+    public function getSalt(): ?string
     {
-        return $this->salt;
+        return $this->data['salt'] ?? null;
     }
 
-    public function getUsername()
+    public function getUsername(): ?string
     {
-        return $this->email;
+        return $this->data['email'] ?? null;
     }
 
-    public function getId()
+    public function getId(): ?int
     {
-        return $this->id;
+        return $this->data['id'] ?? null;
     }
 
-    public function isLogin()
+    public function isLogin(): bool
     {
-        return !empty($this->id);
+        return !empty($this->data['id']);
     }
 
-    public function isSuperAdmin()
+    public function isSuperAdmin(): bool
     {
-        return count(array_intersect($this->getRoles(), ['ROLE_SUPER_ADMIN'])) > 0;
+        return in_array('ROLE_SUPER_ADMIN', $this->getRoles(), true);
     }
 
-    public function eraseCredentials()
+    public function eraseCredentials(): void
     {
-        // TODO: Implement eraseCredentials() method.
+        // Clear sensitive data if needed
+        unset($this->data['password']);
     }
 
-    public function toArray()
+    public function toArray(): array
     {
         return $this->data;
     }
 
-    public function setPermissions($permissions)
+    public function setPermissions(array $permissions): static
     {
         $this->permissions = $permissions;
-
         return $this;
     }
 
-    public function getPermissions()
+    public function getPermissions(): array
     {
         return $this->permissions;
     }
 
-    public function setContext($name, $value)
+    public function setContext(string $name, mixed $value): void
     {
         $this->context[$name] = $value;
     }
 
-    public function getContext($name)
+    public function getContext(string $name): mixed
     {
         return $this->context[$name] ?? null;
     }

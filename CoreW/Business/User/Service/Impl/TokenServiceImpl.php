@@ -17,7 +17,7 @@ use Webman\Config;
 
 class TokenServiceImpl extends BaseService implements TokenService
 {
-    private $storageMap = [
+    private array $storageMap = [
         'db' => DbTokenStorage::class,
         'redis' => RedisTokenStorage::class
     ];
@@ -142,9 +142,9 @@ class TokenServiceImpl extends BaseService implements TokenService
     /**
      * @return TokenStorageInterface
      */
-    public function getTokenStorage()
+    public function getTokenStorage(): TokenStorageInterface
     {
-        $storage = config('app.token_storage');
+        $storage = config('auth.token_storage');
         if (!isset($this->storageMap[$storage])) {
             throw new UnexpectedValueException('token storage not exist');
         }

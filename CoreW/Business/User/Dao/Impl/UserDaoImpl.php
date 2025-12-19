@@ -143,7 +143,7 @@ class UserDaoImpl extends AdvancedDaoImpl implements UserDao
         return $this->db()->fetchAll($sql, $userIds);
     }
 
-    protected function createQueryBuilder($conditions)
+    protected function createQueryBuilder($conditions): \CoreW\Dao\DynamicQueryBuilder
     {
         $conditions = array_filter($conditions, function ($value) {
             if ('0' == $value) {
