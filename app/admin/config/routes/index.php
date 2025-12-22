@@ -16,9 +16,7 @@ Route::group('/admin', function () {
     // 登录认证
     Route::group('/auth', function () {
         Route::get('/config', [SettingController::class, 'getSecure'])->name('admin.login_config');
-        Route::post('/login', [AuthController::class, 'login'])->name('admin.login')->middleware([
-            AuthIdentityMiddleware::class,
-        ]);
+        Route::post('/login', [AuthController::class, 'login'])->name('admin.login');
         Route::get('/captcha', [AuthController::class, 'captcha'])->name('admin.captcha');
         Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout')->middleware([
             AuthIdentityMiddleware::class

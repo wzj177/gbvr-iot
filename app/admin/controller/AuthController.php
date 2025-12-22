@@ -8,6 +8,7 @@ use CoreW\Business\Common\UserException;
 use CoreW\Business\BizEnum;
 use CoreW\Business\DataFilters\Filter;
 use CoreW\Business\Auth\Handler\TokenHandlerInterface;
+use CoreW\Business\User\CurrentUser;
 use support\Redis;
 use support\Request;
 use Webman\Captcha\CaptchaBuilder;
@@ -23,9 +24,15 @@ class AuthController extends BaseController
      */
     public function login(Request $request)
     {
+        // 获取用户名和密码
+        $username = $request->post('username');
+        $password = $request->post('password');
+        
+        // 校验用户
+        $user = $this->validateUser($request, $username, $password);
+        
         $type = $request->get('type', BizEnum::TOKEN_TYPE_ADMIN_LOGIN);
         $authConfig = $this->getSettingService()->get('auth', []);
-        $user = $this->getCurrentUser()->toArray();
         $currentIp = $request->getRealIp();
         // 用户登录ip限制:开启后同一帐号只能在一处进行登录
         $loginLimit = isset($authConfig['login_connect_login_limit']) && $authConfig['login_connect_login_limit'];
@@ -102,9 +109,9 @@ class AuthController extends BaseController
         // 将验证码的值存储到redis中
         Redis::set('admin:captcha', strtolower($builder->getPhrase()));
         // 获得验证码图片二进制数据
-        $img_content = $builder->get();
+        $imgContent = $builder->get();
         // 输出验证码二进制数据
-        return response($img_content, 200, ['Content-Type' => 'image/jpeg']);
+        return response($imgContent)->header('Content-Type', 'image/jpeg');
     }
 
     protected function makeAuthToken($type, $userId, $duration = 0, $data = null, $args = [])
@@ -159,6 +166,11 @@ class AuthController extends BaseController
         if ($user['locked']) {
             throw UserException::LOCKED_USER();
         }
+
+        // 设置当前用户到biz容器中，模拟认证中间件的行为
+        $currentUser = new CurrentUser();
+        $currentUser->fromArray($user);
+        $this->getBiz()->offsetSet('user', $currentUser);
 
         return $user;
     }
