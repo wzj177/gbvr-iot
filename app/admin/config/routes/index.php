@@ -7,6 +7,7 @@ use app\admin\controller\ProductCatalogController;
 use app\admin\controller\ProductTagController;
 use app\admin\controller\SettingController;
 use app\admin\controller\SystemController;
+use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
 use app\middleware\admin\AuthIdentityMiddleware;
 use CoreW\CustomRoute as Route;
@@ -32,6 +33,17 @@ Route::group('/admin', function () {
         Route::post('/test-mail', [SystemController::class, 'testMail'])->name('system.test-mail');
         Route::get('/log/modules', [SystemController::class, 'logModuleOptions'])->name('system.log.module-options');
         Route::get('/log/actions/{module:\w+}', [SystemController::class, 'logActionOptions'])->name('system.log.action-options');
+
+        // 系统监控相关接口
+        Route::get('/stats', [SystemMonitoringController::class, 'getSystemStats'])->name('system.stats');
+        Route::get('/device-stats', [SystemMonitoringController::class, 'getDeviceStats'])->name('system.device-stats');
+        Route::get('/zlm-stats', [SystemMonitoringController::class, 'getZLMediaKitStats'])->name('system.zlm-stats');
+
+        // 详细监控指标接口
+        Route::get('/cpu-usage', [SystemMonitoringController::class, 'getCpuUsage'])->name('system.cpu-usage');
+        Route::get('/memory-usage', [SystemMonitoringController::class, 'getMemoryUsage'])->name('system.memory-usage');
+        Route::get('/network-stats', [SystemMonitoringController::class, 'getNetworkStats'])->name('system.network-stats');
+        Route::get('/disk-stats', [SystemMonitoringController::class, 'getDiskStats'])->name('system.disk-stats');
     })->middleware([
 //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class
