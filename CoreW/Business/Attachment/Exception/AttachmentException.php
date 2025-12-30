@@ -47,6 +47,9 @@ class AttachmentException extends AbstractBizException
     const SNIPPET_UPLOAD_FILE_CHUNK_MERGE_FAILED = 5002303;
 
     const IMAGE_MAKE_THUMB_BOX_PARAM_ERROR = 4002324;
+    const OSS_CONFIG_ERROR = 5002325;
+    const OSS_UPLOAD_FAILED = 5002326;
+    const OSS_DELETE_FAILED = 5002327;
 
     public function __construct($code, $message = null)
     {
@@ -82,7 +85,10 @@ class AttachmentException extends AbstractBizException
             self::SNIPPET_UPLOAD_FILE_CHUNK_MERGE_FAILED => '文件上传失败，合并分片文件失败',
             self::MOVE_GROUP_PARAM_ERROR => '移动分组失败，参数错误',
             self::DELETE_FILE_PARAM_ERROR => '文件删除失败，参数错误',
-            self::IMAGE_MAKE_THUMB_BOX_PARAM_ERROR => '图片生成缩略图失败，缺少宽高必要参数'
+            self::IMAGE_MAKE_THUMB_BOX_PARAM_ERROR => '图片生成缩略图失败，缺少宽高必要参数',
+            self::OSS_CONFIG_ERROR => 'OSS配置错误',
+            self::OSS_UPLOAD_FAILED => 'OSS文件上传失败',
+            self::OSS_DELETE_FAILED => 'OSS文件删除失败'
         ];
     }
 }

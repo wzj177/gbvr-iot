@@ -339,28 +339,71 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
 
             $pathinfo = pathinfo($filepath);
             $type = $localFileImplementor->getAttachmentTypeByExt($pathinfo['extension']);
-            $attachment = [
-                'status' => 'ok',
-                'createUserId' => $fields['create_user_id'],
-                'createClient' => $fields['Client'],
-                'storage' => 'local',
-                'filename' => $fields['name'],
-                'fileSize' => filesize($filepath),
-                'groupCode' => $fields['group'],
-                'filepath' => $subPath,
-                'newFilename' => $pathinfo['filename'] . '.' . $ext,
-                'ext' => $pathinfo['extension'],
-                'metas' => '',
-                'type' => $type,
-                'hashId' => hash_file('sha256', $filepath)
-            ];
-            $row = $this->getAttachmentDao()->create($attachment);
+
+            // 获取当前配置的存储引擎
+            $setting = $this->getSettingService()->get('attachment');
+            $storageType = empty($setting['type']) ? 'local' : $setting['type'];
+
+            // 根据 storage 类型处理文件
+            if ($storageType === 'local') {
+                // 本地存储：直接使用合并后的文件
+                $attachment = [
+                    'status' => 'ok',
+                    'createUserId' => $fields['create_user_id'],
+                    'createClient' => $fields['Client'],
+                    'storage' => 'local',
+                    'filename' => $fields['name'],
+                    'fileSize' => filesize($filepath),
+                    'groupCode' => $fields['group'],
+                    'filepath' => $subPath,
+                    'newFilename' => $pathinfo['filename'] . '.' . $ext,
+                    'ext' => $pathinfo['extension'],
+                    'metas' => '',
+                    'type' => $type,
+                    'hashId' => hash_file('sha256', $filepath)
+                ];
+                $row = $this->getAttachmentDao()->create($attachment);
+                $finalFilepath = $subPath;
+            } else {
+                // 云存储：上传到 OSS 并删除本地临时文件
+                $implementor = $this->getSystemSettingFileImplementor();
+
+                // 创建临时的 UploadFile 对象用于云存储上传
+                $tmpUploadFile = new \Webman\Http\UploadFile($filepath, basename($filepath), mime_content_type($filepath), filesize($filepath), UPLOAD_ERR_OK);
+
+                // 上传到云存储
+                $ossFields = $implementor->store($tmpUploadFile, $path, $fields['hash'], [
+                    'group' => $fields['group']
+                ]);
+
+                // 删除本地合并后的临时文件
+                @unlink($filepath);
+
+                $attachment = [
+                    'status' => 'ok',
+                    'createUserId' => $fields['create_user_id'],
+                    'createClient' => $fields['Client'],
+                    'storage' => $ossFields['storage'],
+                    'filename' => $fields['name'],
+                    'fileSize' => $ossFields['fileSize'],
+                    'groupCode' => $fields['group'],
+                    'filepath' => $ossFields['filepath'],
+                    'newFilename' => $ossFields['newFilename'],
+                    'ext' => $ossFields['ext'],
+                    'metas' => $ossFields['metas'],
+                    'type' => $ossFields['type'],
+                    'hashId' => $ossFields['hashId']
+                ];
+                $row = $this->getAttachmentDao()->create($attachment);
+                $finalFilepath = $ossFields['filepath'];
+            }
+
             $this->getLogService()->info('attachment', 'upload', '分片上传成功', $fields);
             $this->clearChunkFiles($chunkPath, $chunkFiles);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
 
-            return $this->responseFormat($row['id'], $subPath, $type);
+            return $this->responseFormat($row['id'], $finalFilepath, $type);
 
         } catch (\Throwable $e) {
             $this->getLogService()->error('attachment', 'upload', '分片上传失败:' . $e->getMessage(), $fields);
@@ -773,10 +816,18 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             return true;
         }
 
-        // 七牛
-        // 腾讯云
-
-        return true;
+        // 七牛、阿里云、腾讯云云存储删除
+        try {
+            $implementor = $this->getFileImplementor($storage);
+            $file = ['filepath' => $path];
+            return $implementor->deleteFile($file);
+        } catch (\Throwable $e) {
+            $this->getLogService()->error('attachment', 'delete', "云存储文件删除失败: " . $e->getMessage(), [
+                'storage' => $storage,
+                'path' => $path
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -791,7 +842,58 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         $type = empty($setting['type']) ? 'local' : $setting['type'];
         unset($setting['type']);
 
+        // 从数据库读取存储配置，覆盖 .env 配置
+        $storageSetting = $this->getSettingService()->get('storage');
+        if (!empty($storageSetting) && is_array($storageSetting)) {
+            $ossConfig = $this->getOssConfigFromDb($type, $storageSetting);
+            $setting = array_merge($setting, $ossConfig);
+        }
+
         return $this->getFileImplementor($type, $setting);
+    }
+
+    /**
+     * 从数据库存储配置映射到 OSS 配置格式
+     *
+     * @param string $type 存储类型
+     * @param array $storageSetting 数据库存储配置
+     * @return array OSS 配置数组
+     */
+    protected function getOssConfigFromDb($type, $storageSetting)
+    {
+        $config = [];
+
+        switch ($type) {
+            case BizEnum::STORAGE_TYPE_QINIU:
+                $config = [
+                    'access_key' => $storageSetting['qiniu_access_key'] ?? config('oss.qiniu.access_key'),
+                    'secret_key' => $storageSetting['qiniu_secret_key'] ?? config('oss.qiniu.secret_key'),
+                    'bucket' => $storageSetting['qiniu_bucket'] ?? config('oss.qiniu.bucket'),
+                    'domain' => $storageSetting['qiniu_url'] ?? config('oss.qiniu.domain'),
+                ];
+                break;
+
+            case BizEnum::STORAGE_TYPE_ALI:
+                $config = [
+                    'access_key_id' => $storageSetting['ali_access_key'] ?? config('oss.aliyun.access_key_id'),
+                    'access_key_secret' => $storageSetting['ali_secret_key'] ?? config('oss.aliyun.access_key_secret'),
+                    'bucket' => $storageSetting['ali_bucket'] ?? config('oss.aliyun.bucket'),
+                    'endpoint' => $storageSetting['ali_url'] ?? config('oss.aliyun.endpoint'),
+                ];
+                break;
+
+            case BizEnum::STORAGE_TYPE_TENCENT:
+                $config = [
+                    'secret_id' => $storageSetting['tencent_app_sercet'] ?? config('oss.tencent.secret_id'),
+                    'secret_key' => $storageSetting['tencent_seret_key'] ?? config('oss.tencent.secret_key'),
+                    'bucket' => $storageSetting['tencent_bucket'] ?? config('oss.tencent.bucket'),
+                    'region' => $storageSetting['tencent_bucket_location'] ?? config('oss.tencent.region'),
+                    'app_id' => $storageSetting['tencent_app_id'] ?? config('oss.tencent.app_id'),
+                ];
+                break;
+        }
+
+        return $config;
     }
 
     /**

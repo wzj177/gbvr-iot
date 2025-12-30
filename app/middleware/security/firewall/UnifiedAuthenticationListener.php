@@ -207,7 +207,7 @@ class UnifiedAuthenticationListener
     /**
      * @return TokenHandlerInterface
      */
-    protected function getTokenHandler()
+    protected function getTokenHandler(): TokenHandlerInterface
     {
         if ($this->isApiRequest) {
             $tokenHandler = $this->biz['api_auth']();

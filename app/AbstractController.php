@@ -128,7 +128,7 @@ abstract class AbstractController
     /**
      * @return SystemLogService
      */
-    protected function getLogService()
+    protected function getLogService(): SystemLogService
     {
         return $this->createService('SystemLog:SystemLogService');
     }
@@ -136,7 +136,7 @@ abstract class AbstractController
     /**
      * @return SettingService
      */
-    protected function getSettingService()
+    protected function getSettingService(): SettingService
     {
         return $this->createService('Setting:SettingService');
     }

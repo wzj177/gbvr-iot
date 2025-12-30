@@ -1,11 +1,13 @@
 <?php
 
+use app\admin\controller\SystemMonitoringController;
 use app\api\v1\controller\AuthController;
 use app\api\v1\controller\IotController;
 use app\api\v1\controller\ProductController;
 use app\api\v1\controller\VIPController;
 use app\api\v1\controller\PublicController;
 use app\middleware\api\AuthIdentityMiddleware;
+use app\middleware\admin\AuthIdentityMiddleware as AdminAuthIdentityMiddleware;
 use app\middleware\ProductAnonymousVisitMiddleware;
 use support\Request;
 use Webman\Route;

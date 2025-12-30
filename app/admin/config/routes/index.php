@@ -3,17 +3,32 @@
 use app\admin\controller\AttachmentController;
 use app\admin\controller\AttachmentGroupController;
 use app\admin\controller\AuthController;
+use app\admin\controller\GB28181AlarmController;
+use app\admin\controller\GB28181ChannelController;
+use app\admin\controller\GB28181DeviceController;
+use app\admin\controller\GB28181MapController;
+use app\admin\controller\GB28181PTZController;
+use app\admin\controller\GB28181RecordingController;
+use app\admin\controller\GB28181StreamController;
+use app\admin\controller\GB28181SystemMonitoringController;
 use app\admin\controller\ProductCatalogController;
 use app\admin\controller\ProductTagController;
 use app\admin\controller\SettingController;
 use app\admin\controller\SystemController;
 use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
+use app\admin\controller\ZLMController;
 use app\middleware\admin\AuthIdentityMiddleware;
 use CoreW\CustomRoute as Route;
 use function Swoole\Coroutine\Http\post;
 
-Route::group('/admin', function () {
+// Include GB28181 routes
+$gb28181RoutesFile = __DIR__ . '/gb28181.php';
+if (file_exists($gb28181RoutesFile)) {
+    include_once $gb28181RoutesFile;
+}
+
+Route::group('/api/admin', function () {
     // 登录认证
     Route::group('/auth', function () {
         Route::get('/config', [SettingController::class, 'getSecure'])->name('admin.login_config');
@@ -26,7 +41,7 @@ Route::group('/admin', function () {
 
     // 系统
     Route::group('/system', function () {
-        Route::get('/log', [SystemController::class, 'logs'])->name('system.logs');
+        Route::get('/logs', [SystemController::class, 'logs'])->name('system.logs');
         Route::get('/log/{id:\d+}', [SystemController::class, 'log'])->name('system.log');
         Route::post('/log/btch-dlt', [SystemController::class, 'batchDelete'])->name('system.log.batch-delete');
         Route::post('/cache-clear', [SystemController::class, 'clearCache'])->name('system.cache-clear');
@@ -37,7 +52,6 @@ Route::group('/admin', function () {
         // 系统监控相关接口
         Route::get('/stats', [SystemMonitoringController::class, 'getSystemStats'])->name('system.stats');
         Route::get('/device-stats', [SystemMonitoringController::class, 'getDeviceStats'])->name('system.device-stats');
-        Route::get('/zlm-stats', [SystemMonitoringController::class, 'getZLMediaKitStats'])->name('system.zlm-stats');
 
         // 详细监控指标接口
         Route::get('/cpu-usage', [SystemMonitoringController::class, 'getCpuUsage'])->name('system.cpu-usage');
@@ -139,8 +153,76 @@ Route::group('/admin', function () {
         Route::post('/vip', [SettingController::class, 'setVIP'])->name('setting.vip');
         Route::get('/attachment/options', [SettingController::class, 'attachmentOptions'])->name('setting.attachment.options');
         Route::post('/vr', [SettingController::class, 'setVR'])->name('setting.vr');
+        Route::get('/zlm/get',  [SettingController::class, 'getZLM'])->name( 'setting.zlm.get');
+        Route::post('/zlm/set',  [SettingController::class, 'setZLM'])->name( 'setting.zlm');
+        Route::post('/zlm/reset',  [SettingController::class, 'resetZLM'])->name( 'setting.zlm.reset');
     })->middleware([
 //        BasicAuthIdentity::class,
+        AuthIdentityMiddleware::class
+    ]);
+
+
+    Route::group('/gb28181', function () {
+        // 设备管理
+        Route::group('/devices', function () {
+            Route::get('', [GB28181DeviceController::class, 'index'])->name('admin.gb28181.devices.index');
+            Route::get('/{deviceId:\w+}', [GB28181DeviceController::class, 'show'])->name('admin.gb28181.devices.show');
+            Route::delete('/{deviceId:\w+}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
+            Route::post('/{deviceId:\w+}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
+        });
+
+        // 通道管理
+        Route::group('/channels', function () {
+            Route::get('/{deviceId:\w+}', [GB28181ChannelController::class, 'index'])->name('admin.gb28181.channels.index');
+            Route::get('/{deviceId:\w+}/channel/{channelId:\w+}', [GB28181ChannelController::class, 'show'])->name('admin.gb28181.channels.show');
+        });
+
+        // PTZ控制
+        Route::group('/ptz', function () {
+            Route::post('', [GB28181PTZController::class, 'control'])->name('admin.gb28181.ptz.control');
+        });
+
+        // 视频流管理
+        Route::group('/streams', function () {
+            Route::post('/start-live', [GB28181StreamController::class, 'startLive'])->name('admin.gb28181.streams.start-live');
+            Route::post('/stop-live', [GB28181StreamController::class, 'stopLive'])->name('admin.gb28181.streams.stop-live');
+            Route::get('/play-urls', [GB28181StreamController::class, 'getPlayUrls'])->name('admin.gb28181.streams.play-urls');
+            Route::post('/playback', [GB28181StreamController::class, 'startPlayback'])->name('admin.gb28181.streams.start-playback');
+        });
+
+        // 录像管理
+        Route::group('/recordings', function () {
+            Route::get('', [GB28181RecordingController::class, 'index'])->name('admin.gb28181.recordings.index');
+            Route::post('/start-record', [GB28181RecordingController::class, 'startRecord'])->name('admin.gb28181.recordings.start-record');
+            Route::post('/stop-record', [GB28181RecordingController::class, 'stopRecord'])->name('admin.gb28181.recordings.stop-record');
+            Route::post('/snapshot', [GB28181RecordingController::class, 'snapshot'])->name('admin.gb28181.recordings.snapshot');
+        });
+
+        // 报警管理
+        Route::group('/alarms', function () {
+            Route::get('', [GB28181AlarmController::class, 'index'])->name('admin.gb28181.alarms.index');
+            Route::get('/{id:\w+}', [GB28181AlarmController::class, 'show'])->name('admin.gb28181.alarms.show');
+            Route::put('/{id:\w+}', [GB28181AlarmController::class, 'update'])->name('admin.gb28181.alarms.update');
+        });
+
+        // 电子地图
+        Route::group('/map', function () {
+            Route::get('/devices', [GB28181MapController::class, 'getDevices'])->name('admin.gb28181.map.devices');
+            Route::put('/devices/{id:\w+}/position', [GB28181MapController::class, 'updatePosition'])->name('admin.gb28181.map.update-position');
+        });
+
+        // 系统监控
+        Route::get('/device-stats', [GB28181SystemMonitoringController::class, 'getDeviceStats'])->name('admin.gb28181.system.device-stats');
+        Route::get('/stats', [GB28181SystemMonitoringController::class, 'getSystemStats'])->name('admin.gb28181.system.stats');
+    })->middleware([
+        AuthIdentityMiddleware::class
+    ]);
+
+    Route::group('/zlm', function () {
+        // restart
+         Route::post('/restart', [ZLMController::class, 'restart'])->name('zlm.restart');
+        Route::get('/stats', [ZLMController::class, 'getZLMediaKitStats'])->name('zlm.stats');
+    })->middleware([
         AuthIdentityMiddleware::class
     ]);
 });

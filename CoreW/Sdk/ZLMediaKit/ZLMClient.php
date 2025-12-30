@@ -247,6 +247,18 @@ class ZLMClient
         return $this->request('getServerConfig');
     }
 
+    public function setServerConfig(array $params): ?array
+    {
+        $config = [];
+        foreach ($params as $key => $value) {
+            foreach ($value as $k => $v) {
+                $config["{$key}.{$k}"] = $v;
+            }
+        }
+
+        return $this->request('setServerConfig', $config);
+    }
+
     /**
      * 重启服务器
      *
@@ -309,82 +321,89 @@ class ZLMClient
      *
      * @param string $api API名称
      * @param array $params 参数
+     * @param string $method 请求方法
      * @return array|null
      */
-    private function request(string $api, array $params = []): ?array
+    private function request(string $api, array $params = [], string $method = 'GET'): ?array
     {
-        // 添加secret
         if ($this->secret) {
             $params['secret'] = $this->secret;
         }
 
         $url = "{$this->baseUrl}/{$api}";
 
-        if ($this->debug) {
-            Log::channel('zlm')->debug('ZLM API Request', [
-                'api' => $api,
+        $this->debugLog('ZLM API Request', [
+            'api' => $api,
+            'params' => $params,
+        ]);
+
+        $result = $method === 'GET'
+            ? $this->__GetRequest($url, $params)
+            : $this->__PostRequest($url, $params);
+
+        $this->debugLog('ZLM API Response', [
+            'api' => $api,
+            'result' => $result,
+        ]);
+
+        return $result;
+    }
+
+    private function curlRequest(string $url, array $options)
+    {
+        $ch = curl_init();
+
+        curl_setopt_array($ch, $options + [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/x-www-form-urlencoded',
+                ],
+            ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+
+        curl_close($ch);
+
+        if ($error || $httpCode !== 200) {
+            Log::channel('zlm')->error('ZLM API HTTP Error', [
                 'url' => $url,
-                'params' => $params,
-            ]);
-        }
-
-        try {
-            $ch = curl_init();
-
-            // POST请求
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            // close ssl verify
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/x-www-form-urlencoded',
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-
-            curl_close($ch);
-
-            if ($error) {
-                Log::channel('zlm')->error('ZLM API Request Failed', [
-                    'api' => $api,
-                    'error' => $error,
-                ]);
-                return null;
-            }
-
-            if ($httpCode !== 200) {
-                Log::channel('zlm')->error('ZLM API HTTP Error', [
-                    'api' => $api,
-                    'http_code' => $httpCode,
-                    'response' => $response,
-                ]);
-                return null;
-            }
-
-            $result = json_decode($response, true);
-
-            if ($this->debug) {
-                Log::channel('zlm')->debug('ZLM API Response', [
-                    'api' => $api,
-                    'result' => $result,
-                ]);
-            }
-
-            return $result;
-
-        } catch (\Exception $e) {
-            Log::channel('zlm')->error('ZLM API Exception', [
-                'api' => $api,
-                'exception' => $e->getMessage(),
+                'error' => $error,
+                'http_code' => $httpCode,
+                'response' => $response,
             ]);
             return null;
+        }
+
+        return json_decode($response, true);
+    }
+
+    private function __PostRequest(string $url, array $params = [])
+    {
+        return $this->curlRequest($url, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($params),
+        ]);
+    }
+
+    private function __GetRequest(string $url, array $params = [])
+    {
+        return $this->curlRequest(
+            $url . '?' . http_build_query($params),
+            []
+        );
+    }
+
+    private function debugLog(string $msg, array $context = []): void
+    {
+        if ($this->debug) {
+            Log::channel('zlm')->info($msg, $context);
         }
     }
 }

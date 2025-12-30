@@ -4,6 +4,8 @@ namespace app\admin\controller;
 
 use app\admin\BaseController;
 use CoreW\Business\BizEnum;
+use CoreW\Sdk\ZLMediaKit\MediaServer;
+use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Request;
 use support\utils\ArrayToolkit;
 use support\utils\AssetHelper;
@@ -292,5 +294,95 @@ class SettingController extends BaseController
         }
 
         return $this->createErrorJsonResponse('设置失败');
+    }
+
+    public function getZLM(Request $request)
+    {
+        $zlmConfigFile = config_path('zlm/config.ini');
+        if (!file_exists($zlmConfigFile)) {
+            return $this->createErrorJsonResponse('ZLM配置文件不存在');
+        }
+
+        try {
+            $zlmConfig = parse_mit_ini($zlmConfigFile);
+
+            return $this->createSuccessJsonResponse($zlmConfig);
+
+        } catch (\Exception $e) {
+            $result = $this->getZlmClient()->getServerConfig();
+
+            if ($result['code'] === 0) {
+                $zlmConfig = $result['data'];
+
+                return $this->createSuccessJsonResponse($zlmConfig);
+            }
+
+            return $this->createErrorJsonResponse('ZLM 配置获取失败');
+        }
+    }
+
+    public function setZLM(Request $request)
+    {
+        // use respect/validation
+        $zlmConfigFile = config_path('zlm/config.ini');
+        if (!file_exists($zlmConfigFile)) {
+            return $this->createErrorJsonResponse('ZLM配置文件不存在');
+        }
+
+        try {
+            // 备份
+            $zlmConfigFileBackup = $zlmConfigFile . '.bak';
+            if (file_exists($zlmConfigFileBackup)) {
+                @unlink($zlmConfigFileBackup);
+            }
+            @copy($zlmConfigFile, $zlmConfigFileBackup);
+//         更新ZLM配置文件
+            $this->getZlmClient()->setServerConfig($request->post());
+
+            // TODO:后期建议对接supervisord 这里重启对应的服务
+            $webman = base_path() . '/webman';
+            if (file_exists($webman)) {
+                // find php
+                $php = shell_exec("which php");
+                $php = trim($php);
+                $cmd = "nohup {$php} {$webman} zlm:start -f > /dev/null 2>&1 &";
+                shell_exec($cmd);  // 需要执行命令
+            }
+
+            return $this->createSuccessJsonResponse(null, '设置成功');
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse($e->getMessage());
+        }
+    }
+
+    public function resetZLM(Request $request)
+    {
+        $zlmConfigFile = config_path('zlm/config.ini');
+        if (!file_exists($zlmConfigFile)) {
+            return $this->createErrorJsonResponse('ZLM配置文件不存在');
+        }
+
+        $zlmConfigFileBackup = $zlmConfigFile . '.bak';
+        if (!file_exists($zlmConfigFileBackup)) {
+            return $this->createErrorJsonResponse('ZLM配置无变化，无需重置');
+        }
+
+        try {
+            @copy($zlmConfigFileBackup, $zlmConfigFile);
+            @unlink($zlmConfigFileBackup);
+            $this->getZlmClient()->restartServer();
+
+            return $this->createSuccessJsonResponse(null, '重置成功');
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse($e->getMessage());
+        }
+    }
+
+    /**
+     * @return ZLMClient
+     */
+    protected function getZlmClient(): ZLMClient
+    {
+        return $this->getBiz()->offsetGet('zlm_sdk');
     }
 }

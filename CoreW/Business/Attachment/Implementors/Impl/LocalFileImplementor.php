@@ -231,31 +231,6 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
                     'groupCode' => $group,
                 ];
             }
-//            if (!in_array($ext, $this->config['allow_image_exts'])
-//                && !in_array($ext, $this->config['allow_audio_exts'])
-//                && !in_array($ext, $this->config['allow_video_exts'])
-//                && !in_array($ext, explode('|', $this->config['allow_file_exts']))
-//            ) {
-//                throw AttachmentException::ALL_FILE_EXT_INVALID();
-//            }
-//
-//
-//            if ('image' === $type && $this->config['allow_image_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "图片大小不能超过" . sprintf("%.2f", $this->config['allow_image_upload_size'] / 1024) . "M");
-//            }
-//
-//            if ('audio' === $type && $this->config['allow_audio_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "音频大小不能超过" . sprintf("%.2f", $this->config['allow_image_upload_size'] / 1024) . "M");
-//            }
-//
-//            if ('video' === $type && $this->config['allow_video_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "视频大小不能超过" . sprintf("%.2f", $this->config['allow_image_upload_size'] / 1024) . "M");
-//            }
-//
-//            if ('other' === $type && $this->config['allow_file_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "文件大小不能超过" . sprintf("%.2f", $this->config['allow_file_upload_size'] / 1024) . "M");
-//            }
-
 
         } catch (\Throwable $e) {
             throw  $e;

@@ -62,7 +62,9 @@
     "webman/redis": "^2.1",
     "illuminate/events": "^12.39",
     "guzzlehttp/guzzle": "^7.10",
-    "symfony/process": "^5.4"
+    "symfony/process": "^5.4",
+    "qiniu/php-sdk": "^7.14",
+    "aliyuncs/oss-sdk-php": "^2.7"
   },
   "suggest": {
     "ext-event": "For better performance. "

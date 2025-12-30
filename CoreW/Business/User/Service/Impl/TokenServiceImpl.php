@@ -44,10 +44,7 @@ class TokenServiceImpl extends BaseService implements TokenService
 
     public function verifyToken($type, $value)
     {
-//        var_dump($type, $value);
         $token = $this->getTokenStorage()->getByToken($value);
-//        var_dump($token);
-
         if (empty($token)) {
             return false;
         }
@@ -78,13 +75,6 @@ class TokenServiceImpl extends BaseService implements TokenService
         }
         $tokenStorage = $this->getTokenStorage();
         $tokenStorage->delete($tokenItem['id']);
-//        if ($tokenStorage instanceof DbTokenStorage) {
-//            $tokenStorage->delete($tokenItem['id']);
-//        }
-//
-//        if ($tokenStorage instanceof RedisTokenStorage) {
-//            $this->getTokenStorage()->deleteByToken($tokenItem);
-//        }
 
     }
 

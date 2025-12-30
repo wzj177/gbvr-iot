@@ -49,8 +49,8 @@ segRetain=5
 
 [hook]
 alive_interval=10.0
-enable=1
-on_flow_report=http://127.0.0.1:8886/api/zlm/hook/flow-report
+enable=0
+on_flow_report=
 on_http_access=
 on_play=
 on_publish=

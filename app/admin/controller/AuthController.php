@@ -11,6 +11,7 @@ use CoreW\Business\Auth\Handler\TokenHandlerInterface;
 use CoreW\Business\User\CurrentUser;
 use support\Redis;
 use support\Request;
+use support\Response;
 use Webman\Captcha\CaptchaBuilder;
 
 class AuthController extends BaseController
@@ -20,7 +21,7 @@ class AuthController extends BaseController
      *  登录接口
      *
      * @param Request $request
-     * @return \support\Response
+     * @return Response
      */
     public function login(Request $request)
     {
@@ -85,7 +86,7 @@ class AuthController extends BaseController
      * 退出登录
      *
      * @param Request $request
-     * @return \support\Response
+     * @return Response
      */
     public function logout(Request $request)
     {
@@ -100,7 +101,7 @@ class AuthController extends BaseController
         return $this->createSuccessJsonResponse(null, '登出成功');
     }
 
-    public function captcha(Request $request)
+    public function captcha(Request $request): Response
     {
         // 初始化验证码类
         $builder = new CaptchaBuilder;
@@ -114,7 +115,7 @@ class AuthController extends BaseController
         return response($imgContent)->header('Content-Type', 'image/jpeg');
     }
 
-    protected function makeAuthToken($type, $userId, $duration = 0, $data = null, $args = [])
+    protected function makeAuthToken($type, $userId, $duration = 0, $data = null, $args = []): array
     {
         $token = [];
         $token['userId'] = $userId ? (int)$userId : 0;

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "caa39c92c621292c9987f5c0d2f3c4c1",
+    "content-hash": "941e1159d05f5ce6afebdaacfa087d56",
     "packages": [
         {
             "name": "alchemy/binary-driver",
@@ -77,6 +77,51 @@
                 "source": "https://github.com/alchemy-fr/BinaryDriver/tree/master"
             },
             "time": "2020-02-12T19:35:11+00:00"
+        },
+        {
+            "name": "aliyuncs/oss-sdk-php",
+            "version": "v2.7.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aliyun/aliyun-oss-php-sdk.git",
+                "reference": "483dd0b8bff5d47f0e4ffc99f6077a295c5ccbb5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aliyun/aliyun-oss-php-sdk/zipball/483dd0b8bff5d47f0e4ffc99f6077a295c5ccbb5",
+                "reference": "483dd0b8bff5d47f0e4ffc99f6077a295c5ccbb5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "*",
+                "phpunit/phpunit": "*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "OSS\\": "src/OSS"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Aliyuncs",
+                    "homepage": "http://www.aliyun.com"
+                }
+            ],
+            "description": "Aliyun OSS SDK for PHP",
+            "homepage": "http://www.aliyun.com/product/oss/",
+            "support": {
+                "issues": "https://github.com/aliyun/aliyun-oss-php-sdk/issues",
+                "source": "https://github.com/aliyun/aliyun-oss-php-sdk/tree/v2.7.2"
+            },
+            "time": "2024-10-28T10:41:12+00:00"
         },
         {
             "name": "brick/math",
@@ -3854,6 +3899,66 @@
                 "source": "https://github.com/php-fig/simple-cache/tree/3.0.0"
             },
             "time": "2021-10-29T13:26:27+00:00"
+        },
+        {
+            "name": "qiniu/php-sdk",
+            "version": "v7.14.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/qiniu/php-sdk.git",
+                "reference": "ee752ffa7263ce99fca0bd7340cf13c486a3516c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/qiniu/php-sdk/zipball/ee752ffa7263ce99fca0bd7340cf13c486a3516c",
+                "reference": "ee752ffa7263ce99fca0bd7340cf13c486a3516c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-xml": "*",
+                "myclabs/php-enum": "~1.5.2 || ~1.6.6 || ~1.7.7 || ~1.8.4",
+                "php": ">=5.3.3"
+            },
+            "require-dev": {
+                "paragonie/random_compat": ">=2",
+                "phpunit/phpunit": "^4.8 || ^5.0 || ^6.0 || ^7.0 || ^8.0 || ^9.3.4",
+                "squizlabs/php_codesniffer": "^2.3 || ~3.6"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/Qiniu/functions.php",
+                    "src/Qiniu/Http/Middleware/Middleware.php"
+                ],
+                "psr-4": {
+                    "Qiniu\\": "src/Qiniu"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Qiniu",
+                    "email": "sdk@qiniu.com",
+                    "homepage": "http://www.qiniu.com"
+                }
+            ],
+            "description": "Qiniu Resource (Cloud) Storage SDK for PHP",
+            "homepage": "http://developer.qiniu.com/",
+            "keywords": [
+                "cloud",
+                "qiniu",
+                "sdk",
+                "storage"
+            ],
+            "support": {
+                "issues": "https://github.com/qiniu/php-sdk/issues",
+                "source": "https://github.com/qiniu/php-sdk/tree/v7.14.0"
+            },
+            "time": "2024-10-25T08:39:01+00:00"
         },
         {
             "name": "ralouphie/getallheaders",

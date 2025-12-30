@@ -15,7 +15,7 @@ class BaseController extends AbstractController
     /**
      * @return CurrentUserInterface
      */
-    protected function getCurrentUser()
+    protected function getCurrentUser(): CurrentUserInterface
     {
         $biz = $this->getBiz();
         $biz['user']['currentIp'] = request()->getRemoteIp();
@@ -25,7 +25,7 @@ class BaseController extends AbstractController
     /**
      * @return UserService
      */
-    protected function getUserService()
+    protected function getUserService(): UserService
     {
         return $this->createService('User:UserService');
     }
