@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ZlmStart extends Command
 {
     protected static $defaultName = 'zlm:start';
-    protected static $defaultDescription = 'zlm 服务器启动';
+    protected static $defaultDescription = 'zlm 启动（只适合信令服务和媒体服务在同一台机器上）';
 
     /**
      * @return void

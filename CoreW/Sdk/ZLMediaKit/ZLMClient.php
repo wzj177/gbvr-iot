@@ -218,15 +218,30 @@ class ZLMClient
      *
      * @param string $streamId 流ID
      * @param string $app 应用名 (默认: rtp)
+     * @param string|null $accessUrl 访问地址（nginx反向代理地址，如果提供则使用此地址生成播放URL）
      * @return array ['rtsp' => '', 'http_flv' => '', 'hls' => '', 'ws_flv' => '']
      */
-    public function getPlayUrls(string $streamId, string $app = 'rtp'): array
+    public function getPlayUrls(string $streamId, string $app = 'rtp', ?string $accessUrl = null): array
     {
         $vhost = '__defaultVhost__';
 
-        // RTSP端口默认554
+        // 如果提供了 access_url，使用 access_url 生成播放地址
+        if ($accessUrl) {
+            // 移除 access_url 末尾的斜杠
+            $baseUrl = rtrim($accessUrl, '/');
+
+            return [
+                'rtsp' => null, // RTSP 不支持通过 HTTP 代理
+                'http_flv' => "{$baseUrl}/{$app}/{$streamId}.live.flv",
+                'ws_flv' => str_replace(['http://', 'https://'], ['ws://', 'wss://'], $baseUrl) . "/{$app}/{$streamId}.live.flv",
+                'hls' => "{$baseUrl}/{$app}/{$streamId}/hls.m3u8",
+                'flv' => "{$baseUrl}/{$app}/{$streamId}.live.flv",
+                'm3u8' => "{$baseUrl}/{$app}/{$streamId}/hls.m3u8",
+            ];
+        }
+
+        // 默认使用 host:port 生成播放地址
         $rtspPort = 554;
-        // HTTP-FLV端口通常是ZLM的HTTP端口
         $httpPort = $this->port;
 
         return [
@@ -234,6 +249,8 @@ class ZLMClient
             'http_flv' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}.live.flv",
             'ws_flv' => "ws://{$this->host}:{$httpPort}/{$app}/{$streamId}.live.flv",
             'hls' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}/hls.m3u8",
+            'flv' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}.live.flv",
+            'm3u8' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}/hls.m3u8",
         ];
     }
 
@@ -242,9 +259,23 @@ class ZLMClient
      *
      * @return array|null
      */
-    public function getServerConfig(): ?array
+    public function getServerConfig(bool $flat = false): ?array
     {
-        return $this->request('getServerConfig');
+        $result =  $this->request('getServerConfig');
+        if ($result && ($result['code'] ?? -1) === 0) {
+            if (!$flat) {
+                return $result['data'][0];
+            } else {
+                $items = [];
+                foreach ($result['data'][0] as $key => $value) {
+                    $keys = explode('.', $key);
+                    $items[$keys[0]][$keys[1]] = $value;
+                }
+                return $items;
+            }
+        }
+
+        return null;
     }
 
     public function setServerConfig(array $params): ?array
@@ -270,13 +301,53 @@ class ZLMClient
     }
 
     /**
-     * 获取线程负载
+     * 获取网络线程负载
      *
-     * @return array|null
+     * @return array{
+     *     code: int,
+     *     data: list<array{
+     *         delay: int,
+     *         fd_count: int,
+     *         load: int,
+     *         name: string
+     *     }>
+     * } |  null |array
      */
     public function getThreadsLoad(): ?array
     {
         return $this->request('getThreadsLoad');
+    }
+
+    /**
+     * 获取后台线程负载
+     *
+     * @return array{
+     *     code: int,
+     *     data: list<array{
+     *         delay: int,
+     *         fd_count: int,
+     *         load: int,
+     *         name: string
+     *     }>
+     * } |  null |array
+     */
+    public function getWorkThreadsLoad(): ?array
+    {
+        return $this->request('getWorkThreadsLoad');
+    }
+
+    /**
+     * 获取对象统计信息
+     * 用于分析内存性能
+     *
+     * @return array{
+     *     code: int,
+     *     data: array<string, int>
+     * } | null
+     */
+    public function getStatistic(): ?array
+    {
+        return $this->request('getStatistic');
     }
 
     /**
@@ -305,7 +376,7 @@ class ZLMClient
     }
 
 
-    public function getVersion(): ?string
+    public function getVersion(): ?array
     {
         $resp = $this->request('version');
 
@@ -313,7 +384,7 @@ class ZLMClient
             return null;
         }
 
-        return $resp['data']['branchName'] ?? null;
+        return $resp['data'] ?? null;
     }
 
     /**

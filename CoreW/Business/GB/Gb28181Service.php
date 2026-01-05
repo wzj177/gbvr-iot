@@ -416,9 +416,9 @@ class Gb28181Service
         return $this->getZlmClient()->updateRtpServerSsrc($streamId, $ssrc);
     }
 
-    public function getPlayUrls(string $schema, string $streamId): array
+    public function getPlayUrls(string $schema, string $streamId, ?string $accessUrl = null): array
     {
-        return $this->getZlmClient()->getPlayUrls($streamId, $schema);
+        return $this->getZlmClient()->getPlayUrls($streamId, $schema, $accessUrl);
     }
 
     /**

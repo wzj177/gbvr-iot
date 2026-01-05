@@ -22,7 +22,7 @@ use Gb28181\GateWay\Libs\Logger;
 
 /**
  * GB28181 信令网关核心处理类
- * 
+ *
  * 职责说明:
  * ========
  * 1. 处理设备注册/注销/心跳 (REGISTER)
@@ -30,28 +30,28 @@ use Gb28181\GateWay\Libs\Logger;
  * 3. 处理SIP INVITE - 视频流请求/语音对讲
  * 4. 处理SIP NOTIFY - 异步通知消息
  * 5. 分发主动命令 (通过Redis队列)
- * 
+ *
  * 协议方法说明:
  * ===========
- * 
+ *
  * handleRegister()
  * ---------------
  * - 场景: 设备上线注册、定期刷新注册
  * - 方向: 设备 → 平台
  * - 流程: REGISTER → 401 → REGISTER(带认证) → 200 OK
  * - 作用: 建立设备连接，分配Expires过期时间
- * 
+ *
  * handleMessage()
  * --------------
  * - 场景: GB28181 XML信令交互（查询/响应/上报）
  * - 方向: 双向
  * - 消息类型:
- *   * 设备→平台: Keepalive(心跳), Catalog(目录), DeviceInfo(设备信息), 
+ *   * 设备→平台: Keepalive(心跳), Catalog(目录), DeviceInfo(设备信息),
  *                Alarm(报警), MobilePosition(位置上报)
  *   * 平台→设备: Query(查询), Control(PTZ控制等)
  * - 格式: SIP MESSAGE + XML Body
  * - 特点: 同步请求-响应模式
- * 
+ *
  * handleNotify()
  * -------------
  * - 场景: 异步通知消息（设备主动推送）
@@ -62,7 +62,7 @@ use Gb28181\GateWay\Libs\Logger;
  *     - Keepalive: 媒体流心跳，包含码率/帧率等
  * - 格式: SIP NOTIFY + XML Body
  * - 特点: 单向通知，不需要响应数据
- * 
+ *
  * handleInvite()
  * -------------
  * - 场景: 会话邀请（视频/音频）
@@ -74,14 +74,14 @@ use Gb28181\GateWay\Libs\Logger;
  *     Subject: broadcast(广播) 或 talk(对讲)
  * - 格式: SIP INVITE + SDP Body
  * - 特点: 建立媒体流会话
- * 
+ *
  * handleBye()
  * ----------
  * - 场景: 结束会话（视频/音频）
  * - 方向: 双向
  * - 流程: BYE → 200 OK
  * - 作用: 释放媒体资源、关闭RTP端口
- * 
+ *
  * handleResponse()
  * ---------------
  * - 场景: 处理设备对主动命令的响应
@@ -90,7 +90,6 @@ use Gb28181\GateWay\Libs\Logger;
  *   * MESSAGE 200 OK: 查询命令已被接收，等待MESSAGE响应
  * - 作用: 确认命令执行，提取关键参数
  */
-
 class GB28181Handler
 {
     use CurlTrait, SIPMessageHandleTrait;
@@ -307,27 +306,28 @@ class GB28181Handler
             }
         }
 
-        // 清理离线设备
+        // TODO: 清理离线设备
         $cleanupInterval = $this->config['check_offline_device_interval'] ?? 3600;
         if ($now - $lastCleanupTime >= $cleanupInterval) {
-            $offlineDevices = $this->deviceManager->cleanupOfflineDevices();
-            $lastCleanupTime = $now;
+            $this->deviceManager->cleanupOfflineDevices();
+//            $offlineDevices = $this->deviceManager->cleanupOfflineDevices();
+//            $lastCleanupTime = $now;
 
-            // 通知 API 更新离线设备状态为 offline
-            if (!empty($offlineDevices)) {
-                $this->log("清理 " . count($offlineDevices) . " 个离线设备");
-                foreach ($offlineDevices as $deviceId => $device) {
-                    $this->postTask('device_offline', [
-                        'device_id' => $deviceId,
-                        'registered_at' => $device['registered_at'] ?? 0,
-                        'last_heartbeat' => $device['last_heartbeat'] ?? 0,
-                        'timestamp' => $now,
-                    ]);
-                    $this->log("设备已离线: {$deviceId}");
-                }
-            } else {
-                $this->log("无离线设备需要清理");
-            }
+            //  TODO：这里不需要了，通知 API 更新离线设备状态为 offline
+//            if (!empty($offlineDevices)) {
+//                $this->log("清理 " . count($offlineDevices) . " 个离线设备");
+//                foreach ($offlineDevices as $deviceId => $device) {
+//                    $this->postTask('device_offline', [
+//                        'device_id' => $deviceId,
+//                        'registered_at' => $device['registered_at'] ?? 0,
+//                        'last_heartbeat' => $device['last_heartbeat'] ?? 0,
+//                        'timestamp' => $now,
+//                    ]);
+//                    $this->log("设备已离线: {$deviceId}");
+//                }
+//            } else {
+//                $this->log("无离线设备需要清理");
+//            }
         }
     }
 
@@ -712,18 +712,18 @@ class GB28181Handler
 
     /**
      * 处理订阅请求（SUBSCRIBE）
-     * 
+     *
      * GB28181 使用 SUBSCRIBE/NOTIFY 机制实现移动设备位置订阅：
      * - Event: presence - 移动设备位置订阅
      * - Expires: 订阅时长（秒），0表示取消订阅
-     * 
+     *
      * 订阅流程：
      * 1. 平台发送 SUBSCRIBE（Event: presence, Expires: 3600）
      * 2. 设备回复 200 OK
      * 3. 设备周期性发送 NOTIFY（Event: presence，包含位置信息）
      * 4. 平台在过期前发送 SUBSCRIBE 刷新订阅
      * 5. 取消订阅时发送 SUBSCRIBE（Expires: 0）
-     * 
+     *
      * 注意事项：
      * - 如果 Expires 太小（< 设备最小值），设备可能返回 423 Interval Too Small
      * - 返回头域需包含 Min-Expires 指示最小订阅时间
@@ -751,20 +751,20 @@ class GB28181Handler
 
     /**
      * 处理通知消息（NOTIFY）
-     * 
+     *
      * NOTIFY 用于异步通知，设备主动向平台发送状态信息。
-     * 
+     *
      * 两种 NOTIFY 类型：
-     * 
+     *
      * 1. 订阅事件通知（通过 Event 头域判断）：
      *    - Event: presence - 移动设备位置订阅通知
      *    - 需要检查 Subscription-State 头域（active/pending/terminated）
      *    - XML Body 包含位置信息（MobilePosition）
-     * 
+     *
      * 2. XML 命令通知（通过 CmdType 判断）：
      *    - MediaStatus: GB28181-2022 媒体状态通知（截图完成/流保活）
      *    - 其他自定义命令类型
-     * 
+     *
      * 处理流程：
      * 1. 优先检查 Event 头域（订阅事件）
      * 2. 如果没有 Event 或不识别，解析 XML CmdType（命令通知）
@@ -804,14 +804,14 @@ class GB28181Handler
                         'event' => $event,
                         'device_manager' => $this->deviceManager,
                     ]);
-                    
+
                     $cmdType = $result['cmd_type'] ?? 'Unknown';
                     $this->log("收到 NOTIFY: $deviceId -> $cmdType");
-                    
+
                     // 分发命令结果
                     $this->dispatchCommand($event, $deviceId, $result);
                     return;
-                    
+
                 } catch (\InvalidArgumentException $e) {
                     // 未知的命令类型，记录日志但不报错
                     $this->log("未知 NOTIFY 命令: " . $e->getMessage(), 'WARNING');
@@ -825,7 +825,7 @@ class GB28181Handler
 
     /**
      * 处理 MediaStatus 通知 (GB28181-2022)
-     * 
+     *
      * 处理两种通知类型：
      * - SnapshotComplete: 图像抓拍完成通知
      * - Keepalive: 媒体流心跳通知
@@ -877,14 +877,14 @@ class GB28181Handler
 
     /**
      * 处理移动设备位置订阅（SUBSCRIBE）
-     * 
+     *
      * 订阅流程：
      * 1. 平台发送 SUBSCRIBE（Event: presence, Expires: 3600）
      * 2. 检查 Expires 值（需要 > 0 且 < 3600）
      * 3. 如果 Expires 太小，返回 423 Interval Too Small + Min-Expires
      * 4. 保存订阅信息（设备ID、过期时间、CallID等）
      * 5. 返回 200 OK，等待设备发送 NOTIFY
-     * 
+     *
      * @param \SipEvent $event SUBSCRIBE 事件
      * @param string $deviceId 设备ID
      * @param int $expires 订阅时长（秒）
@@ -901,17 +901,17 @@ class GB28181Handler
         // 取消订阅（Expires = 0）
         if ($expires === 0) {
             $this->log("取消位置订阅: {$deviceId}");
-            
+
             // 删除订阅记录
             $this->deviceManager->removeSubscription($deviceId, 'mobile_position');
-            
+
             // 通知业务系统
             $this->postTask('mobile_position_unsubscribe', [
                 'device_id' => $deviceId,
                 'call_id' => $callId,
                 'timestamp' => time(),
             ]);
-            
+
             $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
                 'Expires' => 0
             ]);
@@ -921,7 +921,7 @@ class GB28181Handler
         // 检查订阅时间是否太小
         if ($expires > 0 && $expires < $minExpires) {
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s (最小值)", 'WARNING');
-            
+
             $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
                 'Min-Expires' => $minExpires
             ]);
@@ -955,7 +955,7 @@ class GB28181Handler
             'interval' => $interval,
             'created_at' => time(),
         ];
-        
+
         $this->deviceManager->addSubscription($deviceId, 'mobile_position', $subscription);
 
         // 通知业务系统
@@ -977,14 +977,14 @@ class GB28181Handler
 
     /**
      * 处理移动设备位置通知（NOTIFY with Event: presence）
-     * 
+     *
      * 通知流程：
      * 1. 设备发送 NOTIFY（Event: presence, Subscription-State: active）
      * 2. 检查 Subscription-State（active/pending/terminated）
      * 3. 解析 XML Body 获取位置信息
      * 4. 返回 200 OK
      * 5. 如果 State = terminated，删除订阅记录
-     * 
+     *
      * @param \SipEvent $event NOTIFY 事件
      * @param string $deviceId 设备ID
      * @param string $subscriptionState 订阅状态（active/pending/terminated）
@@ -996,7 +996,7 @@ class GB28181Handler
 
         // 检查订阅状态
         $isTerminated = stripos($subscriptionState, 'terminated') !== false;
-        
+
         if ($isTerminated) {
             $this->log("位置订阅已终止: {$deviceId}");
             $this->deviceManager->removeSubscription($deviceId, 'mobile_position');
@@ -1011,7 +1011,7 @@ class GB28181Handler
 
         $body = $this->normalizeXmlEncoding($body);
         $xml = @simplexml_load_string($body);
-        
+
         if (!$xml) {
             $this->log("位置通知 XML 解析失败", 'ERROR');
             $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
@@ -1024,7 +1024,7 @@ class GB28181Handler
                 'event' => $event,
                 'device_manager' => $this->deviceManager,
             ]);
-            
+
             // 提取位置数据
             $longitude = $result['longitude'] ?? 0;
             $latitude = $result['latitude'] ?? 0;
@@ -1050,7 +1050,7 @@ class GB28181Handler
             ]);
 
             $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
-            
+
         } catch (\InvalidArgumentException $e) {
             $this->log("未知的位置通知格式: " . $e->getMessage(), 'WARNING');
             $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
@@ -1059,7 +1059,7 @@ class GB28181Handler
 
     /**
      * 处理位置信息上报（MESSAGE）
-     * 
+     *
      * 注意：MESSAGE 方式已过时，推荐使用 SUBSCRIBE/NOTIFY 订阅机制
      * 保留此方法是为了兼容旧版本设备
      */
@@ -1091,8 +1091,6 @@ class GB28181Handler
 
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
-
-
 
 
     /**
@@ -1135,7 +1133,6 @@ class GB28181Handler
             }
         }
     }
-
 
 
     /**
@@ -1276,7 +1273,7 @@ class GB28181Handler
     {
         $this->log("设备状态: $deviceId");
 
-        $online = $data['online'] ?? 'OFFLINE';
+        $online = $data['online'] ?? 'unregistered';
         $status = $data['status'] ?? 'OK';
 
         $this->log("  在线: $online, 状态: $status");
@@ -1529,7 +1526,7 @@ class GB28181Handler
         return [
             'total_devices' => $totalDevices,
             'online_devices' => $managerStats['online'] ?? 0,
-            'offline_devices' => $managerStats['offline'] ?? 0,
+            'unregistered_devices' => $managerStats['unregistered'] ?? 0,
             'timeout_devices' => $managerStats['timeout'] ?? 0,
         ];
     }

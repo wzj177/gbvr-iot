@@ -36,6 +36,21 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getDeviceDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
 
+    public function summaryDevices(array $conditions = []): array
+    {
+        $totalCount = $this->countDevices($conditions);
+        $onlineCount = $this->countDevices(array_merge(['status' => DeviceStatusEnum::ONLINE->value], $conditions)); // 注册在线
+        $expiredCount = $this->countDevices(array_merge(['status' => DeviceStatusEnum::EXPIRED->value], $conditions));
+        $unregisterCount = $this->countDevices(array_merge(['status' => DeviceStatusEnum::UNREGISTERED->value], $conditions));
+
+        return [
+            'total_count' => $totalCount,
+            'online_count' => $onlineCount,
+            'expired_count' => $expiredCount,
+            'unregister_count' => $unregisterCount,
+        ];
+    }
+
     public function createDevice(array $fields)
     {
         $device = array_merge([
@@ -147,7 +162,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             return true;
         }
 
-        if ($device['status'] === DeviceStatusEnum::UNREGISTERED->value && in_array($status, [DeviceStatusEnum::EXPIRED->value, DeviceStatusEnum::OFFLINE->value])) {
+        if ($device['status'] === DeviceStatusEnum::UNREGISTERED->value && in_array($status, [DeviceStatusEnum::EXPIRED->value])) {
             // 已注销状态，不能修改为心跳超时 或者离线
             return true;
         }
@@ -191,6 +206,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function getChannelByDeviceAndChannel(string $deviceId, string $channelId)
     {
         return $this->getDeviceChannelsDao()->getByDeviceAndChannel($deviceId, $channelId);
+    }
+
+    public function countChannels(array $conditions)
+    {
+        return $this->getDeviceChannelsDao()->count($conditions);
     }
 
     public function searchChannels(array $conditions, array $orderBys, $start, $limit, $columns = [])

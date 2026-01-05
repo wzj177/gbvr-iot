@@ -3,7 +3,7 @@
 namespace app\admin\controller;
 
 use app\admin\BaseController;
-use CoreW\Business\GB\AlarmService;
+use CoreW\Business\Devices\Service\AlarmService;
 use support\Request;
 use support\utils\Paginator;
 

@@ -113,6 +113,8 @@ class Core implements Bootstrap
             self::dbKeepAlive($biz);
         }
         self::$_bizInstance = $biz;
+
+        return $biz;
     }
 
     /**

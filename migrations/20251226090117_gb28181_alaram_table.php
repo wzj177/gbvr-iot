@@ -11,7 +11,7 @@ class Gb28181AlaramTable extends Migration
     {
         $container = $this->getContainer();
         $container['db']->exec(<<<SQL
-CREATE TABLE `gv_alarm` (
+CREATE TABLE `gv_alarms` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `device_id` varchar(32) NOT NULL COMMENT '设备国标ID',
   `channel_id` varchar(32) DEFAULT NULL COMMENT '通道国标ID',

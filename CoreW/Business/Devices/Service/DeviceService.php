@@ -9,6 +9,8 @@ interface DeviceService
     public function getDeviceByDeviceId(string $deviceId);
     public function countDevices(array $conditions);
     public function searchDevices(array $conditions, array $orderBys, $start, $limit, $columns = []);
+
+    public function summaryDevices(array $conditions): array;
     public function createDevice(array $fields);
     public function updateDevice($id, array $fields);
     public function deleteDeviceById($id);
@@ -21,6 +23,9 @@ interface DeviceService
     // 设备通道操作
     public function getChannelById($id);
     public function getChannelByDeviceAndChannel(string $deviceId, string $channelId);
+
+
+    public function countChannels(array $conditions);
     public function searchChannels(array $conditions, array $orderBys, $start, $limit, $columns = []);
 
     public function getChannelsByDeviceId(string $deviceId);

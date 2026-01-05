@@ -30,7 +30,7 @@ class Device
     public int $timeoutCount = 0;
 
     // 设备状态
-    public string $status = 'created'; // created|starting|online|offline|timeout|stopped
+    public string $status = 'created';
 
     // 设备信息
     public array $info = [];  // name, manufacturer, model, firmware, channels
@@ -74,7 +74,7 @@ class Device
     public function markUnregistered(): void
     {
         $this->registered = false;
-        $this->status = 'offline';
+        $this->status = 'unregistered';
     }
 
     /**

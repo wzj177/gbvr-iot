@@ -147,7 +147,7 @@ class GBServerHockController extends BaseController
     }
 
     /**
-     * 处理设备长期离线 (清理)
+     * 处理设备长期注销，这里仅更新设备状态为已注销
      */
     private function handleOffline(array $body): void
     {
@@ -157,8 +157,8 @@ class GBServerHockController extends BaseController
         }
 
         try {
-            // 更新设备状态为离线
-            $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::OFFLINE->value);
+            // 更新设备状态为已注销
+            $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::UNREGISTERED->value);
 
             Log::channel('sip')->info('Device offline (cleaned)', [
                 'device_id' => $deviceId,
@@ -423,7 +423,7 @@ class GBServerHockController extends BaseController
             return;
         }
 
-        $status = ($online === 'ONLINE') ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::OFFLINE->value;
+        $status = ($online === 'ONLINE') ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::UNREGISTERED->value;
 
         try {
             $this->getDeviceService()->updateDeviceStatus($deviceId, $status);

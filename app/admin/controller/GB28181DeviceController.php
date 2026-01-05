@@ -34,6 +34,7 @@ class GB28181DeviceController extends BaseController
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
+            'summary' => $this->getDeviceService()->summaryDevices($conditions),
             'list' => $devices,
             'paginator' => Paginator::toArray($paginator)
         ]);
@@ -42,16 +43,16 @@ class GB28181DeviceController extends BaseController
     /**
      * 获取设备详情
      */
-    public function show(Request $request, $deviceId)
+    public function show(Request $request, $id)
     {
-        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
+        $device = $this->getDeviceService()->getDevicesById($id);
 
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
         }
 
         // 获取通道列表
-        $channels = $this->getDeviceService()->getChannelsByDeviceId($deviceId);
+        $channels = $this->getDeviceService()->getChannelsByDeviceId($device['device_id']);
         $device['channels'] = $channels;
 
         return $this->createSuccessJsonResponse($device);
@@ -60,9 +61,9 @@ class GB28181DeviceController extends BaseController
     /**
      * 删除设备
      */
-    public function destroy(Request $request, $deviceId)
+    public function destroy(Request $request, $id)
     {
-        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
+        $device = $this->getDeviceService()->getDevicesById($id);
 
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
@@ -70,14 +71,14 @@ class GB28181DeviceController extends BaseController
 
         // 删除设备和通道
         try {
-            $this->getDeviceService()->deleteDeviceById($device['id']);
+            $this->getDeviceService()->deleteDeviceById($id);
 
             return $this->createSuccessJsonResponse([
                 'message' => '设备已删除',
             ]);
         } catch (\Exception $e) {
             $this->getLogService()->error('GB28181', 'delete_device', "删除设备失败，{$e->getMessage()}", [
-                'device_id' => $deviceId,
+                'device_id' => $device['device_id'],
             ]);
 
             return $this->createErrorJsonResponse('删除设备失败', 500);
@@ -87,9 +88,9 @@ class GB28181DeviceController extends BaseController
     /**
      * 查询设备目录（发送命令到信令网关）
      */
-    public function queryCatalog(Request $request, $deviceId)
+    public function queryCatalog(Request $request, $id)
     {
-        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
+        $device = $this->getDeviceService()->getDevicesById($id);
 
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
@@ -101,7 +102,7 @@ class GB28181DeviceController extends BaseController
 
         // 发送命令到信令网关
         try {
-            $result = $this->getGb28181Service()->queryCatalog($deviceId);
+            $result = $this->getGb28181Service()->queryCatalog($device['device_id']);
 
             if (!$result) {
                 return $this->createErrorJsonResponse('发送目录查询请求失败', 500);
@@ -119,6 +120,57 @@ class GB28181DeviceController extends BaseController
         ]);
     }
 
+
+    /**
+     * 更新设备信息
+     */
+    public function update(Request $request, $id)
+    {
+        $device = $this->getDeviceService()->getDevicesById($id);
+
+        if (!$device) {
+            return $this->createErrorJsonResponse('设备不存在', 404);
+        }
+
+        $data = $request->post();
+        $allowedFields = [
+            'show_name',       // 自定义名称
+            'rtp_trans_mode',  // RTP传输模式：0=UDP，1=TCP被动，2=TCP主动
+            'province_id',     // 省份代码（6位行政区划码）
+            'city_id',         // 城市代码
+            'county_id',       // 区县代码
+            'custom_lat',
+            'custom_lng'
+        ];
+
+        // 过滤只允许更新的字段
+        $updateData = array_intersect_key($data, array_flip($allowedFields));
+
+        if (empty($updateData)) {
+            return $this->createErrorJsonResponse('没有可更新的字段', 400);
+        }
+
+        // 验证 rtp_trans_mode
+        if (isset($updateData['rtp_trans_mode'])) {
+            $updateData['rtp_trans_mode'] = (int)$updateData['rtp_trans_mode'];
+            if (!in_array($updateData['rtp_trans_mode'], [0, 1, 2])) {
+                return $this->createErrorJsonResponse('RTP传输模式无效，必须为 0(UDP)、1(TCP被动) 或 2(TCP主动)', 400);
+            }
+        }
+
+        try {
+            $this->getDeviceService()->updateDevice($id, $updateData);
+
+            return $this->createSuccessJsonResponse(null, '更新成功');
+        } catch (\Exception $e) {
+            Log::error('Update device failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->createErrorJsonResponse('更新设备失败: ' . $e->getMessage(), 500);
+        }
+    }
     /**
      * @return DeviceService
      */

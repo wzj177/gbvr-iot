@@ -29,7 +29,7 @@ return [
     
     // 默认RTP传输模式
     // 0: UDP模式（延迟最低，局域网推荐）
-    // 1: TCP被动模式（公网推荐，设备主动连接）
+        // 1: TCP被动模式（公网推荐，设备主动连接）
     // 2: TCP主动模式（服务器连接设备，需设备端口映射）
     'default_tcp_mode' => env('ZLM_DEFAULT_TCP_MODE', 1),
     

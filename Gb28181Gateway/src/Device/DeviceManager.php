@@ -268,7 +268,7 @@ class DeviceManager
                 case 'online':
                     $online++;
                     break;
-                case 'offline':
+                case 'unregistered':
                     $offline++;
                     break;
                 case 'timeout':
@@ -285,7 +285,7 @@ class DeviceManager
             'created' => $created,
             'starting' => $starting,
             'online' => $online,
-            'offline' => $offline,
+            'unregistered' => $offline,
             'timeout' => $timeout,
             'stopped' => $stopped,
         ];
@@ -303,7 +303,7 @@ class DeviceManager
         $cleanedDevices = [];
 
         foreach ($this->devices as $deviceId => $device) {
-            if ($device->status === 'stopped' || $device->status === 'offline') {
+            if ($device->status === 'stopped' || $device->status === 'unregistered') {
                 $lastTime = $device->registerTime;
 
                 if ($lastTime > 0 && $lastTime < $threshold) {

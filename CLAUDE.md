@@ -123,6 +123,7 @@ $zlmClient = $this->getBiz()->offsetGet('zlm_sdk');
 2. **Services** (`CoreW/Business/*/Service/Impl/`): Business logic
 3. **DAOs** (`CoreW/Business/*/Dao/Impl/`): Database access with caching
 4. **Models**: Doctrine entities (not traditional ORM)
+5. **Enum** (`CoreW/Business/*/Enums/`): Enumerations
 
 ### Route Organization
 
@@ -219,3 +220,27 @@ When Redis `dao-cache` is enabled, DAO methods starting with these names are cac
 - `app/AbstractController.php` - Base controller with `getBiz()`, `createService()`
 - `config/route.php` - How routes are loaded from folders
 - `Gb28181Gateway/gb28181_server.php` - SIP server entry point
+
+
+
+## 开发说明
+
+- service里面的`search` 和`count`基础方法，它们的`condition`是有白名单机制的，需要在对应的dao Impl 里面的`declares`下的`conditions`定义，排序也是一样需要在`orderbys`定义
+```php
+    public function declares(): array
+    {
+        return [
+            'serializes' => [
+            ],
+            'orderbys' => [
+                'id',
+            ],
+            'conditions' => [
+                'id = :id',
+                'id > :id_GT',
+                'id IN (:ids)',
+                'id NOT IN (:noIds)',
+            ],
+        ];
+    }
+```

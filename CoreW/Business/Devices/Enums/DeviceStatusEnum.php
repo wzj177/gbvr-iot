@@ -5,7 +5,6 @@ namespace CoreW\Business\Devices\Enums;
 enum DeviceStatusEnum: string
 {
     case ONLINE = 'online';
-    case OFFLINE = 'offline';
     case EXPIRED = 'expired';
     case UNREGISTERED = 'unregistered';
 
@@ -14,7 +13,6 @@ enum DeviceStatusEnum: string
     {
         return match ($this) {
             self::ONLINE => '在线',
-            self::OFFLINE => '离线',
             self::EXPIRED => '心跳超时',
             self::UNREGISTERED => '已注销',
             default => '未知',

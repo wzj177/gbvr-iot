@@ -296,31 +296,42 @@ class SettingController extends BaseController
         return $this->createErrorJsonResponse('设置失败');
     }
 
+    /**
+     * @deprecated
+     * @param Request $request
+     * @return \support\Response
+     */
     public function getZLM(Request $request)
     {
-        $zlmConfigFile = config_path('zlm/config.ini');
-        if (!file_exists($zlmConfigFile)) {
-            return $this->createErrorJsonResponse('ZLM配置文件不存在');
-        }
-
-        try {
-            $zlmConfig = parse_mit_ini($zlmConfigFile);
-
-            return $this->createSuccessJsonResponse($zlmConfig);
-
-        } catch (\Exception $e) {
-            $result = $this->getZlmClient()->getServerConfig();
-
-            if ($result['code'] === 0) {
-                $zlmConfig = $result['data'];
-
-                return $this->createSuccessJsonResponse($zlmConfig);
-            }
-
-            return $this->createErrorJsonResponse('ZLM 配置获取失败');
-        }
+        return $this->createErrorJsonResponse('');
+//        $zlmConfigFile = config_path('zlm/config.ini');
+//        if (!file_exists($zlmConfigFile)) {
+//            return $this->createErrorJsonResponse('ZLM配置文件不存在');
+//        }
+//
+//        try {
+//            $zlmConfig = parse_mit_ini($zlmConfigFile);
+//
+//            return $this->createSuccessJsonResponse($zlmConfig);
+//
+//        } catch (\Exception $e) {
+//            $result = $this->getZlmClient()->getServerConfig();
+//
+//            if ($result['code'] === 0) {
+//                $zlmConfig = $result['data'];
+//
+//                return $this->createSuccessJsonResponse($zlmConfig);
+//            }
+//
+//            return $this->createErrorJsonResponse('ZLM 配置获取失败');
+//        }
     }
 
+    /**
+     * @deprecated
+     * @param Request $request
+     * @return \support\Response
+     */
     public function setZLM(Request $request)
     {
         // use respect/validation
@@ -355,6 +366,11 @@ class SettingController extends BaseController
         }
     }
 
+    /**
+     * @deprecated
+     * @param Request $request
+     * @return \support\Response
+     */
     public function resetZLM(Request $request)
     {
         $zlmConfigFile = config_path('zlm/config.ini');

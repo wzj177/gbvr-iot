@@ -17,7 +17,7 @@ use app\admin\controller\SettingController;
 use app\admin\controller\SystemController;
 use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
-use app\admin\controller\ZLMController;
+use app\admin\controller\MediaServerController;
 use app\middleware\admin\AuthIdentityMiddleware;
 use CoreW\CustomRoute as Route;
 use function Swoole\Coroutine\Http\post;
@@ -51,7 +51,6 @@ Route::group('/api/admin', function () {
 
         // 系统监控相关接口
         Route::get('/stats', [SystemMonitoringController::class, 'getSystemStats'])->name('system.stats');
-        Route::get('/device-stats', [SystemMonitoringController::class, 'getDeviceStats'])->name('system.device-stats');
 
         // 详细监控指标接口
         Route::get('/cpu-usage', [SystemMonitoringController::class, 'getCpuUsage'])->name('system.cpu-usage');
@@ -153,9 +152,6 @@ Route::group('/api/admin', function () {
         Route::post('/vip', [SettingController::class, 'setVIP'])->name('setting.vip');
         Route::get('/attachment/options', [SettingController::class, 'attachmentOptions'])->name('setting.attachment.options');
         Route::post('/vr', [SettingController::class, 'setVR'])->name('setting.vr');
-        Route::get('/zlm/get',  [SettingController::class, 'getZLM'])->name( 'setting.zlm.get');
-        Route::post('/zlm/set',  [SettingController::class, 'setZLM'])->name( 'setting.zlm');
-        Route::post('/zlm/reset',  [SettingController::class, 'resetZLM'])->name( 'setting.zlm.reset');
     })->middleware([
 //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class
@@ -166,15 +162,17 @@ Route::group('/api/admin', function () {
         // 设备管理
         Route::group('/devices', function () {
             Route::get('', [GB28181DeviceController::class, 'index'])->name('admin.gb28181.devices.index');
-            Route::get('/{deviceId:\w+}', [GB28181DeviceController::class, 'show'])->name('admin.gb28181.devices.show');
-            Route::delete('/{deviceId:\w+}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
-            Route::post('/{deviceId:\w+}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
+            Route::get('/{id}', [GB28181DeviceController::class, 'show'])->name('admin.gb28181.devices.show');
+            Route::put('/{id}', [GB28181DeviceController::class, 'update'])->name('admin.gb28181.devices.update');
+            Route::delete('/{id}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
+            Route::post('/{id}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
         });
 
         // 通道管理
         Route::group('/channels', function () {
-            Route::get('/{deviceId:\w+}', [GB28181ChannelController::class, 'index'])->name('admin.gb28181.channels.index');
-            Route::get('/{deviceId:\w+}/channel/{channelId:\w+}', [GB28181ChannelController::class, 'show'])->name('admin.gb28181.channels.show');
+            Route::get('', [GB28181ChannelController::class, 'index'])->name('admin.gb28181.channels.index');
+            Route::get('/{id}', [GB28181ChannelController::class, 'show'])->name('admin.gb28181.channels.show');
+            Route::put('/{id}', [GB28181ChannelController::class, 'update'])->name('admin.gb28181.channels.update');
         });
 
         // PTZ控制
@@ -201,8 +199,8 @@ Route::group('/api/admin', function () {
         // 报警管理
         Route::group('/alarms', function () {
             Route::get('', [GB28181AlarmController::class, 'index'])->name('admin.gb28181.alarms.index');
-            Route::get('/{id:\w+}', [GB28181AlarmController::class, 'show'])->name('admin.gb28181.alarms.show');
-            Route::put('/{id:\w+}', [GB28181AlarmController::class, 'update'])->name('admin.gb28181.alarms.update');
+            Route::get('/{id}', [GB28181AlarmController::class, 'show'])->name('admin.gb28181.alarms.show');
+            Route::put('/{id}', [GB28181AlarmController::class, 'update'])->name('admin.gb28181.alarms.update');
         });
 
         // 电子地图
@@ -213,15 +211,21 @@ Route::group('/api/admin', function () {
 
         // 系统监控
         Route::get('/device-stats', [GB28181SystemMonitoringController::class, 'getDeviceStats'])->name('admin.gb28181.system.device-stats');
-        Route::get('/stats', [GB28181SystemMonitoringController::class, 'getSystemStats'])->name('admin.gb28181.system.stats');
     })->middleware([
         AuthIdentityMiddleware::class
     ]);
 
-    Route::group('/zlm', function () {
-        // restart
-         Route::post('/restart', [ZLMController::class, 'restart'])->name('zlm.restart');
-        Route::get('/stats', [ZLMController::class, 'getZLMediaKitStats'])->name('zlm.stats');
+    Route::group('/media-server', function () {
+        // TODO: 需要实现
+        Route::get('',  [MediaServerController::class, 'index'])->name( 'media-server.index');
+        Route::post('/{id}/restart', [MediaServerController::class, 'restart'])->name('media-server.restart');
+        Route::get('/{id}/stats', [MediaServerController::class, 'getZLMediaKitStats'])->name('media-server.stats');
+        Route::post('/add', [MediaServerController::class, 'store'])->name('media-server.store');
+        Route::post('/{id}/config', [MediaServerController::class, 'setConfig'])->name('media-server.set-config');
+        Route::get('/{id}/config', [MediaServerController::class, 'getConfig'])->name('media-server.get-config');
+        Route::put('/{id}', [MediaServerController::class, 'update'])->name('media-server.update');
+        Route::delete('/{id}', [MediaServerController::class, 'delete'])->name('media-server.delete');
+        Route::get('/{id}', [MediaServerController::class, 'show'])->name('media-server.show');
     })->middleware([
         AuthIdentityMiddleware::class
     ]);

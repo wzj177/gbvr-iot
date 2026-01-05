@@ -4,8 +4,9 @@ namespace app\admin\controller;
 
 use app\admin\BaseController;
 use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\Devices\Traits\GB28181StreamTrait;
 use CoreW\Business\GB\Gb28181Service;
-use support\Log;
+use CoreW\Business\Service\MediaServerService;
 use support\Request;
 
 /**
@@ -13,6 +14,8 @@ use support\Request;
  */
 class GB28181StreamController extends BaseController
 {
+    use GB28181StreamTrait;
+
     /**
      * 开始实时视频
      */
@@ -25,95 +28,24 @@ class GB28181StreamController extends BaseController
             return $this->createErrorJsonResponse('缺少参数device_id或channel_id', 400);
         }
 
-        // 1. 检查设备是否在线
-        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
-
-        if (!$device) {
-            return $this->createErrorJsonResponse('设备不存在', 404);
-        }
-
-        if ($device['status'] !== 'online') {
-            return $this->createErrorJsonResponse('设备离线', 400);
-        }
-
-        // 2. 获取或创建通道记录
-        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
-
-        if (!$channel) {
-            return $this->createErrorJsonResponse('通道不存在', 404);
-        }
-
-        // 3. 创建直播会话
-        $tcpMode = config('zlm.default_tcp_mode', 1); // 0=UDP, 1=TCP被动(推荐), 2=TCP主动
         try {
-            $sessionResult = $this->getGb28181Service()->createLiveSession(
-                $deviceId,
-                $channelId,
-                $tcpMode
-            );
+            // 验证设备和通道
+            ['device' => $device, 'channel' => $channel] = $this->validateDeviceAndChannel($deviceId, $channelId);
+
+            // 执行开始直播核心逻辑
+            $result = $this->startLiveVideoCore($deviceId, $channelId, $device, $channel);
+
+            // 获取播放地址（传递媒体服务器ID以获取access_url）
+            $playUrls = $this->getPlayUrlsCore($result['stream_id'], $channel['media_server_id']);
+
+            return $this->createSuccessJsonResponse([
+                ...$result,
+                'play_urls' => $playUrls,
+                'message' => '实时视频开始',
+            ]);
         } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('创建直播会话失败: ' . $e->getMessage(), 500);
+            return $this->handleStreamException($e);
         }
-
-        if (!$sessionResult) {
-            return $this->createErrorJsonResponse('创建直播会话失败', 500);
-        }
-
-        $zlmPort = $sessionResult['zlm_port'];
-        $ssrc = $sessionResult['ssrc'];
-        $streamId = $sessionResult['stream_id'];
-
-        // 4. 发送命令到信令网关
-        try {
-            $result = $this->getGb28181Service()->startLiveVideo(
-                $deviceId,
-                $channelId,
-                $ssrc,
-                $zlmPort,
-                $tcpMode, // 传递给信令网关
-                $streamId
-            );
-
-            if (!$result) {
-                // 如果发送失败，关闭已分配的端口
-                $this->getGb28181Service()->closeRtpServer($streamId);
-                return $this->createErrorJsonResponse('发送实时视频请求失败', 500);
-            }
-        } catch (\Exception $e) {
-            // 如果发生异常，关闭已分配的端口
-            $this->getGb28181Service()->closeRtpServer($streamId);
-            return $this->createErrorJsonResponse('发送实时视频请求异常: ' . $e->getMessage(), 500);
-        }
-
-        // 5. 更新通道状态
-        $this->getDeviceService()->updateChannel($channel['id'], [
-            'status' => 'streaming',
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        Log::channel('sip')->info('Start live video command sent', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
-            'tcp_mode' => $tcpMode,
-            'stream_id' => $streamId,
-        ]);
-
-        // 获取播放地址
-        try {
-            $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $streamId);
-        } catch (\Exception $e) {
-            $playUrls = [];
-        }
-
-        return $this->createSuccessJsonResponse([
-            'stream_id' => $streamId,
-            'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
-            'play_urls' => $playUrls,
-            'message' => '实时视频开始',
-        ]);
     }
 
     /**
@@ -128,49 +60,21 @@ class GB28181StreamController extends BaseController
             return $this->createErrorJsonResponse('缺少参数device_id或channel_id', 400);
         }
 
-        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
-
-        if (!$channel) {
-            return $this->createErrorJsonResponse('通道不存在', 404);
-        }
-
-        // 1. 发送BYE到信令网关
         try {
-            $result = $this->getGb28181Service()->stopLiveVideo($deviceId, $channelId);
+            $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
 
-            if (!$result) {
-                return $this->createErrorJsonResponse('发送停止实时视频请求失败', 500);
+            if (!$channel) {
+                return $this->createErrorJsonResponse('通道不存在', 404);
             }
+
+            $this->stopLiveVideoCore($deviceId, $channelId, $channel);
+
+            return $this->createSuccessJsonResponse([
+                'message' => '实时视频已停止',
+            ]);
         } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('发送停止实时视频请求异常: ' . $e->getMessage(), 500);
+            return $this->handleStreamException($e);
         }
-
-        // 2. 关闭ZLM端口
-        if (isset($channel['stream_id']) && $channel['stream_id']) {
-            try {
-                $this->getGb28181Service()->closeRtpServer($channel['stream_id']);
-            } catch (\Exception $e) {
-                Log::channel('sip')->warning('Close RTP server failed', [
-                    'stream_id' => $channel['stream_id'],
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // 3. 更新通道状态
-        $this->getDeviceService()->updateChannel($channel['id'], [
-            'status' => 'offline',
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        Log::channel('sip')->info('Stop live video command sent', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-        ]);
-
-        return $this->createSuccessJsonResponse([
-            'message' => '实时视频已停止',
-        ]);
     }
 
     /**
@@ -185,27 +89,26 @@ class GB28181StreamController extends BaseController
             return $this->createErrorJsonResponse('缺少参数device_id或channel_id', 400);
         }
 
-        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
-
-        if (!$channel) {
-            return $this->createErrorJsonResponse('通道不存在', 404);
-        }
-
-        if ($channel['status'] !== 'streaming') {
-            return $this->createErrorJsonResponse('通道未在推流', 400);
-        }
-
-        // 获取播放地址
         try {
-            $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $channel['stream_id']);
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('获取播放地址失败: ' . $e->getMessage(), 500);
-        }
+            $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
 
-        return $this->createSuccessJsonResponse([
-            'stream_id' => $channel['stream_id'],
-            'play_urls' => $playUrls,
-        ]);
+            if (!$channel) {
+                return $this->createErrorJsonResponse('通道不存在', 404);
+            }
+
+            if ($channel['status'] !== 'streaming') {
+                return $this->createErrorJsonResponse('通道未在推流', 400);
+            }
+
+            $playUrls = $this->getPlayUrlsCore($channel['stream_id'], $channel['media_server_id']);
+
+            return $this->createSuccessJsonResponse([
+                'stream_id' => $channel['stream_id'],
+                'play_urls' => $playUrls,
+            ]);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse($e->getMessage(), $e->getCode() ?? 500);
+        }
     }
 
     /**
@@ -227,84 +130,37 @@ class GB28181StreamController extends BaseController
             return $this->createErrorJsonResponse('时间格式错误，应为: 2024-01-01T00:00:00', 400);
         }
 
-        // 获取通道
-        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
-
-        if (!$channel) {
-            return $this->createErrorJsonResponse('通道不存在', 404);
-        }
-
-        // 创建回放会话
         try {
-            $sessionResult = $this->getGb28181Service()->createPlaybackSession(
-                $deviceId,
-                $channelId,
-                $startTime,
-                $endTime,
-                1 // tcpMode
-            );
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('创建回放会话失败: ' . $e->getMessage(), 500);
-        }
+            $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
 
-        if (!$sessionResult) {
-            return $this->createErrorJsonResponse('创建回放会话失败', 500);
-        }
-
-        $playbackStreamId = $sessionResult['stream_id'];
-        $playbackSsrc = $sessionResult['ssrc'];
-        $zlmPort = $sessionResult['zlm_port'];
-
-        // 发送命令到信令网关
-        try {
-            $result = $this->getGb28181Service()->startPlayback(
-                $deviceId,
-                $channelId,
-                $startTime,
-                $endTime,
-                $playbackSsrc,
-                $zlmPort,
-                1, // tcpMode
-                $playbackStreamId
-            );
-
-            if (!$result) {
-                // 如果发送失败，关闭已分配的端口
-                $this->getGb28181Service()->closeRtpServer($playbackStreamId);
-                return $this->createErrorJsonResponse('发送回放请求失败', 500);
+            if (!$device) {
+                return $this->createErrorJsonResponse('设备不存在', 404);
             }
+
+            $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
+            if (!$channel) {
+                return $this->createErrorJsonResponse('通道不存在', 404);
+            }
+
+            $result = $this->startPlaybackCore($deviceId, $channelId, $startTime, $endTime, $device);
+
+            // 获取播放地址（传递媒体服务器ID以获取access_url）
+            $playUrls = $this->getPlayUrlsCore($result['stream_id'], $channel['media_server_id']);
+
+            return $this->createSuccessJsonResponse([
+                ...$result,
+                'play_urls' => $playUrls,
+                'message' => '录像回放开始',
+            ]);
         } catch (\Exception $e) {
-            // 如果发生异常，关闭已分配的端口
-            $this->getGb28181Service()->closeRtpServer($playbackStreamId);
-            return $this->createErrorJsonResponse('发送回放请求异常: ' . $e->getMessage(), 500);
+            return $this->handleStreamException($e);
         }
-
-        try {
-            $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $playbackStreamId);
-        } catch (\Exception $e) {
-            $playUrls = [];
-        }
-
-        Log::channel('sip')->info('Start playback command sent', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-        ]);
-
-        return $this->createSuccessJsonResponse([
-            'stream_id' => $playbackStreamId,
-            'ssrc' => $playbackSsrc,
-            'zlm_port' => $zlmPort,
-            'play_urls' => $playUrls,
-            'message' => '录像回放开始',
-        ]);
     }
 
     /**
      * @return Gb28181Service
      */
-    private function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service(): Gb28181Service
     {
         return $this->createService('GB:Gb28181Service');
     }
@@ -312,16 +168,32 @@ class GB28181StreamController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    protected function getDeviceService(): DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
 
     /**
-     * 验证时间格式
+     * @return MediaServerService
      */
-    private function validateTimeFormat(string $time): bool
+    protected function getMediaServerService(): MediaServerService
     {
-        return preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/', $time) === 1;
+        return $this->createService('MediaServer:MediaServerService');
+    }
+
+    /**
+     * 处理流媒体异常
+     */
+    protected function handleStreamException(\Exception $e): \support\Response
+    {
+        $code = $e->getCode() ?: 500;
+        $message = $e->getMessage();
+
+        // 根据异常类型返回不同的错误信息
+        if ($e instanceof \InvalidArgumentException) {
+            return $this->createErrorJsonResponse($message, is_numeric($code) ? (int)$code : 400);
+        }
+
+        return $this->createErrorJsonResponse($message, is_numeric($code) ? (int)$code : 500);
     }
 }
