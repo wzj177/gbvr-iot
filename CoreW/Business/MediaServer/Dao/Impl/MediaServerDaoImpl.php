@@ -16,6 +16,16 @@ class MediaServerDaoImpl extends AdvancedDaoImpl implements MediaServerDao
         return $this->getByFields(['server_id' => $serverId]);
     }
 
+    public function findByIds(array $ids)
+    {
+        return $this->findInField('id', $ids);
+    }
+
+    public function findByServerIds(array $serverIds)
+    {
+        return $this->findInField('server_id', $serverIds);
+    }
+
     public function declares(): array
     {
         return [

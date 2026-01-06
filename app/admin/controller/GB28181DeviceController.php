@@ -140,7 +140,8 @@ class GB28181DeviceController extends BaseController
             'city_id',         // 城市代码
             'county_id',       // 区县代码
             'custom_lat',
-            'custom_lng'
+            'custom_lng',
+            'enabled'
         ];
 
         // 过滤只允许更新的字段
@@ -171,6 +172,65 @@ class GB28181DeviceController extends BaseController
             return $this->createErrorJsonResponse('更新设备失败: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * 批量设置设备地区
+     */
+    public function batchUpdateArea(Request $request)
+    {
+        $ids = $request->post('ids', []);
+        $provinceId = $request->post('province_id', '');
+        $cityId = $request->post('city_id', '');
+        $countyId = $request->post('county_id', '');
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->createErrorJsonResponse('请选择要设置的设备');
+        }
+
+        $updateData = [];
+        if (!empty($provinceId)) {
+            $updateData['province_id'] = $provinceId;
+        }
+        if (!empty($cityId)) {
+            $updateData['city_id'] = $cityId;
+        }
+        if (!empty($countyId)) {
+            $updateData['county_id'] = $countyId;
+        }
+
+        if (empty($updateData)) {
+            return $this->createErrorJsonResponse('请至少设置一个地区参数');
+        }
+
+        try {
+            $successCount = 0;
+            foreach ($ids as $id) {
+                $device = $this->getDeviceService()->getDevicesById($id);
+                if ($device) {
+                    $this->getDeviceService()->updateDevice($id, $updateData);
+                    $successCount++;
+                }
+            }
+
+            $this->getLogService()->info('gb28181', 'batch_update_area', "批量设置设备地区，成功: {$successCount}个", [
+                'ids' => $ids,
+                'updateData' => $updateData,
+            ]);
+
+            return $this->createSuccessJsonResponse([
+                'successCount' => $successCount,
+                'message' => "成功设置 {$successCount} 个设备的地区信息",
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Batch update device area failed', [
+                'ids' => $ids,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->createErrorJsonResponse('批量设置地区失败: ' . $e->getMessage(), 500);
+        }
+    }
+
     /**
      * @return DeviceService
      */

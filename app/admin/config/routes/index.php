@@ -204,6 +204,7 @@ Route::group('/api/admin', function () {
             Route::put('/{id}', [GB28181DeviceController::class, 'update'])->name('admin.gb28181.devices.update');
             Route::delete('/{id}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
             Route::post('/{id}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
+            Route::put('/batch/area', [GB28181DeviceController::class, 'batchUpdateArea'])->name('admin.gb28181.devices.batch-area');
         });
 
         // 通道管理
@@ -211,6 +212,7 @@ Route::group('/api/admin', function () {
             Route::get('', [GB28181ChannelController::class, 'index'])->name('admin.gb28181.channels.index');
             Route::get('/{id}', [GB28181ChannelController::class, 'show'])->name('admin.gb28181.channels.show');
             Route::put('/{id}', [GB28181ChannelController::class, 'update'])->name('admin.gb28181.channels.update');
+            Route::put('/batch/bind-media', [GB28181ChannelController::class, 'batchBindMedia'])->name('admin.gb28181.channels.batch-bind-media');
         });
 
         // PTZ控制

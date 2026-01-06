@@ -33,6 +33,16 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $result[0] ?? null;
     }
 
+    public function findServersByIds(array $ids)
+    {
+        return $this->getMediaServerDao()->findByIds($ids);
+    }
+
+    public function findServersByServerIds(array $serverIds)
+    {
+        return $this->getMediaServerDao()->findByServerIds($serverIds);
+    }
+
     public function countMediaServers(array $conditions)
     {
         return $this->getMediaServerDao()->count($conditions);

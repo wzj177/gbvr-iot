@@ -10,6 +10,9 @@ interface MediaServerService
 
     public function getMediaServerByServerId(string $serverId): ?array;
 
+    public function findServersByIds(array $ids);
+    public function findServersByServerIds(array $serverIds);
+
     public function countMediaServers(array $conditions);
 
     public function searchMediaServers(array $conditions, array $orderBys, $start, $limit, $columns = []);

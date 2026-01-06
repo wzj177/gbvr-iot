@@ -33,6 +33,7 @@ interface DeviceService
     public function createChannel(array $fields);
     public function updateChannel($id, array $fields);
     public function updateChannelByMainId(string $mainId, array $fields);
+    public function batchUpdateChannels(array $ids, array $fields): int;
     public function batchUpdateOrCreateChannels(string $deviceId, array $devices): int;
 
     // 流会话操作

@@ -266,6 +266,16 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->updateChannel($channel['id'], $fields);
     }
 
+    public function batchUpdateChannels(array $ids, array $fields): int
+    {
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $fields['updated_at'] = date('Y-m-d H:i:s');
+        return $this->getDeviceChannelsDao()->update(['ids' => $ids], $fields);
+    }
+
     /**
      * 批量创建或更新通道
      * @param string $deviceId

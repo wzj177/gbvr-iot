@@ -30,7 +30,7 @@ trait GB28181StreamTrait
     {
         $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
 
-        if (!$device) {
+        if (!$device || !$device['enabled']) {
             throw new \InvalidArgumentException('设备不存在', 404);
         }
 

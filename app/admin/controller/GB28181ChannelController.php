@@ -4,7 +4,10 @@ namespace app\admin\controller;
 
 use app\admin\BaseController;
 use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\MediaServer\Service\MediaServerService;
+use support\Log;
 use support\Request;
+use support\utils\ArrayToolkit;
 use support\utils\Paginator;
 
 /**
@@ -21,7 +24,7 @@ class GB28181ChannelController extends BaseController
 
         // 构建查询条件
         $conditions = [];
-        
+
         if ($request->get('status')) {
             $conditions['status'] = $request->get('status');
         }
@@ -30,7 +33,7 @@ class GB28181ChannelController extends BaseController
         if ($request->get('device_id')) {
             $conditions['device_id'] = $request->get('device_id');
         }
-        
+
         if ($request->get('keyword')) {
             $conditions['keyword'] = $request->get('keyword');
         }
@@ -40,6 +43,22 @@ class GB28181ChannelController extends BaseController
 
         $channels = $this->getDeviceService()->searchChannels($conditions, ['id' => 'DESC'], $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
+
+        // 关联查询媒体服务器信息
+        $mediaServerIds = array_filter(array_unique(array_column($channels, 'media_server_id')));
+        $mediaServers = !empty($mediaServerIds)
+            ? $this->getMediaServerService()->findServersByServerIds($mediaServerIds)
+            : [];
+        $mediaServerMap = ArrayToolkit::index($mediaServers, 'server_id');
+
+        // 为每个通道附加媒体服务器信息
+        foreach ($channels as &$channel) {
+            if (!empty($channel['media_server_id']) && isset($mediaServerMap[$channel['media_server_id']])) {
+                $channel['media_server'] = $mediaServerMap[$channel['media_server_id']];
+            } else {
+                $channel['media_server'] = null;
+            }
+        }
 
         return $this->createSuccessJsonResponse([
             'list' => $channels,
@@ -56,6 +75,15 @@ class GB28181ChannelController extends BaseController
 
         if (!$channel) {
             return $this->createErrorJsonResponse('通道不存在', 404);
+        }
+
+        // 关联查询媒体服务器信息
+        if (!empty($channel['media_server_id'])) {
+            $mediaServer = $this->getMediaServerService()->getServer($channel['media_server_id']);
+            if ($mediaServer) {
+                $channel['media_server'] = $this->filterMediaServerInfo($mediaServer);
+            }
+            unset($channel['media_server_id']);
         }
 
         return $this->createSuccessJsonResponse($channel);
@@ -107,7 +135,7 @@ class GB28181ChannelController extends BaseController
 
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {
-            \support\Log::error('Update channel failed', [
+            Log::error('Update channel failed', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -117,10 +145,79 @@ class GB28181ChannelController extends BaseController
     }
 
     /**
+     * 批量绑定媒体服务器
+     */
+    public function batchBindMedia(Request $request)
+    {
+        $ids = $request->post('ids', []);
+        $mediaServerId = $request->post('server_id', 'default');
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->createErrorJsonResponse('请选择要绑定的通道');
+        }
+
+        if (empty($mediaServerId)) {
+            return $this->createErrorJsonResponse('请选择媒体服务器');
+        }
+
+        // 验证媒体服务器是否存在
+        $mediaServer = $this->getMediaServerService()->getMediaServerByServerId($mediaServerId);
+        if (!$mediaServer) {
+            return $this->createErrorJsonResponse('媒体服务器不存在');
+        }
+
+        try {
+            $affectedRows = $this->getDeviceService()->batchUpdateChannels($ids, [
+                'media_server_id' => $mediaServerId
+            ]);
+
+            $this->getLogService()->info('gb28181', 'batch_bind_media_channel', "批量绑定媒体服务器到通道，成功: {$affectedRows}个", [
+                'ids' => $ids,
+                'mediaServerId' => $mediaServerId,
+            ]);
+
+            return $this->createSuccessJsonResponse([
+                'successCount' => $affectedRows,
+                'message' => "成功绑定 {$affectedRows} 个通道到媒体服务器",
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Batch bind media server for channels failed', [
+                'ids' => $ids,
+                'mediaServerId' => $mediaServerId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->createErrorJsonResponse('批量绑定媒体服务器失败: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * 过滤媒体服务器敏感信息，只保留必要的字段
+     */
+    private function filterMediaServerInfo(array $server): array
+    {
+        return [
+            'id' => $server['id'],
+            'name' => $server['name'] ?? '',
+            'type' => $server['type'] ?? '',
+            'host' => $server['host'] ?? '',
+            'port' => $server['port'] ?? '',
+        ];
+    }
+
+    /**
      * @return DeviceService
      */
     private function getDeviceService(): DeviceService
     {
         return $this->createService('Devices:DeviceService');
+    }
+
+    /**
+     * @return MediaServerService
+     */
+    private function getMediaServerService(): MediaServerService
+    {
+        return $this->createService('MediaServer:MediaServerService');
     }
 }
