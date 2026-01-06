@@ -20,4 +20,6 @@ return [
         \app\middleware\AccessCorsControlMiddleware::class,
         \app\middleware\IpCheckMiddleware::class
     ],
+    'admin' => [
+    ]
 ];

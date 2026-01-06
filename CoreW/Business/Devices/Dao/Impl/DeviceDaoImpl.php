@@ -30,6 +30,10 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
                 'id > :id_GT',
                 'id IN (:ids)',
                 'id NOT IN (:noIds)',
+                'device_id = :device_id',
+                'device_id IN (:device_ids)',
+                'device_id NOT IN (:noDevice_ids)',
+                'status = :status',
             ],
         ];
     }

@@ -5,7 +5,7 @@ namespace CoreW\Business\Role\Service\Impl;
 use CoreW\Business\BaseService;
 use support\utils\ArrayToolkit;
 use CoreW\Business\Role\Exception\RoleException;
-use CoreW\Business\Common\CommonException;
+use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Role\Service\RoleService;
 use CoreW\Business\Role\Dao\RoleDao;
 use CoreW\Business\Setting\Service\SettingService;
@@ -30,14 +30,16 @@ class RoleServiceImpl extends BaseService implements RoleService
         $role['createdTime'] = time();
         $user = $this->getCurrentUser();
         $role['createdUserId'] = $user['id'];
-        $role = ArrayToolkit::parts($role, ['name', 'code', 'data', 'data_v2', 'createdTime', 'createdUserId']);
+        $role = ArrayToolkit::parts($role, ['name', 'code', 'data', 'createdTime', 'createdUserId']);
 
         if (!ArrayToolkit::requireds($role, ['name', 'code'])) {
-            $this->createNewException(CommonException::ERROR_PARAMETER_MISSING());
+            throw CommonBizException::ERROR_PARAMETER_MISSING();
         }
 
-        if (!preg_match('/(^(?![^0-9a-zA-Z]+$))(?![0-9]+$).+/', $role['code'])) {
-            $this->createNewException(RoleException::CODE_NOT_ALLL_DIGITAL());
+        // 检查 code 是否已存在
+        $existing = $this->getRoleDao()->getByCode($role['code']);
+        if (!empty($existing)) {
+            throw CommonBizException::ERROR_PARAMETER_DUPLICATE();
         }
 
         return $this->getRoleDao()->create($role);
@@ -46,7 +48,7 @@ class RoleServiceImpl extends BaseService implements RoleService
     public function updateRole($id, array $fields)
     {
         $this->checkChangeRole($id);
-        $fields = ArrayToolkit::parts($fields, ['name', 'code', 'data', 'data_v2']);
+        $fields = ArrayToolkit::parts($fields, ['name', 'code', 'data']);
 
         if (isset($fields['code'])) {
             unset($fields['code']);
@@ -100,6 +102,15 @@ class RoleServiceImpl extends BaseService implements RoleService
         }
 
         return $this->getRoleDao()->findByCodes($codes);
+    }
+
+    public function findRolesByIds(array $ids)
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->getRoleDao()->findByIds($ids);
     }
 
     /**

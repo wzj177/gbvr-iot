@@ -22,6 +22,8 @@ class CommonBizException extends AbstractBizException
 
     const ERROR_PARAMETER = 5000306;
 
+    const ERROR_PARAMETER_DUPLICATE = 5000310;
+
     const FORBIDDEN_DRAG_CAPTCHA_FREQUENT = 5000307;
 
     const NOTFOUND_METHOD = 4040308;
@@ -70,6 +72,7 @@ class CommonBizException extends AbstractBizException
             self::FORBIDDEN_FREQUENT_OPERATION => '操作过于频繁，请稍后再试！',
             self::ERROR_PARAMETER_MISSING => '参数缺失，请重试！',
             self::ERROR_PARAMETER => '参数错误，请重试！',
+            self::ERROR_PARAMETER_DUPLICATE => '数据已存在，请勿重复操作！',
             self::NOTFOUND_METHOD => '方法不存在',
             self::NOT_ALLOWED_METHOD => '不允许的方法',
             self::NOTFOUND_API => '不允许的方法',

@@ -104,6 +104,8 @@ interface UserService
 
     public function checkLoginForbidden($userId, $ip);
 
+    public function resetLoginFailed($userId);
+
     public function lockUser($id);
 
     public function unlockUser($id);

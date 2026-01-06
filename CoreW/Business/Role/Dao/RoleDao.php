@@ -11,4 +11,6 @@ interface RoleDao extends AdvancedDaoInterface
     public function getByName($name);
 
     public function findByCodes($codes);
+
+    public function findByIds(array $ids);
 }

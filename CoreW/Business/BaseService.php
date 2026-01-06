@@ -3,6 +3,7 @@
 
 namespace CoreW\Business;
 
+use CoreW\Business\User\CurrentUser;
 use CoreW\Exception\AbstractBizException;
 use CoreW\Exception\ServiceException;
 use CoreW\Bfw;
@@ -76,5 +77,13 @@ class BaseService
         }
 
         throw new \Exception();
+    }
+
+    /**
+     * @return CurrentUser|null
+     */
+    protected function getCurrentUser(): ?CurrentUser
+    {
+        return $this->bfw['user'];
     }
 }

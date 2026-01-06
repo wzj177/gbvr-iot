@@ -80,12 +80,58 @@ class UserServiceImpl extends BaseService implements UserService
 
     public function updateUser($id, array $fields)
     {
+        $user = $this->getUser($id);
 
+        if (empty($user)) {
+            $this->createNewException(UserException::NOTFOUND_USER());
+        }
+
+        // 不允许修改系统用户的某些字段
+        if ($user['type'] === 'system') {
+            $protectedFields = ['email', 'nickname', 'roles', 'type'];
+            foreach ($protectedFields as $field) {
+                if (isset($fields[$field])) {
+                    $this->createNewException(UserException::SYSTEM_USER_NOT_ALLOWED_MODIFY());
+                }
+            }
+        }
+
+        // 不允许修改密码、salt等敏感字段
+        unset($fields['password'], $fields['salt']);
+
+        // 如果有 roles 字段，确保是数组格式
+        if (isset($fields['roles'])) {
+            if (!is_array($fields['roles'])) {
+                $fields['roles'] = explode(',', $fields['roles']);
+            }
+        }
+
+        $fields['updatedTime'] = time();
+
+        return $this->getUserDao()->update($id, $fields);
     }
 
     public function deleteUserById($id)
     {
+        $user = $this->getUser($id);
 
+        if (empty($user)) {
+            $this->createNewException(UserException::NOTFOUND_USER());
+        }
+
+        if ($user['type'] === 'system') {
+            $this->createNewException(UserException::SYSTEM_USER_NOT_ALLOWED_DELETE());
+        }
+
+        if ($user['nickname'] === 'admin') {
+            $this->createNewException(UserException::SYSTEM_USER_NOT_ALLOWED_DELETE());
+        }
+
+        $this->getUserDao()->delete($id);
+
+        $this->dispatchEvent('user.delete', new Event($user));
+
+        return true;
     }
 
 
@@ -331,7 +377,7 @@ class UserServiceImpl extends BaseService implements UserService
 
         $this->refreshLoginSecurityFields($user['id'], $currentIp);
 
-        $this->dispatch('user.change_password', $user);
+        $this->dispatchEvent('user.change_password', $user);
 
         return true;
     }
@@ -652,12 +698,102 @@ class UserServiceImpl extends BaseService implements UserService
 
     public function markLoginFailed($userId, $ip)
     {
-        // TODO: 登录失败
+        $user = $this->getUser($userId);
+        if (empty($user)) {
+            return;
+        }
+
+        $authConfig = $this->getSettingService()->get('auth', []);
+        $temporaryLockEnabled = isset($authConfig['temporary_lock_enabled']) && $authConfig['temporary_lock_enabled'];
+
+        if (!$temporaryLockEnabled) {
+            return;
+        }
+
+        $maxErrorTimes = $authConfig['temporary_lock_max_error_times'] ?? 5;
+        $lockDuration = $authConfig['temporary_lock_duration'] ?? 30; // 分钟
+
+        $currentTime = time();
+        $errorTimes = ($user['consecutivePasswordErrorTimes'] ?? 0) + 1;
+        $lockDeadline = 0;
+        $locked = 0;
+
+        // 达到最大错误次数，锁定用户
+        if ($errorTimes >= $maxErrorTimes) {
+            $lockDeadline = $currentTime + ($lockDuration * 60);
+            $locked = 1;
+
+            $this->getLogService()->info('user', 'lock', '密码错误次数过多，用户被临时锁定', [
+                'userId' => $userId,
+                'errorTimes' => $errorTimes,
+                'lockDeadline' => $lockDeadline,
+                'ip' => $ip,
+            ]);
+        }
+
+        $this->getUserDao()->update($userId, [
+            'consecutivePasswordErrorTimes' => $errorTimes,
+            'lastPasswordFailTime' => $currentTime,
+            'lockDeadline' => $lockDeadline,
+            'locked' => $locked,
+        ]);
     }
 
     public function checkLoginForbidden($userId, $ip)
     {
-        // 检测当前用户ip是否被禁用
+        $user = $this->getUser($userId);
+        if (empty($user)) {
+            return false;
+        }
+
+        $authConfig = $this->getSettingService()->get('auth', []);
+        $temporaryLockEnabled = isset($authConfig['temporary_lock_enabled']) && $authConfig['temporary_lock_enabled'];
+
+        if (!$temporaryLockEnabled) {
+            return false;
+        }
+
+        $currentTime = time();
+
+        // 检查是否在临时锁定期内
+        if (!empty($user['lockDeadline']) && $user['lockDeadline'] > $currentTime) {
+            $remainingMinutes = ceil(($user['lockDeadline'] - $currentTime) / 60);
+
+            throw new UserException(UserException::TEMPORARY_LOCKED, "密码错误次数过多，账户已被临时锁定，请在 {$remainingMinutes} 分钟后重试");
+        }
+
+        // 检查是否已被手动锁定
+        if (!empty($user['locked'])) {
+            throw UserException::LOCKED_USER();
+        }
+
+        // 如果 lockDeadline 已过但 locked 还是 1，自动解锁
+        if (!empty($user['locked']) && !empty($user['lockDeadline']) && $user['lockDeadline'] <= $currentTime) {
+            $this->unlockUser($userId);
+        }
+
+        return false;
+    }
+
+    public function resetLoginFailed($userId)
+    {
+        $user = $this->getUser($userId);
+        if (empty($user)) {
+            return;
+        }
+
+        $authConfig = $this->getSettingService()->get('auth', []);
+        $temporaryLockEnabled = isset($authConfig['temporary_lock_enabled']) && $authConfig['temporary_lock_enabled'];
+
+        if (!$temporaryLockEnabled) {
+            return;
+        }
+
+        // 重置错误次数
+        $this->getUserDao()->update($userId, [
+            'consecutivePasswordErrorTimes' => 0,
+            'lastPasswordFailTime' => 0,
+        ]);
     }
 
     public function lockUser($id)

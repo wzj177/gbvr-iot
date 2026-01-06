@@ -8,6 +8,7 @@ use CoreW\Business\Common\UserException;
 use CoreW\Business\BizEnum;
 use CoreW\Business\DataFilters\Filter;
 use CoreW\Business\Auth\Handler\TokenHandlerInterface;
+use CoreW\Business\Role\Service\RoleService;
 use CoreW\Business\User\CurrentUser;
 use support\Redis;
 use support\Request;
@@ -62,6 +63,17 @@ class AuthController extends BaseController
                 }
             }
         }
+
+        $roles = $this->getRoleService()->findRolesByCodes($user['roles']) ;
+        $roleMap = [];
+        foreach ($roles as $role) {
+            $roleMap[] = [
+                'name' => $role['name'],
+                'code' => $role['code'],
+            ];
+        }
+
+        $user['roles'] = $roleMap;
 
         $user['currentIp'] = $currentIp;
         $data = [
@@ -140,6 +152,7 @@ class AuthController extends BaseController
             throw UserException::USERNAME_PASSWORD_ERROR();
         }
 
+        $currentIp = $request->getRealIp();
         $checkCaptcha = $request->post('checkCaptcha', false);
 
         if ($checkCaptcha) {
@@ -158,15 +171,17 @@ class AuthController extends BaseController
             throw UserException::NOTFOUND_USER();
         }
 
+        // 检查用户是否被禁止登录（临时锁定或手动锁定）
+        $this->getUserService()->checkLoginForbidden($user['id'], $currentIp);
+
         if (!$this->getUserService()->verifyPasswordByUser($user, $password)) {
-            // TODO: 登录保护：输错5次锁定用户
+            // 记录登录失败
+            $this->getUserService()->markLoginFailed($user['id'], $currentIp);
             throw UserException::PASSWORD_ERROR();
         }
 
-
-        if ($user['locked']) {
-            throw UserException::LOCKED_USER();
-        }
+        // 登录成功，重置错误次数
+        $this->getUserService()->resetLoginFailed($user['id']);
 
         // 设置当前用户到biz容器中，模拟认证中间件的行为
         $currentUser = new CurrentUser();
@@ -179,8 +194,16 @@ class AuthController extends BaseController
     /**
      * @return TokenHandlerInterface
      */
-    protected function getTokenHandler()
+    protected function getTokenHandler(): TokenHandlerInterface
     {
         return $this->getBiz()->offsetGet('admin_auth')();
+    }
+
+    /**
+     * @return RoleService
+     */
+    protected function getRoleService(): RoleService
+    {
+        return $this->createService('Role:RoleService');
     }
 }

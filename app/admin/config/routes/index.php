@@ -18,7 +18,10 @@ use app\admin\controller\SystemController;
 use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
 use app\admin\controller\MediaServerController;
+use app\admin\controller\MenuController;
+use app\admin\controller\RoleController;
 use app\middleware\admin\AuthIdentityMiddleware;
+use app\middleware\admin\PermissionCheckMiddleware;
 use CoreW\CustomRoute as Route;
 use function Swoole\Coroutine\Http\post;
 
@@ -59,30 +62,62 @@ Route::group('/api/admin', function () {
         Route::get('/disk-stats', [SystemMonitoringController::class, 'getDiskStats'])->name('system.disk-stats');
     })->middleware([
 //        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
     // 菜单
     Route::group('/menu', function () {
+        Route::get('', [MenuController::class, 'index'])->name('admin.menu.index');
+        Route::get('/{id:\d+}', [MenuController::class, 'show'])->name('admin.menu.show');
+        Route::post('', [MenuController::class, 'store'])->name('admin.menu.store');
+        Route::put('/{id:\d+}', [MenuController::class, 'update'])->name('admin.menu.update');
+        Route::delete('/{id:\d+}', [MenuController::class, 'destroy'])->name('admin.menu.destroy');
+        Route::get('/tree', [MenuController::class, 'tree'])->name('admin.menu.tree');
+        Route::post('/sync', [MenuController::class, 'sync'])->name('admin.menu.sync');
+        Route::get('/user/menu', [MenuController::class, 'userMenu'])->name('admin.menu.user');
+        Route::post('/batch-delete', [MenuController::class, 'batchDelete'])->name('admin.menu.batch-delete');
+        Route::get('/type-options', [MenuController::class, 'typeOptions'])->name('admin.menu.type-options');
     })->middleware([
 //        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
     // 管理员
     Route::group('/user', function () {
-        Route::get('/menus', [UserController::class, 'getMenuAdmin'])->name('user.menus');
+        Route::get('', [UserController::class, 'index'])->name('admin.user.index');
+        Route::get('/{id:\d+}', [UserController::class, 'show'])->name('admin.user.show');
+        Route::post('', [UserController::class, 'store'])->name('admin.user.store');
+        Route::put('/{id:\d+}', [UserController::class, 'update'])->name('admin.user.update');
+        Route::delete('/{id:\d+}', [UserController::class, 'destroy'])->name('admin.user.destroy');
+        Route::post('/{id:\d+}/roles', [UserController::class, 'assignRoles'])->name('admin.user.assign-roles');
+        Route::post('/{id:\d+}/reset-password', [UserController::class, 'resetPassword'])->name('admin.user.reset-password');
+        Route::post('/{id:\d+}/toggle-lock', [UserController::class, 'toggleLock'])->name('admin.user.toggle-lock');
+        Route::post('/batch-delete', [UserController::class, 'batchDelete'])->name('admin.user.batch-delete');
+        Route::get('/role-options', [UserController::class, 'roleOptions'])->name('admin.user.role-options');
+//        Route::get('/menus', [UserController::class, 'getMenuAdmin'])->name('user.menus');
     })->middleware([
 //        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
     // 角色权限
     Route::group('/role', function () {
-
+        Route::get('', [RoleController::class, 'index'])->name('admin.role.index');
+        Route::get('/{id:\d+}', [RoleController::class, 'show'])->name('admin.role.show');
+        Route::post('', [RoleController::class, 'store'])->name('admin.role.store');
+        Route::put('/{id:\d+}', [RoleController::class, 'update'])->name('admin.role.update');
+        Route::delete('/{id:\d+}', [RoleController::class, 'destroy'])->name('admin.role.destroy');
+        Route::get('/{id:\d+}/menus', [RoleController::class, 'menus'])->name('admin.role.menus');
+        Route::post('/{id:\d+}/menus', [RoleController::class, 'assignMenus'])->name('admin.role.assign-menus');
+        Route::post('/batch-delete', [RoleController::class, 'batchDelete'])->name('admin.role.batch-delete');
+        Route::get('/options', [RoleController::class, 'options'])->name('admin.role.options');
     })->middleware([
 //        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
     // 会员
     Route::group('/vip', function () {
@@ -109,7 +144,8 @@ Route::group('/api/admin', function () {
         Route::post('/tag/batch-delete', [ProductTagController::class, 'batchDestroy'])->name('product.tag-batch-delete');
     })->middleware([
 //        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
 
@@ -136,7 +172,8 @@ Route::group('/api/admin', function () {
         Route::delete('/{id}', [AttachmentController::class, 'delete'])->name('attachment.delete');
         Route::post('/deletes', [AttachmentController::class, 'deletes'])->name('attachment.deletes');
     })->middleware([
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
     // 系统设置
@@ -154,7 +191,8 @@ Route::group('/api/admin', function () {
         Route::post('/vr', [SettingController::class, 'setVR'])->name('setting.vr');
     })->middleware([
 //        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
 
@@ -212,7 +250,8 @@ Route::group('/api/admin', function () {
         // 系统监控
         Route::get('/device-stats', [GB28181SystemMonitoringController::class, 'getDeviceStats'])->name('admin.gb28181.system.device-stats');
     })->middleware([
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 
     Route::group('/media-server', function () {
@@ -227,6 +266,7 @@ Route::group('/api/admin', function () {
         Route::delete('/{id}', [MediaServerController::class, 'delete'])->name('media-server.delete');
         Route::get('/{id}', [MediaServerController::class, 'show'])->name('media-server.show');
     })->middleware([
-        AuthIdentityMiddleware::class
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
     ]);
 });

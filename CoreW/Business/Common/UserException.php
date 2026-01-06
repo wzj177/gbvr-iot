@@ -25,6 +25,12 @@ class UserException extends AbstractBizException
 
     const LOCKED_USER = 4030115;
 
+    const TEMPORARY_LOCKED = 4030141;
+
+    const SYSTEM_USER_NOT_ALLOWED_DELETE = 4030142;
+
+    const SYSTEM_USER_NOT_ALLOWED_MODIFY = 4030143;
+
     const LOCK_DENIED = 4030140;
 
     const ROLES_INVALID = 5000135;
@@ -65,6 +71,9 @@ class UserException extends AbstractBizException
             self::PASSWORD_FAILED => '用户名或密码错误',
             self::EXPIRED_OR_NOTFOUND_TOKEN => '认证失效或未认证',
             self::LOCKED_USER => '账户被封禁，请联系管理员',
+            self::TEMPORARY_LOCKED => '密码错误次数过多，账户已被临时锁定',
+            self::SYSTEM_USER_NOT_ALLOWED_DELETE => '系统用户不允许删除',
+            self::SYSTEM_USER_NOT_ALLOWED_MODIFY => '系统用户关键信息不允许修改',
             self::ROLES_INVALID => '角色不正确',
             self::EMAIL_INVALID => '邮箱地址格式错误',
             self::EMAIL_EXISTED => '邮箱地址已被注册',

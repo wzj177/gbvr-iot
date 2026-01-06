@@ -10,6 +10,8 @@ interface RoleService
 
     public function findRolesByCodes(array $codes);
 
+    public function findRolesByIds(array $ids);
+
     /**
      * @param $role
      *
