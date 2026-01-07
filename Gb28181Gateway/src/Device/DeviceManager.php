@@ -116,6 +116,30 @@ class DeviceManager
         if (isset($info['expires'])) $device->expires = $info['expires'];
         if (isset($info['info'])) $device->updateInfo($info['info']);
 
+        // 更新扩展配置（如有）
+        $device->updateConfig($info);
+
+        return true;
+    }
+
+    /**
+     * 更新设备配置（API 通知更新时调用）
+     *
+     * @param string $deviceId 设备ID
+     * @param array $config 配置数据
+     * @return bool 是否更新成功
+     */
+    public function updateDeviceConfig(string $deviceId, array $config): bool
+    {
+        $device = $this->devices[$deviceId] ?? null;
+        if (!$device) {
+            $this->log("设备不存在，无法更新配置: {$deviceId}", 'WARNING');
+            return false;
+        }
+
+        $device->updateConfig($config);
+        $this->log("设备配置已更新: {$deviceId}");
+
         return true;
     }
 
@@ -426,7 +450,26 @@ class DeviceManager
                         'registered_at' => $device->registeredAt,
                         'last_heartbeat' => $device->lastHeartbeat,
                         'expires' => $device->expires,
-                        'channels' => $device->channels,  // 保存通道列表
+                        'channels' => $device->channels,
+                        // 扩展配置字段
+                        'sip_host' => $device->sipHost,
+                        'media_host' => $device->mediaHost,
+                        'rtp_trans_mode' => $device->rtpTransMode,
+                        'connect_type' => $device->connectType,
+                        'subscribe_catalog' => $device->subscribeCatalog,
+                        'subscribe_alarm' => $device->subscribeAlarm,
+                        'subscribe_position' => $device->subscribePosition,
+                        'subscribe_ptz' => $device->subscribePtz,
+                        'subscribe_expires' => $device->subscribeExpires,
+                        'position_interval' => $device->positionInterval,
+                        'catalog_interval' => $device->catalogInterval,
+                        'last_catalog_at' => $device->lastCatalogAt,
+                        'charset' => $device->charset,
+                        'stream_index' => $device->streamIndex,
+                        'filter_channel_types' => $device->filterChannelTypes,
+                        'record_mode' => $device->recordMode,
+                        'catalog_structure' => $device->catalogStructure,
+                        'subscription_status' => $device->subscriptions,
                     ];
                 }
             }

@@ -200,6 +200,7 @@ Route::group('/api/admin', function () {
         // 设备管理
         Route::group('/devices', function () {
             Route::get('', [GB28181DeviceController::class, 'index'])->name('admin.gb28181.devices.index');
+            Route::get('/tree', [GB28181DeviceController::class, 'tree'])->name('admin.gb28181.devices.tree');
             Route::get('/{id}', [GB28181DeviceController::class, 'show'])->name('admin.gb28181.devices.show');
             Route::put('/{id}', [GB28181DeviceController::class, 'update'])->name('admin.gb28181.devices.update');
             Route::delete('/{id}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');

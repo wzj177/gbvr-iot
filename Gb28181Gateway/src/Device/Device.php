@@ -7,6 +7,13 @@ use Exception;
 
 /**
  * 表示一个连接到服务器的 GB28181 设备
+ * 
+ * 扩展字段说明：
+ * - 媒体配置：mediaHost
+ * - 传输模式：rtpTransMode
+ * - 订阅配置：subscribeCatalog, subscribeAlarm, subscribePosition, subscribePtz
+ * - 字符集/码流：charset, streamIndex
+ * - 通道过滤：filterChannelTypes
  */
 class Device
 {
@@ -38,6 +45,40 @@ class Device
     // 通道列表
     public array $channels = [];
 
+    // ==================== 扩展配置字段 ====================
+
+    // 媒体服务器配置
+    public string $mediaHost = '';        // 收流IP（媒体服务器地址）
+
+    // 流传输模式: 0=UDP, 1=TCP被动(设备连平台), 2=TCP主动(平台连设备)
+    public int $rtpTransMode = 0;
+
+    // 订阅配置
+    public bool $subscribeCatalog = false;   // 订阅目录变更
+    public bool $subscribeAlarm = false;     // 订阅报警事件
+    public bool $subscribePosition = false;  // 订阅位置上报
+    public bool $subscribePtz = false;       // 订阅PTZ控制反馈(2022)
+    public int $subscribeExpires = 3600;     // 订阅有效期（秒）
+    public int $positionInterval = 60;       // 位置上报间隔（秒）
+
+    // 通道更新配置
+    public int $catalogInterval = 3600;      // 目录更新周期（秒），0=禁用轮询
+    public int $lastCatalogAt = 0;           // 上次目录查询时间
+
+    // 字符集和码流
+    public string $charset = 'gb2312';       // 设备XML字符集: gb2312/utf8
+    public string $streamIndex = 'auto';     // 码流索引: auto/0/1
+
+    // 通道过滤
+    public array $filterChannelTypes = [];   // 过滤的通道类型列表，如[134, 135]
+
+    // 录像配置
+    public string $recordMode = 'center';    // 设备录像模式: center=中心检索, fuzzy=模糊查询
+    public string $catalogStructure = 'area'; // 目录结构: area=行政区域优先, device=设备优先
+
+    // 订阅状态追踪
+    public array $subscriptions = [];        // 活跃订阅信息 [type => subscription_data]
+
     /**
      * 构造函数
      */
@@ -55,6 +96,55 @@ class Device
         if (isset($data['info'])) {
             $this->info = $data['info'];
         }
+
+        // 加载扩展配置
+        $this->loadExtendedConfig($data);
+    }
+
+    /**
+     * 加载扩展配置字段
+     */
+    private function loadExtendedConfig(array $data): void
+    {
+        // 媒体配置
+        $this->mediaHost = $data['media_host'] ?? '';
+
+        // 传输模式
+        $this->rtpTransMode = (int)($data['rtp_trans_mode'] ?? 0);
+
+        // 订阅配置
+        $this->subscribeCatalog = (bool)($data['subscribe_catalog'] ?? false);
+        $this->subscribeAlarm = (bool)($data['subscribe_alarm'] ?? false);
+        $this->subscribePosition = (bool)($data['subscribe_position'] ?? false);
+        $this->subscribePtz = (bool)($data['subscribe_ptz'] ?? false);
+        $this->subscribeExpires = (int)($data['subscribe_expires'] ?? 3600);
+        $this->positionInterval = (int)($data['position_interval'] ?? 60);
+
+        // 目录更新配置
+        $this->catalogInterval = (int)($data['catalog_interval'] ?? 3600);
+        $this->lastCatalogAt = (int)($data['last_catalog_at'] ?? 0);
+
+        // 字符集和码流
+        $this->charset = $data['charset'] ?? 'gb2312';
+        $this->streamIndex = $data['stream_index'] ?? 'auto';
+
+        // 通道过滤（支持 JSON 字符串或数组）
+        $filterTypes = $data['filter_channel_types'] ?? [];
+        if (is_string($filterTypes) && !empty($filterTypes)) {
+            $filterTypes = json_decode($filterTypes, true) ?? [];
+        }
+        $this->filterChannelTypes = is_array($filterTypes) ? $filterTypes : [];
+
+        // 录像配置
+        $this->recordMode = $data['record_mode'] ?? 'center';
+        $this->catalogStructure = $data['catalog_structure'] ?? 'area';
+
+        // 订阅状态（支持 JSON 字符串或数组）
+        $subscriptions = $data['subscription_status'] ?? [];
+        if (is_string($subscriptions) && !empty($subscriptions)) {
+            $subscriptions = json_decode($subscriptions, true) ?? [];
+        }
+        $this->subscriptions = is_array($subscriptions) ? $subscriptions : [];
     }
 
     /**
@@ -151,7 +241,103 @@ class Device
             'status' => $this->status,
             'info' => $this->info,
             'channels' => $this->channels,
+            // 扩展配置字段
+            'media_host' => $this->mediaHost,
+            'rtp_trans_mode' => $this->rtpTransMode,
+            'subscribe_catalog' => $this->subscribeCatalog,
+            'subscribe_alarm' => $this->subscribeAlarm,
+            'subscribe_position' => $this->subscribePosition,
+            'subscribe_ptz' => $this->subscribePtz,
+            'subscribe_expires' => $this->subscribeExpires,
+            'position_interval' => $this->positionInterval,
+            'catalog_interval' => $this->catalogInterval,
+            'last_catalog_at' => $this->lastCatalogAt,
+            'charset' => $this->charset,
+            'stream_index' => $this->streamIndex,
+            'filter_channel_types' => $this->filterChannelTypes,
+            'record_mode' => $this->recordMode,
+            'catalog_structure' => $this->catalogStructure,
+            'subscriptions' => $this->subscriptions,
         ];
+    }
+
+    /**
+     * 获取需要订阅的事件类型列表
+     * 
+     * @return array 事件类型列表，如 ['Catalog', 'Alarm', 'presence']
+     */
+    public function getSubscribeEvents(): array
+    {
+        $events = [];
+        if ($this->subscribeCatalog) $events[] = 'Catalog';
+        if ($this->subscribeAlarm) $events[] = 'Alarm';
+        if ($this->subscribePosition) $events[] = 'presence';  // MobilePosition 使用 Event: presence
+        if ($this->subscribePtz) $events[] = 'PTZControl';
+        return $events;
+    }
+
+    /**
+     * 检查是否需要刷新目录
+     * 
+     * @return bool 是否需要查询目录
+     */
+    public function needsCatalogRefresh(): bool
+    {
+        if ($this->catalogInterval <= 0) {
+            return false;  // 禁用轮询
+        }
+
+        return (time() - $this->lastCatalogAt) >= $this->catalogInterval;
+    }
+
+    /**
+     * 更新目录查询时间
+     */
+    public function updateCatalogTime(): void
+    {
+        $this->lastCatalogAt = time();
+    }
+
+    /**
+     * 更新扩展配置
+     * 
+     * @param array $config 配置数据
+     */
+    public function updateConfig(array $config): void
+    {
+        // 媒体配置
+        if (isset($config['media_host'])) $this->mediaHost = $config['media_host'];
+
+        // 传输模式
+        if (isset($config['rtp_trans_mode'])) $this->rtpTransMode = (int)$config['rtp_trans_mode'];
+
+        // 订阅配置
+        if (isset($config['subscribe_catalog'])) $this->subscribeCatalog = (bool)$config['subscribe_catalog'];
+        if (isset($config['subscribe_alarm'])) $this->subscribeAlarm = (bool)$config['subscribe_alarm'];
+        if (isset($config['subscribe_position'])) $this->subscribePosition = (bool)$config['subscribe_position'];
+        if (isset($config['subscribe_ptz'])) $this->subscribePtz = (bool)$config['subscribe_ptz'];
+        if (isset($config['subscribe_expires'])) $this->subscribeExpires = (int)$config['subscribe_expires'];
+        if (isset($config['position_interval'])) $this->positionInterval = (int)$config['position_interval'];
+
+        // 目录更新配置
+        if (isset($config['catalog_interval'])) $this->catalogInterval = (int)$config['catalog_interval'];
+
+        // 字符集和码流
+        if (isset($config['charset'])) $this->charset = $config['charset'];
+        if (isset($config['stream_index'])) $this->streamIndex = $config['stream_index'];
+
+        // 通道过滤
+        if (isset($config['filter_channel_types'])) {
+            $filterTypes = $config['filter_channel_types'];
+            if (is_string($filterTypes)) {
+                $filterTypes = json_decode($filterTypes, true) ?? [];
+            }
+            $this->filterChannelTypes = is_array($filterTypes) ? $filterTypes : [];
+        }
+
+        // 录像配置
+        if (isset($config['record_mode'])) $this->recordMode = $config['record_mode'];
+        if (isset($config['catalog_structure'])) $this->catalogStructure = $config['catalog_structure'];
     }
 
     /**

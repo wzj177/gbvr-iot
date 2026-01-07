@@ -555,6 +555,171 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->getCoolingPorts($coolingTime);
     }
 
+    // ==================== 树形数据 ====================
+
+    /**
+     * 获取设备树形数据
+     * @param string $treeType 树类型: dc=设备-通道树, area=行政区域-设备-通道树
+     * @return array
+     */
+    public function getDeviceTree(string $treeType = 'dc'): array
+    {
+        if ($treeType === 'area') {
+            return $this->getAreaDeviceTree();
+        }
+
+        return $this->getDeviceChannelTree();
+    }
+
+    /**
+     * 获取设备-通道树
+     * @return array
+     */
+    private function getDeviceChannelTree(): array
+    {
+        $devices = $this->searchDevices([], ['id' => 'ASC'], 0, 10000);
+        $tree = [];
+
+        foreach ($devices as $device) {
+            $node = [
+                'id' => 'd_' . $device['id'],
+                'key' => $device['device_id'],
+                'label' => $device['show_name'] ?: $device['device_name'] ?: $device['device_id'],
+                'type' => 'device',
+                'device_id' => $device['device_id'],
+                'device_type' => $device['device_type'],
+                'status' => $device['status'],
+                'enabled' => $device['enabled'],
+                'ip' => $device['ip'],
+                'port' => $device['port'],
+                'manufacturer' => $device['manufacturer'],
+                'model' => $device['model'],
+                'province_id' => $device['province_id'],
+                'city_id' => $device['city_id'],
+                'county_id' => $device['county_id'],
+                'children' => [],
+            ];
+
+            $channels = $this->getChannelsByDeviceId($device['device_id']);
+            foreach ($channels as $channel) {
+                $node['children'][] = [
+                    'id' => 'c_' . $channel['id'],
+                    'key' => $channel['channel_id'],
+                    'label' => $channel['show_name'] ?: $channel['channel_name'] ?: $channel['channel_id'],
+                    'type' => 'channel',
+                    'device_id' => $channel['device_id'],
+                    'channel_id' => $channel['channel_id'],
+                    'channel_type' => $channel['channel_type'],
+                    'status' => $channel['status'],
+                    'enabled' => $channel['enabled'],
+                    'parental' => $channel['parental'],
+                    'parent_id' => $channel['parent_id'],
+                    'civil_code' => $channel['civil_code'],
+                    'stream_status' => $channel['stream_status'],
+                ];
+            }
+
+            $tree[] = $node;
+        }
+
+        return $tree;
+    }
+
+    /**
+     * 获取行政区域-设备-通道树
+     * @return array
+     */
+    private function getAreaDeviceTree(): array
+    {
+        $devices = $this->searchDevices([], ['id' => 'ASC'], 0, 10000);
+        $areaMap = [];
+
+        foreach ($devices as $device) {
+            $provinceId = $device['province_id'] ?: '000000';
+            $cityId = $device['city_id'] ?: '000000';
+            $countyId = $device['county_id'] ?: '000000';
+
+            // 构建区域路径
+            $areaKey = $provinceId . '-' . $cityId . '-' . $countyId;
+
+            if (!isset($areaMap[$areaKey])) {
+                $areaMap[$areaKey] = [
+                    'id' => 'a_' . $areaKey,
+                    'key' => $areaKey,
+                    'label' => $this->getAreaName($provinceId, $cityId, $countyId),
+                    'type' => 'area',
+                    'province_id' => $provinceId,
+                    'city_id' => $cityId,
+                    'county_id' => $countyId,
+                    'children' => [],
+                ];
+            }
+
+            $deviceNode = [
+                'id' => 'd_' . $device['id'],
+                'key' => $device['device_id'],
+                'label' => $device['show_name'] ?: $device['device_name'] ?: $device['device_id'],
+                'type' => 'device',
+                'device_id' => $device['device_id'],
+                'device_type' => $device['device_type'],
+                'status' => $device['status'],
+                'enabled' => $device['enabled'],
+                'ip' => $device['ip'],
+                'port' => $device['port'],
+                'manufacturer' => $device['manufacturer'],
+                'model' => $device['model'],
+                'children' => [],
+            ];
+
+            $channels = $this->getChannelsByDeviceId($device['device_id']);
+            foreach ($channels as $channel) {
+                $deviceNode['children'][] = [
+                    'id' => 'c_' . $channel['id'],
+                    'key' => $channel['channel_id'],
+                    'label' => $channel['show_name'] ?: $channel['channel_name'] ?: $channel['channel_id'],
+                    'type' => 'channel',
+                    'device_id' => $channel['device_id'],
+                    'channel_id' => $channel['channel_id'],
+                    'channel_type' => $channel['channel_type'],
+                    'status' => $channel['status'],
+                    'enabled' => $channel['enabled'],
+                    'parental' => $channel['parental'],
+                    'parent_id' => $channel['parent_id'],
+                    'civil_code' => $channel['civil_code'],
+                    'stream_status' => $channel['stream_status'],
+                ];
+            }
+
+            $areaMap[$areaKey]['children'][] = $deviceNode;
+        }
+
+        return array_values($areaMap);
+    }
+
+    /**
+     * 获取区域名称
+     * @param string $provinceId
+     * @param string $cityId
+     * @param string $countyId
+     * @return string
+     */
+    private function getAreaName(string $provinceId, string $cityId, string $countyId): string
+    {
+        // 这里可以调用区域服务获取真实名称，暂时返回代码组合
+        $parts = [];
+        if ($provinceId && $provinceId !== '000000') {
+            $parts[] = $provinceId;
+        }
+        if ($cityId && $cityId !== '000000') {
+            $parts[] = $cityId;
+        }
+        if ($countyId && $countyId !== '000000') {
+            $parts[] = $countyId;
+        }
+
+        return empty($parts) ? '未知区域' : implode('-', $parts);
+    }
+
     // ==================== SSRC 管理 ====================
 
     public function generateUniqueSsrc(): string

@@ -232,6 +232,31 @@ class GB28181DeviceController extends BaseController
     }
 
     /**
+     * 获取设备树形数据
+     */
+    public function tree(Request $request)
+    {
+        $treeType = $request->get('tree_type', 'dc');
+
+        if (!in_array($treeType, ['dc', 'area'])) {
+            return $this->createErrorJsonResponse('tree_type 参数无效，必须是 dc 或 area');
+        }
+
+        try {
+            $tree = $this->getDeviceService()->getDeviceTree($treeType);
+
+            return $this->createSuccessJsonResponse($tree);
+        } catch (\Exception $e) {
+            Log::error('Get device tree failed', [
+                'tree_type' => $treeType,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->createErrorJsonResponse('获取设备树失败: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * @return DeviceService
      */
     private function getDeviceService(): DeviceService

@@ -50,7 +50,10 @@ interface DeviceService
 
     // SSRC 管理
     public function generateUniqueSsrc(): string;
-    
+
     // 端口管理
     public function getCoolingPorts(int $coolingTime = 20): array;
+
+    // 树形数据
+    public function getDeviceTree(string $treeType = 'dc'): array;
 }
