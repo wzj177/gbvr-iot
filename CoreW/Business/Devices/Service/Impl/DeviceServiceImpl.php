@@ -205,7 +205,12 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      */
     protected function updateChannelsStatusByDeviceId(string $deviceId, string $status)
     {
-        return $this->getDeviceChannelsDao()->update(['device_id' => $deviceId], ['status' => $status]);
+        $data = ['status' => $status];
+        if ($status === DeviceStatusEnum::UNREGISTERED->value || $status === DeviceStatusEnum::EXPIRED->value) {
+            $data['stream_status'] = 'idle'; // 更新推流状态
+        }
+
+        return $this->getDeviceChannelsDao()->update(['device_id' => $deviceId], $data);
     }
 
     public function getChannelById($id)
