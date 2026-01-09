@@ -100,6 +100,7 @@ class DeviceManager
      */
     public function updateDeviceInfo(string $deviceId, array $info): bool
     {
+        /** @var Device $device */
         $device = $this->devices[$deviceId] ?? null;
         if (!$device) {
             $this->log("设备不存在，无法更新: {$deviceId}", 'WARNING');
@@ -230,6 +231,95 @@ class DeviceManager
         }
 
         return $timeoutDevices;
+    }
+
+    /**
+     * 检查并刷新即将过期的订阅
+     * 在订阅过期前60秒自动刷新
+     */
+    public function checkAndRefreshSubscriptions(): void
+    {
+        try {
+            $now = time();
+            $refreshThreshold = 60; // 提前60秒刷新
+            $needRefresh = [];
+
+            foreach ($this->devices as $deviceId => $device) {
+                if (!$device->isOnline()) {
+                    continue;
+                }
+
+                // 清理过期订阅
+                $device->cleanExpiredSubscriptions();
+                
+                $subscriptions = $device->getSubscriptions();
+                foreach ($subscriptions as $eventType => $subInfo) {
+                    $expiresAt = $subInfo['expires_at'] ?? 0;
+                    if ($expiresAt > 0 && ($expiresAt - $now) <= $refreshThreshold) {
+                        $needRefresh[] = [
+                            'device_id' => $deviceId,
+                            'device' => $device,
+                            'event_type' => $eventType,
+                            'expires_in' => $expiresAt - $now,
+                            'params' => $subInfo['params'] ?? []
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($needRefresh)) {
+                $this->log('检测到需要刷新的订阅: ' . count($needRefresh), 'INFO');
+
+                foreach ($needRefresh as $item) {
+                    $this->refreshSubscription(
+                        $item['device'],
+                        $item['event_type'],
+                        $item['params']
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->log('检查订阅刷新失败: ' . $e->getMessage(), 'ERROR');
+        }
+    }
+
+    /**
+     * 刷新订阅
+     */
+    private function refreshSubscription(\Gb28181\GateWay\Device\Device $device, string $eventType, array $params): void
+    {
+        try {
+            $expires = 3600; // 默认续期1小时
+            
+            // 根据事件类型调用对应的订阅方法（通过Redis命令）
+            $commandType = 'subscribe_' . strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $eventType));
+            
+            $commandParams = array_merge($params, ['expires' => $expires]);
+            
+            // 通过Redis发送刷新命令
+            $this->sendCommand($device->deviceId, $commandType, $commandParams);
+            
+            $this->log("发送订阅刷新请求: {$device->deviceId} - {$eventType}", 'INFO');
+        } catch (\Throwable $e) {
+            $this->log("刷新订阅失败: {$device->deviceId} - {$eventType}: {$e->getMessage()}", 'ERROR');
+        }
+    }
+
+    /**
+     * 通过Redis发送命令
+     */
+    private function sendCommand(string $deviceId, string $action, array $params): void
+    {
+        $redis = $this->container['redis'];
+        $command = [
+            'device_id' => $deviceId,
+            'action' => $action,
+            'params' => $params,
+            'request_id' => uniqid(),
+            'timestamp' => time()
+        ];
+        
+        $redis->lPush($this->config['redis']['queue_name'] ?? 'gb28181:commands', json_encode($command));
     }
 
     /**

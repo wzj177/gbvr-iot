@@ -91,19 +91,39 @@ class MediaServerController extends BaseController
     {
         $data = $request->post();
 
+        $allowedFields = [
+            'name',           // 服务器名称
+            'type',           // 服务器类型
+            'host',           // 服务器地址
+            'port',           // 服务器端口
+            'stream_ip',      // 收流IP（用于SDP，为空则使用host）
+            'secret',         // 认证密钥
+            'http_port',      // HTTP端口
+            'https_port',     // HTTPS端口
+            'hook_alive_interval', // 心跳间隔（秒）
+            'rtp_port_range', // RTP端口范围
+            'default_server', // 是否为默认服务器
+            'status',         // 状态
+            'area_id',        // 区域ID
+            'remark',         // 备注
+        ];
+
+        // 过滤只允许创建的字段
+        $createData = array_intersect_key($data, array_flip($allowedFields));
+
         // 验证必填字段
         $required = ['name', 'type', 'host', 'port'];
         foreach ($required as $field) {
-            if (empty($data[$field])) {
+            if (empty($createData[$field])) {
                 return $this->createErrorJsonResponse("缺少必填字段: {$field}", 400);
             }
         }
 
         try {
-            return $this->createSuccessJsonResponse($this->getMediaServerService()->createMediaServer($data), '创建成功');
+            return $this->createSuccessJsonResponse($this->getMediaServerService()->createMediaServer($createData), '创建成功');
         } catch (\Exception $e) {
             Log::error('Create media server failed', [
-                'data' => $data,
+                'data' => $createData,
                 'error' => $e->getMessage(),
             ]);
 
@@ -166,8 +186,32 @@ class MediaServerController extends BaseController
     {
         $data = $request->post();
 
+        $allowedFields = [
+            'name',           // 服务器名称
+            'type',           // 服务器类型
+            'host',           // 服务器地址
+            'port',           // 服务器端口
+            'stream_ip',      // 收流IP（用于SDP，为空则使用host）
+            'secret',         // 认证密钥
+            'http_port',      // HTTP端口
+            'https_port',     // HTTPS端口
+            'hook_alive_interval', // 心跳间隔（秒）
+            'rtp_port_range', // RTP端口范围
+            'default_server', // 是否为默认服务器
+            'status',         // 状态
+            'area_id',        // 区域ID
+            'remark',         // 备注
+        ];
+
+        // 过滤只允许更新的字段
+        $updateData = array_intersect_key($data, array_flip($allowedFields));
+
+        if (empty($updateData)) {
+            return $this->createErrorJsonResponse('没有可更新的字段', 400);
+        }
+
         try {
-            $this->getMediaServerService()->updateMediaServer((int)$id, $data);
+            $this->getMediaServerService()->updateMediaServer((int)$id, $updateData);
 
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {

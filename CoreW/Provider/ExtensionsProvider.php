@@ -96,12 +96,14 @@ class ExtensionsProvider implements ServiceProviderInterface
         };
 
         $biz['zlm_sdk'] = function () {
-            return new ZLMClient([
-                'host' => config('zlm.host', '127.0.0.1'),
-                'port' => config('zlm.port', 80),
-                'secret' => config('zlm.secret', ''),
-                'debug' => config('zlm.debug', false),
-            ]);
+            return function ($params) {
+                return new ZLMClient([
+                    'host' => $params['host'],
+                    'port' => $params['port'],
+                    'secret' => $params['secret'],
+                    'debug' => $params['debug'] ?? config('app.debug'),
+                ]);
+            };
         };
     }
 }

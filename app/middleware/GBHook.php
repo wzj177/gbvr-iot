@@ -6,7 +6,7 @@ use Webman\MiddlewareInterface;
 use Webman\Http\Response;
 use Webman\Http\Request;
 
-class GBHock implements MiddlewareInterface
+class GBHook implements MiddlewareInterface
 {
     public function process(Request $request, callable $next): Response
     {

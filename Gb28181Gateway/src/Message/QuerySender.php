@@ -152,4 +152,195 @@ class QuerySender
         $xml = $this->buildControlXml('DeviceControl', $deviceId, $params);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
+
+    /**
+     * 发送目录订阅
+     */
+    public function sendSubscribeCatalog(\Gb28181\GateWay\Device\Device $device, int $expires = 3600): void
+    {
+        try {
+            $eventType = 'Catalog';
+            $deviceId = $device->deviceId;
+            
+            $this->sipServer->subscribe(
+                $deviceId,
+                $device->ip,
+                $device->port,
+                $eventType,
+                $expires
+            );
+            
+            // 记录订阅信息到设备
+            $device->addSubscription($eventType, $expires);
+            
+            $this->logger->info('发送目录订阅成功', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+                'expires' => $expires
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('发送目录订阅失败', [
+                'device_id' => $device->deviceId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * 发送报警订阅
+     */
+    public function sendSubscribeAlarm(
+        \Gb28181\GateWay\Device\Device $device,
+        int $expires = 3600,
+        int $startAlarmPriority = 0,
+        int $endAlarmPriority = 3,
+        ?string $alarmMethod = null
+    ): void {
+        try {
+            $eventType = 'Alarm';
+            $deviceId = $device->deviceId;
+            
+            $this->sipServer->subscribe(
+                $deviceId,
+                $device->ip,
+                $device->port,
+                $eventType,
+                $expires
+            );
+            
+            // 记录订阅信息到设备
+            $device->addSubscription($eventType, $expires);
+            
+            $this->logger->info('发送报警订阅成功', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+                'expires' => $expires,
+                'start_priority' => $startAlarmPriority,
+                'end_priority' => $endAlarmPriority
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('发送报警订阅失败', [
+                'device_id' => $device->deviceId,
+                'error' => $e->getMessage()
+            ]);;
+            throw $e;
+        }
+    }
+
+    /**
+     * 发送移动位置订阅
+     */
+    public function sendSubscribeMobilePosition(\Gb28181\GateWay\Device\Device $device, int $expires = 3600, int $interval = 5): void
+    {
+        try {
+            $eventType = 'MobilePosition';
+            $deviceId = $device->deviceId;
+            
+            $this->sipServer->subscribe(
+                $deviceId,
+                $device->ip,
+                $device->port,
+                $eventType,
+                $expires
+            );
+            
+            // 记录订阅信息到设备
+            $device->addSubscription($eventType, $expires, ['interval' => $interval]);
+            
+            $this->logger->info('发送移动位置订阅成功', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+                'expires' => $expires,
+                'interval' => $interval
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('发送移动位置订阅失败', [
+                'device_id' => $device->deviceId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * 取消目录订阅
+     */
+    public function sendUnsubscribeCatalog(\Gb28181\GateWay\Device\Device $device): void
+    {
+        try {
+            $eventType = 'Catalog';
+            $deviceId = $device->deviceId;
+            
+            $this->sipServer->unsubscribe($deviceId, $eventType);
+            
+            // 从设备移除订阅信息
+            $device->removeSubscription($eventType);
+            
+            $this->logger->info('取消目录订阅成功', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('取消目录订阅失败', [
+                'device_id' => $device->deviceId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * 取消报警订阅
+     */
+    public function sendUnsubscribeAlarm(\Gb28181\GateWay\Device\Device $device): void
+    {
+        try {
+            $eventType = 'Alarm';
+            $deviceId = $device->deviceId;
+            
+            $this->sipServer->unsubscribe($deviceId, $eventType);
+            
+            // 从设备移除订阅信息
+            $device->removeSubscription($eventType);
+            
+            $this->logger->info('取消报警订阅成功', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('取消报警订阅失败', [
+                'device_id' => $device->deviceId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * 取消移动位置订阅
+     */
+    public function sendUnsubscribeMobilePosition(\Gb28181\GateWay\Device\Device $device): void
+    {
+        try {
+            $eventType = 'MobilePosition';
+            $deviceId = $device->deviceId;
+            
+            $this->sipServer->unsubscribe($deviceId, $eventType);
+            
+            // 从设备移除订阅信息
+            $device->removeSubscription($eventType);
+            
+            $this->logger->info('取消移动位置订阅成功', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('取消移动位置订阅失败', [
+                'device_id' => $device->deviceId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
 }

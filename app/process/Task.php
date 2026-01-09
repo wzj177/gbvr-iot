@@ -2,6 +2,8 @@
 
 namespace app\process;
 
+use CoreW\Business\Devices\Task\Gb28181DeviceCatalogQueryTask;
+use CoreW\Business\Devices\Task\Gb28181SubscriptionTask;
 use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Core;
 use support\Log;
@@ -16,12 +18,21 @@ class Task
         // 每1个小时执行一次: 更新设备目录
         new Crontab('*/5 * * * * *', function(){
 //            echo date('Y-m-d H:i:s')."\n";
+            $task = new Gb28181DeviceCatalogQueryTask();
+            $task->execute();
+        });
+
+        // 每小时刷新一次订阅（expires - 5分钟）
+        new Crontab('0 0 * * * *', function(){
+            $task = new Gb28181SubscriptionTask();
+            $task->execute();
         });
 
         // 每30s执行一次：刷新媒体服务器状态
         new Crontab('*/30 * * * * *', function(){
             $this->refreshMediaServerStatus();
         });
+
     }
 
     /**

@@ -86,7 +86,6 @@ class Gb28181Server extends Command
             'encoding_type' => $config['encoding_type'],
             'debug' => $config['debug'],
             'redis' => $config['redis'],
-            'zlm' => $config['zlm'],
             'api_hock_url' => $config['api']['hock_url'],
             'api_pull_url' => $config['api']['pull_url'],
             'api_hock_token' => $config['api']['token'],
@@ -103,7 +102,6 @@ class Gb28181Server extends Command
         $output->writeln("Domain: {$config['server_domain']}");
         $output->writeln("Listening on: {$config['listen_addr']}:{$config['sip_port']}");
         $output->writeln("Transport: {$config['transport']}");
-        $output->writeln("ZLM Media Server IP: {$config['zlm']['media_server_ip']}");
         $output->writeln("=================================\n");
         $output->writeln("[INFO] 服务器已启动，等待设备接入...\n");
 

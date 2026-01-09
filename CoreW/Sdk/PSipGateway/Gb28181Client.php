@@ -51,7 +51,21 @@ class Gb28181Client
     }
 
     /**
+     * 更新设备信息:主要在于GateWay里面的DeviceManager
+     * @param string $deviceId
+     * @param array $data
+     * @return bool
+     */
+    public function deviceUpdate(string $deviceId, array $data)
+    {
+        return $this->sendCommand($deviceId, 'device_update', $data);
+    }
+
+
+    /**
      * 查询设备目录
+     * @param  string $deviceId
+     * @return bool
      */
     public function queryCatalog(string $deviceId): bool
     {
@@ -60,6 +74,8 @@ class Gb28181Client
 
     /**
      * 查询设备信息
+     * @param  string $deviceId
+     * @return bool
      */
     public function queryDeviceInfo(string $deviceId): bool
     {
@@ -89,7 +105,8 @@ class Gb28181Client
         string $startTime,
         string $endTime,
         string $type = 'all'
-    ): bool {
+    ): bool
+    {
         return $this->sendCommand($deviceId, 'query_record', [
             'channel_id' => $channelId,
             'start_time' => $startTime,
@@ -110,21 +127,25 @@ class Gb28181Client
      * @param int $zlmPort ZLM端口 (由ZLM分配)
      * @param int $tcpMode TCP模式 (0=UDP, 1=TCP被动, 2=TCP主动)
      * @param string|null $streamId ZLM流ID (用于标识和管理流)
+     * @param string|null $streamIp 收流IP (媒体服务器IP，用于SDP中的c=行)
      */
     public function startLiveVideo(
-        string $deviceId,
-        string $channelId,
-        string $ssrc,
-        int $zlmPort,
-        int $tcpMode = 1,
-        ?string $streamId = null
-    ): bool {
+        string  $deviceId,
+        string  $channelId,
+        string  $ssrc,
+        int     $zlmPort,
+        int     $tcpMode = 1,
+        ?string $streamId = null,
+        ?string $streamIp = null
+    ): bool
+    {
         return $this->sendCommand($deviceId, 'start_live_video', [
             'channel_id' => $channelId,
             'ssrc' => $ssrc,
             'zlm_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
-            'stream_id' => $streamId
+            'stream_id' => $streamId,
+            'stream_ip' => $streamIp
         ]);
     }
 
@@ -149,17 +170,20 @@ class Gb28181Client
      * @param int $zlmPort ZLM端口
      * @param int $tcpMode TCP模式
      * @param string|null $streamId ZLM流ID (用于标识和管理流)
+     * @param string|null $streamIp 收流IP (媒体服务器IP，用于SDP中的c=行)
      */
     public function startPlayback(
-        string $deviceId,
-        string $channelId,
-        string $startTime,
-        string $endTime,
-        string $ssrc,
-        int $zlmPort,
-        int $tcpMode = 1,
-        ?string $streamId = null
-    ): bool {
+        string  $deviceId,
+        string  $channelId,
+        string  $startTime,
+        string  $endTime,
+        string  $ssrc,
+        int     $zlmPort,
+        int     $tcpMode = 1,
+        ?string $streamId = null,
+        ?string $streamIp = null
+    ): bool
+    {
         return $this->sendCommand($deviceId, 'start_playback', [
             'channel_id' => $channelId,
             'start_time' => $startTime,
@@ -167,7 +191,8 @@ class Gb28181Client
             'ssrc' => $ssrc,
             'zlm_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
-            'stream_id' => $streamId
+            'stream_id' => $streamId,
+            'stream_ip' => $streamIp
         ]);
     }
 
@@ -193,8 +218,9 @@ class Gb28181Client
         string $deviceId,
         string $channelId,
         string $command,
-        int $speed = 5
-    ): bool {
+        int    $speed = 5
+    ): bool
+    {
         return $this->sendCommand($deviceId, 'ptz_control', [
             'channel_id' => $channelId,
             'command' => $command,
@@ -215,8 +241,9 @@ class Gb28181Client
         string $deviceId,
         string $channelId,
         string $action,
-        int $presetId
-    ): bool {
+        int    $presetId
+    ): bool
+    {
         return $this->sendCommand($deviceId, 'preset_' . $action, [
             'channel_id' => $channelId,
             'preset_id' => $presetId
@@ -276,5 +303,29 @@ class Gb28181Client
             'sn' => $sn,
             'image_format' => $imageFormat
         ];
+    }
+
+    public function subscribeCatalog(string $deviceId, int $expires = 3600): array
+    {
+    }
+
+    public function subscribeAlarm(string $deviceId, int $expires = 3600): array
+    {
+
+    }
+
+    public function subscribeMobilePosition(string $deviceId, int $expires = 3600): array
+    {
+
+    }
+
+    public function cancelSubscription(string $deviceId, string $eventType): array
+    {
+
+    }
+
+    public function getSubscriptions(string $deviceId): array
+    {
+
     }
 }

@@ -59,6 +59,7 @@ abstract class AbstractController
      *
      */
     const DEFAULT_PAGING_OFFSET = 0;
+    const DEFAULT_PAGING_PAGE = 1;
     /**
      *
      */

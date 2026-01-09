@@ -135,8 +135,8 @@ Route::group('/api', function () {
 
     Route::group('/v2', function () {
         Route::group('/gb', function () {
-            Route::post('/server/hock', [\app\api\v2\controller\GBServerHockController::class, 'index'])->middleware([
-                \app\middleware\GBHock::class
+            Route::post('/server/hook', [\app\api\v2\controller\GBServerHookController::class, 'index'])->middleware([
+                \app\middleware\GBHook::class
             ]);
             Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pullOnLineList']);
         });

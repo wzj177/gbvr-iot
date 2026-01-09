@@ -42,10 +42,7 @@ class CommandDispatcher
         $this->querySender = $querySender;
         $this->deviceManager = $deviceManager;
         $this->config = array_merge([
-            'media_server_ip' => '192.168.1.100',
-            'media_server_port_start' => 30000,
-            'media_server_port_end' => 40000,
-            'server_id' => '34020000002000000001',  // 默认平台ID
+            'server_id' => '',
             'debug' => false,
         ], $config);
         $this->logger = Logger::getInstance();
@@ -99,6 +96,13 @@ class CommandDispatcher
                 'snapshot' => $this->handleSnapshot($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'query_catalog' => $this->handleQueryCatalog($requestId, $deviceId, $deviceIp, $devicePort),
                 'query_mobile_position' => $this->handleQueryMobilePosition($requestId, $deviceId, $deviceIp, $devicePort, $params),
+                'device_update' => $this->handleDeviceUpdate($requestId, $deviceId, $params),
+                'subscribe_catalog' => $this->handleSubscribeCatalog($requestId, $deviceId, $params),
+                'subscribe_alarm' => $this->handleSubscribeAlarm($requestId, $deviceId, $params),
+                'subscribe_mobile_position' => $this->handleSubscribeMobilePosition($requestId, $deviceId, $params),
+                'unsubscribe_catalog' => $this->handleUnsubscribeCatalog($requestId, $deviceId),
+                'unsubscribe_alarm' => $this->handleUnsubscribeAlarm($requestId, $deviceId),
+                'unsubscribe_mobile_position' => $this->handleUnsubscribeMobilePosition($requestId, $deviceId),
                 default => $this->errorResponse($requestId, "Unknown action: {$action}"),
             };
         } catch (\Exception $e) {
@@ -115,7 +119,7 @@ class CommandDispatcher
     private function handleStartLiveVideo(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
     {
         $this->log("Start live video: {$channelId}");
-        
+
         // 调试:打印接收到的params
         if ($this->config['debug']) {
             $this->log("Received params: " . json_encode($params, JSON_UNESCAPED_UNICODE));
@@ -132,22 +136,28 @@ class CommandDispatcher
         if (!$zlmPort) {
             return $this->errorResponse($requestId, "Missing zlm_port from API, params must include 'zlm_port'");
         }
-        
+
         // TCP 模式
         $tcpMode = $params['tcp_mode'] ?? 0;
 
         // 可选：stream_id用于会话追踪
         $streamId = $params['stream_id'] ?? null;
 
+        //  从params获取收流IP（由gbvr-iot根据media_server表的stream_ip传入）
+        $mediaServerIp = $params['media_server_ip'] ?? null;
+        if (!$mediaServerIp) {
+            return $this->errorResponse($requestId, 'Missing media_server_ip in params');
+        }
+
         // 构建 SDP（使用传入的SSRC和端口）
         $sdp = SdpBuilder::buildLiveVideoSdp(
             serverId: $this->config['server_id'],
-            mediaIp: $this->config['media_server_ip'],
+            mediaIp: $mediaServerIp,  // 使用从params传入的收流IP
             mediaPort: $zlmPort,
             ssrc: $ssrc,
             tcpMode: $tcpMode
         );
-        
+
         // 调试:打印生成的SDP
         if ($this->config['debug']) {
             $this->log("Generated SDP:\n{$sdp}");
@@ -248,18 +258,24 @@ class CommandDispatcher
         if (!$ssrc || !$zlmPort) {
             return $this->errorResponse($requestId, "Missing ssrc or zlm_port from API");
         }
-        
+
         // TCP 模式
         $tcpMode = $params['tcp_mode'] ?? 0;
 
         $streamId = $params['stream_id'] ?? null;
+
+        //  从params获取收流IP
+        $mediaServerIp = $params['media_server_ip'] ?? null;
+        if (!$mediaServerIp) {
+            return $this->errorResponse($requestId, 'Missing media_server_ip in params');
+        }
 
         // 构建 SDP (回放使用 Playback)
         // 注意: GB28181 录像回放的时间参数通常在 INVITE 的 XML body 中传递,
         // SDP 的 t= 行仍然使用 0 0 表示永久会话
         $sdp = SdpBuilder::buildPlaybackSdp(
             serverId: $this->config['server_id'],
-            mediaIp: $this->config['media_server_ip'],
+            mediaIp: $mediaServerIp,  // 使用从params传入的收流IP
             mediaPort: $zlmPort,
             ssrc: $ssrc,
             startTime: 0,  // SDP 中通常为 0 0
@@ -445,7 +461,7 @@ class CommandDispatcher
     /**
      * 构建 PTZ 控制命令
      * GB28181 PTZ 命令格式: A5 0F 01 [指令码] [水平速度] [垂直速度] [焦距速度高4位]0 [校验码]
-     * 
+     *
      * 指令码(第4字节)位定义:
      * bit 0 (0x01): 右移
      * bit 1 (0x02): 左移
@@ -453,7 +469,7 @@ class CommandDispatcher
      * bit 3 (0x08): 上移
      * bit 4 (0x10): 放大
      * bit 5 (0x20): 缩小
-     * 
+     *
      * 参考: GB/T 28181-2016 附录F, PtzCmd.cpp
      */
     private function buildPtzCommand(array $params): string
@@ -503,11 +519,11 @@ class CommandDispatcher
         $checksum = (0xA5 + 0x0F + 0x01 + $cmdCode + $horizontalSpeed + $verticalSpeed + $byte7) % 0x100;
 
         // 构建完整命令: A5 0F 01 [指令码] [水平速度] [垂直速度] [焦距速度]0 [校验码]
-        $ptzCmd = sprintf("A50F01%02X%02X%02X%02X%02X", 
-            $cmdCode, 
-            $horizontalSpeed, 
-            $verticalSpeed, 
-            $byte7, 
+        $ptzCmd = sprintf("A50F01%02X%02X%02X%02X%02X",
+            $cmdCode,
+            $horizontalSpeed,
+            $verticalSpeed,
+            $byte7,
             $checksum
         );
 
@@ -515,17 +531,17 @@ class CommandDispatcher
     }
 
     /**     * 构建预置位命令
-     * 
+     *
      * GB28181 预置位命令:
      * - 0x81: 设置预置位
      * - 0x82: 调用预置位
      * - 0x83: 删除预置位
-     * 
+     *
      * 格式: A5 0F 01 [指令码] 00 [预置位编号] 00 [校验码]
      */
     private function buildPresetCommand(string $action, int $presetId): string
     {
-        $cmdCode = match($action) {
+        $cmdCode = match ($action) {
             'set' => 0x81,     // 设置预置位
             'call' => 0x82,    // 调用预置位
             'delete' => 0x83,  // 删除预置位
@@ -677,23 +693,6 @@ class CommandDispatcher
         ];
     }
 
-    /**     * 分配媒体端口
-     */
-    private function allocateMediaPort(): int
-    {
-        // 简化实现:随机分配
-        // 生产环境应该维护端口池
-        static $lastPort = null;
-        if ($lastPort === null) {
-            $lastPort = $this->config['media_server_port_start'];
-        }
-        $lastPort += 2;  // RTP/RTCP 成对使用
-        if ($lastPort > $this->config['media_server_port_end']) {
-            $lastPort = $this->config['media_server_port_start'];
-        }
-        return $lastPort;
-    }
-
     /**
      * 释放媒体端口
      */
@@ -718,7 +717,7 @@ class CommandDispatcher
 
     /**
      * 处理位置查询 (MobilePosition Query)
-     * 
+     *
      * @param string $requestId 请求ID
      * @param string $deviceId 设备ID
      * @param string $deviceIp 设备IP
@@ -730,9 +729,10 @@ class CommandDispatcher
         string $requestId,
         string $deviceId,
         string $deviceIp,
-        int $devicePort,
-        array $params
-    ): array {
+        int    $devicePort,
+        array  $params
+    ): array
+    {
         $this->log("Query mobile position: {$deviceId}");
 
         $interval = $params['interval'] ?? null; // 上报间隔(秒),可选
@@ -744,12 +744,12 @@ class CommandDispatcher
         $xml .= "<CmdType>MobilePosition</CmdType>\r\n";
         $xml .= "<SN>{$sn}</SN>\r\n";
         $xml .= "<DeviceID>{$deviceId}</DeviceID>\r\n";
-        
+
         // 可选: 指定上报间隔
         if ($interval !== null) {
             $xml .= "<Interval>{$interval}</Interval>\r\n";
         }
-        
+
         $xml .= "</Query>";
 
         $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
@@ -772,13 +772,28 @@ class CommandDispatcher
         return $this->errorResponse($requestId, 'Failed to send mobile position query');
     }
 
+
+    public function handleDeviceUpdate(string $requestId, string $deviceId, array $params)
+    {
+        $str = json_encode($params, JSON_UNESCAPED_UNICODE);
+        $this->log("[$requestId] Update device info: {$deviceId} - {$str}");
+
+        $this->deviceManager->updateDeviceInfo($deviceId, $params);
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'message' => 'Device info updated'
+        ];
+    }
+
     /**
      * 日志输出
      */
     private function log(string $message, string $level = 'INFO'): void
     {
         $time = date('Y-m-d H:i:s');
-        echo "[{$time}] [{$level}] [CommandDispatcher] {$message}\n";
+        $this->logger->log("[{$time}]  [CommandDispatcher] {$message}\n", $level);
     }
 
     /**
@@ -802,6 +817,173 @@ class CommandDispatcher
                 $this->releaseMediaPort($session['media_port']);
                 unset($this->activeSessions[$key]);
             }
+        }
+    }
+
+    /**
+     * 处理目录订阅
+     */
+    private function handleSubscribeCatalog(string $requestId, string $deviceId, array $params): array
+    {
+        $this->log("Subscribe catalog: {$deviceId}");
+        
+        $device = $this->deviceManager->getDevice($deviceId);
+        if (!$device) {
+            return $this->errorResponse($requestId, "Device not found: {$deviceId}");
+        }
+
+        $expires = $params['expires'] ?? 3600; // 默认1小时
+        
+        try {
+            $this->querySender->sendSubscribeCatalog($device, $expires);
+            
+            return $this->successResponse($requestId, [
+                'device_id' => $deviceId,
+                'event_type' => 'Catalog',
+                'expires' => $expires
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($requestId, "Subscribe catalog failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * 处理报警订阅
+     */
+    private function handleSubscribeAlarm(string $requestId, string $deviceId, array $params): array
+    {
+        $this->log("Subscribe alarm: {$deviceId}");
+        
+        $device = $this->deviceManager->getDevice($deviceId);
+        if (!$device) {
+            return $this->errorResponse($requestId, "Device not found: {$deviceId}");
+        }
+
+        $expires = $params['expires'] ?? 3600; // 默认1小时
+        $startAlarmPriority = $params['start_priority'] ?? 0;
+        $endAlarmPriority = $params['end_priority'] ?? 3;
+        $alarmMethod = $params['alarm_method'] ?? null;
+        
+        try {
+            $this->querySender->sendSubscribeAlarm(
+                $device,
+                $expires,
+                $startAlarmPriority,
+                $endAlarmPriority,
+                $alarmMethod
+            );
+            
+            return $this->successResponse($requestId, [
+                'device_id' => $deviceId,
+                'event_type' => 'Alarm',
+                'expires' => $expires
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($requestId, "Subscribe alarm failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * 处理移动位置订阅
+     */
+    private function handleSubscribeMobilePosition(string $requestId, string $deviceId, array $params): array
+    {
+        $this->log("Subscribe mobile position: {$deviceId}");
+        
+        $device = $this->deviceManager->getDevice($deviceId);
+        if (!$device) {
+            return $this->errorResponse($requestId, "Device not found: {$deviceId}");
+        }
+
+        $expires = $params['expires'] ?? 3600; // 默认1小时
+        $interval = $params['interval'] ?? 5; // 上报间隔，默认5秒
+        
+        try {
+            $this->querySender->sendSubscribeMobilePosition($device, $expires, $interval);
+            
+            return $this->successResponse($requestId, [
+                'device_id' => $deviceId,
+                'event_type' => 'MobilePosition',
+                'expires' => $expires,
+                'interval' => $interval
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($requestId, "Subscribe mobile position failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * 处理取消目录订阅
+     */
+    private function handleUnsubscribeCatalog(string $requestId, string $deviceId): array
+    {
+        $this->log("Unsubscribe catalog: {$deviceId}");
+        
+        $device = $this->deviceManager->getDevice($deviceId);
+        if (!$device) {
+            return $this->errorResponse($requestId, "Device not found: {$deviceId}");
+        }
+        
+        try {
+            $this->querySender->sendUnsubscribeCatalog($device);
+            
+            return $this->successResponse($requestId, [
+                'device_id' => $deviceId,
+                'event_type' => 'Catalog',
+                'action' => 'unsubscribed'
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($requestId, "Unsubscribe catalog failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * 处理取消报警订阅
+     */
+    private function handleUnsubscribeAlarm(string $requestId, string $deviceId): array
+    {
+        $this->log("Unsubscribe alarm: {$deviceId}");
+        
+        $device = $this->deviceManager->getDevice($deviceId);
+        if (!$device) {
+            return $this->errorResponse($requestId, "Device not found: {$deviceId}");
+        }
+        
+        try {
+            $this->querySender->sendUnsubscribeAlarm($device);
+            
+            return $this->successResponse($requestId, [
+                'device_id' => $deviceId,
+                'event_type' => 'Alarm',
+                'action' => 'unsubscribed'
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($requestId, "Unsubscribe alarm failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * 处理取消移动位置订阅
+     */
+    private function handleUnsubscribeMobilePosition(string $requestId, string $deviceId): array
+    {
+        $this->log("Unsubscribe mobile position: {$deviceId}");
+        
+        $device = $this->deviceManager->getDevice($deviceId);
+        if (!$device) {
+            return $this->errorResponse($requestId, "Device not found: {$deviceId}");
+        }
+        
+        try {
+            $this->querySender->sendUnsubscribeMobilePosition($device);
+            
+            return $this->successResponse($requestId, [
+                'device_id' => $deviceId,
+                'event_type' => 'MobilePosition',
+                'action' => 'unsubscribed'
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($requestId, "Unsubscribe mobile position failed: {$e->getMessage()}");
         }
     }
 }

@@ -156,10 +156,10 @@ class GB28181Handler
             $sipServer,
             $this->querySender,
             $this->deviceManager,
-            array_merge([
+            [
                 'debug' => $this->config['debug'] ?? false,
                 'server_id' => $this->config['server_id'],
-            ], $config['zlm'])
+            ]
         );
 
         $this->log("GB28181 协议处理器已初始化");
@@ -241,7 +241,7 @@ class GB28181Handler
         $server->startLongTask(function () use ($server, $config) {
             $this->log("[LongTask] Redis Subscriber started (PID: " . getmypid() . ")");
 
-            // 使用封装的 RedisSubscriber 类
+            // 使用封装的 RedisSubscriber 类 - 主要对接的是api和网关的通信
             $subscriber = new RedisSubscriber(
                 $config['redis'],
                 $config['debug'] ?? false
@@ -251,8 +251,17 @@ class GB28181Handler
         });
     }
 
-    public function handleOnPipeMessage(array $message): void
+    /**
+     * 接收Task的推送
+     * @param array|null $message
+     * @return void
+     */
+    public function handleOnPipeMessage(?array $message): void
     {
+        if (!$message) {
+            $this->log("Invalid message format", 'ERROR');
+            return;
+        }
         $this->log("Received pipe message", 'DEBUG');
 
         if (!isset($message['action'])) {
@@ -563,6 +572,13 @@ class GB28181Handler
         $fromUri = $event->getFromUri();
         $deviceId = $this->extractDeviceId($fromUri);
 
+        $device = $this->deviceManager->getDeviceObject($deviceId);
+        if (!$device) {
+            $this->log("设备未注册: {$deviceId}", 'WARNING');
+            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            return;
+        }
+
         // 检查 body 是否为空
         if (empty($body)) {
             $this->log("收到空消息体，忽略", 'WARNING');
@@ -573,7 +589,7 @@ class GB28181Handler
         // GB28181 编码兼容处理
         // 问题：设备声明 UTF-8 但实际发送 GB2312/GBK 编码
         // 解决：检测实际编码并转换为 UTF-8
-        $body = $this->normalizeXmlEncoding($body);
+        $body = $this->normalizeXmlEncoding($body, $device->charset);
 
         // 解析XML
         $xml = @simplexml_load_string($body);
@@ -776,6 +792,12 @@ class GB28181Handler
         $eventType = $event->getHeader('Event') ?? '';
         $subscriptionState = $event->getHeader('Subscription-State') ?? '';
         $body = $event->getBody();
+        $device = $this->deviceManager->getDeviceObject($deviceId);
+        if (!$device) {
+            $this->log("设备未注册: {$deviceId}", 'WARNING');
+            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            return;
+        }
 
         $this->log("通知消息: {$deviceId}, Event: {$eventType}, State: {$subscriptionState}", 'DEBUG');
 
@@ -793,7 +815,7 @@ class GB28181Handler
         // 处理 XML 命令通知（CmdType）
         if ($body) {
             // 规范化编码
-            $body = $this->normalizeXmlEncoding($body);
+            $body = $this->normalizeXmlEncoding($body, $device->charset);
 
             // 解析 XML
             $xml = @simplexml_load_string($body);
@@ -892,6 +914,12 @@ class GB28181Handler
      */
     private function handleMobilePositionSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body): void
     {
+        $device = $this->deviceManager->getDeviceObject($deviceId);
+        if (!$device) {
+            $this->log("设备未注册: {$deviceId}", 'WARNING');
+            return;
+        }
+
         $callId = $event->getCallId();
         $minExpires = $this->config['mobile_position_min_expires'] ?? 60; // 最小订阅时间（秒）
         $maxExpires = $this->config['mobile_position_max_expires'] ?? 3600; // 最大订阅时间（秒）
@@ -937,7 +965,7 @@ class GB28181Handler
         // 解析订阅参数（如果有 XML Body）
         $interval = null; // 位置上报间隔
         if (!empty($body)) {
-            $body = $this->normalizeXmlEncoding($body);
+            $body = $this->normalizeXmlEncoding($body, $device->charset);
             $xml = @simplexml_load_string($body);
             if ($xml) {
                 $interval = isset($xml->Interval) ? (int)$xml->Interval : null;
@@ -993,7 +1021,11 @@ class GB28181Handler
     private function handleMobilePositionNotify(\SipEvent $event, string $deviceId, string $subscriptionState, string $body): void
     {
         $this->log("位置通知: {$deviceId}, State: {$subscriptionState}");
-
+        $device = $this->deviceManager->getDeviceObject($deviceId);
+        if (!$device) {
+            $this->log("设备未注册: {$deviceId}", 'WARNING');
+            return;
+        }
         // 检查订阅状态
         $isTerminated = stripos($subscriptionState, 'terminated') !== false;
 
@@ -1009,7 +1041,7 @@ class GB28181Handler
             return;
         }
 
-        $body = $this->normalizeXmlEncoding($body);
+        $body = $this->normalizeXmlEncoding($body, $device->charset);
         $xml = @simplexml_load_string($body);
 
         if (!$xml) {
@@ -1221,6 +1253,12 @@ class GB28181Handler
         // 更新 DeviceManager 中的通道列表
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if ($device) {
+            // 根据device->filterChannelTypes 过滤通道
+            $items = array_filter($items, function ($item) use ($device) {
+                $channelId = $item['DeviceID'] ?? 'unknown';
+                $typeCode = (int)substr($channelId, 10, 3);
+                return in_array($typeCode, $device->filterChannelTypes);
+            });
             $device->setChannels($items);
             $this->log("已更新设备 {$deviceId} 的通道列表到内存", 'DEBUG');
         }
@@ -1574,13 +1612,18 @@ class GB28181Handler
      * 3. 修正XML声明
      *
      * @param string $xml 原始XML字符串
+     * @param string $deviceSpecifiedCharset 设备指定的编码
      * @return string 规范化后的UTF-8 XML
      */
-    private function normalizeXmlEncoding(string $xml): string
+    private function normalizeXmlEncoding(string $xml, string $deviceSpecifiedCharset = 'auto'): string
     {
         // 检测是否包含乱码（UTF-8环境下显示为 � 或 \xXX）
         // 或者直接检测编码
-        $detectedEncoding = mb_detect_encoding($xml, ['UTF-8', 'GB2312', 'GBK', 'GB18030'], true);
+        if ($deviceSpecifiedCharset !== 'auto') {
+            $detectedEncoding = mb_detect_encoding($xml, ['UTF-8', 'GB2312', 'GBK', 'GB18030'], true);
+        } else {
+            $detectedEncoding = strtoupper($deviceSpecifiedCharset);
+        }
 
         if ($detectedEncoding && $detectedEncoding !== 'UTF-8') {
             if ($this->config['debug']) {

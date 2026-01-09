@@ -7,13 +7,14 @@ use Exception;
 
 /**
  * 表示一个连接到服务器的 GB28181 设备
- * 
+ *
  * 扩展字段说明：
- * - 媒体配置：mediaHost
  * - 传输模式：rtpTransMode
  * - 订阅配置：subscribeCatalog, subscribeAlarm, subscribePosition, subscribePtz
  * - 字符集/码流：charset, streamIndex
  * - 通道过滤：filterChannelTypes
+ *
+ * 注意：收流IP由通道绑定的流媒体服务器决定，不在设备级别配置
  */
 class Device
 {
@@ -28,7 +29,7 @@ class Device
     // 注册状态
     public bool $registered = false;
     public int $registerTime = 0;
-    public int $registeredAt = 0;
+    public ?string $registeredAt = null;
     public int $expires = 3600;
 
     // 心跳状态
@@ -47,9 +48,6 @@ class Device
 
     // ==================== 扩展配置字段 ====================
 
-    // 媒体服务器配置
-    public string $mediaHost = '';        // 收流IP（媒体服务器地址）
-
     // 流传输模式: 0=UDP, 1=TCP被动(设备连平台), 2=TCP主动(平台连设备)
     public int $rtpTransMode = 0;
 
@@ -66,7 +64,8 @@ class Device
     public int $lastCatalogAt = 0;           // 上次目录查询时间
 
     // 字符集和码流
-    public string $charset = 'gb2312';       // 设备XML字符集: gb2312/utf8
+    public string $charset = 'auto';       // 设备XML字符集: gb2312/utf8/auto
+
     public string $streamIndex = 'auto';     // 码流索引: auto/0/1
 
     // 通道过滤
@@ -90,7 +89,7 @@ class Device
         $this->received_ip = $data['received_ip'] ?? null;
         $this->received_port = $data['received_port'] ?? null;
         $this->port = $data['port'] ?? 0;
-        $this->registeredAt = $data['registered_at'] ?? 0;
+        $this->registeredAt = $data['registered_at'] ?? null;
         $this->expires = $data['expires'] ?? 3600;
 
         if (isset($data['info'])) {
@@ -106,9 +105,6 @@ class Device
      */
     private function loadExtendedConfig(array $data): void
     {
-        // 媒体配置
-        $this->mediaHost = $data['media_host'] ?? '';
-
         // 传输模式
         $this->rtpTransMode = (int)($data['rtp_trans_mode'] ?? 0);
 
@@ -125,7 +121,7 @@ class Device
         $this->lastCatalogAt = (int)($data['last_catalog_at'] ?? 0);
 
         // 字符集和码流
-        $this->charset = $data['charset'] ?? 'gb2312';
+        $this->charset = $data['charset'] ?? 'auto';
         $this->streamIndex = $data['stream_index'] ?? 'auto';
 
         // 通道过滤（支持 JSON 字符串或数组）
@@ -242,7 +238,6 @@ class Device
             'info' => $this->info,
             'channels' => $this->channels,
             // 扩展配置字段
-            'media_host' => $this->mediaHost,
             'rtp_trans_mode' => $this->rtpTransMode,
             'subscribe_catalog' => $this->subscribeCatalog,
             'subscribe_alarm' => $this->subscribeAlarm,
@@ -263,7 +258,7 @@ class Device
 
     /**
      * 获取需要订阅的事件类型列表
-     * 
+     *
      * @return array 事件类型列表，如 ['Catalog', 'Alarm', 'presence']
      */
     public function getSubscribeEvents(): array
@@ -278,7 +273,7 @@ class Device
 
     /**
      * 检查是否需要刷新目录
-     * 
+     *
      * @return bool 是否需要查询目录
      */
     public function needsCatalogRefresh(): bool
@@ -300,14 +295,11 @@ class Device
 
     /**
      * 更新扩展配置
-     * 
+     *
      * @param array $config 配置数据
      */
     public function updateConfig(array $config): void
     {
-        // 媒体配置
-        if (isset($config['media_host'])) $this->mediaHost = $config['media_host'];
-
         // 传输模式
         if (isset($config['rtp_trans_mode'])) $this->rtpTransMode = (int)$config['rtp_trans_mode'];
 
@@ -346,5 +338,56 @@ class Device
     public function isOnline(): bool
     {
         return $this->registered && $this->status === 'online';
+    }
+
+    /**
+     * 添加订阅
+     */
+    public function addSubscription(string $eventType, int $expires, array $params = []): void
+    {
+        $this->subscriptions[$eventType] = [
+            'event_type' => $eventType,
+            'expires' => $expires,
+            'expires_at' => time() + $expires,
+            'created_at' => time(),
+            'params' => $params
+        ];
+    }
+
+    /**
+     * 移除订阅
+     */
+    public function removeSubscription(string $eventType): void
+    {
+        unset($this->subscriptions[$eventType]);
+    }
+
+    /**
+     * 获取所有订阅
+     */
+    public function getSubscriptions(): array
+    {
+        return $this->subscriptions;
+    }
+
+    /**
+     * 检查是否有某个订阅
+     */
+    public function hasSubscription(string $eventType): bool
+    {
+        return isset($this->subscriptions[$eventType]);
+    }
+
+    /**
+     * 清除过期的订阅
+     */
+    public function cleanExpiredSubscriptions(): void
+    {
+        $now = time();
+        foreach ($this->subscriptions as $eventType => $subscription) {
+            if (($subscription['expires_at'] ?? 0) < $now) {
+                unset($this->subscriptions[$eventType]);
+            }
+        }
     }
 }

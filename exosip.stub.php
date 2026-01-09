@@ -550,6 +550,186 @@ class ExoSip {
      */
     public function sendResponse(int $tid, int $code, ?string $reason = null, ?array $headers = null): bool {}
     
+    /* ========== SUBSCRIBE/NOTIFY Methods (GB28181订阅功能) ========== */
+    
+    /**
+     * Send SIP SUBSCRIBE request (GB28181 event subscription)
+     * 
+     * Subscribe to device events such as:
+     * - Catalog: Device directory changes (add/remove/update)
+     * - Alarm: Alarm event notifications
+     * - MobilePosition: GPS position updates
+     * 
+     * @param string $toUri Target device SIP URI (e.g., "sip:34020000001320000001@192.168.1.100:5060")
+     * @param string $eventType Event type to subscribe:
+     *   - "Catalog": Subscribe to device catalog changes
+     *   - "Alarm": Subscribe to alarm notifications
+     *   - "MobilePosition": Subscribe to GPS position updates
+     * @param int $expires Subscription duration in seconds (default: 3600)
+     * @param string|null $xmlBody Optional GB28181 XML body for query parameters
+     * @return int|false Subscription ID on success (>0), false on failure
+     * 
+     * @example
+     * ```php
+     * // Subscribe to Catalog changes (目录订阅)
+     * $subId = $sip->subscribe(
+     *     "sip:34020000001320000001@192.168.1.100:5060",
+     *     "Catalog",
+     *     3600  // 1 hour
+     * );
+     * if ($subId !== false) {
+     *     echo "Subscribed to Catalog, ID: {$subId}\n";
+     * }
+     * ```
+     * 
+     * @example
+     * ```php
+     * // Subscribe to Alarm notifications (报警订阅)
+     * $xmlBody = '<?xml version="1.0"?>
+     * <Query>
+     *   <CmdType>Alarm</CmdType>
+     *   <SN>1</SN>
+     *   <DeviceID>34020000001320000001</DeviceID>
+     *   <StartAlarmPriority>1</StartAlarmPriority>
+     *   <EndAlarmPriority>4</EndAlarmPriority>
+     * </Query>';
+     * 
+     * $subId = $sip->subscribe(
+     *     $deviceUri,
+     *     "Alarm",
+     *     7200,  // 2 hours
+     *     $xmlBody
+     * );
+     * ```
+     * 
+     * @example
+     * ```php
+     * // Subscribe to MobilePosition (移动位置订阅)
+     * $xmlBody = '<?xml version="1.0"?>
+     * <Query>
+     *   <CmdType>MobilePosition</CmdType>
+     *   <SN>1</SN>
+     *   <DeviceID>34020000001320000001</DeviceID>
+     *   <Interval>5</Interval>
+     * </Query>';
+     * 
+     * $subId = $sip->subscribe($deviceUri, "MobilePosition", 3600, $xmlBody);
+     * ```
+     * 
+     * @see refreshSubscribe() To extend subscription before expiry
+     * @see cancelSubscribe() To terminate subscription
+     * @see getSubscriptions() To list all active subscriptions
+     */
+    public function subscribe(string $toUri, string $eventType, int $expires = 3600, ?string $xmlBody = null): int|false {}
+    
+    /**
+     * Refresh/extend an existing subscription (GB28181)
+     * 
+     * Sends SUBSCRIBE with same dialog to extend expiration time.
+     * Should be called before subscription expires (typically at 80% of duration).
+     * 
+     * @param int $subscriptionId Subscription ID from subscribe() return value
+     * @param int $expires New subscription duration in seconds (default: 3600)
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // Auto-refresh subscription before expiry
+     * $sip->onTimer = function() use ($sip, &$activeSubscriptions) {
+     *     foreach ($activeSubscriptions as $deviceId => $subInfo) {
+     *         $remaining = $subInfo['expires_at'] - time();
+     *         // Refresh when 20% time remaining
+     *         if ($remaining < $subInfo['duration'] * 0.2) {
+     *             $result = $sip->refreshSubscribe($subInfo['subscription_id'], 3600);
+     *             if ($result) {
+     *                 $subInfo['expires_at'] = time() + 3600;
+     *                 echo "Refreshed subscription for {$deviceId}\n";
+     *             }
+     *         }
+     *     }
+     * };
+     * ```
+     * 
+     * @see subscribe() To create initial subscription
+     */
+    public function refreshSubscribe(int $subscriptionId, int $expires = 3600): bool {}
+    
+    /**
+     * Cancel/terminate an active subscription (GB28181)
+     * 
+     * Sends SUBSCRIBE with Expires: 0 to terminate subscription.
+     * The device will stop sending NOTIFY messages for this subscription.
+     * 
+     * @param int $subscriptionId Subscription ID from subscribe() return value
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // Cancel subscription when device goes offline
+     * $sip->onRegister = function($event) use ($sip, &$subscriptions) {
+     *     $expires = $event->getExpires();
+     *     if ($expires === 0) {
+     *         // Device unregistering
+     *         $deviceId = extractDeviceId($event->getFromUri());
+     *         if (isset($subscriptions[$deviceId])) {
+     *             $sip->cancelSubscribe($subscriptions[$deviceId]);
+     *             unset($subscriptions[$deviceId]);
+     *             echo "Cancelled subscription for {$deviceId}\n";
+     *         }
+     *     }
+     * };
+     * ```
+     * 
+     * @see subscribe() To create subscription
+     */
+    public function cancelSubscribe(int $subscriptionId): bool {}
+    
+    /**
+     * Send response to incoming NOTIFY request (GB28181)
+     * 
+     * When device sends NOTIFY (catalog change, alarm, position update),
+     * server MUST respond with 200 OK to acknowledge receipt.
+     * 
+     * @param int $tid Transaction ID from the NOTIFY event
+     * @param int $code SIP response code (typically 200 for success)
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // Handle incoming NOTIFY
+     * $sip->onNotify = function($event) use ($sip, $deviceManager) {
+     *     $body = $event->getBody();
+     *     $eventType = $event->getEventType();  // Catalog, Alarm, MobilePosition
+     *     
+     *     switch ($eventType) {
+     *         case 'Catalog':
+     *             // Parse catalog change XML
+     *             $catalog = parseCatalogNotify($body);
+     *             $deviceManager->updateCatalog($catalog);
+     *             break;
+     *             
+     *         case 'Alarm':
+     *             // Parse alarm notification
+     *             $alarm = parseAlarmNotify($body);
+     *             $deviceManager->handleAlarm($alarm);
+     *             break;
+     *             
+     *         case 'MobilePosition':
+     *             // Parse GPS position
+     *             $position = parsePositionNotify($body);
+     *             $deviceManager->updatePosition($position);
+     *             break;
+     *     }
+     *     
+     *     // IMPORTANT: Always respond to NOTIFY
+     *     $sip->sendNotifyResponse($event->getTid(), 200);
+     * };
+     * ```
+     * 
+     * @see subscribe() To create subscription that triggers NOTIFY
+     */
+    public function sendNotifyResponse(int $tid, int $code): bool {}
+    
     /**
      * Get socket file descriptor for external event loops
      * 

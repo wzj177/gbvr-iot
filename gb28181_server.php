@@ -42,7 +42,6 @@ $gb28181 = new GB28181Handler($sipServer, [
     'encoding_type' => $config['encoding_type'],
     'debug' => $config['debug'],
     'redis' => $config['redis'],
-    'zlm' => $config['zlm'],
     'api_hock_url' => $config['api']['hock_url'],
     'api_pull_url' => $config['api']['pull_url'],
     'api_hock_token' => $config['api']['token'],
@@ -58,7 +57,6 @@ echo "Server ID: {$config['server_id']}\n";
 echo "Domain: {$config['server_domain']}\n";
 echo "Listening on: {$config['listen_addr']}:{$config['sip_port']}\n";
 echo "Transport: {$config['transport']}\n";
-echo "ZLM Media Server IP: {$config['zlm']['media_server_ip']}\n";
 echo "=================================\n\n";
 
 echo "[INFO] 服务器已启动，等待设备接入...\n\n";

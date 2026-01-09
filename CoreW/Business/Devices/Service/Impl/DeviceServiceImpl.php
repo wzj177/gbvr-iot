@@ -67,7 +67,17 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function updateDevice($id, array $fields)
     {
         $fields['updated_at'] = date('Y-m-d H:i:s');
-        return $this->getDeviceDao()->update($id, $fields);
+        $resp = $this->getDeviceDao()->update($id, $fields);
+        if ($resp) {
+            $this->syncDeviceConfig($this->getDevicesById($id));
+        }
+
+        return $resp;
+    }
+
+    public function syncDeviceConfig(array $device): bool
+    {
+        $this->getGb28181Service()->updateDevice($device);
     }
 
     public function deleteDeviceById($id)

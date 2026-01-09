@@ -3,6 +3,8 @@
 namespace CoreW\Business\GB;
 
 use CoreW\Bfw;
+use CoreW\Business\Devices\Enums\MediaServerType;
+use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Exception\ZlmException;
 use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
@@ -20,10 +22,11 @@ class Gb28181Service
         string $ssrc,
         int $zlmPort,
         int $tcpMode = 1,
-        ?string $streamId = null
+        ?string $streamId = null,
+        ?string $streamIp = null
     ): bool {
-        $this->checkZlmState();
-        return $this->getGb28181Client()->startLiveVideo($deviceId, $channelId, $ssrc, $zlmPort, $tcpMode, $streamId);
+        $this->checkZlmState($streamId);
+        return $this->getGb28181Client()->startLiveVideo($deviceId, $channelId, $ssrc, $zlmPort, $tcpMode, $streamId, $streamIp);
     }
 
     public function stopLiveVideo(string $deviceId, string $channelId): bool
@@ -39,10 +42,11 @@ class Gb28181Service
         string $ssrc,
         int $zlmPort,
         int $tcpMode = 1,
-        ?string $streamId = null
+        ?string $streamId = null,
+        ?string $streamIp = null
     ): bool {
         $this->checkZlmState();
-        return $this->getGb28181Client()->startPlayback($deviceId, $channelId, $startTime, $endTime, $ssrc, $zlmPort, $tcpMode, $streamId);
+        return $this->getGb28181Client()->startPlayback($deviceId, $channelId, $startTime, $endTime, $ssrc, $zlmPort, $tcpMode, $streamId, $streamIp);
     }
 
     public function stopPlayback(string $deviceId, string $channelId): bool
@@ -325,12 +329,15 @@ class Gb28181Service
      * 打开RTP服务器，分配端口时排除冷却中的端口
      *
      * @param string $streamId 流ID
+     * @param string $serverId 媒体服务器ID
      * @param int $tcpMode TCP模式
      * @return array ZLM返回的结果
      */
-    public function openRtpServer(string $streamId, int $tcpMode = 1): array
+    public function openRtpServer(string $streamId, string $serverId, int $tcpMode = 1): array
     {
-        $this->checkZlmState();
+        $this->checkZlmState($serverId);
+        
+        $zlmClient = $this->getZlmClientByServerId($serverId);
         
         // 获取冷却中的端口
         $coolingPorts = $this->getDeviceService()->getCoolingPorts();
@@ -342,7 +349,7 @@ class Gb28181Service
         
         while ($attempts < $maxAttempts) {
             // 调用ZLM打开RTP服务器
-            $result = $this->getZlmClient()->openRtpServer($streamId, 0, $tcpMode);
+            $result = $zlmClient->openRtpServer($streamId, 0, $tcpMode);
             
             // 如果成功且端口不在排除列表中，则返回结果
             if ($result && $result['code'] === 0 && !in_array($result['port'], $excludePorts)) {
@@ -351,7 +358,7 @@ class Gb28181Service
             
             // 如果端口在排除列表中，关闭它并尝试下一个
             if ($result && $result['code'] === 0 && in_array($result['port'], $excludePorts)) {
-                $this->getZlmClient()->closeRtpServer($streamId);
+                $zlmClient->closeRtpServer($streamId);
             }
             
             $attempts++;
@@ -377,7 +384,7 @@ class Gb28181Service
     {
         // 关闭RTP服务器时同时释放端口
         $this->releaseRtpPort($streamId);
-        return $this->getZlmClient()->closeRtpServer($streamId);
+        return $this->getZlmClientByStreamId($streamId)->closeRtpServer($streamId);
     }
 
     /**
@@ -408,17 +415,17 @@ class Gb28181Service
 
     public function closeStream(string $schema, string $streamId): bool
     {
-        return $this->getZlmClient()->closeStream($schema, $streamId);
+        return $this->getZlmClientByStreamId($streamId)->closeStream($schema, $streamId);
     }
 
     public function updateRtpServerSsrc(string $streamId, string $ssrc): array
     {
-        return $this->getZlmClient()->updateRtpServerSsrc($streamId, $ssrc);
+        return $this->getZlmClientByStreamId($streamId)->updateRtpServerSsrc($streamId, $ssrc);
     }
 
     public function getPlayUrls(string $schema, string $streamId, ?string $accessUrl = null): array
     {
-        return $this->getZlmClient()->getPlayUrls($streamId, $schema, $accessUrl);
+        return $this->getZlmClientByStreamId($streamId)->getPlayUrls($streamId, $schema, $accessUrl);
     }
 
     /**
@@ -457,10 +464,11 @@ class Gb28181Service
      */
     public function queryChannelMediaInfo(string $streamId, string $schema = 'rtmp'): ?array
     {
-        $this->checkZlmState();
+        // 通过 streamId 获取 ZLM 客户端
+        $zlmClient = $this->getZlmClientByStreamId($streamId);
         
         // 调用 ZLM getMediaInfo 接口
-        $mediaInfo = $this->getZlmClient()->getMediaInfo($schema, $streamId);
+        $mediaInfo = $zlmClient->getMediaInfo($schema, $streamId);
         
         if (!$mediaInfo || $mediaInfo['code'] !== 0 || !isset($mediaInfo['online']) || !$mediaInfo['online']) {
             return null;
@@ -581,9 +589,26 @@ class Gb28181Service
         return [$ssrcId, $streamId];
     }
 
-    protected function checkZlmState(): void
+    /**
+     * 更新设备信息
+     *
+     * @param array $device
+     * @return bool
+     */
+    public function updateDevice(array $device)
     {
-        if ($this->getZlmClient()->getVersion() === null) {
+        return $this->getGb28181Client()->deviceUpdate($device['device_id'], $device);
+    }
+
+    /**
+     * 检查 ZLM 状态
+     *
+     * @param string $serverId 媒体服务器ID
+     * @throws ZlmException
+     */
+    protected function checkZlmState(string $serverId): void
+    {
+        if ($this->getZlmClientByServerId($serverId)->getVersion() === null) {
             throw new ZlmException('ZLM未启动');
         }
     }
@@ -599,6 +624,16 @@ class Gb28181Service
     }
 
     /**
+     * 获取媒体服务
+     *
+     * @return MediaServerService
+     */
+    protected function getMediaService(): MediaServerService
+    {
+        return $this->bfw->service('MediaServer:MediaServerService');
+    }
+
+    /**
      * @return Gb28181Client
      */
     private function getGb28181Client(): Gb28181Client
@@ -609,8 +644,35 @@ class Gb28181Service
     /**
      * @return ZLMClient
      */
-    private function getZlmClient(): ZLMClient
+    private function getZlmClient(array $config): ZLMClient
     {
-        return $this->bfw['zlm_sdk'];
+        return $this->bfw['zlm_sdk']($config);
+    }
+
+    protected function getZlmClientByServerId(string $serverId): ZLMClient
+    {
+        $mediaServer = $this->getMediaService()->getMediaServerById($serverId);
+        if (!$mediaServer || $mediaServer['type'] !== MediaServerType::ZLM->value) {
+            throw new ZlmException('未找到对应的ZLM');
+        }
+
+        return $this->getZlmClient($mediaServer);
+    }
+
+    /**
+     * 通过 StreamId 获取 ZLMClient
+     * 从会话中查找 media_server_id
+     *
+     * @param string $streamId
+     * @return ZLMClient
+     * @throws ZlmException
+     */
+    protected function getZlmClientByStreamId(string $streamId): ZLMClient
+    {
+        $session = $this->getDeviceService()->getSessionByStreamId($streamId);
+        if (!$session || empty($session['media_server_id'])) {
+            throw new ZlmException('未找到对应的流媒体服务器');
+        }
+        return $this->getZlmClientByServerId($session['media_server_id']);
     }
 }

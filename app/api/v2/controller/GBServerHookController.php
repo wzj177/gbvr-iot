@@ -22,7 +22,7 @@ use support\Request;
  * - device_status: 设备状态变化
  * - alarm: 报警信息
  */
-class GBServerHockController extends BaseController
+class GBServerHookController extends BaseController
 {
 
     public function index(Request $request): \support\Response
@@ -49,6 +49,9 @@ class GBServerHockController extends BaseController
                 'session_bye' => $this->handleSessionBye($body),
                 'device_status' => $this->handleDeviceStatus($body),
                 'alarm' => $this->handleAlarm($body),
+                'catalog_update' => Log::channel('sip')->warning('目录变更通知', ['scene' => $scene]), // 目录变更通知
+                'alarm_event' => Log::channel('sip')->warning('报警事件通知', ['scene' => $scene]), // 报警事件通知
+                'position_update' => Log::channel('sip')->warning('位置更新通知', ['scene' => $scene]), // 位置更新通知
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
 

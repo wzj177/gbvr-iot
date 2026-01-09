@@ -253,13 +253,11 @@ return [
      *   'media_server_ip' => '192.168.31.119',  // 同机器部署
      *   'media_server_ip' => '192.168.1.200',  // ZLM在另一台机器
      */
-    'zlm' => [
-        'media_server_ip' => env('ZLM_SERVER_IP', '127.0.0.1'),  // ← 设备会向这个IP推流!
-        'media_server_port_start' => 30000,
-        'media_server_port_end' => 40000,
-    ],
+//    'zlm' => [
+//        'media_server_ip' => env('ZLM_SERVER_IP', '127.0.0.1'),  // ← 设备会向这个IP推流!
+//    ],
     'api' => [
-        'hock_url' => 'http://127.0.0.1:8886/api/v2/gb/server/hock',
+        'hock_url' => 'http://127.0.0.1:8886/api/v2/gb/server/hook',
         'pull_url' => 'http://127.0.0.1:8886/api/v2/gb/devices/pull',
         'token' => '$2y$10$DfjYrMs2Vvl2t3xw65LQXO3dZbs085qr7XJMzAnhSQixKnPejzgTm'
     ]

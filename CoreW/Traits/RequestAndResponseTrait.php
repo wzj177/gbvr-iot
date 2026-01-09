@@ -52,22 +52,27 @@ trait RequestAndResponseTrait
     }
 
     /**
+     * 获取分页参数
      * @param Request $request
+     * @param string $pageKey 从1开始
+     * @param string $limitKey
      * @return array
      */
-    protected function getOffsetAndLimit(Request $request, $offsetKey = 'page', $limitKey = 'page_size')
+    protected function getOffsetAndLimit(Request $request, string $pageKey = 'page', string $limitKey = 'page_size'): array
     {
         if (strtolower($request->method()) === 'get') {
-            $offset = $request->get($offsetKey, self::DEFAULT_PAGING_OFFSET);
+//            $offset = $request->get($offsetKey, self::DEFAULT_PAGING_OFFSET);
+            $page = $request->get($pageKey, self::DEFAULT_PAGING_PAGE);
             $limit = $request->get($limitKey, self::DEFAULT_PAGING_LIMIT);
         } else {
             $body = $request->post();
             $post = empty($body) ? json_decode($request->rawBody(), true) : $body;
-            $offset = $post[$offsetKey] ?? self::DEFAULT_PAGING_OFFSET;
+//            $offset = $post[$offsetKey] ?? self::DEFAULT_PAGING_OFFSET;
+            $page = $post[$pageKey] ?? self::DEFAULT_PAGING_PAGE;
             $limit = $post[$limitKey] ?? self::DEFAULT_PAGING_LIMIT;
         }
 
-        return [$offset, $limit > self::MAX_PAGING_LIMIT ? self::MAX_PAGING_LIMIT : $limit];
+        return [$page < 1 ? 0 : (int)$page - 1, min($limit, self::MAX_PAGING_LIMIT)];
     }
 
     /**

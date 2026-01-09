@@ -134,14 +134,35 @@ class GB28181DeviceController extends BaseController
 
         $data = $request->post();
         $allowedFields = [
+            // 基础配置
             'show_name',       // 自定义名称
             'rtp_trans_mode',  // RTP传输模式：0=UDP，1=TCP被动，2=TCP主动
+            'enabled',
+
+            // 行政区域
             'province_id',     // 省份代码（6位行政区划码）
             'city_id',         // 城市代码
             'county_id',       // 区县代码
             'custom_lat',
             'custom_lng',
-            'enabled'
+
+            // 订阅配置
+            'subscribe_catalog',  // 是否订阅目录变更
+            'subscribe_alarm',    // 是否订阅报警事件
+            'subscribe_position', // 是否订阅位置上报
+            'subscribe_ptz',      // 是否订阅PTZ控制反馈(2022)
+            'subscribe_expires',  // 订阅有效期（秒）
+            'position_interval',  // 位置上报间隔（秒）
+
+            // 通道更新配置
+            'catalog_interval',  // 通道目录更新周期（秒），0=禁用轮询
+
+            // 字符集和码流
+            'charset',       // 设备XML字符集: gb2312, utf8
+            'stream_index',  // 码流索引: auto=自动, 0=主码流, 1=子码流
+
+            // 通道过滤
+            'filter_channel_types',  // 过滤的通道类型列表，如[134,135]
         ];
 
         // 过滤只允许更新的字段
@@ -156,6 +177,55 @@ class GB28181DeviceController extends BaseController
             $updateData['rtp_trans_mode'] = (int)$updateData['rtp_trans_mode'];
             if (!in_array($updateData['rtp_trans_mode'], [0, 1, 2])) {
                 return $this->createErrorJsonResponse('RTP传输模式无效，必须为 0(UDP)、1(TCP被动) 或 2(TCP主动)', 400);
+            }
+        }
+
+        // 验证 charset
+        if (isset($updateData['charset'])) {
+            if (!in_array($updateData['charset'], ['gb2312', 'utf8'])) {
+                return $this->createErrorJsonResponse('字符集无效，必须为 gb2312 或 utf8', 400);
+            }
+        }
+
+        // 验证 stream_index
+        if (isset($updateData['stream_index'])) {
+            if (!in_array($updateData['stream_index'], ['auto', '0', '1'])) {
+                return $this->createErrorJsonResponse('码流索引无效，必须为 auto、0 或 1', 400);
+            }
+        }
+
+        // 验证布尔字段
+        $booleanFields = ['subscribe_catalog', 'subscribe_alarm', 'subscribe_position', 'subscribe_ptz', 'enabled'];
+        foreach ($booleanFields as $field) {
+            if (isset($updateData[$field])) {
+                $updateData[$field] = (int)$updateData[$field];
+            }
+        }
+
+        // 验证整数字段
+        $intFields = ['subscribe_expires', 'position_interval', 'catalog_interval'];
+        foreach ($intFields as $field) {
+            if (isset($updateData[$field])) {
+                $updateData[$field] = (int)$updateData[$field];
+                if ($updateData[$field] < 0) {
+                    return $this->createErrorJsonResponse("{$field} 必须大于等于 0", 400);
+                }
+            }
+        }
+
+        // 验证 filter_channel_types (JSON数组)
+        if (isset($updateData['filter_channel_types'])) {
+            if (is_array($updateData['filter_channel_types'])) {
+                $updateData['filter_channel_types'] = json_encode($updateData['filter_channel_types']);
+            } elseif (!is_null($updateData['filter_channel_types']) && $updateData['filter_channel_types'] !== '') {
+                // 尝试解析 JSON 字符串
+                $decoded = json_decode($updateData['filter_channel_types'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->createErrorJsonResponse('filter_channel_types 格式错误，必须是 JSON 数组', 400);
+                }
+                $updateData['filter_channel_types'] = json_encode($decoded);
+            } else {
+                $updateData['filter_channel_types'] = null;
             }
         }
 

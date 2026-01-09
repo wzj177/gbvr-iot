@@ -72,6 +72,23 @@ trait GB28181StreamTrait
             throw new \InvalidArgumentException('通道未关联媒体服务器', 400);
         }
 
+        // 获取媒体服务器信息
+        $mediaServer = $this->getMediaServerService()->getMediaServerByServerId($channel['media_server_id']);
+        if (!$mediaServer) {
+            throw new \InvalidArgumentException('媒体服务器不存在', 404);
+        }
+
+        // 检查媒体服务器状态
+        if ($mediaServer['status'] !== 'running') {
+            throw new \InvalidArgumentException('媒体服务器未运行', 503);
+        }
+
+        // 获取收流IP（优先使用stream_ip，否则使用host）
+        $streamIp = !empty($mediaServer['stream_ip']) ? $mediaServer['stream_ip'] : $mediaServer['host'];
+        if (empty($streamIp)) {
+            throw new \InvalidArgumentException('媒体服务器缺少收流IP配置', 500);
+        }
+
         // 获取 TCP 模式
         $tcpMode = $this->getTcpMode($device, $channel);
 
@@ -90,14 +107,15 @@ trait GB28181StreamTrait
         $ssrc = $sessionResult['ssrc'];
         $streamId = $sessionResult['stream_id'];
 
-        // 发送命令到信令网关
+        // 发送命令到信令网关（传递收流IP）
         $result = $this->getGb28181Service()->startLiveVideo(
             $deviceId,
             $channelId,
             $ssrc,
             $zlmPort,
             $tcpMode,
-            $streamId
+            $streamId,
+            $streamIp  // 传递收流IP到信令网关
         );
 
         if (!$result) {
@@ -173,10 +191,32 @@ trait GB28181StreamTrait
      * @return array 返回会话信息
      * @throws \Exception
      */
-    protected function startPlaybackCore(string $deviceId, string $channelId, string $startTime, string $endTime, array $device): array
+    protected function startPlaybackCore(string $deviceId, string $channelId, string $startTime, string $endTime, array $device, array $channel): array
     {
+        // 检查媒体服务器
+        if ($channel['media_server_id'] === MediaServerType::NONE->value) {
+            throw new \InvalidArgumentException('通道未关联媒体服务器', 400);
+        }
+
+        // 获取媒体服务器信息
+        $mediaServer = $this->getMediaServerService()->getMediaServerByServerId($channel['media_server_id']);
+        if (!$mediaServer) {
+            throw new \InvalidArgumentException('媒体服务器不存在', 404);
+        }
+
+        // 检查媒体服务器状态
+        if ($mediaServer['status'] !== 'running') {
+            throw new \InvalidArgumentException('媒体服务器未运行', 503);
+        }
+
+        // 获取收流IP
+        $streamIp = !empty($mediaServer['stream_ip']) ? $mediaServer['stream_ip'] : $mediaServer['host'];
+        if (empty($streamIp)) {
+            throw new \InvalidArgumentException('媒体服务器缺少收流IP配置', 500);
+        }
+
         // 创建回放会话
-        $tcpMode = $this->getTcpMode($device, []);
+        $tcpMode = $this->getTcpMode($device, $channel);
 
         $sessionResult = $this->getGb28181Service()->createPlaybackSession(
             $deviceId,
@@ -194,7 +234,7 @@ trait GB28181StreamTrait
         $playbackSsrc = $sessionResult['ssrc'];
         $zlmPort = $sessionResult['zlm_port'];
 
-        // 发送命令到信令网关
+        // 发送命令到信令网关（传递收流IP）
         $result = $this->getGb28181Service()->startPlayback(
             $deviceId,
             $channelId,
@@ -203,7 +243,8 @@ trait GB28181StreamTrait
             $playbackSsrc,
             $zlmPort,
             $tcpMode,
-            $playbackStreamId
+            $playbackStreamId,
+            $streamIp  // 传递收流IP到信令网关
         );
 
         if (!$result) {
