@@ -50,6 +50,7 @@ class DeviceManager
         if (isset($options['cache_file'])) {
             $this->cacheFile = $options['cache_file'];
         }
+
         if (isset($options['api_loader']) && is_callable($options['api_loader'])) {
             $this->apiLoader = $options['api_loader'];
         }
@@ -113,7 +114,7 @@ class DeviceManager
         if (isset($info['received_ip'])) $device->received_ip = $info['received_ip'];
         if (isset($info['received_port'])) $device->received_port = $info['received_port'];
         if (isset($info['port'])) $device->port = $info['port'];
-        if (isset($info['registered_at'])) $device->registeredAt = $info['registered_at'];
+        if (isset($info['registered_at'])) $device->registeredAt = is_string($info['registered_at']) ? strtotime($info['registered_at']) : $info['registered_at'];
         if (isset($info['expires'])) $device->expires = $info['expires'];
         if (isset($info['info'])) $device->updateInfo($info['info']);
 
@@ -460,7 +461,7 @@ class DeviceManager
                     // 重建Device对象
                     $device = new Device($deviceId, $deviceData);
                     $device->markRegistered();
-                    $device->lastHeartbeat = $deviceData['timestamp'] ?? time();
+                    $device->lastHeartbeat = $deviceData['last_heartbeat_at'] ?? time();
                     $device->registeredAt = $deviceData['registered_at'] ?? time();
                     $device->status = 'online';
                     
@@ -530,6 +531,7 @@ class DeviceManager
         try {
             $devicesData = [];
             foreach ($this->devices as $deviceId => $device) {
+                /**@var Device $device */
                 if ($device->isOnline()) {
                     $devicesData[] = [
                         'device_id' => $device->deviceId,
@@ -542,10 +544,7 @@ class DeviceManager
                         'expires' => $device->expires,
                         'channels' => $device->channels,
                         // 扩展配置字段
-                        'sip_host' => $device->sipHost,
-                        'media_host' => $device->mediaHost,
                         'rtp_trans_mode' => $device->rtpTransMode,
-                        'connect_type' => $device->connectType,
                         'subscribe_catalog' => $device->subscribeCatalog,
                         'subscribe_alarm' => $device->subscribeAlarm,
                         'subscribe_position' => $device->subscribePosition,

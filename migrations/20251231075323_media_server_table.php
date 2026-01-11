@@ -20,7 +20,7 @@ CREATE TABLE `gv_media_servers` (
   `host` varchar(255) NOT NULL COMMENT '服务器IP地址',
   `port` int(11) NOT NULL DEFAULT '80' COMMENT 'HTTP API端口',
   `secret` varchar(100) NOT NULL DEFAULT '' COMMENT 'API密钥',
-  `access_url` varchar(500) DEFAULT '' COMMENT '访问地址（nginx反向代理地址，用于播放地址返回）',
+  `access_domain` varchar(500) DEFAULT '' COMMENT '访问域名（nginx反向代理，用于播放地址返回）',
   `network_env` enum('internal','public') NOT NULL DEFAULT 'internal' COMMENT '网络环境: internal=内网, public=公网',
   `status` enum('running','stopped','unknown', 'offline') NOT NULL DEFAULT 'unknown' COMMENT '运行状态',
   `cpu_usage` decimal(5,2) DEFAULT '0.00' COMMENT 'CPU使用率(缓存)',

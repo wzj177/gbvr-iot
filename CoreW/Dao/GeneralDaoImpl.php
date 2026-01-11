@@ -78,7 +78,6 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
 
         $sql = "UPDATE {$this->table()} SET " . implode(', ', $sets) . " WHERE id IN ($marks)";
 
-//        return $this->db()->executeUpdate($sql, array_merge(array_values($diffs), $ids));
         return $this->db()->executeStatement($sql, array_merge(array_values($diffs), $ids));
     }
 
@@ -283,7 +282,6 @@ abstract class GeneralDaoImpl implements GeneralDaoInterface
         $sql = "SELECT * FROM {$this->table} WHERE {$field} IN ({$marks});";
 
         return $this->db()->fetchAllAssociative($sql, $values);
-//        return $this->db()->fetchAll($sql, $values);
     }
 
     protected function findByFields($fields)

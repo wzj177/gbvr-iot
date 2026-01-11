@@ -10,7 +10,7 @@ class MediaServerAddStreamIp extends Migration
     public function up()
     {
         $container = $this->getContainer();
-        $container['db']->exec("ALTER TABLE `media_server` ADD COLUMN `stream_ip` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '收流IP（用于SDP，为空则使用host)'");
+        $container['db']->exec("ALTER TABLE `gv_media_servers` ADD COLUMN `stream_ip` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '收流IP（用于SDP，为空则使用host)'");
     }
 
     /**

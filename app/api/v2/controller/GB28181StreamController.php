@@ -35,7 +35,6 @@ class GB28181StreamController extends BaseController
             // 执行开始直播核心逻辑
             $result = $this->startLiveVideoCore($deviceId, $channelId, $device, $channel);
 
-            // 获取播放地址（传递媒体服务器ID以获取access_url）
             $playUrls = $this->getPlayUrlsCore($result['stream_id'], $channel['media_server_id']);
 
             return $this->createSuccessJsonResponse([
@@ -144,7 +143,6 @@ class GB28181StreamController extends BaseController
 
             $result = $this->startPlaybackCore($deviceId, $channelId, $startTime, $endTime, $device);
 
-            // 获取播放地址（传递媒体服务器ID以获取access_url）
             $playUrls = $this->getPlayUrlsCore($result['stream_id'], $channel['media_server_id']);
 
             return $this->createSuccessJsonResponse([

@@ -35,7 +35,7 @@ class RefreshMediaServerStatusTask implements CrontabTaskInterface
                         'status' => $server['status'],
                     ]);
                 } catch (\Exception $e) {
-                    Log::channel('crontab')->rror('Failed to dispatch media server status sync job', [
+                    Log::channel('crontab')->error('Failed to dispatch media server status sync job', [
                         'server_id' => $server['server_id'],
                         'name' => $server['name'],
                         'error' => $e->getMessage(),

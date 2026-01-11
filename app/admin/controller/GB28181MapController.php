@@ -57,7 +57,7 @@ class GB28181MapController extends BaseController
         }
 
         try {
-            // 更新设备位置信息（实际项目中应更新数据库）
+            // 更新设备位置信息
             $result = $this->getDeviceService()->updateDeviceLocation($id, [
                 'latitude' => $latitude,
                 'longitude' => $longitude,

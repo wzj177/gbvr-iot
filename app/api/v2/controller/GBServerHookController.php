@@ -373,7 +373,7 @@ class GBServerHookController extends BaseController
             }
 
             $streamId = $session['stream_id'] ?? '';
-            $port = $session['zlm_port'] ?? 0;
+            $port = $session['rtp_port'] ?? 0;
 
             // 关闭 ZLM 流
             if ($streamId) {

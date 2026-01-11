@@ -13,6 +13,8 @@ interface DeviceService
     public function summaryDevices(array $conditions): array;
     public function createDevice(array $fields);
     public function updateDevice($id, array $fields);
+
+    public function updateDeviceExtendInfo($id, array $fields);
     public function deleteDeviceById($id);
 
     // 设备注册相关

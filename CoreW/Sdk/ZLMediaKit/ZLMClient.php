@@ -136,6 +136,22 @@ class ZLMClient
         return $result;
     }
 
+    public function getRtpInfo(string $streamId)
+    {
+        $result = $this->request('getRtpInfo', [
+            'vhost' => '__defaultVhost__',
+            'app' => 'rtp',
+            'stream_id' => $streamId,
+        ]);
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('RTP Server closed', [
+                'stream_id' => $streamId,
+                'code' => $result['code'],
+            ]);
+        }
+        return $result;
+    }
+
     /**
      * 更新RTP服务器的SSRC
      * 在收到设备200 OK后调用，告知ZLM设备的SSRC
@@ -221,36 +237,25 @@ class ZLMClient
      * @param string|null $accessUrl 访问地址（nginx反向代理地址，如果提供则使用此地址生成播放URL）
      * @return array ['rtsp' => '', 'http_flv' => '', 'hls' => '', 'ws_flv' => '']
      */
-    public function getPlayUrls(string $streamId, string $app = 'rtp', ?string $accessUrl = null): array
+    public function getPlayUrls(string $streamId, string $app = 'rtp', ?string $accessDomain = null): array
     {
+        // TODO: 读取 zlm config
         $vhost = '__defaultVhost__';
-
-        // 如果提供了 access_url，使用 access_url 生成播放地址
-        if ($accessUrl) {
-            // 移除 access_url 末尾的斜杠
-            $baseUrl = rtrim($accessUrl, '/');
-
-            return [
-                'rtsp' => null, // RTSP 不支持通过 HTTP 代理
-                'http_flv' => "{$baseUrl}/{$app}/{$streamId}.live.flv",
-                'ws_flv' => str_replace(['http://', 'https://'], ['ws://', 'wss://'], $baseUrl) . "/{$app}/{$streamId}.live.flv",
-                'hls' => "{$baseUrl}/{$app}/{$streamId}/hls.m3u8",
-                'flv' => "{$baseUrl}/{$app}/{$streamId}.live.flv",
-                'm3u8' => "{$baseUrl}/{$app}/{$streamId}/hls.m3u8",
-            ];
-        }
+        $domain = !empty($accessDomain) ? $accessDomain : $this->host;
 
         // 默认使用 host:port 生成播放地址
-        $rtspPort = 554;
         $httpPort = $this->port;
 
         return [
-            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}",
-            'http_flv' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}.live.flv",
-            'ws_flv' => "ws://{$this->host}:{$httpPort}/{$app}/{$streamId}.live.flv",
-            'hls' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}/hls.m3u8",
-            'flv' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}.live.flv",
-            'm3u8' => "http://{$this->host}:{$httpPort}/{$app}/{$streamId}/hls.m3u8",
+//            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}?vhost={$vhost}",
+            'http_flv' => "http://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'https_flv' => "https://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'ws_flv' => "ws://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'wss_flv' => "wss://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'hls' => "http://{$domain}:{$httpPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
+            "https_hls" => "https://{$domain}:{$httpPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
+            'hls_fmp4' => "http://{$domain}:{$httpPort}/{$app}/{$streamId}/hls.fmp4.m3u8?vhost={$vhost}",
+            "https_hls_fmp4" => "https://{$domain}:{$httpPort}/{$app}/{$streamId}/hls_fmp4.m3u8?vhost={$vhost}",
         ];
     }
 

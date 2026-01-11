@@ -5,6 +5,8 @@ namespace CoreW\Business\Devices\Traits;
 use CoreW\Business\Devices\Enums\MediaServerType;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\GB\Gb28181Service;
+use CoreW\Business\MediaServer\Enums\ServerStatusEnum;
+use CoreW\Business\MediaServer\Service\MediaServerService;
 use support\Log;
 
 /**
@@ -65,7 +67,7 @@ trait GB28181StreamTrait
      * @return array 返回会话信息
      * @throws \Exception
      */
-    protected function startLiveVideoCore(string $deviceId, string $channelId, array $device, array $channel): array
+    protected function startLiveVideoCore(array $device, array $channel): array
     {
         // 检查媒体服务器
         if ($channel['media_server_id'] === MediaServerType::NONE->value) {
@@ -79,7 +81,7 @@ trait GB28181StreamTrait
         }
 
         // 检查媒体服务器状态
-        if ($mediaServer['status'] !== 'running') {
+        if ($mediaServer['status'] !== ServerStatusEnum::RUNNING->value) {
             throw new \InvalidArgumentException('媒体服务器未运行', 503);
         }
 
@@ -93,25 +95,19 @@ trait GB28181StreamTrait
         $tcpMode = $this->getTcpMode($device, $channel);
 
         // 创建直播会话
-        $sessionResult = $this->getGb28181Service()->createLiveSession(
-            $deviceId,
-            $channelId,
-            $tcpMode
-        );
+        $sessionResult = $this->getGb28181Service()->createLiveSessionAndOpenRtp($channel, $mediaServer, $tcpMode);
 
         if (!$sessionResult) {
             throw new \RuntimeException('创建直播会话失败', 500);
         }
 
-        $zlmPort = $sessionResult['zlm_port'];
+        $zlmPort = $sessionResult['rtp_port'];
         $ssrc = $sessionResult['ssrc'];
         $streamId = $sessionResult['stream_id'];
 
         // 发送命令到信令网关（传递收流IP）
         $result = $this->getGb28181Service()->startLiveVideo(
-            $deviceId,
-            $channelId,
-            $ssrc,
+            $channel,
             $zlmPort,
             $tcpMode,
             $streamId,
@@ -119,21 +115,20 @@ trait GB28181StreamTrait
         );
 
         if (!$result) {
-            $this->getGb28181Service()->closeRtpServer($streamId);
+            $this->getGb28181Service()->closeRtpServer($streamId, $mediaServer['server_id']);
             throw new \RuntimeException('发送实时视频请求失败', 500);
         }
 
         // 更新通道状态
-        $this->getDeviceService()->updateChannel($channel['id'], [
-            'status' => 'streaming',
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
+//        $this->getDeviceService()->updateChannel($channel['id'], [
+//            'stream_status' => 'streaming',
+//            'updated_at' => date('Y-m-d H:i:s'),
+//        ]);
 
         Log::channel('sip')->info('Start live video command sent', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
+            'channel' => $channel,
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
             'stream_id' => $streamId,
         ]);
@@ -141,30 +136,42 @@ trait GB28181StreamTrait
         return [
             'stream_id' => $streamId,
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
         ];
     }
 
     /**
      * 停止实时视频核心逻辑
-     *
+     * @param array $channel
      * @return void
      * @throws \Exception
      */
-    protected function stopLiveVideoCore(string $deviceId, string $channelId, array $channel): void
+    protected function stopLiveVideoCore(array $channel): bool
     {
+        // 这里应该停止ZLM端口 closeRtpServer，不是发送bye到信令网关
         // 发送BYE到信令网关
-        $result = $this->getGb28181Service()->stopLiveVideo($deviceId, $channelId);
+        $result = $this->getGb28181Service()->stopLiveVideo($channel['device_id'], $channel['channel_id']);
 
         if (!$result) {
             throw new \RuntimeException('发送停止实时视频请求失败', 500);
         }
 
         // 关闭ZLM端口
-        if (isset($channel['stream_id']) && $channel['stream_id']) {
+        if (!empty($channel['stream_id']) && $channel['media_server_id'] !== MediaServerType::NONE->value) {
             try {
-                $this->getGb28181Service()->closeRtpServer($channel['stream_id']);
+                $result = $this->getGb28181Service()->closeRtpServer($channel['stream_id'], $channel['media_server_id']);
+                if (empty($result)) {
+                    return false;
+                }
+
+                if ($result['hit'] === 1) {
+                    Log::channel('sip')->info('Close RTP server has exist record');
+                    return true;
+                }
+
+                Log::channel('sip')->info('Close RTP server has no exist record');
+                return false;
             } catch (\Exception $e) {
                 Log::channel('sip')->warning('Close RTP server failed', [
                     'stream_id' => $channel['stream_id'],
@@ -175,14 +182,11 @@ trait GB28181StreamTrait
 
         // 更新通道状态
         $this->getDeviceService()->updateChannel($channel['id'], [
-            'status' => 'offline',
+            'stream_status' => 'idle',
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        Log::channel('sip')->info('Stop live video command sent', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-        ]);
+        Log::channel('sip')->info('Stop live video command sent', $channel);
     }
 
     /**
@@ -232,7 +236,7 @@ trait GB28181StreamTrait
 
         $playbackStreamId = $sessionResult['stream_id'];
         $playbackSsrc = $sessionResult['ssrc'];
-        $zlmPort = $sessionResult['zlm_port'];
+        $zlmPort = $sessionResult['rtp_port'];
 
         // 发送命令到信令网关（传递收流IP）
         $result = $this->getGb28181Service()->startPlayback(
@@ -262,31 +266,39 @@ trait GB28181StreamTrait
         return [
             'stream_id' => $playbackStreamId,
             'ssrc' => $playbackSsrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
         ];
     }
 
     /**
      * 获取播放地址
      *
-     * @param string $streamId 流ID
-     * @param string|null $mediaServerId 媒体服务器ID
+     * @param array $channel 通道
+     * @param string|null $streamId
+     * @param string|null $mediaServerId
      * @return array
      */
-    protected function getPlayUrlsCore(string $streamId, ?string $mediaServerId = null): array
+    protected function getPlayUrlsCore(array $channel, ?string $streamId = null, ?string $mediaServerId = null): array
     {
         try {
-            $accessUrl = null;
+            $accessDomain = null;
+            if (!$streamId) {
+                $streamId = $channel['stream_id'];
+            }
+
+            if (!$mediaServerId) {
+                $mediaServerId = $channel['media_server_id'];
+            }
 
             // 如果提供了媒体服务器ID，获取其访问地址
             if ($mediaServerId && $mediaServerId !== MediaServerType::NONE->value) {
                 $mediaServer = $this->getMediaServerService()->getMediaServerByServerId($mediaServerId);
-                if ($mediaServer && !empty($mediaServer['access_url'])) {
-                    $accessUrl = $mediaServer['access_url'];
+                if ($mediaServer && !empty($mediaServer['access_domain'])) {
+                    $accessDomain = $mediaServer['access_domain'];
                 }
             }
 
-            return $this->getGb28181Service()->getPlayUrls('rtp', $streamId, $accessUrl);
+            return $this->getGb28181Service()->getPlayUrls($mediaServerId, $streamId, $accessDomain);
         } catch (\Exception $e) {
             return [];
         }
@@ -310,8 +322,9 @@ trait GB28181StreamTrait
      */
     abstract protected function getDeviceService(): DeviceService;
 
-    /**
-     * @return \CoreW\Business\Service\MediaServerService
-     */
-    abstract protected function getMediaServerService(): \CoreW\Business\Service\MediaServerService;
+
+    protected function getMediaServerService(): MediaServerService
+    {
+        return $this->createService('MediaServer:MediaServerService');
+    }
 }

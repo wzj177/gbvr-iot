@@ -3,12 +3,14 @@
 namespace CoreW\Business\GB;
 
 use CoreW\Bfw;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Enums\MediaServerType;
 use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Exception\ZlmException;
 use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use CoreW\Utils\CRC32Helper;
+use Ramsey\Uuid\Uuid;
 
 class Gb28181Service
 {
@@ -17,16 +19,14 @@ class Gb28181Service
     }
 
     public function startLiveVideo(
-        string $deviceId,
-        string $channelId,
-        string $ssrc,
+        array $channel,
         int $zlmPort,
         int $tcpMode = 1,
         ?string $streamId = null,
-        ?string $streamIp = null
+        ?string $streamIp = null,
     ): bool {
-        $this->checkZlmState($streamId);
-        return $this->getGb28181Client()->startLiveVideo($deviceId, $channelId, $ssrc, $zlmPort, $tcpMode, $streamId, $streamIp);
+        $this->checkZlmState($channel['media_server_id']);
+        return $this->getGb28181Client()->startLiveVideo($channel['device_id'], $channel['channel_id'], $channel['ssrc'], $zlmPort, $tcpMode, $streamId, $streamIp);
     }
 
     public function stopLiveVideo(string $deviceId, string $channelId): bool
@@ -45,7 +45,7 @@ class Gb28181Service
         ?string $streamId = null,
         ?string $streamIp = null
     ): bool {
-        $this->checkZlmState();
+        $this->checkZlmState($streamId);
         return $this->getGb28181Client()->startPlayback($deviceId, $channelId, $startTime, $endTime, $ssrc, $zlmPort, $tcpMode, $streamId, $streamIp);
     }
 
@@ -227,45 +227,60 @@ class Gb28181Service
     /**
      * 创建直播会话
      *
-     * @param string $deviceId 设备ID
-     * @param string $channelId 通道ID
+     * @param array $channel 通道
+     * @param array $mediaServer 媒体服务器
      * @param int $tcpMode TCP模式
-     * @return array|null 会话信息，包含stream_id和zlm_port等
+     * @return array|null 会话信息，包含stream_id和rtp_port等
      */
-    public function createLiveSession(string $deviceId, string $channelId, int $tcpMode = 1): ?array
+    public function createLiveSessionAndOpenRtp(array $channel, array $mediaServer, int $tcpMode = 1): ?array
     {
         // 生成流ID
-        [$ssrc, $streamId] = $this->getSSRCInfo($deviceId, $channelId);
-        // 打开RTP服务器
-        $portResult = $this->openRtpServer($streamId, $tcpMode);
-        if ($portResult['code'] !== 0) {
-            return null;
+//        [$ssrc, $streamId] = $this->getSSRCInfo($channel['device_id'], $channel['channel_id']);
+
+        if ($mediaServer['type'] === MediaServerType::ZLM->value) {
+            // 判断流是否存在
+            $info = $this->getRtpInfo($channel['stream_id'], $mediaServer['server_id']);
+            if ($info['exist'] ?? false) {
+                $this->closeRtpServer($channel['stream_id'], $mediaServer['server_id']);
+//                usleep(1000000);
+                sleep(1);
+            }
+
+            // 打开RTP服务器
+            $portResult = $this->openRtpServer($channel['stream_id'], $mediaServer['server_id'], $tcpMode);
+            if ($portResult['code'] !== 0) {
+                return null;
+            }
+
+            // 创建会话记录
+            $sessionData = [
+                'session_id' => Uuid::uuid4(),//uniqid($channel['device_id'] . '_' . $channel['channel_id'] . '_' . $channel['media_server_id'] . '_'),
+                'device_id' => $channel['device_id'],
+                'channel_id' => $channel['channel_id'],
+                'ssrc' => $channel['ssrc'],
+                'stream_id' => $channel['stream_id'],
+                'media_server_id' => $channel['media_server_id'],
+                'type' => 'live',
+                'rtp_port' => $portResult['port'],
+                'tcp_mode' => $tcpMode,
+                'status' => 'inviting',
+                'started_at' => date('Y-m-d H:i:s'),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            $session = $this->getDeviceService()->createSession($sessionData);
+
+            return [
+                'session' => $session,
+                'stream_id' => $channel['stream_id'],
+                'ssrc' => $channel['ssrc'],
+                'rtp_port' => $portResult['port']
+            ];
         }
 
-        // 创建会话记录
-        $sessionData = [
-            'session_id' => uniqid($deviceId . '_' . $channelId . '_'),
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'ssrc' => $ssrc,
-            'stream_id' => $streamId,
-            'type' => 'live',
-            'zlm_port' => $portResult['port'],
-            'tcp_mode' => $tcpMode,
-            'status' => 'inviting',
-            'started_at' => date('Y-m-d H:i:s'),
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
-        ];
-        
-        $session = $this->getDeviceService()->createSession($sessionData);
-        
-        return [
-            'session' => $session,
-            'stream_id' => $streamId,
-            'ssrc' => $ssrc,
-            'zlm_port' => $portResult['port']
-        ];
+
+        return null;
     }
 
     /**
@@ -287,7 +302,6 @@ class Gb28181Service
     ): ?array {
         // 生成流ID
         $streamId = $this->generateStreamId($deviceId, $channelId, 'playback_' . time());
-        
         // 打开RTP服务器
         $portResult = $this->openRtpServer($streamId, $tcpMode);
         if ($portResult['code'] !== 0) {
@@ -305,7 +319,7 @@ class Gb28181Service
             'ssrc' => $playbackSsrc,
             'stream_id' => $streamId,
             'type' => 'playback',
-            'zlm_port' => $portResult['port'],
+            'rtp_port' => $portResult['port'],
             'tcp_mode' => $tcpMode,
             'status' => 'inviting',
             'start_time' => $startTime,
@@ -321,7 +335,7 @@ class Gb28181Service
             'session' => $session,
             'stream_id' => $streamId,
             'ssrc' => $playbackSsrc,
-            'zlm_port' => $portResult['port']
+            'rtp_port' => $portResult['port']
         ];
     }
 
@@ -341,7 +355,7 @@ class Gb28181Service
         
         // 获取冷却中的端口
         $coolingPorts = $this->getDeviceService()->getCoolingPorts();
-        $excludePorts = array_column($coolingPorts, 'zlm_port');
+        $excludePorts = array_column($coolingPorts, 'rtp_port');
         
         // 尝试打开RTP服务器，最多尝试10次
         $maxAttempts = 10;
@@ -374,31 +388,41 @@ class Gb28181Service
         ];
     }
 
+
+    public function getRtpInfo(string $streamId, string $serverId)
+    {
+        $this->checkZlmState($serverId);
+        $zlmClient = $this->getZlmClientByServerId($serverId);
+
+        return $zlmClient->getRtpInfo($streamId);
+    }
     /**
      * 关闭RTP服务器
      *
      * @param string $streamId 流ID
-     * @return bool 是否成功关闭
+     * @param string $mediaServerId 媒体服务器ID
+     * @return array|null 关闭结果
      */
-    public function closeRtpServer(string $streamId): bool
+    public function closeRtpServer(string $streamId, string $mediaServerId): ?array
     {
         // 关闭RTP服务器时同时释放端口
         $this->releaseRtpPort($streamId);
-        return $this->getZlmClientByStreamId($streamId)->closeRtpServer($streamId);
+
+        return $this->getZlmClientByServerId($mediaServerId)->closeRtpServer($streamId);
     }
 
     /**
      * 释放RTP端口（标记为冷却状态）
      * 
      * @param string $streamId 流ID
-     * @return bool 是否成功释放
+     * @return array|null 释放结果
      */
-    public function releaseRtpPort(string $streamId): bool
+    public function releaseRtpPort(string $streamId): ?array
     {
         // 获取会话信息
         $session = $this->getDeviceService()->getSessionByStreamId($streamId);
         if (!$session) {
-            return false;
+            return null;
         }
         
         // 更新会话状态为已停止，并更新时间戳
@@ -406,11 +430,13 @@ class Gb28181Service
             'stream_status' => 'idle'
         ]);
         // 这样端口就会进入20秒的冷却期
-        return $this->getDeviceService()->updateSession($session['id'], [
+        $result = $this->getDeviceService()->updateSession($session['id'], [
             'status' => 'stopped',
             'stopped_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
         ]);
+
+        return $result;
     }
 
     public function closeStream(string $schema, string $streamId): bool
@@ -423,9 +449,18 @@ class Gb28181Service
         return $this->getZlmClientByStreamId($streamId)->updateRtpServerSsrc($streamId, $ssrc);
     }
 
-    public function getPlayUrls(string $schema, string $streamId, ?string $accessUrl = null): array
+    /**
+     * 获取播放地址
+     *
+     * @param string $serverId 媒体服务器ID
+     * @param string $streamId 流ID
+     * @param string|null $accessUrl 访问地址
+     * @param string $app 应用名
+     * @return array 播放地址
+     */
+    public function getPlayUrls(string $serverId, string $streamId, ?string $accessUrl = null, string $app = 'rtp'): array
     {
-        return $this->getZlmClientByStreamId($streamId)->getPlayUrls($streamId, $schema, $accessUrl);
+        return $this->getZlmClientByServerId($serverId)->getPlayUrls($streamId, $app, $accessUrl);
     }
 
     /**
@@ -638,6 +673,7 @@ class Gb28181Service
      */
     private function getGb28181Client(): Gb28181Client
     {
+
         return $this->bfw['gb28181_gateway_sdk'];
     }
 
@@ -651,7 +687,7 @@ class Gb28181Service
 
     protected function getZlmClientByServerId(string $serverId): ZLMClient
     {
-        $mediaServer = $this->getMediaService()->getMediaServerById($serverId);
+        $mediaServer = $this->getMediaService()->getMediaServerByServerId($serverId);
         if (!$mediaServer || $mediaServer['type'] !== MediaServerType::ZLM->value) {
             throw new ZlmException('未找到对应的ZLM');
         }

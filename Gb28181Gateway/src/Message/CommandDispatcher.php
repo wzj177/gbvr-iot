@@ -132,9 +132,9 @@ class CommandDispatcher
         }
 
         //  从params获取ZLM端口（由gbvr-iot的ZLM服务分配）
-        $zlmPort = $params['zlm_port'] ?? null;
+        $zlmPort = $params['rtp_port'] ?? null;
         if (!$zlmPort) {
-            return $this->errorResponse($requestId, "Missing zlm_port from API, params must include 'zlm_port'");
+            return $this->errorResponse($requestId, "Missing rtp_port from API, params must include 'rtp_port'");
         }
 
         // TCP 模式
@@ -144,7 +144,7 @@ class CommandDispatcher
         $streamId = $params['stream_id'] ?? null;
 
         //  从params获取收流IP（由gbvr-iot根据media_server表的stream_ip传入）
-        $mediaServerIp = $params['media_server_ip'] ?? null;
+        $mediaServerIp = $params['stream_ip'] ?? null;
         if (!$mediaServerIp) {
             return $this->errorResponse($requestId, 'Missing media_server_ip in params');
         }
@@ -185,7 +185,7 @@ class CommandDispatcher
             'channel_id' => $channelId,
             'type' => 'live',
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'stream_id' => $streamId,
             'started_at' => time(),
         ];
@@ -197,7 +197,7 @@ class CommandDispatcher
             'request_id' => $requestId,
             'dialog_id' => $dialogId,
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'stream_id' => $streamId,
         ];
     }
@@ -253,10 +253,10 @@ class CommandDispatcher
 
         //  从params获取SSRC和ZLM端口
         $ssrc = $params['ssrc'] ?? null;
-        $zlmPort = $params['zlm_port'] ?? null;
+        $zlmPort = $params['rtp_port'] ?? null;
 
         if (!$ssrc || !$zlmPort) {
-            return $this->errorResponse($requestId, "Missing ssrc or zlm_port from API");
+            return $this->errorResponse($requestId, "Missing ssrc or rtp_port from API");
         }
 
         // TCP 模式
@@ -305,7 +305,7 @@ class CommandDispatcher
             'channel_id' => $channelId,
             'type' => 'playback',
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'stream_id' => $streamId,
             'start_time' => $startTime,
             'end_time' => $endTime,
@@ -319,7 +319,7 @@ class CommandDispatcher
             'request_id' => $requestId,
             'dialog_id' => $dialogId,
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'stream_id' => $streamId,
         ];
     }

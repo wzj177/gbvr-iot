@@ -5,6 +5,7 @@ namespace CoreW\Provider;
 
 
 use CoreW\Bfw;
+use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\Ip2Region\Ip2Region;
 use CoreW\Business\Auth\AuthFactory;
 use CoreW\Sdk\AMapSdk\AMapClient;
@@ -65,8 +66,12 @@ class ExtensionsProvider implements ServiceProviderInterface
             return $ffmpeg;
         };
 
+        $biz['gb28181_service'] = function ($app) {
+            return new Gb28181Service($app);
+        };
+
         $biz['gb28181_gateway_sdk'] = function ($app) {
-            return new Gb28181Client(Redis::connection('gb_gateway'));
+            return new Gb28181Client(Redis::connection('gb_gateway'), config('gb28181'));
         };
 
         $biz['redis.api.cache'] = function ($biz) {

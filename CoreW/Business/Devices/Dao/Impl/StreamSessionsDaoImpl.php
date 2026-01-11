@@ -63,8 +63,8 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
     {
         $coolingTimeAgo = date('Y-m-d H:i:s', time() - $coolingTime);
         
-        $sql = "SELECT DISTINCT zlm_port FROM {$this->table()} 
-                WHERE zlm_port IS NOT NULL 
+        $sql = "SELECT DISTINCT rtp_port FROM {$this->table()} 
+                WHERE rtp_port IS NOT NULL 
                 AND updated_at > ? 
                 AND status IN ('stopped', 'error')";
                 

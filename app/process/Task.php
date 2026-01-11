@@ -5,7 +5,6 @@ namespace app\process;
 use CoreW\Business\Devices\Task\Gb28181DeviceCatalogQueryTask;
 use CoreW\Business\Devices\Task\Gb28181DeviceStatusCheckTask;
 use CoreW\Business\Devices\Task\Gb28181SubscriptionTask;
-use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Business\MediaServer\Tasks\RefreshMediaServerStatusTask;
 use CoreW\Core;
 use support\Log;
@@ -18,13 +17,13 @@ class Task
     {
         echo "Task onWorkerStart\n";
         // 每s执行一次: 获取设备目录
-        new Crontab('* * * * * *', function(){
+        new Crontab('*/1 * * * * *', function(){
             $task = new Gb28181DeviceCatalogQueryTask();
             $task->execute();
         });
 
         // 每小时刷新一次订阅（expires - 5分钟）
-        new Crontab('0 0 * * * *', function(){
+        new Crontab('0 0 */1 * * *', function(){
 
             // TODO: 待实现
             $task = new Gb28181SubscriptionTask();

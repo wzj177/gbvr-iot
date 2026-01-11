@@ -206,6 +206,7 @@ Route::group('/api/admin', function () {
             Route::delete('/{id}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
             Route::post('/{id}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
             Route::put('/batch/area', [GB28181DeviceController::class, 'batchUpdateArea'])->name('admin.gb28181.devices.batch-area');
+            Route::post('/ptz', [GB28181PTZController::class, 'control'])->name('admin.gb28181.ptz.control');
         });
 
         // 通道管理
@@ -217,15 +218,11 @@ Route::group('/api/admin', function () {
         });
 
         // PTZ控制
-        Route::group('/ptz', function () {
-            Route::post('', [GB28181PTZController::class, 'control'])->name('admin.gb28181.ptz.control');
-        });
-
         // 视频流管理
         Route::group('/streams', function () {
             Route::post('/start-live', [GB28181StreamController::class, 'startLive'])->name('admin.gb28181.streams.start-live');
             Route::post('/stop-live', [GB28181StreamController::class, 'stopLive'])->name('admin.gb28181.streams.stop-live');
-            Route::get('/play-urls', [GB28181StreamController::class, 'getPlayUrls'])->name('admin.gb28181.streams.play-urls');
+//            Route::get('/play-urls', [GB28181StreamController::class, 'getPlayUrls'])->name('admin.gb28181.streams.play-urls');
             Route::post('/playback', [GB28181StreamController::class, 'startPlayback'])->name('admin.gb28181.streams.start-playback');
         });
 

@@ -34,7 +34,7 @@ ALTER TABLE `gv_devices`
     
     -- 通道更新配置
     ADD COLUMN `catalog_interval` INT(11) NOT NULL DEFAULT 3600 COMMENT '通道目录更新周期（秒），0=禁用轮询' AFTER `position_interval`,
-    ADD COLUMN `last_catalog_at` DATETIME DEFAULT NULL COMMENT '上次目录查询时间' AFTER `catalog_interval`,
+    ADD COLUMN `last_catalog_at` INT(11) NOT NULL DEFAULT 0 COMMENT '上次目录查询时间' AFTER `catalog_interval`,
     
     -- 字符集和码流
     ADD COLUMN `charset` ENUM('gb2312','utf8', 'auto') NOT NULL DEFAULT 'auto' COMMENT '设备XML字符集' AFTER `last_catalog_at`,

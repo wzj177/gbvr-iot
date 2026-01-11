@@ -1252,7 +1252,7 @@ class GB28181Handler
 
         // 更新 DeviceManager 中的通道列表
         $device = $this->deviceManager->getDeviceObject($deviceId);
-        if ($device) {
+        if ($device && !empty($device->filterChannelTypes)) {
             // 根据device->filterChannelTypes 过滤通道
             $items = array_filter($items, function ($item) use ($device) {
                 $channelId = $item['DeviceID'] ?? 'unknown';
@@ -1619,7 +1619,7 @@ class GB28181Handler
     {
         // 检测是否包含乱码（UTF-8环境下显示为 � 或 \xXX）
         // 或者直接检测编码
-        if ($deviceSpecifiedCharset !== 'auto') {
+        if (strtolower($deviceSpecifiedCharset) === 'auto') {
             $detectedEncoding = mb_detect_encoding($xml, ['UTF-8', 'GB2312', 'GBK', 'GB18030'], true);
         } else {
             $detectedEncoding = strtoupper($deviceSpecifiedCharset);

@@ -32,6 +32,11 @@ class GB28181DeviceController extends BaseController
 
         $devices = $this->getDeviceService()->searchDevices($conditions, ['id' => 'DESC'], $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
+        foreach ($devices as &$device) {
+            if ($device['registered_at']) {
+                $device['registered_at'] = strtotime($device['registered_at']);
+            }
+        }
 
         
         return $this->createSuccessJsonResponse([
@@ -76,7 +81,7 @@ class GB28181DeviceController extends BaseController
                 'port' => $device['port'],
                 'user_agent' => $device['user_agent'],
                 'registered_at' => strtotime($device['registered_at']),
-                'timestamp' => strtotime($device['last_heartbeat_at']),
+                'timestamp' => $device['last_heartbeat_at'],//strtotime($device['last_heartbeat_at']),
                 'expires' => $device['expires'],
                 'channels' => $channelsGrouped[$device['device_id']] ?? []
             ];

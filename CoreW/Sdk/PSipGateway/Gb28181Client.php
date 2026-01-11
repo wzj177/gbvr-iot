@@ -16,7 +16,7 @@ class Gb28181Client
     private string $queueName = 'gb28181:commands';
 
 
-    public function __construct(private Connection|Redis $redis)
+    public function __construct(private Connection|Redis $redis, private array $gatewayConfig)
     {
     }
 
@@ -30,6 +30,10 @@ class Gb28181Client
      */
     public function sendCommand(string $deviceId, string $action, array $params = []): bool
     {
+        if (!$this->checkGatewayIsRunning()) {
+            throw new \RuntimeException("Gateway is not running");
+        }
+
         $requestId = uniqid('req_', true);
 
         $command = [
@@ -64,7 +68,7 @@ class Gb28181Client
 
     /**
      * 查询设备目录
-     * @param  string $deviceId
+     * @param string $deviceId
      * @return bool
      */
     public function queryCatalog(string $deviceId): bool
@@ -74,7 +78,7 @@ class Gb28181Client
 
     /**
      * 查询设备信息
-     * @param  string $deviceId
+     * @param string $deviceId
      * @return bool
      */
     public function queryDeviceInfo(string $deviceId): bool
@@ -118,7 +122,7 @@ class Gb28181Client
     /**
      * 开始实时视频
      *
-     * 注意：ssrc、zlm_port、tcp_mode 由 API 项目的 Controller 层分配后传入
+     * 注意：ssrc、rtp_port、tcp_mode 由 API 项目的 Controller 层分配后传入
      * 这里不负责分配,只负责发送命令
      *
      * @param string $deviceId 设备ID
@@ -142,7 +146,7 @@ class Gb28181Client
         return $this->sendCommand($deviceId, 'start_live_video', [
             'channel_id' => $channelId,
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
             'stream_id' => $streamId,
             'stream_ip' => $streamIp
@@ -189,7 +193,7 @@ class Gb28181Client
             'start_time' => $startTime,
             'end_time' => $endTime,
             'ssrc' => $ssrc,
-            'zlm_port' => $zlmPort,
+            'rtp_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
             'stream_id' => $streamId,
             'stream_ip' => $streamIp
@@ -307,25 +311,105 @@ class Gb28181Client
 
     public function subscribeCatalog(string $deviceId, int $expires = 3600): array
     {
+        return [];
     }
 
     public function subscribeAlarm(string $deviceId, int $expires = 3600): array
     {
-
+        return [];
     }
 
     public function subscribeMobilePosition(string $deviceId, int $expires = 3600): array
     {
-
+        return [];
     }
 
     public function cancelSubscription(string $deviceId, string $eventType): array
     {
-
+        return [];
     }
 
     public function getSubscriptions(string $deviceId): array
     {
-
+        return [];
     }
+
+    private function checkGatewayIsRunning(): bool
+    {
+        $listenAddr = $this->gatewayConfig['listen_addr'];
+        if ($this->gatewayConfig['listen_addr'] === '0.0.0.0') {
+            $listenAddr = '127.0.0.1';
+        }
+
+        if ($listenAddr === '127.0.0.1') {
+            $result = $this->checkPortProtocol($this->gatewayConfig['sip_port']);
+
+            return $result['tcp'] || $result['udp'];
+        }
+
+        if ($this->isTcpOpen($listenAddr, $this->gatewayConfig['sip_port'])) {
+            return true;
+        }
+
+        if ($this->isUdpOpen($listenAddr, $this->gatewayConfig['sip_port'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+
+    private function checkPortProtocol($port): array
+    {
+        $result = [
+            'tcp' => false,
+            'udp' => false,
+        ];
+
+        // TCP check
+        $tcp = shell_exec("lsof -iTCP:$port -sTCP:LISTEN 2>/dev/null");
+        if (!empty($tcp)) {
+            $result['tcp'] = true;
+        }
+
+        // UDP check
+        $udp = shell_exec("lsof -iUDP:$port 2>/dev/null");
+        if (!empty($udp)) {
+            $result['udp'] = true;
+        }
+
+        return $result;
+    }
+
+    private function isUdpOpen($host, $port): bool
+    {
+        $cmd = "nc -vzu {$host} {$port} 2>&1";
+        exec($cmd, $output, $status);
+
+        $msg = implode("\n", $output);
+
+        if (str_contains($msg, 'succeeded')) {
+            return true;  // UDP 端口可达（有响应）
+        }
+
+        if (str_contains($msg, 'refused')) {
+            return false; // 确认端口关闭
+        }
+
+        // 无响应 → 不确定，可能被防火墙 DROP
+        return false;
+    }
+
+
+
+    private function isTcpOpen($host, $port, $timeout = 1): bool
+    {
+        $fp = @fsockopen($host, $port, $errno, $errstr, $timeout);
+        if ($fp) {
+            fclose($fp);
+            return true;
+        }
+        return false;
+    }
+
 }

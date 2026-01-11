@@ -64,6 +64,7 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
                 'id IN (:ids)',
                 'id NOT IN (:noIds)',
                 'device_id IN (:device_ids)',
+                'device_id = :device_id'
             ],
         ];
     }

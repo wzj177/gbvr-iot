@@ -6,7 +6,7 @@ use app\admin\BaseController;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Traits\GB28181StreamTrait;
 use CoreW\Business\GB\Gb28181Service;
-use CoreW\Business\Service\MediaServerService;
+use CoreW\Business\MediaServer\Service\MediaServerService;
 use support\Request;
 
 /**
@@ -33,10 +33,8 @@ class GB28181StreamController extends BaseController
             ['device' => $device, 'channel' => $channel] = $this->validateDeviceAndChannel($deviceId, $channelId);
 
             // 执行开始直播核心逻辑
-            $result = $this->startLiveVideoCore($deviceId, $channelId, $device, $channel);
-
-            // 获取播放地址（传递媒体服务器ID以获取access_url）
-            $playUrls = $this->getPlayUrlsCore($result['stream_id'], $channel['media_server_id']);
+            $result = $this->startLiveVideoCore($device, $channel);
+            $playUrls = $this->getPlayUrlsCore($channel);
 
             return $this->createSuccessJsonResponse([
                 ...$result,
@@ -67,7 +65,7 @@ class GB28181StreamController extends BaseController
                 return $this->createErrorJsonResponse('通道不存在', 404);
             }
 
-            $this->stopLiveVideoCore($deviceId, $channelId, $channel);
+            $this->stopLiveVideoCore($channel);
 
             return $this->createSuccessJsonResponse([
                 'message' => '实时视频已停止',
@@ -100,7 +98,7 @@ class GB28181StreamController extends BaseController
                 return $this->createErrorJsonResponse('通道未在推流', 400);
             }
 
-            $playUrls = $this->getPlayUrlsCore($channel['stream_id'], $channel['media_server_id']);
+            $playUrls = $this->getPlayUrlsCore($channel);
 
             return $this->createSuccessJsonResponse([
                 'stream_id' => $channel['stream_id'],
@@ -144,8 +142,7 @@ class GB28181StreamController extends BaseController
 
             $result = $this->startPlaybackCore($deviceId, $channelId, $startTime, $endTime, $device);
 
-            // 获取播放地址（传递媒体服务器ID以获取access_url）
-            $playUrls = $this->getPlayUrlsCore($result['stream_id'], $channel['media_server_id']);
+            $playUrls = $this->getPlayUrlsCore($channel, $result['stream_id']);
 
             return $this->createSuccessJsonResponse([
                 ...$result,
@@ -162,7 +159,7 @@ class GB28181StreamController extends BaseController
      */
     protected function getGb28181Service(): Gb28181Service
     {
-        return $this->createService('GB:Gb28181Service');
+        return $this->getBiz()->offsetGet('gb28181_service');
     }
 
     /**
@@ -173,13 +170,7 @@ class GB28181StreamController extends BaseController
         return $this->createService('Devices:DeviceService');
     }
 
-    /**
-     * @return MediaServerService
-     */
-    protected function getMediaServerService(): MediaServerService
-    {
-        return $this->createService('MediaServer:MediaServerService');
-    }
+
 
     /**
      * 处理流媒体异常

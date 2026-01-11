@@ -29,7 +29,7 @@ class Device
     // 注册状态
     public bool $registered = false;
     public int $registerTime = 0;
-    public ?string $registeredAt = null;
+    public int $registeredAt = 0;
     public int $expires = 3600;
 
     // 心跳状态

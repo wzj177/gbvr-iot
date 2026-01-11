@@ -3,6 +3,7 @@
 namespace app\admin\controller;
 
 use app\admin\BaseController;
+use app\admin\filters\DeviceFilter;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\GB\Gb28181Service;
@@ -35,7 +36,7 @@ class GB28181DeviceController extends BaseController
 
         return $this->createSuccessJsonResponse([
             'summary' => $this->getDeviceService()->summaryDevices($conditions),
-            'list' => $devices,
+            'list' => DeviceFilter::publicList($devices),
             'paginator' => Paginator::toArray($paginator)
         ]);
     }
@@ -230,7 +231,7 @@ class GB28181DeviceController extends BaseController
         }
 
         try {
-            $this->getDeviceService()->updateDevice($id, $updateData);
+            $this->getDeviceService()->updateDeviceExtendInfo($id, $updateData);
 
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {

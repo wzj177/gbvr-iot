@@ -68,6 +68,14 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     {
         $fields['updated_at'] = date('Y-m-d H:i:s');
         $resp = $this->getDeviceDao()->update($id, $fields);
+
+        return $resp;
+    }
+
+    public function updateDeviceExtendInfo($id, array $fields)
+    {
+        $fields['updated_at'] = date('Y-m-d H:i:s');
+        $resp = $this->getDeviceDao()->update($id, $fields);
         if ($resp) {
             $this->syncDeviceConfig($this->getDevicesById($id));
         }
@@ -77,7 +85,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     public function syncDeviceConfig(array $device): bool
     {
-        $this->getGb28181Service()->updateDevice($device);
+        if ($device['status'] !== DeviceStatusEnum::ONLINE->value) {
+            return false;
+        }
+
+        return $this->getGb28181Service()->updateDevice($device);
     }
 
     public function deleteDeviceById($id)
@@ -111,7 +123,8 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             'device_id' => $deviceId,
             'device_type' => $this->parseDeviceTypeByDeviceId($deviceId),
             'registered_at' => isset($data['registered_at']) ? date('Y-m-d H:i:s', $data['registered_at']) : $now,
-            'last_heartbeat_at' => isset($data['timestamp']) ? date('Y-m-d H:i:s', $data['timestamp']) : $now,
+//            'last_heartbeat_at' => isset($data['timestamp']) ? date('Y-m-d H:i:s', $data['timestamp']) : $now,
+            'last_heartbeat_at' => $data['timestamp'] ?? time(),
         ];
 
         if (!empty($data['from_uri'])) {
@@ -155,7 +168,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         }
 
         return (bool)$this->updateDevice($device['id'], [
-            'last_heartbeat_at' => date('Y-m-d H:i:s'),
+            'last_heartbeat_at' => time(),
         ]);
     }
 
@@ -779,6 +792,6 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     protected function getGb28181Service(): Gb28181Service
     {
-        return new Gb28181Service($this->bfw);
+        return $this->bfw->offsetGet('gb28181_service');
     }
 }

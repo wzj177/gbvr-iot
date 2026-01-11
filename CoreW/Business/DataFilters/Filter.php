@@ -6,37 +6,36 @@ use support\utils\ArrayToolkit;
 use support\utils\AssetHelper;
 
 /**
- * @package CoreW\Business\DataFilters
- * @author  YangYang
- * @date    2024-08-14
- * @method  simpleData($data)
- * @method  publicData ($data)
- * @method  simpleList($list)
- * @method  publicList($list)
+ * Filter 基类
+ *
+ * @method static simpleData
+ * @method static publicData
+ * @method static authenticatedData
+ * @method static simpleList
+ * @method static authenticatedList
+ * @method static publicList
+ *
+ * 支持：
+ * - simple / public / authenticated 三种模式的字段过滤
+ * - formatFields 字段格式化
  */
 abstract class Filter
 {
-    /**
-     * 认证模式,返回用户登录后可访问的字段
-     */
     const AUTHENTICATED_MODE = 'authenticated';
+    const SIMPLE_MODE        = 'simple';
+    const PUBLIC_MODE        = 'public';
+
+    protected string $mode = self::PUBLIC_MODE;
+
+    protected ?string $assetUri = null;
+
+    protected bool $formatTime = true;
 
     /**
-     * 简化模式,只返回少量的非隐私字段
+     * 新增字段格式化规则
+     * ['price' => 'float', 'avatar' => 'url', 'attrs' => 'json']
      */
-    const SIMPLE_MODE = 'simple';
-
-    /**
-     * 公开模式,返回未登录用户可访问的字段
-     */
-    const PUBLIC_MODE = 'public';
-
-
-    protected $mode = self::PUBLIC_MODE;
-
-    protected $assetUri = null;
-
-    protected $formatTime = true;
+    protected array $formatFields = [];
 
 
     public function __construct($mode = 'public', bool $formatTime = true)
@@ -51,161 +50,224 @@ abstract class Filter
         $this->mode = $mode;
     }
 
+    /**
+     * 主过滤器
+     */
     public function filter(&$data)
     {
         if (!$data || !is_array($data)) {
             return null;
         }
 
-
+        // 先处理时间字段
         if ($this->formatTime) {
             $this->defaultTimeFilter($data);
         }
 
-        $filteredData = [];
-        $modes = [self::SIMPLE_MODE, self::PUBLIC_MODE, self::AUTHENTICATED_MODE];
-        $modes = array_filter($modes, function ($mode) {
-            return $mode === $this->mode;
-        });
+        // 字段过滤
+        $modeField = $this->mode . 'Fields';
+        if (property_exists($this, $modeField) && is_array($this->{$modeField}) && !empty($fields)) {
 
-        foreach ($modes as $mode) {
-            $property = $mode . 'Fields';
-            if (property_exists($this, $property) && $this->{$property}) {
-                $partData = ArrayToolkit::parts($data, $this->$property);
-                if (method_exists($this, $property)) {
-                    $this->$property($partData);
-                }
-                $filteredData = $partData;
+            $fields = $this->{$modeField};
+            $filtered = ArrayToolkit::parts($data, $fields);
+
+            // 可选模式钩子，例如 simpleFields(&$data)
+            if (method_exists($this, $modeField)) {
+                $this->$modeField($filtered);
             }
+
+            $data = $filtered;
         }
 
-        if ($filteredData) {
-            $data = $filteredData;
-        }
+        // 字段格式化
+        $this->processFormat($data);
 
         return $data;
     }
 
+    /**
+     * 批量处理列表
+     */
     public function filtersList($dataSet): ?array
     {
         if (!$dataSet || !is_array($dataSet)) {
             return null;
         }
 
-        if (array_key_exists('data', $dataSet) && array_key_exists('paging', $dataSet)) {
-            foreach ($dataSet['data'] as &$data) {
-                $dataSet['data'] = $this->filter($data);
+        if (isset($dataSet['data']) && isset($dataSet['paging'])) {
+            foreach ($dataSet['data'] as &$item) {
+                $this->filter($item);
             }
-        } else {
-            foreach ($dataSet as &$data) {
-                $dataSet['data'] = $this->filter($data);
-            }
+            return $dataSet;
+        }
+
+        foreach ($dataSet as &$item) {
+            $this->filter($item);
         }
 
         return $dataSet;
     }
 
+    /**
+     * 批量处理（引用方式）
+     */
     public function filters(&$dataSet)
     {
         if (!$dataSet || !is_array($dataSet)) {
             return;
         }
 
-        if (array_key_exists('data', $dataSet) && array_key_exists('paging', $dataSet)) {
-            foreach ($dataSet['data'] as &$data) {
-                $this->filter($data);
+        if (isset($dataSet['data']) && isset($dataSet['paging'])) {
+            foreach ($dataSet['data'] as &$item) {
+                $this->filter($item);
             }
-        } else {
-            foreach ($dataSet as &$data) {
-                $this->filter($data);
-            }
+            return;
+        }
+
+        foreach ($dataSet as &$item) {
+            $this->filter($item);
         }
     }
 
-    protected function init()
+    protected function init(): void
     {
         $this->assetUri = AssetHelper::getUri();
     }
 
-    private function defaultTimeFilter(&$data)
+    /**
+     * 默认时间格式化
+     */
+    private function defaultTimeFilter(&$data): void
     {
-        if (isset($data['createdTime']) && is_numeric($data['createdTime'])) {
-            $data['createdTime'] = date('c', $data['createdTime']);
+        foreach (['createdTime', 'updatedTime', 'created_time', 'updated_time'] as $field) {
+            if (isset($data[$field]) && is_numeric($data[$field])) {
+                $data[$field] = date('c', $data[$field]);
+            }
         }
-
-        if (isset($data['updatedTime']) && is_numeric($data['updatedTime'])) {
-            $data['updatedTime'] = date('c', $data['updatedTime']);
-        }
-
-        if (isset($data['created_time']) && is_numeric($data['created_time'])) {
-            $data['created_time'] = date('c', $data['created_time']);
-        }
-
-        if (isset($data['updated_time']) && is_numeric($data['updated_time'])) {
-            $data['updated_time'] = date('c', $data['updated_time']);
-        }
-
     }
 
-    protected function convertAbsoluteUrl($html)
+    /**
+     * 格式化字段处理器
+     */
+    protected function processFormat(array &$data): void
     {
-        $filter = $this;
-        $html = preg_replace_callback('/src=[\'\"]\/(.*?)[\'\"]/', function ($matches) use ($filter) {
-            // 因为众多路径放进了带有域名的URL，所以包含`//`的url一律按照不做处理
-            if (0 === strpos($matches[1], '/')) {
-                return "src=\"\/{$matches[1]}\"";
+        if (empty($this->formatFields)) {
+            return;
+        }
+
+        foreach ($this->formatFields as $field => $type) {
+            if (!array_key_exists($field, $data)) {
+                continue;
             }
 
-            // @todo cdn 全局替换
+            $value = $data[$field];
+
+            // 例如 enum:statusText
+            if (str_contains($type, ':')) {
+                [$handler, $param] = explode(':', $type, 2);
+                $method = 'format_' . $handler;
+                if (method_exists($this, $method)) {
+                    $data[$field] = $this->$method($value, $param);
+                }
+                continue;
+            }
+
+            // 常规格式化方法
+            $method = 'format_' . $type;
+            if (method_exists($this, $method)) {
+                $data[$field] = $this->$method($value);
+            }
+        }
+    }
+
+    /**
+     * 基础格式化方法
+     */
+    protected function format_float($value)
+    {
+        return (float)$value;
+    }
+
+    protected function format_int($value)
+    {
+        return (int)$value;
+    }
+
+    protected function format_json($value)
+    {
+        return is_string($value) ? json_decode($value, true) : $value;
+    }
+
+    protected function format_url($value)
+    {
+        return $this->convertFilePath($value);
+    }
+
+    protected function format_datetime(int $value): string
+    {
+        return $value === 0 ? '' : date('Y-m-d H:i:s', $value);
+    }
+
+    protected function format_enum($value, $mapMethod)
+    {
+        if (method_exists($this, $mapMethod)) {
+            return $this->$mapMethod($value);
+        }
+        return $value;
+    }
+
+    protected function convertAbsoluteUrl($html): array|string|null
+    {
+        $filter = $this;
+        return preg_replace_callback('/src=[\'\"]\/(.*?)[\'\"]/', function ($matches) use ($filter) {
+            if (strpos($matches[1], '//') === 0) {
+                return "src=\"/{$matches[1]}\"";
+            }
             $path = '/' . ltrim($matches[1], '/');
-            $absoluteUrl = $filter->uriForPath($path);
-
-            return "src=\"{$absoluteUrl}\"";
+            $url  = $filter->uriForPath($path);
+            return "src=\"{$url}\"";
         }, $html);
-
-        return $html;
     }
 
     protected function convertFilePath($filePath)
     {
-//        $cdn = new CdnUrl();
-//        $cdnUrl = $cdn->get('content');
-//        if (!empty($cdnUrl)) {
-//            $url = AssetHelper::getScheme().':'.rtrim($cdnUrl, '/').'/'.ltrim($filePath, '/');
-//        } else {
-//            $url = $this->uriForPath('/'.ltrim($filePath, '/'));
-//        }
-        $url = $this->uriForPath('/' . ltrim($filePath, '/'));
-
-        return $url;
+        return $this->uriForPath('/' . ltrim($filePath, '/'));
     }
 
     protected function uriForPath($path)
     {
         $uri = \Request()->uri();
-
         return $uri . $path;
     }
 
+    /**
+     * 静态快捷调用
+     */
     public static function __callStatic($name, $arguments)
     {
-        if ($name === 'simpleData') {
-            $filter = new static(self::SIMPLE_MODE);
-            $data = $arguments[0] ?? null;
-            return $filter->filter($data);
+        $data = $arguments[0] ?? null;
 
-        } else if ($name === 'publicData') {
-            $filter = new static(self::PUBLIC_MODE);
-            $data = $arguments[0] ?? null;
-            return $filter->filter($data);
-        } else if ($name === 'simpleList') {
-            $filter = new static(self::SIMPLE_MODE);
-            $data = $arguments[0] ?? null;
-            return $filter->filtersList($data);
-        } else if ($name === 'publicList') {
-            $filter = new static(self::PUBLIC_MODE);
-            $data = $arguments[0] ?? null;
-            return $filter->filtersList($data);
+        switch ($name) {
+            case 'simpleData':
+                return (new static(self::SIMPLE_MODE))->filter($data);
+
+            case 'publicData':
+                return (new static(self::PUBLIC_MODE))->filter($data);
+
+            case 'authenticatedData':
+                return (new static(self::AUTHENTICATED_MODE))->filter($data);
+
+            case 'simpleList':
+                return (new static(self::SIMPLE_MODE))->filtersList($data);
+
+            case 'publicList':
+                return (new static(self::PUBLIC_MODE))->filtersList($data);
+
+            case 'authenticatedList':
+                return (new static(self::AUTHENTICATED_MODE))->filtersList($data);
         }
+
+        throw new \BadMethodCallException("Method {$name} not supported.");
     }
 }
+

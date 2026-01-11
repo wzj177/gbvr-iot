@@ -106,11 +106,11 @@ class GB28181Test extends Command
                         break;
                     
                     case '5. 开始实时视频 (Live)':
-                        $this->handleStartLiveVideo($input, $output, $helper);
+//                        $this->handleStartLiveVideo($input, $output, $helper);
                         break;
                     
                     case '6. 停止实时视频':
-                        $this->handleStopLiveVideo($input, $output, $helper);
+//                        $this->handleStopLiveVideo($input, $output, $helper);
                         break;
                     
                     case '7. 开始录像回放 (Playback)':
@@ -265,112 +265,10 @@ class GB28181Test extends Command
     /**
      * 开始实时视频
      */
-    private function handleStartLiveVideo(InputInterface $input, OutputInterface $output, $helper): void
-    {
-        $deviceId = $this->askDeviceId($input, $output, $helper);
-        $channelId = $this->askChannelId($input, $output, $helper, $deviceId);
-        $channel = $this->deviceService->getChannelByDeviceAndChannel($deviceId, $channelId);
-        if (!$channel) {
-            $output->writeln("<error>设备通道不存在，请确认设备已经注册</error>");
-            return;
-        }
-
-        if ($channel['status'] !== DeviceStatusEnum::ONLINE->value) {
-            $output->writeln("<error>设备通道未在线，请确认设备已经注册并已启用</error>");
-            return;
-        }
-        
-        // 询问 TCP 模式
-        $tcpModeQuestion = new ChoiceQuestion(
-            '请选择 TCP 模式',
-            [
-                '0' => '0. UDP (局域网)',
-                '1' => '1. TCP 被动 (推荐-公网)',
-                '2' => '2. TCP 主动'
-            ],
-            '1'
-        );
-        $tcpModeStr = $helper->ask($input, $output, $tcpModeQuestion);
-        $tcpMode = (int)explode('.', $tcpModeStr)[0];
-        
-        // 创建直播会话
-        try {
-            $sessionResult = $this->gb28181Service->createLiveSession($deviceId, $channelId, $tcpMode);
-        } catch (\Exception $e) {
-            $output->writeln("<error>✗ 创建直播会话失败: {$e->getMessage()}</error>");
-            return;
-        }
-        
-        if (!$sessionResult) {
-            $output->writeln("<error>✗ 创建直播会话失败</error>");
-            return;
-        }
-        
-        $ssrc = $sessionResult['ssrc'];
-        $streamId = $sessionResult['stream_id'];
-        $zlmPort = $sessionResult['zlm_port'];
-        
-        $output->writeln("<info>✓ ZLM 端口分配成功: {$zlmPort}</info>");
-        $output->writeln("<info>✓ SSRC: {$ssrc}</info>");
-        $output->writeln("<info>✓ Stream ID: {$streamId}</info>");
-
-        // 发送 INVITE 命令
-        $output->writeln("<comment>正在发送 INVITE 命令到网关...</comment>");
-        try {
-            $result = $this->gb28181Service->startLiveVideo($deviceId, $channelId, $ssrc, $zlmPort, $tcpMode, $streamId);
-        } catch (\Exception $e) {
-            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
-            // 释放端口
-            $this->gb28181Service->closeRtpServer($streamId);
-            return;
-        }
-        
-        if ($result) {
-            $output->writeln("<info>✓ 实时视频命令已发送</info>");
-            $output->writeln("  设备ID: {$deviceId}");
-            $output->writeln("  通道ID: {$channelId}");
-            $output->writeln("  SSRC: {$ssrc}");
-            $output->writeln("  ZLM端口: {$zlmPort}");
-            $output->writeln("  TCP模式: {$tcpMode} (" . $this->getTcpModeName($tcpMode) . ")");
-            $output->writeln('');
-            $output->writeln("<comment>⚠ 注意：设备响应后需要调用 ZLM 的 updateRtpServerSsrc 更新实际SSRC</comment>");
-        } else {
-            $output->writeln("<error>✗ 发送失败</error>");
-            // 释放端口
-            $this->gb28181Service->closeRtpServer($streamId);
-        }
-    }
 
     /**
      * 停止实时视频
      */
-    private function handleStopLiveVideo(InputInterface $input, OutputInterface $output, $helper): void
-    {
-        $streamId = $this->askStreamId($input, $output, $helper);
-        
-        $session = $this->deviceService->getSessionByStreamId($streamId);
-        if (!$session) {
-            $output->writeln("<error>会话不存在</error>");
-            return;
-        }
-        
-        $output->writeln("<comment>正在停止实时视频...</comment>");
-        try {
-            $result = $this->gb28181Service->closeRtpServer($streamId);
-            
-            if ($result) {
-                // 关闭 ZLM 端口
-                $this->gb28181Service->closeRtpServer($session['stream_id']);
-                
-                $output->writeln("<info>✓ 停止命令已发送</info>");
-                $output->writeln("<info>✓ ZLM 端口已释放: {$session['zlm_port']}</info>");
-            } else {
-                $output->writeln("<error>✗ 发送失败</error>");
-            }
-        } catch (\Exception $e) {
-            $output->writeln("<error>✗ 发送失败: {$e->getMessage()}</error>");
-        }
-    }
 
     /**
      * 开始录像回放
@@ -415,7 +313,7 @@ class GB28181Test extends Command
         
         $playbackStreamId = $sessionResult['stream_id'];
         $playbackSsrc = $sessionResult['ssrc'];
-        $zlmPort = $sessionResult['zlm_port'];
+        $zlmPort = $sessionResult['rtp_port'];
         
         $output->writeln("<info>✓ ZLM 端口: {$zlmPort}, SSRC: {$playbackSsrc}</info>");
         $output->writeln("<info>✓ Stream ID: {$playbackStreamId}</info>");
@@ -571,7 +469,7 @@ class GB28181Test extends Command
             $output->writeln("    设备ID: {$session['device_id']}");
             $output->writeln("    通道ID: {$session['channel_id']}");
             $output->writeln("    SSRC: {$session['ssrc']}");
-            $output->writeln("    ZLM端口: {$session['zlm_port']}");
+            $output->writeln("    ZLM端口: {$session['rtp_port']}");
             $output->writeln("    TCP模式: {$session['tcp_mode']} (" . $this->getTcpModeName($session['tcp_mode']) . ")");
             $output->writeln("    开始时间: {$session['started_at']}");
             
