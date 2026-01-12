@@ -189,6 +189,14 @@ class DaoProxy
             $arguments[0][$declares['timestamps'][1]] = $time;
         }
 
+        if (isset($declares['datetime'][0])) {
+            $arguments[0][$declares['datetime'][0]] = date('Y-m-d H:i:s', $time);
+        }
+
+        if (isset($declares['datetime'][1])) {
+            $arguments[0][$declares['timestamps'][1]] = date('Y-m-d H:i:s', $time);
+        }
+
         $this->serialize($arguments[0]);
         $row = $this->callRealDao($method, $arguments);
         $this->unserialize($row);
@@ -237,6 +245,14 @@ class DaoProxy
                 $row[$declares['timestamps'][1]] = $time;
             }
 
+            if (isset($declares['datetime'][0])) {
+                $row[$declares['datetime'][0]] = date('Y-m-d H:i:s', $time);
+            }
+
+            if (isset($declares['datetime'][1])) {
+                $row[$declares['datetime'][1]] = date('Y-m-d H:i:s', $time);
+            }
+
             $this->serialize($row);
             unset($row);
         }
@@ -264,7 +280,9 @@ class DaoProxy
             if (isset($declares['timestamps'][1])) {
                 $row[$declares['timestamps'][1]] = $time;
             }
-
+            if (isset($declares['datetime'][1])) {
+                $row[$declares['datetime'][1]] = date('Y-m-d H:i:s', $time);
+            }
             $this->serialize($row);
         }
 
@@ -314,6 +332,11 @@ class DaoProxy
 
         if (isset($declares['timestamps'][1])) {
             $arguments[$lastKey][$declares['timestamps'][1]] = time();
+        }
+
+
+        if (isset($declares['datetime'][1])) {
+            $arguments[$lastKey][$declares['datetime'][1]] = date('Y-m-d H:i:s', time());
         }
 
         $this->serialize($arguments[$lastKey]);

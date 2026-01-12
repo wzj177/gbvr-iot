@@ -149,6 +149,8 @@ class CommandDispatcher
             return $this->errorResponse($requestId, 'Missing media_server_ip in params');
         }
 
+        $this->log("Media server IP: {$mediaServerIp}");
+
         // 构建 SDP（使用传入的SSRC和端口）
         $sdp = SdpBuilder::buildLiveVideoSdp(
             serverId: $this->config['server_id'],
@@ -460,27 +462,40 @@ class CommandDispatcher
 
     /**
      * 构建 PTZ 控制命令
-     * GB28181 PTZ 命令格式: A5 0F 01 [指令码] [水平速度] [垂直速度] [焦距速度高4位]0 [校验码]
+     * GB28181 PTZ 命令格式: A5 0F 01 [指令码] [水平速度] [垂直速度] [焦距/光圈速度] [校验码]
      *
      * 指令码(第4字节)位定义:
      * bit 0 (0x01): 右移
      * bit 1 (0x02): 左移
      * bit 2 (0x04): 下移
      * bit 3 (0x08): 上移
-     * bit 4 (0x10): 放大
-     * bit 5 (0x20): 缩小
+     * bit 4 (0x10): 变倍放大 (zoom_in)
+     * bit 5 (0x20): 变倍缩小 (zoom_out)
+     * bit 6 (0x40): 对焦远 (focus_far)
+     * bit 7 (0x80): 对焦近 (focus_near)
      *
-     * 参考: GB/T 28181-2016 附录F, PtzCmd.cpp
+     * 第7字节组合:
+     * - 高4位: 变倍速度
+     * - 低4位: 光圈/对焦速度
+     *
+     * 单独命令(不使用指令码位):
+     * - 0x42: 对焦近 (focus_near)
+     * - 0x41: 对焦远 (focus_far)
+     * - 0x44: 光圈开大 (iris_open)
+     * - 0x48: 光圈缩小 (iris_close)
+     *
+     * 参考: GB/T 28181-2016 附录F, ak-stream/SipServer.cs GetPtzCmd()
      */
     private function buildPtzCommand(array $params): string
     {
-        $command = $params['command'];  // up, down, left, right, zoom_in, zoom_out, stop
+        $command = $params['command'];  // up, down, left, right, zoom_in, zoom_out, focus_near, focus_far, iris_open, iris_close, stop
         $speed = $params['speed'] ?? 5;  // 1-255
 
         $cmdCode = 0;
         $horizontalSpeed = 0;
         $verticalSpeed = 0;
         $zoomSpeed = 0;
+        $focusIrisSpeed = 0;
 
         switch ($command) {
             case 'right':
@@ -507,13 +522,33 @@ class CommandDispatcher
                 $cmdCode = 0x20;  // bit 5: 缩小
                 $zoomSpeed = $speed & 0x0F;
                 break;
+            case 'focus_near':
+                // 对焦近 (聚焦+)
+                $cmdCode = 0x42;
+                $focusIrisSpeed = $speed & 0x0F;
+                break;
+            case 'focus_far':
+                // 对焦远 (聚焦-)
+                $cmdCode = 0x41;
+                $focusIrisSpeed = $speed & 0x0F;
+                break;
+            case 'iris_open':
+                // 光圈开大
+                $cmdCode = 0x44;
+                $focusIrisSpeed = $speed & 0x0F;
+                break;
+            case 'iris_close':
+                // 光圈缩小
+                $cmdCode = 0x48;
+                $focusIrisSpeed = $speed & 0x0F;
+                break;
             case 'stop':
                 // 全部为0: 停止所有动作
                 break;
         }
 
-        // 第7字节: 高4位是焦距速度, 低4位固定为0
-        $byte7 = ($zoomSpeed << 4) & 0xF0;
+        // 第7字节: 高4位是变倍速度, 低4位是对焦/光圈速度
+        $byte7 = (($zoomSpeed << 4) & 0xF0) | ($focusIrisSpeed & 0x0F);
 
         // 计算校验码: (字节1 + 字节2 + ... + 字节7) % 256
         $checksum = (0xA5 + 0x0F + 0x01 + $cmdCode + $horizontalSpeed + $verticalSpeed + $byte7) % 0x100;

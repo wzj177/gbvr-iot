@@ -57,7 +57,7 @@ class MessageHandler
             return $this->commands[$cmdType]->generateResponse($data, $sn);
         }
         
-        throw new \InvalidArgumentException("Unsupported command type: {$cmdType}");
+        throw new \InvalidArgumentException("GenerateResponse Unsupported command type: {$cmdType}");
     }
 
     /**

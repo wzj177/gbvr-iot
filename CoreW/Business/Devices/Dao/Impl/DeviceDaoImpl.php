@@ -21,6 +21,7 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
     {
         return [
             'serializes' => [
+                'filter_channel_types' => 'json'
             ],
             'orderbys' => [
                 'id',

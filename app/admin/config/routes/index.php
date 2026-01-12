@@ -203,10 +203,19 @@ Route::group('/api/admin', function () {
             Route::get('/tree', [GB28181DeviceController::class, 'tree'])->name('admin.gb28181.devices.tree');
             Route::get('/{id}', [GB28181DeviceController::class, 'show'])->name('admin.gb28181.devices.show');
             Route::put('/{id}', [GB28181DeviceController::class, 'update'])->name('admin.gb28181.devices.update');
+            Route::post('/{id}/cmd', [GB28181DeviceController::class, 'cmd'])->name('admin.gb28181.devices.cmd');
             Route::delete('/{id}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
             Route::post('/{id}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
             Route::put('/batch/area', [GB28181DeviceController::class, 'batchUpdateArea'])->name('admin.gb28181.devices.batch-area');
             Route::post('/ptz', [GB28181PTZController::class, 'control'])->name('admin.gb28181.ptz.control');
+        });
+
+        // 预置位管理
+            Route::group('/presets', function () {
+            Route::get('', [GB28181PTZController::class, 'getPresetList'])->name('admin.gb28181.presets.list');
+            Route::post('', [GB28181PTZController::class, 'setPreset'])->name('admin.gb28181.presets.set');
+            Route::post('/call', [GB28181PTZController::class, 'callPreset'])->name('admin.gb28181.presets.call');
+            Route::post('/delete', [GB28181PTZController::class, 'deletePreset'])->name('admin.gb28181.presets.delete');
         });
 
         // 通道管理
@@ -215,6 +224,7 @@ Route::group('/api/admin', function () {
             Route::get('/{id}', [GB28181ChannelController::class, 'show'])->name('admin.gb28181.channels.show');
             Route::put('/{id}', [GB28181ChannelController::class, 'update'])->name('admin.gb28181.channels.update');
             Route::put('/batch/bind-media', [GB28181ChannelController::class, 'batchBindMedia'])->name('admin.gb28181.channels.batch-bind-media');
+            Route::get('/type/filters',  [GB28181ChannelController::class, 'filterChannelTypes'])->name('admin.gb28181.devices.filter-channel-types');
         });
 
         // PTZ控制

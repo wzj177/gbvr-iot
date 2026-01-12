@@ -3,6 +3,7 @@
 namespace app\admin\controller;
 
 use app\admin\BaseController;
+use CoreW\Business\Devices\Enums\ChannelTypeEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\MediaServer\Service\MediaServerService;
 use support\Log;
@@ -191,6 +192,42 @@ class GB28181ChannelController extends BaseController
         }
     }
 
+    public function filterChannelTypes()
+    {
+        $items = [
+            [
+                'code' => ChannelTypeEnum::ALARM_INPUT->value,
+                'name' => ChannelTypeEnum::ALARM_INPUT->label(),
+            ],
+            [
+                'code' => ChannelTypeEnum::ALARM_OUTPUT->value,
+                'name' => ChannelTypeEnum::ALARM_OUTPUT->label(),
+            ],
+            [
+                'code' => ChannelTypeEnum::AUDIO_INPUT->value,
+                'name' => ChannelTypeEnum::AUDIO_INPUT->label(),
+            ],
+            [
+                'code' => ChannelTypeEnum::AUDIO_OUTPUT->value,
+                'name' => ChannelTypeEnum::AUDIO_OUTPUT->label(),
+            ],
+            [
+                'code' => ChannelTypeEnum::SIGNAL_SERVER->value,
+                'name' => ChannelTypeEnum::SIGNAL_SERVER->label(),
+            ],
+            [
+                'code' => ChannelTypeEnum::BUSINESS_GROUP->value,
+                'name' => ChannelTypeEnum::BUSINESS_GROUP->label(),
+            ],
+            [
+                'code' => ChannelTypeEnum::VIRTUAL_ORG->value,
+                'name' => ChannelTypeEnum::VIRTUAL_ORG->label(),
+            ]
+        ];
+
+        return $this->createSuccessJsonResponse($items);
+    }
+
     /**
      * 过滤媒体服务器敏感信息，只保留必要的字段
      */
@@ -204,6 +241,7 @@ class GB28181ChannelController extends BaseController
             'port' => $server['port'] ?? '',
         ];
     }
+
 
     /**
      * @return DeviceService

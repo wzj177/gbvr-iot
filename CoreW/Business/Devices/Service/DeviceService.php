@@ -58,4 +58,42 @@ interface DeviceService
 
     // 树形数据
     public function getDeviceTree(string $treeType = 'dc'): array;
+
+    // ==================== 预置位管理 ====================
+
+    /**
+     * 获取设备和通道的预置位列表
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @return array 预置位列表
+     */
+    public function getPresetList(string $deviceId, string $channelId): array;
+
+    /**
+     * 设置预置位
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $value 预置位编号 (1-255)
+     * @param string $name 预置位名称
+     * @return array 创建的预置位记录
+     */
+    public function setPreset(string $deviceId, string $channelId, int $value, string $name = ''): array;
+
+    /**
+     * 调用预置位
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $value 预置位编号 (1-255)
+     * @return bool
+     */
+    public function callPreset(string $deviceId, string $channelId, int $value): bool;
+
+    /**
+     * 删除预置位
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $value 预置位编号 (1-255)
+     * @return bool
+     */
+    public function deletePreset(string $deviceId, string $channelId, int $value): bool;
 }

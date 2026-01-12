@@ -4,6 +4,7 @@ namespace app\admin\controller;
 
 use app\admin\BaseController;
 use app\admin\filters\DeviceFilter;
+use CoreW\Business\Devices\Enums\ChannelTypeEnum;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\GB\Gb28181Service;
@@ -113,7 +114,7 @@ class GB28181DeviceController extends BaseController
         }
 
         Log::channel('sip')->info('Query catalog command sent', [
-            'device_id' => $deviceId,
+            'device' => $device,
         ]);
 
         return $this->createSuccessJsonResponse([
@@ -183,7 +184,7 @@ class GB28181DeviceController extends BaseController
 
         // 验证 charset
         if (isset($updateData['charset'])) {
-            if (!in_array($updateData['charset'], ['gb2312', 'utf8'])) {
+            if (!in_array($updateData['charset'], ['gb2312', 'utf8', 'auto'])) {
                 return $this->createErrorJsonResponse('字符集无效，必须为 gb2312 或 utf8', 400);
             }
         }
@@ -214,22 +215,6 @@ class GB28181DeviceController extends BaseController
             }
         }
 
-        // 验证 filter_channel_types (JSON数组)
-        if (isset($updateData['filter_channel_types'])) {
-            if (is_array($updateData['filter_channel_types'])) {
-                $updateData['filter_channel_types'] = json_encode($updateData['filter_channel_types']);
-            } elseif (!is_null($updateData['filter_channel_types']) && $updateData['filter_channel_types'] !== '') {
-                // 尝试解析 JSON 字符串
-                $decoded = json_decode($updateData['filter_channel_types'], true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    return $this->createErrorJsonResponse('filter_channel_types 格式错误，必须是 JSON 数组', 400);
-                }
-                $updateData['filter_channel_types'] = json_encode($decoded);
-            } else {
-                $updateData['filter_channel_types'] = null;
-            }
-        }
-
         try {
             $this->getDeviceService()->updateDeviceExtendInfo($id, $updateData);
 
@@ -242,6 +227,28 @@ class GB28181DeviceController extends BaseController
 
             return $this->createErrorJsonResponse('更新设备失败: ' . $e->getMessage(), 500);
         }
+    }
+
+    public function cmd(Request $request, $id)
+    {
+        $device = $this->getDeviceService()->getDevicesById($id);
+        if (!$device) {
+            return $this->createErrorJsonResponse('设备不存在', 404);
+        }
+
+        // cmd
+        $cmd = $request->post('cmd', '');
+        if (empty($cmd)) {
+            return $this->createErrorJsonResponse('请指定要执行的命令', 400);
+        }
+
+        $result = match ($cmd) {
+            'query_device_info' => $this->getGb28181Service()->queryDeviceInfo($device['device_id']),
+            default => $this->createErrorJsonResponse('不支持的命令', 400),
+        };
+        return $this->createSuccessJsonResponse([
+            'result' => $result,
+        ], '命令已发送，请等待设备响应');
     }
 
     /**
@@ -327,6 +334,7 @@ class GB28181DeviceController extends BaseController
         }
     }
 
+
     /**
      * @return DeviceService
      */
@@ -340,6 +348,6 @@ class GB28181DeviceController extends BaseController
      */
     private function getGb28181Service(): Gb28181Service
     {
-        return $this->createService('GB:Gb28181Service');
+        return $this->getBiz()->offsetGet('gb28181_service');
     }
 }

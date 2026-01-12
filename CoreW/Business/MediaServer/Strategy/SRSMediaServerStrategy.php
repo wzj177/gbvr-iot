@@ -62,7 +62,7 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getVersion(array $serverConfig): ?string
+    public function getVersion(array $serverConfig): ?array
     {
         return null;
     }

@@ -6,6 +6,7 @@ use \ExoSip;
 use Gb28181\GateWay\Device\DeviceManager;
 use Gb28181\GateWay\Handlers\LongTask\RedisSubscriber;
 use Gb28181\GateWay\Message\CommandDispatcher;
+use Gb28181\GateWay\Message\CommandType\DeviceControlCommand;
 use Gb28181\GateWay\Message\MessageHandler;
 use Gb28181\GateWay\Message\QuerySender;
 use Gb28181\GateWay\Message\CommandType\KeepaliveCommand;
@@ -143,6 +144,7 @@ class GB28181Handler
         $this->messageHandler->registerCommand(new AlarmCommand());
         $this->messageHandler->registerCommand(new MobilePositionCommand());
         $this->messageHandler->registerCommand(new MediaStatusCommand());
+        $this->messageHandler->registerCommand(new DeviceControlCommand());
 
         // 初始化查询发送器
         $this->querySender = new QuerySender($sipServer, [
@@ -1304,6 +1306,14 @@ class GB28181Handler
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
 
+    public function handleDeviceControl(\SipEvent $event, string $deviceId, array $result)
+    {
+        $resultStr = json_encode($result);
+        $this->log("设备控制: $deviceId, result={$resultStr}");
+
+        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+    }
+
     /**
      * 处理设备状态响应
      */
@@ -1371,6 +1381,9 @@ class GB28181Handler
                 break;
             case 'DeviceInfo':
                 $this->handleDeviceInfo($event, $deviceId, $result);
+                break;
+            case 'DeviceControl':
+                $this->handleDeviceControl($event, $deviceId, $result);
                 break;
             case 'DeviceStatus':
                 $this->handleDeviceStatus($event, $deviceId, $result);

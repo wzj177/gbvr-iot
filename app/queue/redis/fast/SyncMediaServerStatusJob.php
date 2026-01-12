@@ -1,6 +1,6 @@
 <?php
 
-namespace app\queue\redis;
+namespace app\queue\redis\fast;
 
 use CoreW\Bfw;
 use CoreW\Business\MediaServer\Enums\ServerStatusEnum;

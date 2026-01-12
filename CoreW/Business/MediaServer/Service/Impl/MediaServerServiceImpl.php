@@ -23,14 +23,9 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
     public function getMediaServerByServerId(string $serverId): ?array
     {
-        $result = $this->getMediaServerDao()->search(
-            ['server_id' => $serverId],
-            [],
-            0,
-            1
-        );
+        $result = $this->getMediaServerDao()->getByServerId($serverId);
 
-        return $result[0] ?? null;
+        return $result ?: null;
     }
 
     public function findServersByIds(array $ids)
@@ -55,13 +50,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
     public function getSimpleList(): array
     {
-        return $this->getMediaServerDao()->search(
-            [],
-            [],
-            0,
-            100,
-            ['id', 'server_id', 'name', 'type', 'status']
-        );
+        return $this->searchMediaServers([], [], 0, 100, ['id', 'server_id', 'name', 'type', 'status']);
     }
 
     public function createMediaServer(array $fields)

@@ -8,6 +8,7 @@ use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Dao\DeviceDao;
 use CoreW\Business\Devices\Dao\DeviceChannelsDao;
 use CoreW\Business\Devices\Dao\StreamSessionsDao;
+use CoreW\Business\Devices\Dao\PresetDao;
 use CoreW\Business\GB\Gb28181Service;
 use CoreW\Dao\DaoProxy;
 use support\exception\NotFoundException;
@@ -773,6 +774,112 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return substr((string)(time() * 1000 + rand(0, 999)), -10);
     }
 
+    // ==================== 预置位管理 ====================
+
+    public function getPresetList(string $deviceId, string $channelId): array
+    {
+        return $this->getPresetDao()->findByDeviceAndChannel($deviceId, $channelId);
+    }
+
+    public function setPreset(string $deviceId, string $channelId, int $value, string $name = ''): array
+    {
+        // 验证预置位编号范围
+        if ($value < 1 || $value > 255) {
+            throw new \InvalidArgumentException('预置位编号必须在1-255之间');
+        }
+
+        // 检查设备和通道是否存在
+        $channel = $this->getChannelByDeviceAndChannel($deviceId, $channelId);
+        if (!$channel) {
+            throw new NotFoundException('设备和通道不存在');
+        }
+
+        // 检查是否已存在该预置位
+        $existing = $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
+
+        $now = date('Y-m-d H:i:s');
+
+        if ($existing) {
+            // 更新现有预置位
+            $this->getPresetDao()->update($existing['id'], [
+                'name' => $name ?: "预置位{$value}",
+                'status' => 'setting',
+                'updated_at' => $now,
+            ]);
+        } else {
+            // 创建新预置位
+            $this->getPresetDao()->create([
+                'device_id' => $deviceId,
+                'channel_id' => $channelId,
+                'value' => $value,
+                'name' => $name ?: "预置位{$value}",
+                'status' => 'setting',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        // 发送设置命令到网关
+        $result = $this->getGb28181Service()->presetSet($deviceId, $channelId, $value);
+
+        // 更新状态
+//        $preset = $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
+//        if ($result) {
+//            $this->getPresetDao()->update($preset['id'], [
+//                'status' => 'set',
+//                'updated_at' => $now,
+//            ]);
+//        } else {
+//            $this->getPresetDao()->update($preset['id'], [
+//                'status' => 'unset',
+//                'updated_at' => $now,
+//            ]);
+//        }
+
+        return $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
+    }
+
+    public function callPreset(string $deviceId, string $channelId, int $value): bool
+    {
+        // 验证预置位编号范围
+        if ($value < 1 || $value > 255) {
+            throw new \InvalidArgumentException('预置位编号必须在1-255之间');
+        }
+
+        // 检查预置位是否存在
+        $preset = $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
+        if (!$preset) {
+            throw new NotFoundException('预置位不存在');
+        }
+
+        // 发送调用命令到网关
+        return $this->getGb28181Service()->presetCall($deviceId, $channelId, $value);
+    }
+
+    public function deletePreset(string $deviceId, string $channelId, int $value): bool
+    {
+        // 验证预置位编号范围
+        if ($value < 1 || $value > 255) {
+            throw new \InvalidArgumentException('预置位编号必须在1-255之间');
+        }
+
+        // 检查预置位是否存在
+        $preset = $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
+        if (!$preset) {
+            throw new NotFoundException('预置位不存在');
+        }
+
+        // 发送删除命令到网关
+        $result = $this->getGb28181Service()->presetDelete($deviceId, $channelId, $value);
+
+        if ($result) {
+            // 删除数据库记录
+            $this->getPresetDao()->delete($preset['id']);
+        }
+
+        return $result;
+    }
+
     // ==================== DAO 获取器 ====================
 
     protected function getDeviceDao(): DeviceDao|DaoProxy
@@ -788,6 +895,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     protected function getStreamSessionsDao(): StreamSessionsDao|DaoProxy
     {
         return $this->createDao('Devices:StreamSessionsDao');
+    }
+
+    protected function getPresetDao(): PresetDao|DaoProxy
+    {
+        return $this->createDao('Devices:PresetDao');
     }
 
     protected function getGb28181Service(): Gb28181Service

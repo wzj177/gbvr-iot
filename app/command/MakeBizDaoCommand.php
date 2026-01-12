@@ -29,6 +29,7 @@ class MakeBizDaoCommand extends Command
     {
         $this->addOption('id', '-i', InputOption::VALUE_REQUIRED, '业务名称')
             ->addOption('dao', '-d', InputOption::VALUE_OPTIONAL, 'dao名称')
+            ->addOption('table', '-t', InputOption::VALUE_OPTIONAL,'数据表名称')
             ->addOption('namespace', '-s', InputOption::VALUE_OPTIONAL, '命名空间');
     }
 
@@ -43,11 +44,13 @@ class MakeBizDaoCommand extends Command
         $dao = $input->getOption('dao');
         empty($dao) && $dao = $bizId;
         $namespace = $input->getOption('namespace');
+        $table = $input->getOption('table');
         empty($namespace) && $namespace = "CoreW\\Business";
         $output->writeln(sprintf("正在生成DAO: %s", ShellColor::showInfo($bizId)));
         try {
             $gii = GiiFactory::create('easy', $namespace, $this->getBiz());
             $path = $gii->render([
+                'tableName' => $table,
                 'bizId' => $bizId,
                 'prefix' => getenv('DB_PREFIX'),
                 'dao' => $dao,

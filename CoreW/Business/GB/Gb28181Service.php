@@ -84,7 +84,9 @@ class Gb28181Service
      * 
      * 支持的命令:
      * - up/down/left/right: 方向控制
-     * - zoom_in/zoom_out: 焦距控制
+     * - zoom_in/zoom_out: 变倍控制 (放大/缩小)
+     * - focus_near/focus_far: 对焦控制 (近焦/远焦)
+     * - iris_open/iris_close: 光圈控制 (开大/缩小)
      * - stop: 停止云台运动
      * 
      * 前端实现建议:
@@ -119,6 +121,58 @@ class Gb28181Service
     public function ptzStop(string $deviceId, string $channelId): bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'stop', 0);
+    }
+
+    /**
+     * 对焦近 (聚焦+)
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $speed 速度 (1-255)
+     * @return bool
+     */
+    public function focusNear(string $deviceId, string $channelId, int $speed = 5): bool
+    {
+        return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'focus_near', $speed);
+    }
+
+    /**
+     * 对焦远 (聚焦-)
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $speed 速度 (1-255)
+     * @return bool
+     */
+    public function focusFar(string $deviceId, string $channelId, int $speed = 5): bool
+    {
+        return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'focus_far', $speed);
+    }
+
+    /**
+     * 光圈开大
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $speed 速度 (1-255)
+     * @return bool
+     */
+    public function irisOpen(string $deviceId, string $channelId, int $speed = 5): bool
+    {
+        return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'iris_open', $speed);
+    }
+
+    /**
+     * 光圈缩小
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param int $speed 速度 (1-255)
+     * @return bool
+     */
+    public function irisClose(string $deviceId, string $channelId, int $speed = 5): bool
+    {
+        return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'iris_close', $speed);
     }
 
     /**
