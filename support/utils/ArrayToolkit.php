@@ -299,4 +299,36 @@ class ArrayToolkit
 
         return $twoDimensionalArr;
     }
+
+    /**
+     * 获取数组中指定字段的值
+     *
+     * @param array $items
+     * @param string $key
+     * @param string $value
+     *
+     * @return array
+     */
+    public static function find(array $items, string $key, string $value)
+    {
+        if (function_exists('array_find')) {
+            return array_find($items, function ($item) use ($key, $value) {
+                if (!isset($item[$key])) {
+                    return false;
+                }
+                return $item[$key] == $value;
+            });
+        }
+
+        foreach ($items as $item) {
+            if (!isset($item[$key])) {
+                continue;
+            }
+            if ($item[$key] == $value) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
 }

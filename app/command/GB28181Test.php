@@ -300,7 +300,7 @@ class GB28181Test extends Command
         
         // 创建回放会话
         try {
-            $sessionResult = $this->gb28181Service->createPlaybackSession($deviceId, $channelId, $startTime, $endTime, $tcpMode);
+            $sessionResult = $this->gb28181Service->createPlaybackSessionAndOpenRtp($deviceId, $channelId, $startTime, $endTime, $tcpMode);
         } catch (\Exception $e) {
             $output->writeln("<error>✗ 创建回放会话失败: {$e->getMessage()}</error>");
             return;

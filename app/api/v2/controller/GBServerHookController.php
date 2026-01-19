@@ -3,12 +3,16 @@
 namespace app\api\v2\controller;
 
 use app\api\BaseController;
+use CoreW\Business\Devices\Enums\ChannelStreamStatus;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
+use CoreW\Business\Devices\Enums\StreamSessionStatus;
 use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\Devices\Service\PlaybackRecordService;
 use CoreW\Business\GB\Gb28181Service;
 use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Log;
+use support\Redis;
 use support\Request;
 
 /**
@@ -30,13 +34,16 @@ class GBServerHookController extends BaseController
         $scene = $request->post('scene');
         $body = $request->post('body', []);
 
-        Log::channel('sip')->info('GBServer Hook Received', [
-            'scene' => $scene,
-            'body' => $body,
-        ]);
+        if ($scene !== 'sip_xml') {
+            Log::channel('sip')->info('GBServer Hook Received', [
+                'scene' => $scene,
+                'body' => $body,
+            ]);
+        }
 
         try {
             match ($scene) {
+                'sip_xml' => $this->handleSipXml($body),
                 'register' => $this->handleRegister($body),
                 'device_unregister' => $this->handleUnRegister($body),
                 'device_expired' => $this->handleExpired($body),
@@ -48,7 +55,9 @@ class GBServerHookController extends BaseController
                 'voice_invite' => $this->handleVoiceInvite($body),
                 'session_bye' => $this->handleSessionBye($body),
                 'device_status' => $this->handleDeviceStatus($body),
+                'record_info' => $this->handleRecordInfo($body),
                 'alarm' => $this->handleAlarm($body),
+                'command_confirmed' => $this->handleCommandConfirmed($body),  // 🆕 设备确认收到指令
                 'catalog_update' => Log::channel('sip')->warning('目录变更通知', ['scene' => $scene]), // 目录变更通知
                 'alarm_event' => Log::channel('sip')->warning('报警事件通知', ['scene' => $scene]), // 报警事件通知
                 'position_update' => Log::channel('sip')->warning('位置更新通知', ['scene' => $scene]), // 位置更新通知
@@ -66,6 +75,27 @@ class GBServerHookController extends BaseController
 
             return $this->createErrorJsonResponse($e->getMessage(), 500);
         }
+    }
+
+    private function handleSipXml(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        if (!$deviceId) {
+            return;
+        }
+        $xml = $body['xml'] ?? '';
+
+        if (!$xml) {
+            return;
+        }
+
+        $path = runtime_path('sip/xml/');
+        if (!is_dir($path)) {
+            mkdir($path, 0755, true);
+        }
+        $filename = $path . $deviceId . '-' . date('Ymd') . '.log';
+
+        file_put_contents($filename, $xml, FILE_APPEND);
     }
 
     /**
@@ -236,7 +266,7 @@ class GBServerHookController extends BaseController
         $callId = $body['call_id'] ?? 0;
         $deviceSsrc = $body['device_ssrc'] ?? '';
         $sdp = $body['sdp'] ?? [];
-
+        //{"device_id":"34020000002000000001","call_id":3,"dialog_id":4,"device_ssrc":"0790858880","device_ip":null,"device_port":"20006","sdp":{"version":"0","origin":{"username":"34020000001320456628","session_id":"0","session_version":"0","nettype":"IN","addrtype":"IP4","addr":"10.18.136.1"},"session_name":"Play","medias":[{"media":"video","port":"20006","proto":"RTP/AVP","payloads":["96"],"attributes":{"rtpmap":"96 PS/90000","sendonly":null}}],"gb28181":{"ssrc":"0790858880","f":"v/2////a/6//1"}},"timestamp":1768471090}
         Log::channel('sip')->info('Media ready', $body);
 
         if (!$callId) {
@@ -252,68 +282,43 @@ class GBServerHookController extends BaseController
                 return;
             }
 
-            $streamId = $session['stream_id'] ?? '';
-
             // 更新会话状态和设备 SSRC
             $updateData = [
-                'status' => 'active',
-                'device_ip' => $sdp['device_ip'] ?? null,
-                'device_port' => $sdp['device_port'] ?? null,
+                'status' => StreamSessionStatus::Active->value,
+                'device_ip' => !empty($body['device_ip']) ? $body['device_ip'] : $sdp['origin']['addr'] ?? null,
+                'device_port' => $body['device_port'] ?? 0,
                 'call_id' => $callId,
+                'dialog_id' => $body['dialog_id'] ?? -1,
                 'sdp' => isset($body['sdp']) ? serialize($sdp) : null,
             ];
 
-            if ($deviceSsrc) {
-                $updateData['device_ssrc'] = $deviceSsrc;
-            }
             $this->getDeviceService()->updateChannelByMainId($session['stream_id'], [
-                'stream_status' => 'pushing'
+                'stream_status' => ChannelStreamStatus::PUSHING->value,
             ]);
-            $this->getDeviceService()->updateSessionByCallId((int)$callId, $updateData);
-
+            $this->getDeviceService()->updateSessionBySSRC($deviceSsrc, $updateData);
             // 如果有设备 SSRC，更新 ZLM
-            if ($deviceSsrc && $streamId) {
-                try {
-                    $result = $this->getGb28181Service()->updateRtpServerSsrc($streamId, $deviceSsrc);
+//            if ($deviceSsrc && $streamId) {
+//                try {
+//                    $result = $this->getGb28181Service()->updateRtpServerSsrc($streamId, $deviceSsrc);
+//
+//                    if ($result) {
+//                        Log::channel('sip')->info('ZLM SSRC updated', [
+//                            'stream_id' => $streamId,
+//                            'device_ssrc' => $deviceSsrc,
+//                        ]);
+//                    } else {
+//                        Log::channel('sip')->warning('ZLM SSRC update failed', [
+//                            'stream_id' => $streamId,
+//                        ]);
+//                    }
+//                } catch (\Exception $e) {
+//                    Log::channel('sip')->error('ZLM update error', [
+//                        'stream_id' => $streamId,
+//                        'error' => $e->getMessage(),
+//                    ]);
+//                }
+//            }
 
-                    if ($result) {
-                        Log::channel('sip')->info('ZLM SSRC updated', [
-                            'stream_id' => $streamId,
-                            'device_ssrc' => $deviceSsrc,
-                        ]);
-                    } else {
-                        Log::channel('sip')->warning('ZLM SSRC update failed', [
-                            'stream_id' => $streamId,
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    Log::channel('sip')->error('ZLM update error', [
-                        'stream_id' => $streamId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // 获取播放地址
-            if ($streamId) {
-                try {
-                    $playUrls = $this->getGb28181Service()->getPlayUrls('rtp', $streamId);
-
-                    // 更新会话的播放地址
-                    $this->getDeviceService()->updateSessionByCallId((int)$callId, [
-                        'play_urls' => json_encode($playUrls),
-                    ]);
-
-                    Log::channel('sip')->info('Play URLs generated', [
-                        'stream_id' => $streamId,
-                        'urls' => $playUrls,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::channel('sip')->warning('Get play URLs failed', [
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
         } catch (\Exception $e) {
             Log::channel('sip')->error('Media ready handler failed', [
                 'call_id' => $callId,
@@ -443,6 +448,57 @@ class GBServerHookController extends BaseController
         }
     }
 
+    private function handleRecordInfo(array $body)
+    {
+        //{"scene":"record_info","body":{"device_id":"34020000001320456626","record_info":{"device_id":"34020000001320456626","sum_num":2,"record_list":[{"DeviceID":"34020000001310000001","Name":"CH1_20260115123217881.mp4","FilePath":"","Address":"","StartTime":"2026-01-15T12:32:17","EndTime":"2026-01-15T12:32:51","Secrecy":"0","Type":"time","RecorderID":""},{"DeviceID":"34020000001310000001","Name":"CH1_20260115130729523.mp4","FilePath":"","Address":"","StartTime":"2026-01-15T13:07:29","EndTime":"2026-01-15T13:20:04","Secrecy":"0","Type":"time","RecorderID":""}],"cmd_type":"RecordInfo"},"timestamp":1768666454}}
+        $recordInfo = $body['record_info'] ?? null;
+        if (!$recordInfo) {
+            return;
+        }
+
+        if ($recordInfo['sum_num'] <= 0) {
+            Log::channel('sip')->info("设备：{$body['device_id']} 无录像");
+            return;
+        }
+        $recordList = $recordInfo['record_list'] ?? [];
+        if (!$recordList) {
+            return;
+        }
+
+        try {
+            $records = [];
+            foreach ($recordList as $item) {
+                $records[] = [
+                    'device_id' => $body['device_id'],
+                    'channel_id' => $item['DeviceID'],
+                    'name' => $item['Name'],
+                    'file_path' => $item['FilePath'] ?? '',
+                    'address' => $item['Address'] ?? '',
+                    'start_time' => strtotime($item['StartTime']),
+                    'end_time' => strtotime($item['EndTime']),
+                    'secrecy' => (int)($item['Secrecy'] ?? 0),
+                    'type' => $item['Type'] ?? 'time',
+                    'recorder_id' => $item['RecorderID'] ?? '',
+                ];
+            }
+
+            // 使用 savePlaybackRecords 自动去重
+            $this->getPlaybackRecordService()->savePlaybackRecords($records);
+
+            Log::channel('sip')->info('Playback records saved', [
+                'device_id' => $body['device_id'],
+                'count' => count($records),
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Playback records save failed', [
+                'device_id' => $body['device_id'],
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return;
+    }
+
     private function handleDeviceInfo(array $body): void
     {
         $deviceId = $body['device_id'] ?? '';
@@ -502,6 +558,68 @@ class GBServerHookController extends BaseController
     }
 
     /**
+     * 处理设备确认收到指令（MESSAGE 200 OK 响应）
+     *
+     * 重要说明：
+     * - 这只是确认"设备收到了指令"，不是"指令执行完成"
+     * - 实际的执行结果会通过后续的 MESSAGE 请求返回（带 XML body）
+     * - 业务系统可以根据 call_id 或 cseq 关联原始请求
+     *
+     * 应用场景：
+     * - PTZ 控制：记录指令发送成功，更新设备控制日志
+     * - 录像控制：标记录像任务已提交
+     * - 设备配置：标记配置命令已下发
+     */
+    private function handleCommandConfirmed(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $callId = $body['call_id'] ?? 0;
+        $cseq = $body['cseq'] ?? 0;
+        $statusCode = $body['status_code'] ?? 200;
+
+        if (!$deviceId) {
+            Log::channel('sip')->warning('Command confirmed without device_id', ['body' => $body]);
+            return;
+        }
+
+        Log::channel('sip')->info('Device confirmed command', [
+            'device_id' => $deviceId,
+            'call_id' => $callId,
+            'cseq' => $cseq,
+            'status_code' => $statusCode,
+        ]);
+
+        try {
+            // TODO: 根据业务需求更新数据库
+            // 例如：
+            // - 更新设备控制日志表：标记指令已送达
+            // - 更新 PTZ 操作记录：状态从 "发送中" → "已确认"
+            // - 更新录像任务：状态从 "请求中" → "处理中"
+
+            // 示例：使用 DeviceService 更新设备最后操作时间
+            $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
+            if ($device) {
+                // 可以更新设备的 last_command_time 字段
+                // $this->getDeviceService()->updateDevice($device['id'], [
+                //     'last_command_time' => time(),
+                //     'last_command_status' => 'confirmed'
+                // ]);
+
+                Log::channel('sip')->debug('Device command confirmed', [
+                    'device_id' => $deviceId,
+                    'device_name' => $device['device_name'] ?? 'unknown',
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Handle command confirmed failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * @return DeviceService
      */
     private function getDeviceService(): DeviceService
@@ -509,12 +627,20 @@ class GBServerHookController extends BaseController
         return $this->createService('Devices:DeviceService');
     }
 
-    
+
     /**
      * @return Gb28181Service
      */
     private function getGb28181Service(): Gb28181Service
     {
         return $this->createService('GB:Gb28181Service');
+    }
+
+    /**
+     * @return PlaybackRecordService
+     */
+    private function getPlaybackRecordService(): PlaybackRecordService
+    {
+        return $this->createService('Devices:PlaybackRecordService');
     }
 }

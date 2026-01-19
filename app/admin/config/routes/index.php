@@ -206,9 +206,13 @@ Route::group('/api/admin', function () {
             Route::post('/{id}/cmd', [GB28181DeviceController::class, 'cmd'])->name('admin.gb28181.devices.cmd');
             Route::delete('/{id}', [GB28181DeviceController::class, 'destroy'])->name('admin.gb28181.devices.destroy');
             Route::post('/{id}/catalog', [GB28181DeviceController::class, 'queryCatalog'])->name('admin.gb28181.devices.query-catalog');
+            Route::get('/{id}/event-stream', [GB28181DeviceController::class, 'eventStream'])->name('admin.gb28181.devices.event-stream');
             Route::put('/batch/area', [GB28181DeviceController::class, 'batchUpdateArea'])->name('admin.gb28181.devices.batch-area');
             Route::post('/ptz', [GB28181PTZController::class, 'control'])->name('admin.gb28181.ptz.control');
         });
+
+
+
 
         // 预置位管理
             Route::group('/presets', function () {
@@ -223,8 +227,13 @@ Route::group('/api/admin', function () {
             Route::get('', [GB28181ChannelController::class, 'index'])->name('admin.gb28181.channels.index');
             Route::get('/{id}', [GB28181ChannelController::class, 'show'])->name('admin.gb28181.channels.show');
             Route::put('/{id}', [GB28181ChannelController::class, 'update'])->name('admin.gb28181.channels.update');
+            Route::delete('/{id}', [GB28181ChannelController::class, 'destroy'])->name('admin.gb28181.channels.destroy');
             Route::put('/batch/bind-media', [GB28181ChannelController::class, 'batchBindMedia'])->name('admin.gb28181.channels.batch-bind-media');
             Route::get('/type/filters',  [GB28181ChannelController::class, 'filterChannelTypes'])->name('admin.gb28181.devices.filter-channel-types');
+            Route::get('/type/options', [GB28181ChannelController::class, 'channelTypeOptions'])->name('admin.gb28181.channels.type-options');
+            Route::post('/codec-info', [GB28181ChannelController::class, 'getUrlCodecInfo'])->name('admin.gb28181.channels.codec-info');
+            Route::post('/{id}/playback/query', [GB28181ChannelController::class, 'queryPlayback'])->name('admin.gb28181.streams.query-playback');
+            Route::get('/{id}/record-info-result', [GB28181ChannelController::class, 'getRecordInfoResult']);
         });
 
         // PTZ控制
@@ -233,16 +242,12 @@ Route::group('/api/admin', function () {
             Route::post('/start-live', [GB28181StreamController::class, 'startLive'])->name('admin.gb28181.streams.start-live');
             Route::post('/stop-live', [GB28181StreamController::class, 'stopLive'])->name('admin.gb28181.streams.stop-live');
 //            Route::get('/play-urls', [GB28181StreamController::class, 'getPlayUrls'])->name('admin.gb28181.streams.play-urls');
-            Route::post('/playback', [GB28181StreamController::class, 'startPlayback'])->name('admin.gb28181.streams.start-playback');
+            Route::post('/playback/start', [GB28181StreamController::class, 'startPlayback'])->name('admin.gb28181.streams.start-playback');
+            Route::post('/playback/stop', [GB28181StreamController::class, 'stopPlayback'])->name('admin.gb28181.streams.stop-playback');
         });
 
-        // 录像管理
-        Route::group('/recordings', function () {
-            Route::get('', [GB28181RecordingController::class, 'index'])->name('admin.gb28181.recordings.index');
-            Route::post('/start-record', [GB28181RecordingController::class, 'startRecord'])->name('admin.gb28181.recordings.start-record');
-            Route::post('/stop-record', [GB28181RecordingController::class, 'stopRecord'])->name('admin.gb28181.recordings.stop-record');
-            Route::post('/snapshot', [GB28181RecordingController::class, 'snapshot'])->name('admin.gb28181.recordings.snapshot');
-        });
+        // 云端录像管理
+//        Route::group('/recordings', function () { });
 
         // 报警管理
         Route::group('/alarms', function () {

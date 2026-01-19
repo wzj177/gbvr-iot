@@ -388,7 +388,7 @@ class ExoSip {
      * @param string $to Target SIP URI (e.g., 'sip:34020000001320000001@3402000000')
      * @param string $message Message body content
      * @param string|null $contentType Content-Type header (default: 'Application/MANSCDP+xml')
-     * @return bool True on success, false on failure
+     * @return integer
      * 
      * @example
      * ```php
@@ -397,7 +397,7 @@ class ExoSip {
      * $sip->sendMessage('sip:34020000001320000001@3402000000', $xml, 'Application/MANSCDP+xml');
      * ```
      */
-    public function sendMessage(string $to, string $message, ?string $contentType = null): bool {}
+    public function sendMessage(string $to, string $message, ?string $contentType = null): integer {}
 
 
     /**
@@ -521,7 +521,7 @@ class ExoSip {
      * 
      * @see sendInvite() To initiate a session
      */
-    public function sendBye(int $call_id, int $dialog_id = 0): bool {}
+    public function sendBye(int $call_id, int $dialog_id = -1): bool {}
     
     /**
      * Send SIP response to a request

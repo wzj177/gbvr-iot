@@ -2,13 +2,14 @@
 
 namespace CoreW\Business\MediaServer\Tasks;
 
+use CoreW\Business\Common\BaseCrontabTask;
 use CoreW\Business\Common\CrontabTaskInterface;
 use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Core;
 use support\Log;
 use Webman\RedisQueue\Client;
 
-class RefreshMediaServerStatusTask implements CrontabTaskInterface
+class RefreshMediaServerStatusTask extends BaseCrontabTask
 {
     public function execute(): void
     {

@@ -2,7 +2,11 @@
 
 namespace CoreW\Business\Devices\Traits;
 
+use CoreW\Business\Devices\Enums\ChannelStreamStatus;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Enums\MediaServerType;
+use CoreW\Business\Devices\Enums\StreamSessionType;
+use CoreW\Business\Devices\Exception\DevicesException;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\MediaServer\Enums\ServerStatusEnum;
@@ -149,54 +153,70 @@ trait GB28181StreamTrait
      */
     protected function stopLiveVideoCore(array $channel): bool
     {
-        // 这里应该停止ZLM端口 closeRtpServer，不是发送bye到信令网关
-        // 发送BYE到信令网关
-        $result = $this->getGb28181Service()->stopLiveVideo($channel['device_id'], $channel['channel_id']);
-
-        if (!$result) {
-            throw new \RuntimeException('发送停止实时视频请求失败', 500);
-        }
-
         // 关闭ZLM端口
         if (!empty($channel['stream_id']) && $channel['media_server_id'] !== MediaServerType::NONE->value) {
             try {
-                $result = $this->getGb28181Service()->closeRtpServer($channel['stream_id'], $channel['media_server_id']);
-                if (empty($result)) {
+                $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($channel['stream_id'], StreamSessionType::LIVE->value);
+                if (!$activeSession || $activeSession['viewer_count'] === 1) {
+                    $gbResult = $this->getGb28181Service()->stopLiveVideo($channel['device_id'], $channel['channel_id'], $channel['stream_id']);
+                    if ($gbResult) {
+                        $result = $this->getGb28181Service()->closeRtpServer($channel['stream_id'], $channel['media_server_id']);
+
+                        // 更新通道状态
+                        $this->getDeviceService()->updateChannel($channel['id'], [
+                            'stream_status' => ChannelStreamStatus::IDLE->value,
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                        if ($activeSession['viewer_count'] === 1) {
+                            // 只有一个观看者时，关闭ZLM端口后删除会话
+                            $this->getDeviceService()->deleteSession($activeSession['id']);
+                        }
+
+                        if ($result['hit'] === 1) {
+                            Log::channel('sip')->info('Close RTP server has exist record');
+                            return true;
+                        }
+
+                        Log::channel('sip')->info('Close RTP server has no exist record');
+                    }
+
                     return false;
+
+                } else {
+                    $this->getGb28181Service()->decrementViewerCount($channel['stream_id']);
                 }
 
-                if ($result['hit'] === 1) {
-                    Log::channel('sip')->info('Close RTP server has exist record');
-                    return true;
-                }
 
-                Log::channel('sip')->info('Close RTP server has no exist record');
-                return false;
+                Log::channel('sip')->info('Stop live video command sent', $channel);
+                return true;
             } catch (\Exception $e) {
                 Log::channel('sip')->warning('Close RTP server failed', [
                     'stream_id' => $channel['stream_id'],
                     'error' => $e->getMessage(),
                 ]);
+
+                return false;
             }
         }
 
-        // 更新通道状态
-        $this->getDeviceService()->updateChannel($channel['id'], [
-            'stream_status' => 'idle',
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        Log::channel('sip')->info('Stop live video command sent', $channel);
     }
+
 
     /**
      * 开始录像回放核心逻辑
      *
-     * @return array 返回会话信息
-     * @throws \Exception
+     * @param array $device
+     * @param array $channel
+     * @param string $startTime
+     * @param string $endTime
+     * @return array
      */
-    protected function startPlaybackCore(string $deviceId, string $channelId, string $startTime, string $endTime, array $device, array $channel): array
+    protected function startPlaybackCore(array $device, array $channel, string $startTime, string $endTime): array
     {
+        if ($channel['status'] !== DeviceStatusEnum::ONLINE->value) {
+            throw new \InvalidArgumentException('通道未在线', 400);
+        }
+
         // 检查媒体服务器
         if ($channel['media_server_id'] === MediaServerType::NONE->value) {
             throw new \InvalidArgumentException('通道未关联媒体服务器', 400);
@@ -221,12 +241,12 @@ trait GB28181StreamTrait
 
         // 创建回放会话
         $tcpMode = $this->getTcpMode($device, $channel);
-
-        $sessionResult = $this->getGb28181Service()->createPlaybackSession(
-            $deviceId,
-            $channelId,
+        $sessionResult = $this->getGb28181Service()->createPlaybackSessionAndOpenRtp(
+            $channel['device_id'],
+            $channel['channel_id'],
             $startTime,
             $endTime,
+            $mediaServer,
             $tcpMode
         );
 
@@ -240,8 +260,7 @@ trait GB28181StreamTrait
 
         // 发送命令到信令网关（传递收流IP）
         $result = $this->getGb28181Service()->startPlayback(
-            $deviceId,
-            $channelId,
+            $channel,
             $startTime,
             $endTime,
             $playbackSsrc,
@@ -252,13 +271,13 @@ trait GB28181StreamTrait
         );
 
         if (!$result) {
-            $this->getGb28181Service()->closeRtpServer($playbackStreamId);
+            $this->getGb28181Service()->closeRtpServer($playbackStreamId, $channel['media_server_id']);
             throw new \RuntimeException('发送回放请求失败', 500);
         }
 
         Log::channel('sip')->info('Start playback command sent', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
+            'device_id' => $channel['device_id'],
+            'channel_id' => $channel['channel_id'],
             'start_time' => $startTime,
             'end_time' => $endTime,
         ]);
@@ -268,6 +287,53 @@ trait GB28181StreamTrait
             'ssrc' => $playbackSsrc,
             'rtp_port' => $zlmPort,
         ];
+    }
+
+    /**
+     * 停止录像回放核心逻辑
+     * @param string $deviceId
+     * @param string $channelId
+     * @param string $streamId
+     * @return bool
+     */
+    protected function stopPlaybackCore(string $deviceId, string $channelId, string $streamId): bool
+    {
+        $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
+        if (!$device) {
+            throw new \InvalidArgumentException('设备不存在', 404);
+        }
+
+        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
+        if (!$channel) {
+            throw new \InvalidArgumentException('通道不存在', 404);
+        }
+
+        if ($channel['status'] !== DeviceStatusEnum::ONLINE->value) {
+            throw new \InvalidArgumentException('通道未在线', 400);
+        }
+
+        if ($channel['media_server_id'] === MediaServerType::NONE->value) {
+            throw new \InvalidArgumentException('通道未关联媒体服务器', 400);
+        }
+
+        $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($streamId, StreamSessionType::PLAYBACK->value);
+        if (!$activeSession || $activeSession['viewer_count'] === 1) {
+            $result = $this->getGb28181Service()->stopPlayback($deviceId, $channelId, $streamId);
+            if ($result) {
+                $this->getGb28181Service()->closeRtpServer($streamId, $channel['media_server_id']);
+            }
+
+            if ($activeSession['viewer_count'] === 1) {
+                // 只有一个观看者时，关闭ZLM端口后删除会话
+                $this->getDeviceService()->deleteSession($activeSession['id']);
+            }
+
+            return $result;
+        } else {
+            $this->getGb28181Service()->decrementViewerCount($streamId);
+
+            return true;
+        }
     }
 
     /**

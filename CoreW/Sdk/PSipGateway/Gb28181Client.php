@@ -86,6 +86,7 @@ class Gb28181Client
         return $this->sendCommand($deviceId, 'query_device_info');
     }
 
+
     /**
      * 查询设备状态
      */
@@ -156,10 +157,11 @@ class Gb28181Client
     /**
      * 停止实时视频
      */
-    public function stopLiveVideo(string $deviceId, string $channelId): bool
+    public function stopLiveVideo(string $deviceId, string $channelId, string $streamId): bool
     {
         return $this->sendCommand($deviceId, 'stop_live_video', [
-            'channel_id' => $channelId
+            'channel_id' => $channelId,
+            'stream_id' => $streamId
         ]);
     }
 
@@ -203,10 +205,11 @@ class Gb28181Client
     /**
      * 停止录像回放
      */
-    public function stopPlayback(string $deviceId, string $channelId): bool
+    public function stopPlayback(string $deviceId, string $channelId, string $streamId): bool
     {
         return $this->sendCommand($deviceId, 'stop_playback', [
-            'channel_id' => $channelId
+            'channel_id' => $channelId,
+            'stream_id' => $streamId
         ]);
     }
 

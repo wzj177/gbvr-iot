@@ -7,6 +7,7 @@ use Gb28181\GateWay\Device\DeviceManager;
 use Gb28181\GateWay\Handlers\LongTask\RedisSubscriber;
 use Gb28181\GateWay\Message\CommandDispatcher;
 use Gb28181\GateWay\Message\CommandType\DeviceControlCommand;
+use Gb28181\GateWay\Message\CommandType\RecordInfoCommand;
 use Gb28181\GateWay\Message\MessageHandler;
 use Gb28181\GateWay\Message\QuerySender;
 use Gb28181\GateWay\Message\CommandType\KeepaliveCommand;
@@ -145,6 +146,7 @@ class GB28181Handler
         $this->messageHandler->registerCommand(new MobilePositionCommand());
         $this->messageHandler->registerCommand(new MediaStatusCommand());
         $this->messageHandler->registerCommand(new DeviceControlCommand());
+        $this->messageHandler->registerCommand(new RecordInfoCommand());
 
         // 初始化查询发送器
         $this->querySender = new QuerySender($sipServer, [
@@ -254,7 +256,7 @@ class GB28181Handler
     }
 
     /**
-     * 接收Task的推送
+     * Worker接收Task的推送
      * @param array|null $message
      * @return void
      */
@@ -280,7 +282,11 @@ class GB28181Handler
 
         // TODO: 将结果推送到 Redis 或回调接口
         if (!$result['success']) {
-            $this->log("Command failed: {$result['error']}", 'ERROR');
+            $msg = $result['error'] ?? 'Unknown error';
+            if (isset($result['message'])) {
+                $msg = $result['message'];
+            }
+            $this->log("Command failed: {$msg}", 'ERROR');
         }
     }
 
@@ -343,7 +349,7 @@ class GB28181Handler
     }
 
     /**
-     * 任务处理
+     * task 进程：任务处理，收到AddTask
      * @param $taskId
      * @param $taskData
      */
@@ -570,6 +576,7 @@ class GB28181Handler
      */
     public function handleMessage(\SipEvent $event): void
     {
+//        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
         $body = $event->getBody();
         $fromUri = $event->getFromUri();
         $deviceId = $this->extractDeviceId($fromUri);
@@ -604,6 +611,10 @@ class GB28181Handler
             return;
         }
 
+        $this->postTask('sip_xml', [
+            'device_id' => $deviceId,
+            'xml' => $body,
+        ]);
         try {
             // 使用 MessageHandler 处理消息
             $result = $this->messageHandler->handle($xml, $deviceId, [
@@ -1170,6 +1181,126 @@ class GB28181Handler
 
 
     /**
+     * 处理 INVITE 的 200 OK 响应（含设备 SDP）
+     *
+     * 关键作用：
+     * - 提取设备 SSRC（y= 字段）
+     * - 提取设备媒体接收地址（c= 字段）
+     * - 通知业务系统媒体流已就绪
+     * - 通知 ZLM 更新 SSRC（用于流关联）
+     */
+    private function handleInviteResponse(\SipEvent $event): void
+    {
+        $callId = $event->getCallId();
+        $dialogId = $event->getDialogId();
+        $fromUri = $event->getFromUri();
+        $deviceId = $this->extractDeviceId($fromUri);
+
+        $this->log("收到 INVITE 200 OK: 设备 {$deviceId}, Call-ID: {$callId}, Dialog-ID: {$dialogId}");
+
+        // 关键修复：更新会话的 dialog_id（修复 BYE 时 dialog_id=-1 的问题）
+        // 背景：sendInvite() 返回时 dialog_id=-1（对话尚未建立）
+        //       收到 200 OK 时 eXosip 才分配有效的 dialog_id
+        //       必须在此更新 activeSessions，否则后续 BYE 会失败
+        if ($dialogId > 0) {
+            $this->commandDispatcher->updateSessionDialog($callId, $dialogId);
+            $this->log("✓ 已更新会话 dialog_id: call_id={$callId} -> dialog_id={$dialogId}");
+        }
+
+        // 解析设备返回的 SDP
+        $sdp = $event->getSdp();
+        if (!$sdp) {
+            $this->log("INVITE 200 OK 缺少 SDP", 'WARNING');
+            // 仍然发送 ACK（协议要求）
+            $this->sipServer->sendAck($dialogId);
+            return;
+        }
+
+        // 提取设备 SSRC（GB28181 扩展字段）
+        $deviceSsrc = $sdp['gb28181']['ssrc'] ?? null;
+
+        // 提取设备媒体接收地址
+        $deviceIp = $sdp['connection']['addr'] ?? null;
+        $devicePort = $sdp['medias'][0]['port'] ?? null;
+
+        if ($this->config['debug']) {
+            $this->log("设备 SDP 解析结果:", 'DEBUG');
+            $this->log("  SSRC: {$deviceSsrc}", 'DEBUG');
+            $this->log("  媒体地址: {$deviceIp}:{$devicePort}", 'DEBUG');
+            $this->log('sdp:' . json_encode($sdp, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), 'DEBUG');
+        }
+
+        // 发送 ACK（必须）
+        $this->sipServer->sendAck($dialogId);
+
+        // 通知业务系统：媒体流已就绪
+        $this->postTask('media_ready', [
+            'device_id' => $deviceId,
+            'call_id' => $callId,
+            'dialog_id' => $dialogId,
+            'device_ssrc' => $deviceSsrc,
+            'device_ip' => $deviceIp,
+            'device_port' => $devicePort,
+            'sdp' => $sdp,
+            'timestamp' => time(),
+        ]);
+
+        $this->log("✓ 媒体流就绪通知已发送: {$deviceId} SSRC={$deviceSsrc}");
+    }
+
+    /**
+     * 处理 MESSAGE 的 200 OK 响应（空 body）
+     *
+     * 关键作用：
+     * - 确认设备已接收控制指令（PTZ、录像控制等）
+     * - 通知业务系统指令执行成功
+     *
+     * 注意：
+     * - MESSAGE 200 OK 通常没有 body（符合 SIP 协议）
+     * - 实际的执行结果会通过后续的 MESSAGE 请求返回（带 XML body）
+     * - 这里只是确认"设备收到了指令"，不是"指令执行完成"
+     */
+    private function handleMessageResponse(\SipEvent $event): void
+    {
+        $code = $event->getCode();
+        $callId = $event->getCallId();
+        $toUri = $event->getToUri();
+        $deviceId = $this->extractDeviceId($toUri);
+
+        if ($code !== 200) {
+            $this->log("MESSAGE 响应失败: Code={$code}, Device={$deviceId}", 'WARNING');
+            return;
+        }
+
+        // 从 headers 中提取 CSeq 获取原始方法名
+        $cseqHeader = $event->getHeader('CSeq');
+        $cseqNumber = null;
+        $method = 'MESSAGE';
+
+        if ($cseqHeader && preg_match('/(\d+)\s+(\w+)/', $cseqHeader, $matches)) {
+            $cseqNumber = (int)$matches[1];
+            $method = $matches[2];
+        }
+
+        $this->log("收到 MESSAGE 200 OK: 设备 {$deviceId}, Call-ID: {$callId}, CSeq: {$cseqNumber}");
+
+        // 通知业务系统：设备已确认收到控制指令
+        // 业务系统可以根据 call_id 或 cseq 关联原始请求
+        $this->postTask('command_confirmed', [
+            'device_id' => $deviceId,
+            'call_id' => $callId,
+            'cseq' => $cseqNumber,
+            'status_code' => $code,
+            'method' => $method,
+            'timestamp' => time(),
+        ]);
+
+        if ($this->config['debug']) {
+            $this->log("✓ 设备确认收到指令: {$deviceId} (CSeq: {$cseqNumber})", 'DEBUG');
+        }
+    }
+
+    /**
      * 处理超时事件
      */
     public function handleTimeout(\SipEvent $event): void
@@ -1223,6 +1354,17 @@ class GB28181Handler
         // 异步更新心跳到 Redis/数据库
         $this->postTask('update_heartbeat', [
             'device_id' => $deviceId,
+            'timestamp' => time(),
+        ]);
+
+        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+    }
+
+    private function handleRecordInfo(\SipEvent $event, string $deviceId, array $data): void
+    {
+        $this->postTask('record_info', [
+            'device_id' => $deviceId,
+            'record_info' => $data,
             'timestamp' => time(),
         ]);
 
@@ -1387,6 +1529,9 @@ class GB28181Handler
                 break;
             case 'DeviceStatus':
                 $this->handleDeviceStatus($event, $deviceId, $result);
+                break;
+            case 'RecordInfo':
+                $this->handleRecordInfo($event, $deviceId, $result);
                 break;
             case 'Alarm':
                 $this->handleAlarm($event, $deviceId, $result);
@@ -1628,33 +1773,67 @@ class GB28181Handler
      * @param string $deviceSpecifiedCharset 设备指定的编码
      * @return string 规范化后的UTF-8 XML
      */
-    private function normalizeXmlEncoding(string $xml, string $deviceSpecifiedCharset = 'auto'): string
+    private function normalizeXmlEncoding(string $xml, string $deviceCharset = 'auto'): string
     {
-        // 检测是否包含乱码（UTF-8环境下显示为 � 或 \xXX）
-        // 或者直接检测编码
-        if (strtolower($deviceSpecifiedCharset) === 'auto') {
-            $detectedEncoding = mb_detect_encoding($xml, ['UTF-8', 'GB2312', 'GBK', 'GB18030'], true);
-        } else {
-            $detectedEncoding = strtoupper($deviceSpecifiedCharset);
+        $rawXml = $xml;
+
+        // 去BOM
+        $xml = preg_replace("/^\xEF\xBB\xBF/", '', $xml);
+
+        // 提取声明的编码
+        $declaredEncoding = null;
+        if (preg_match('/<\?xml[^>]+encoding=["\']([^"\']+)["\']/', $xml, $m)) {
+            $declaredEncoding = strtoupper($m[1]);
         }
 
-        if ($detectedEncoding && $detectedEncoding !== 'UTF-8') {
-            if ($this->config['debug']) {
-                $this->log("检测到非UTF-8编码: {$detectedEncoding}，进行转换", 'DEBUG');
+        // 去除声明以便体验 UTF-8 校验
+        $xmlWithoutHeader = preg_replace('/<\?xml.*?\?>/i', '', $xml);
+
+        // ① 检查：实际是否UTF-8？
+        $isUtf8 = $this->isReallyUtf8($xmlWithoutHeader);
+
+        // ② 检查：声明与实际是否一致？
+        if ($declaredEncoding === 'UTF-8' && $isUtf8) {
+            return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $xmlWithoutHeader;
+        }
+
+        // ③ 声明是 GB2312/GBK 但实际 UTF-8 → 设备错误
+        if (in_array($declaredEncoding, ['GB2312', 'GBK', 'GB18030']) && $isUtf8) {
+            // 强制 UTF-8
+            return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $xmlWithoutHeader;
+        }
+
+        // ④ 声明 GB2312/GBK 且不是 UTF-8 → 转换
+        if (in_array($declaredEncoding, ['GB2312', 'GBK', 'GB18030']) && !$isUtf8) {
+            $converted = mb_convert_encoding($xmlWithoutHeader, 'UTF-8', $declaredEncoding);
+
+            return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $converted;
+        }
+
+        // ⑤ auto 模式再尝试猜测
+        if ($deviceCharset === 'auto') {
+            $detected = mb_detect_encoding($xmlWithoutHeader, ['GBK', 'GB2312', 'GB18030', 'UTF-8'], true);
+
+            if ($detected && $detected !== 'UTF-8') {
+                $xmlWithoutHeader = mb_convert_encoding($xmlWithoutHeader, 'UTF-8', $detected);
             }
 
-            // 转换编码
-            $xml = mb_convert_encoding($xml, 'UTF-8', $detectedEncoding);
-
-            // 修正XML声明（如果存在）
-            $xml = preg_replace(
-                '/<\?xml\s+version="[^"]*"\s+encoding="[^"]*"\s*\?>/i',
-                '<?xml version="1.0" encoding="UTF-8"?>',
-                $xml
-            );
+            return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $xmlWithoutHeader;
         }
 
-        return $xml;
+        // ⑥ 最后的 fallback：假设UTF-8
+        if (!$isUtf8) {
+            // 防止抛错，用 iconv 忽略非法字符
+            $xmlWithoutHeader = @iconv($deviceCharset, 'UTF-8//IGNORE', $xmlWithoutHeader);
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $xmlWithoutHeader;
+    }
+
+
+    private function isReallyUtf8(string $str): bool
+    {
+        return (bool)preg_match('//u', $str);
     }
 
 
@@ -1874,7 +2053,7 @@ class GB28181Handler
      * GB28181标准：服务器端使用统一的接入密码
      * 所有设备在NVR/IPC的"国标配置"中填写相同的密码
      */
-    private function getDevicePassword(string $deviceId): string
+    private function getDevicePassword(?string $deviceId = null): string
     {
         // 返回统一的接入密码
         return $this->config['device_password'] ?? '12345678';

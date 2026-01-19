@@ -3,6 +3,8 @@
 namespace app\admin\controller;
 
 use app\admin\BaseController;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
+use CoreW\Business\Devices\Enums\MediaServerType;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Traits\GB28181StreamTrait;
 use CoreW\Business\GB\Gb28181Service;
@@ -109,6 +111,8 @@ class GB28181StreamController extends BaseController
         }
     }
 
+
+
     /**
      * 开始录像回放
      */
@@ -140,7 +144,7 @@ class GB28181StreamController extends BaseController
                 return $this->createErrorJsonResponse('通道不存在', 404);
             }
 
-            $result = $this->startPlaybackCore($deviceId, $channelId, $startTime, $endTime, $device);
+            $result = $this->startPlaybackCore($device, $channel, $startTime, $endTime);
 
             $playUrls = $this->getPlayUrlsCore($channel, $result['stream_id']);
 
@@ -149,6 +153,21 @@ class GB28181StreamController extends BaseController
                 'play_urls' => $playUrls,
                 'message' => '录像回放开始',
             ]);
+        } catch (\Exception $e) {
+            return $this->handleStreamException($e);
+        }
+    }
+
+    public function stopPlayback(Request $request)
+    {
+        $deviceId = $request->post('device_id');
+        $channelId = $request->post('channel_id');
+        $streamId = $request->post('stream_id');
+        if (!$deviceId || !$channelId || !$streamId) {
+            return $this->createErrorJsonResponse('缺少必要参数', 400);
+        };
+        try {
+            $result = $this->stopPlaybackCore($deviceId, $channelId, $streamId);
         } catch (\Exception $e) {
             return $this->handleStreamException($e);
         }

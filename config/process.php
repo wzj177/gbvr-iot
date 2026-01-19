@@ -52,7 +52,19 @@ return [
 //        'listen' => 'http://0.0.0.0:8585',
 //        'handler' => \process\HttpChunk::class,
 //    ],
-    'task' => [
-        'handler' => app\process\Task::class
+    'Gb28181DeviceCatalogQueryTask' => [
+        'handler' => app\process\Gb28181DeviceCatalogQueryTaskProcess::class
+    ],
+    'Gb28181DeviceStatusCheckTask' => [
+        'handler' => app\process\Gb28181DeviceStatusCheckTaskProcess::class
+    ],
+    'Gb28181SubscriptionTask' => [
+        'handler' => app\process\Gb28181SubscriptionTaskProcess::class
+    ],
+    'RefreshMediaServerStatusTask' => [
+        'handler' => app\process\RefreshMediaServerStatusTaskProcess::class
+    ],
+    'CleanupRtpPortAndClearStreamSessionTask' => [
+        'handler' => app\process\CleanupRtpPortAndClearStreamSessionTaskProcess::class
     ],
 ];

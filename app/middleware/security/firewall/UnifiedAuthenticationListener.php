@@ -94,6 +94,9 @@ class UnifiedAuthenticationListener
     protected function handleTokenAuth(Request $request): bool
     {
         $token = $request->header($this->tokenKey);
+        if (empty($token) && $request->header('accept') === 'text/event-stream') {
+            $token = $request->get('token');
+        }
         if (empty($token)) {
             if ($this->isApiRequest) {
                 throw VIPException::EXPIRED_OR_NOTFOUND_TOKEN();

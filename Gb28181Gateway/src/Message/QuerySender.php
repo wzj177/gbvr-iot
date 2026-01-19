@@ -2,6 +2,7 @@
 
 namespace Gb28181\GateWay\Message;
 
+use Gb28181\GateWay\Device\Device;
 use \SimpleXMLElement;
 use Gb28181\GateWay\Libs\Logger;
 
@@ -79,7 +80,7 @@ class QuerySender
     /**
      * 发送目录查询
      */
-    public function queryCatalog(string $deviceUri, string $deviceId): bool
+    public function queryCatalog(string $deviceUri, string $deviceId):  bool|int
     {
         $xml = $this->buildQueryXml('Catalog', $deviceId);
 
@@ -100,7 +101,7 @@ class QuerySender
     /**
      * 发送设备信息查询
      */
-    public function queryDeviceInfo(string $deviceUri, string $deviceId): bool
+    public function queryDeviceInfo(string $deviceUri, string $deviceId):  bool|int
     {
         $xml = $this->buildQueryXml('DeviceInfo', $deviceId);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
@@ -109,7 +110,7 @@ class QuerySender
     /**
      * 发送设备状态查询
      */
-    public function queryDeviceStatus(string $deviceUri, string $deviceId): bool
+    public function queryDeviceStatus(string $deviceUri, string $deviceId):  bool|int
     {
         $xml = $this->buildQueryXml('DeviceStatus', $deviceId);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
@@ -118,7 +119,7 @@ class QuerySender
     /**
      * 发送录像文件查询
      */
-    public function queryRecordInfo(string $deviceUri, string $deviceId, string $startTime, string $endTime, string $type = 'all'): bool
+    public function queryRecordInfo(string $deviceUri, string $deviceId, string $startTime, string $endTime, string $type = 'all'):  bool|int
     {
         $sn = $this->generateSN();
         $xml = new SimpleXMLElement("<?xml version=\"1.0\" encoding=\"GB2312\"?><Query></Query>");
@@ -135,7 +136,7 @@ class QuerySender
     /**
      * PTZ 控制
      */
-    public function ptzControl(string $deviceUri, string $channelId, string $ptzCmd): bool
+    public function ptzControl(string $deviceUri, string $channelId, string $ptzCmd): bool|int
     {
         $xml = $this->buildControlXml('DeviceControl', $channelId, [
             'PTZCmd' => $ptzCmd
@@ -143,20 +144,11 @@ class QuerySender
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
 
-    /**
-     * 设备控制（重启、复位等）
-     */
-    public function deviceControl(string $deviceUri, string $deviceId, string $controlType, array $params = []): bool
-    {
-        $params['ControlType'] = $controlType;
-        $xml = $this->buildControlXml('DeviceControl', $deviceId, $params);
-        return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
-    }
 
     /**
      * 发送目录订阅
      */
-    public function sendSubscribeCatalog(\Gb28181\GateWay\Device\Device $device, int $expires = 3600): void
+    public function sendSubscribeCatalog(Device $device, int $expires = 3600): void
     {
         try {
             $eventType = 'Catalog';
@@ -231,7 +223,7 @@ class QuerySender
     /**
      * 发送移动位置订阅
      */
-    public function sendSubscribeMobilePosition(\Gb28181\GateWay\Device\Device $device, int $expires = 3600, int $interval = 5): void
+    public function sendSubscribeMobilePosition(Device $device, int $expires = 3600, int $interval = 5): void
     {
         try {
             $eventType = 'MobilePosition';
@@ -266,7 +258,7 @@ class QuerySender
     /**
      * 取消目录订阅
      */
-    public function sendUnsubscribeCatalog(\Gb28181\GateWay\Device\Device $device): void
+    public function sendUnsubscribeCatalog(Device $device): void
     {
         try {
             $eventType = 'Catalog';
@@ -293,7 +285,7 @@ class QuerySender
     /**
      * 取消报警订阅
      */
-    public function sendUnsubscribeAlarm(\Gb28181\GateWay\Device\Device $device): void
+    public function sendUnsubscribeAlarm(Device $device): void
     {
         try {
             $eventType = 'Alarm';
@@ -320,7 +312,7 @@ class QuerySender
     /**
      * 取消移动位置订阅
      */
-    public function sendUnsubscribeMobilePosition(\Gb28181\GateWay\Device\Device $device): void
+    public function sendUnsubscribeMobilePosition(Device $device): void
     {
         try {
             $eventType = 'MobilePosition';

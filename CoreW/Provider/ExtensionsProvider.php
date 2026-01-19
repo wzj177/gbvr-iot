@@ -13,6 +13,8 @@ use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\LeChangeSdk\Controller as LeChangeSdk;
 use CoreW\Sdk\Ys7Sdk\OpenYs7;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
+use FFMpeg\FFMpeg;
+use FFMpeg\FFProbe;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\RotatingFileHandler;
 use Monolog\Logger;
@@ -23,7 +25,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 
 class ExtensionsProvider implements ServiceProviderInterface
 {
-    public function register(Container $biz)
+    public function register(Container $biz): void
     {
         $biz['ip2region'] = function () {
             return new Ip2Region();
@@ -56,14 +58,30 @@ class ExtensionsProvider implements ServiceProviderInterface
             }
             $handler = new RotatingFileHandler($config['log_file']);
             $handler->setFormatter(new LineFormatter(null, 'Y-m-d H:i:s', true));
-            $ffmpeg = \FFMpeg\FFMpeg::create([
+
+            return FFMpeg::create([
                 'ffmpeg.binaries' => $config['ffmpeg_bin'],
                 'ffprobe.binaries' => $config['ffprobe_bin'],
                 'timeout' => $config['timeout'], // The timeout for the underlying process
                 'ffmpeg.threads' => $config['threads'],   // The number of threads that FFMpeg should use
             ], new Logger('ffmpeg', [$handler]));
+        };
 
-            return $ffmpeg;
+        $biz['ffprobe'] = function ($app) {
+            $config = config('ffmpeg');
+            if (empty($config['ffmpeg_bin'])) {
+                return null;
+            }
+
+            $handler = new RotatingFileHandler($config['log_file']);
+            $handler->setFormatter(new LineFormatter(null, 'Y-m-d H:i:s', true));
+
+            return FFProbe::create([
+                'ffmpeg.binaries' => $config['ffmpeg_bin'],
+                'ffprobe.binaries' => $config['ffprobe_bin'],
+                'timeout' => $config['timeout'], // The timeout for the underlying process
+                'ffmpeg.threads' => $config['threads'],   // The number of threads that FFMpeg should use
+            ], new Logger('ffprobe', [$handler]));
         };
 
         $biz['gb28181_service'] = function ($app) {

@@ -8,12 +8,12 @@ use support\utils\AssetHelper;
 /**
  * Filter 基类
  *
- * @method static simpleData
- * @method static publicData
- * @method static authenticatedData
- * @method static simpleList
- * @method static authenticatedList
- * @method static publicList
+ * @method static simpleData(array $item)
+ * @method static publicData(array $item)
+ * @method static authenticatedData(array $item)
+ * @method static simpleList(array $list)
+ * @method static authenticatedList(array $list)
+ * @method static publicList(array $list)
  *
  * 支持：
  * - simple / public / authenticated 三种模式的字段过滤
@@ -36,6 +36,9 @@ abstract class Filter
      * ['price' => 'float', 'avatar' => 'url', 'attrs' => 'json']
      */
     protected array $formatFields = [];
+
+
+    protected array $appendFields = [];
 
 
     public function __construct($mode = 'public', bool $formatTime = true)
@@ -81,6 +84,9 @@ abstract class Filter
 
         // 字段格式化
         $this->processFormat($data);
+
+        // 字段追加
+        $this->processAppend($data);
 
         return $data;
     }
@@ -151,10 +157,6 @@ abstract class Filter
      */
     protected function processFormat(array &$data): void
     {
-        if (empty($this->formatFields)) {
-            return;
-        }
-
         foreach ($this->formatFields as $field => $type) {
             if (!array_key_exists($field, $data)) {
                 continue;
@@ -178,6 +180,49 @@ abstract class Filter
                 $data[$field] = $this->$method($value);
             }
         }
+    }
+
+    protected function processAppend(array &$data): void
+    {
+        foreach ($this->appendFields as $newField => $handler) {
+            // enum:xxx
+            if (str_contains($handler, ':')) {
+                [$type, $param] = explode(':', $handler, 2);
+                $method = 'append_' . $type;
+
+                if (method_exists($this, $method)) {
+                    $data[$newField] = $this->$method($data, $param);
+                }
+                continue;
+            }
+
+            // 自动匹配 append_xxx
+            $autoMethod = 'append_' . $handler;
+            if (method_exists($this, $autoMethod)) {
+                $data[$newField] = $this->$autoMethod($data);
+                continue;
+            }
+
+            // 自定义方法
+            if (method_exists($this, $handler)) {
+                $data[$newField] = $this->$handler($data);
+                continue;
+            }
+        }
+    }
+
+    protected function append_enum(array $data, string $method)
+    {
+        $value = $data[$method] ?? null;
+        return method_exists($this, $method)
+            ? $this->$method($value)
+            : $value;
+    }
+
+    protected function append_json(array $data, string $field)
+    {
+        $value = $data[$field] ?? null;
+        return is_string($value) ? json_decode($value, true) : $value;
     }
 
     /**

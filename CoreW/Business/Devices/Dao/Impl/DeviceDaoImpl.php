@@ -25,10 +25,15 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
             ],
             'orderbys' => [
                 'id',
+                'status'
             ],
             'timestamps' => [
                 'last_heartbeat_at',
                 'last_catalog_at',
+            ],
+            'datetime' => [
+                'created_at',
+                'updated_at',
             ],
             'conditions' => [
                 'id = :id',

@@ -194,7 +194,7 @@ class DaoProxy
         }
 
         if (isset($declares['datetime'][1])) {
-            $arguments[0][$declares['timestamps'][1]] = date('Y-m-d H:i:s', $time);
+            $arguments[0][$declares['datetime'][1]] = date('Y-m-d H:i:s', $time);
         }
 
         $this->serialize($arguments[0]);

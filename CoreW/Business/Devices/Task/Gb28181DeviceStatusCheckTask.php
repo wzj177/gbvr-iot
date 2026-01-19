@@ -2,13 +2,14 @@
 
 namespace CoreW\Business\Devices\Task;
 
+use CoreW\Business\Common\BaseCrontabTask;
 use CoreW\Business\Common\CrontabTaskInterface;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Core;
 use support\Log;
 
-class Gb28181DeviceStatusCheckTask implements CrontabTaskInterface
+class Gb28181DeviceStatusCheckTask  extends BaseCrontabTask
 {
     public function execute(): void
     {

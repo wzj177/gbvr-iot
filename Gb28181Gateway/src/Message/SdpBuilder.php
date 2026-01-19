@@ -55,6 +55,7 @@ class SdpBuilder
             96 => ['type' => 'PS', 'rate' => 90000],      // PS 流(最常用)
             98 => ['type' => 'H264', 'rate' => 90000],    // H264
             97 => ['type' => 'MPEG4', 'rate' => 90000],   // MPEG4
+            99 => ['type' => 'H265', 'rate' => 90000],
         ];
 
         // 构造 SDP

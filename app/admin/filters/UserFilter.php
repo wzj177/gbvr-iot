@@ -46,7 +46,7 @@ class UserFilter extends Filter
     ];
 
 
-    protected $mode = self::SIMPLE_MODE;
+    protected string $mode = self::SIMPLE_MODE;
 
     protected function simpleFields(&$data)
     {

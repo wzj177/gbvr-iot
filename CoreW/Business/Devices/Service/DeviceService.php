@@ -37,18 +37,32 @@ interface DeviceService
     public function updateChannelByMainId(string $mainId, array $fields);
     public function batchUpdateChannels(array $ids, array $fields): int;
     public function batchUpdateOrCreateChannels(string $deviceId, array $devices): int;
+    public function deleteChannel($id): bool;
 
     // 流会话操作
     public function getSessionById($id);
     public function getSessionByCallId(int $callId);
     public function getSessionBySsrc(string $ssrc);
     public function getSessionByStreamId(string $streamId);
+    public function getActiveSessionByStreamIdAndType(string $streamId, string $type);
+
+    public function incrementSessionViewerCount(string $streamId);
+
+    public function decrementSessionViewerCount(string $streamId);
+
     public function createSession(array $fields);
     public function updateSession($id, array $fields);
     public function updateSessionByCallId(int $callId, array $fields): bool;
+    public function updateSessionBySSRC(string $ssrc, array $fields);
     public function deleteSession($id);
     public function deleteSessionByCallId(int $callId): bool;
     public function cleanupExpiredSessions(int $ttl = 300): int;
+
+    public function countSessions(array $conditions): int;
+
+    public function searchSessions(array $conditions, array $orderBys, $start, $limit, $columns = []): array;
+
+    public function batchDeleteSessions(array $ids);
 
     // SSRC 管理
     public function generateUniqueSsrc(): string;

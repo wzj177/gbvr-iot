@@ -35,4 +35,12 @@ enum DeviceStatusEnum: string
         }
         return $options;
     }
+
+    /**
+     * 安全转换
+     */
+    public static function tryFromInt(int $value): ?self
+    {
+        return self::tryFrom($value);
+    }
 }

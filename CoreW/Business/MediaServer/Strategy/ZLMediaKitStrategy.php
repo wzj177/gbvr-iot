@@ -31,7 +31,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             $workResp = $client->getWorkThreadsLoad();
 
             // 获取媒体列表（流统计）
-            $mediaListResp = $client->getMediaList();
+            $mediaList = $client->getMediaList();
 
             // 获取对象统计信息
             $statResp = $client->getStatistic();
@@ -82,12 +82,10 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             $streamCount = 0;
             $totalReaderCount = 0;
             $totalBytesSpeed = 0;
-            if ($mediaListResp && ($mediaListResp['code'] ?? -1) === 0 && !empty($mediaListResp['data'])) {
-                $streamCount = count($mediaListResp['data']);
-                foreach ($mediaListResp['data'] as $media) {
-                    $totalReaderCount += $media['totalReaderCount'] ?? 0;
-                    $totalBytesSpeed += $media['bytesSpeed'] ?? 0;
-                }
+            $streamCount = count($mediaList['data']);
+            foreach ($mediaList['data'] as $media) {
+                $totalReaderCount += $media['totalReaderCount'] ?? 0;
+                $totalBytesSpeed += $media['bytesSpeed'] ?? 0;
             }
 
             // 处理对象统计

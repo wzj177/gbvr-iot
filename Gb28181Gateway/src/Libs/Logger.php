@@ -8,7 +8,6 @@ namespace Gb28181\GateWay\Libs;
  * 支持：
  * - 多级别日志（DEBUG/INFO/WARNING/ERROR）
  * - 多输出目标（文件/stdout/stderr）
- * - 可选 Monolog 集成
  * - 线程安全的文件写入
  */
 class Logger

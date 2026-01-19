@@ -184,9 +184,9 @@ class ZLMClient
      *
      * @param string|null $app 应用名 (null=所有)
      * @param string|null $stream 流ID (null=所有)
-     * @return array|null
+     * @return array
      */
-    public function getMediaList(?string $app = null, ?string $stream = null): ?array
+    public function getMediaList(?string $app = null, ?string $stream = null): array
     {
         $params = [
             'vhost' => '__defaultVhost__',
@@ -199,7 +199,42 @@ class ZLMClient
             $params['stream'] = $stream;
         }
 
-        return $this->request('getMediaList', $params);
+        $resp =  $this->request('getMediaList', $params);
+
+        if ($resp['code'] === 0) {
+            return $resp['data'];
+        }
+
+        return [];
+    }
+
+    /**
+     * 获取流播放人数列表
+     *
+     * @param string|null $app 应用名 (null=所有)
+     * @param string|null $stream 流ID (null=所有)
+     * @return array
+     */
+    public function getMediaPlayerList(string $schema, string $stream, string $app = 'rtp'): array
+    {
+        $params = [
+            'vhost' => '__defaultVhost__',
+        ];
+
+        if ($app) {
+            $params['app'] = $app;
+        }
+        if ($stream) {
+            $params['stream'] = $stream;
+        }
+
+        $resp =  $this->request('getMediaPlayerList', $params);
+
+        if ($resp['code'] === 0) {
+            return $resp['data'];
+        }
+
+        return [];
     }
 
     /**

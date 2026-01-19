@@ -3,6 +3,9 @@
 namespace CoreW\Business\Devices\Service\Impl;
 
 use CoreW\Business\BaseService;
+use CoreW\Business\Devices\Dao\StreamSessionViewerDao;
+use CoreW\Business\Devices\Enums\ChannelStreamStatus;
+use CoreW\Business\Devices\Enums\ChannelTypeEnum;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Dao\DeviceDao;
@@ -10,6 +13,7 @@ use CoreW\Business\Devices\Dao\DeviceChannelsDao;
 use CoreW\Business\Devices\Dao\StreamSessionsDao;
 use CoreW\Business\Devices\Dao\PresetDao;
 use CoreW\Business\GB\Gb28181Service;
+use CoreW\Business\User\CurrentUserInterface;
 use CoreW\Dao\DaoProxy;
 use support\exception\NotFoundException;
 
@@ -55,7 +59,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function createDevice(array $fields)
     {
         $device = array_merge([
-            'status' => 'offline',
+            'status' => DeviceStatusEnum::UNREGISTERED->value,
             'enabled' => true,
             'device_name' => $fields['device_name'] ?? $fields['device_id'],
             'created_at' => date('Y-m-d H:i:s'),
@@ -120,7 +124,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
         $now = date('Y-m-d H:i:s');
         $deviceData = [
-            'status' => 'online',
+            'status' => DeviceStatusEnum::ONLINE->value,
             'device_id' => $deviceId,
             'device_type' => $this->parseDeviceTypeByDeviceId($deviceId),
             'registered_at' => isset($data['registered_at']) ? date('Y-m-d H:i:s', $data['registered_at']) : $now,
@@ -221,7 +225,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     {
         $data = ['status' => $status];
         if ($status === DeviceStatusEnum::UNREGISTERED->value || $status === DeviceStatusEnum::EXPIRED->value) {
-            $data['stream_status'] = 'idle'; // 更新推流状态
+            $data['stream_status'] = ChannelStreamStatus::IDLE->value; // 更新推流状态
         }
 
         return $this->getDeviceChannelsDao()->update(['device_id' => $deviceId], $data);
@@ -255,7 +259,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function createChannel(array $fields)
     {
         $channel = array_merge([
-            'status' => 'offline',
+            'status' => DeviceStatusEnum::UNREGISTERED->value,
             'enabled' => false,
             'media_server_id' => 'default',
             'channel_type' => $this->parseDeviceChanelTypeByDeviceId($fields['channel_id']),
@@ -290,7 +294,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     {
         $channel = $this->getDeviceChannelsDao()->getByMainId($mainId);
         if (!$channel) {
-            throw new NotFoundException('设备通道不存在');
+            return false;
         }
         return $this->updateChannel($channel['id'], $fields);
     }
@@ -303,6 +307,29 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
         $fields['updated_at'] = date('Y-m-d H:i:s');
         return $this->getDeviceChannelsDao()->update(['ids' => $ids], $fields);
+    }
+
+    public function deleteChannel($id): bool
+    {
+        $channel = $this->getChannelById($id);
+        if (!$channel) {
+            return false;
+        }
+
+        $this->beginTransaction();
+        try {
+            // 删除通道关联的流会话
+            $this->getStreamSessionsDao()->deleteByStreamId($channel['stream_id']);
+
+            // 删除通道
+            $this->getDeviceChannelsDao()->delete($id);
+
+            $this->commit();
+            return true;
+        } catch (\Exception $e) {
+            $this->rollback();
+            throw $e;
+        }
     }
 
     /**
@@ -351,7 +378,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     'secrecy' => $item['Secrecy'] ?? 0,
                     'port' => $item['Port'] ?? 0,
                     'password' => $item['Password'] ?? '',
-                    'status' => ($item['Status'] ?? 'OFF') === 'ON' ? 'online' : 'offline',
+                    'status' => ($item['Status'] ?? 'OFF') === 'ON' ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::UNREGISTERED->value,
                     'lng' => $item['Longitude'] ?? 0.0,
                     'lat' => $item['Latitude'] ?? 0.0,
                     'channel_type' => $this->parseDeviceChanelTypeByDeviceId($channelId),
@@ -467,30 +494,15 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     {
         // 验证 DeviceID 格式
         if (strlen($channelId) < 20 || !ctype_digit($channelId)) {
-            $channelType = 'invalid_id';
+            $channelType = 'unknown';
         } else {
             // 提取设备类型码（第11~13位，索引10~12）
             $typeCode = substr($channelId, 10, 3);
-
-            // 根据国标+行业实践映射类型
-            switch ($typeCode) {
-                case '111':
-                case '121':
-                case '131':
-                case '132':
-                    $channelType = 'video';
-                    break;
-                case '213':
-                    $channelType = 'alarm_input';   // 报警输入
-                    break;
-                case '212':
-                    $channelType = 'alarm_output';  // 报警输出
-                    break;
-                case '211':
-                    $channelType = 'alarm_host';    // 报警主机（较少作为子通道）
-                    break;
-                default:
-                    $channelType = 'unknown';       // 其他类型，如音频、智能等
+            $channelType = ChannelTypeEnum::tryFromInt((int)$typeCode);
+            if (!$channelType) {
+                $channelType = 'unknown';
+            } else {
+                $channelType = $channelType->value;
             }
         }
 
@@ -514,9 +526,87 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->getByStreamId($streamId);
     }
 
+    public function getActiveSessionByStreamIdAndType(string $streamId, string $type)
+    {
+        return $this->getStreamSessionsDao()->getActiveByStreamIdAndType($streamId, $type);
+    }
+
+    /**
+     * 增加观看者数（console、queue不能用）
+     *
+     * @param string $streamId
+     * @return int|void
+     */
+    public function incrementSessionViewerCount(string $streamId)
+    {
+        $stream = $this->getSessionByStreamId($streamId);
+        if (!$stream) {
+            return 0;
+        }
+
+        try {
+            $result = $this->getStreamSessionsDao()->increment($stream['id'], 'viewer_count', 1);
+            if ($result) {
+                $currentAuthUser = $this->bfw->offsetGet('user');
+                $viewerId = '';
+                if ($currentAuthUser instanceof CurrentUserInterface) {
+                    $viewerId = $currentAuthUser->getId();
+                }
+
+                $viewerIp = \request()->getRealIp();
+                $this->getStreamSessionViewerDao()->create([
+                    'stream_id' => $streamId,
+                    'viewer_id' => $viewerId,
+                    'viewer_ip' => $viewerIp,
+                ]);
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            echo $e->getTraceAsString();
+            return 0;
+        }
+    }
+
+    /**
+     * 减少观看者数（console、queue不能用）
+     *
+     * @param string $streamId
+     * @return int|void
+     */
+    public function decrementSessionViewerCount(string $streamId)
+    {
+        $stream = $this->getSessionByStreamId($streamId);
+        if (!$stream || $stream['viewer_count'] == 0) {
+            return 0;
+        }
+
+        return $this->getStreamSessionsDao()->decrement($stream['id'], 'viewer_count', 1);
+    }
+
     public function getSessionBySsrc(string $ssrc): array
     {
         return $this->getStreamSessionsDao()->getBySsrc($ssrc);
+    }
+
+
+    public function countSessions(array $conditions): int
+    {
+        return $this->getStreamSessionsDao()->count($conditions);
+    }
+
+    public function searchSessions(array $conditions, array $orderBys, $start, $limit, $columns = []): array
+    {
+        return $this->getStreamSessionsDao()->search($conditions, $orderBys, $start, $limit, $columns);
+    }
+
+    public function batchDeleteSessions(array $ids)
+    {
+        if (empty($ids)) {
+            return false;
+        }
+
+        return $this->getStreamSessionsDao()->batchDelete(['ids' => $ids]);
     }
 
     public function createSession(array $fields)
@@ -544,6 +634,16 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         }
 
         return (bool)$this->updateSession($session['id'], $fields);
+    }
+
+    public function updateSessionBySSRC(string $ssrc, array $fields)
+    {
+        $session = $this->getSessionBySsrc($ssrc);
+        if (!$session) {
+            return null;
+        }
+
+        return $this->updateSession($session['id'], $fields);
     }
 
     public function deleteSession($id)
@@ -606,7 +706,10 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      */
     private function getDeviceChannelTree(): array
     {
-        $devices = $this->searchDevices([], ['id' => 'ASC'], 0, 10000);
+        $devices = $this->searchDevices([], [
+            'status' => 'ASC',
+            'id' => 'DESC'
+        ], 0, PHP_INT_MAX);
         $tree = [];
 
         foreach ($devices as $device) {
@@ -631,6 +734,10 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
             $channels = $this->getChannelsByDeviceId($device['device_id']);
             foreach ($channels as $channel) {
+                // 只展示摄像机(131)和网络摄像机(132)
+                if (!in_array($channel['channel_type'], [131, 132])) {
+                    continue;
+                }
                 $node['children'][] = [
                     'id' => 'c_' . $channel['id'],
                     'key' => $channel['channel_id'],
@@ -702,6 +809,10 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
             $channels = $this->getChannelsByDeviceId($device['device_id']);
             foreach ($channels as $channel) {
+                // 只展示摄像机(131)和网络摄像机(132)
+                if (!in_array($channel['channel_type'], [131, 132])) {
+                    continue;
+                }
                 $deviceNode['children'][] = [
                     'id' => 'c_' . $channel['id'],
                     'key' => $channel['channel_id'],
@@ -803,7 +914,6 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             // 更新现有预置位
             $this->getPresetDao()->update($existing['id'], [
                 'name' => $name ?: "预置位{$value}",
-                'status' => 'setting',
                 'updated_at' => $now,
             ]);
         } else {
@@ -813,28 +923,10 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                 'channel_id' => $channelId,
                 'value' => $value,
                 'name' => $name ?: "预置位{$value}",
-                'status' => 'setting',
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
         }
-
-        // 发送设置命令到网关
-        $result = $this->getGb28181Service()->presetSet($deviceId, $channelId, $value);
-
-        // 更新状态
-//        $preset = $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
-//        if ($result) {
-//            $this->getPresetDao()->update($preset['id'], [
-//                'status' => 'set',
-//                'updated_at' => $now,
-//            ]);
-//        } else {
-//            $this->getPresetDao()->update($preset['id'], [
-//                'status' => 'unset',
-//                'updated_at' => $now,
-//            ]);
-//        }
 
         return $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
     }
@@ -895,6 +987,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     protected function getStreamSessionsDao(): StreamSessionsDao|DaoProxy
     {
         return $this->createDao('Devices:StreamSessionsDao');
+    }
+
+    protected function getStreamSessionViewerDao(): StreamSessionViewerDao|DaoProxy
+    {
+        return $this->createDao('Devices:StreamSessionViewerDao');
     }
 
     protected function getPresetDao(): PresetDao|DaoProxy

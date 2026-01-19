@@ -17,6 +17,12 @@
  * - query_record: 查询录像文件
  * - ptz_control: PTZ 云台控制
  * - query_catalog: 查询设备目录(已实现)
+ * - cruise_add_point: 添加巡航点
+ * - cruise_delete_point: 删除巡航点
+ * - cruise_set_speed: 设置巡航速度
+ * - cruise_set_duration: 设置巡航停留时间
+ * - cruise_start: 开始巡航
+ * - cruise_stop: 停止巡航
  */
 
 namespace Gb28181\GateWay\Message;
@@ -82,9 +88,9 @@ class CommandDispatcher
         try {
             return match ($action) {
                 'start_live_video' => $this->handleStartLiveVideo($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
-                'stop_live_video' => $this->handleStopLiveVideo($requestId, $deviceId, $channelId),
+                'stop_live_video' => $this->handleStopLiveVideo($requestId, $deviceId, $channelId, $params),
                 'start_playback' => $this->handleStartPlayback($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
-                'stop_playback' => $this->handleStopPlayback($requestId, $deviceId, $channelId),
+                'stop_playback' => $this->handleStopPlayback($requestId, $deviceId, $channelId, $params),
                 'query_device_info' => $this->handleQueryDeviceInfo($requestId, $deviceId, $deviceIp, $devicePort),
                 'query_device_status' => $this->handleQueryDeviceStatus($requestId, $deviceId, $deviceIp, $devicePort),
                 'query_record' => $this->handleQueryRecord($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
@@ -92,6 +98,12 @@ class CommandDispatcher
                 'preset_set' => $this->handlePresetSet($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'preset_call' => $this->handlePresetCall($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'preset_delete' => $this->handlePresetDelete($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'cruise_add_point' => $this->handleCruiseAddPoint($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'cruise_delete_point' => $this->handleCruiseDeletePoint($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'cruise_set_speed' => $this->handleCruiseSetSpeed($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'cruise_set_duration' => $this->handleCruiseSetDuration($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'cruise_start' => $this->handleCruiseStart($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'cruise_stop' => $this->handleCruiseStop($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'device_upgrade' => $this->handleDeviceUpgrade($requestId, $deviceId, $deviceIp, $devicePort, $params),
                 'snapshot' => $this->handleSnapshot($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'query_catalog' => $this->handleQueryCatalog($requestId, $deviceId, $deviceIp, $devicePort),
@@ -132,8 +144,8 @@ class CommandDispatcher
         }
 
         //  从params获取ZLM端口（由gbvr-iot的ZLM服务分配）
-        $zlmPort = $params['rtp_port'] ?? null;
-        if (!$zlmPort) {
+        $rtpPort = $params['rtp_port'] ?? null;
+        if (!$rtpPort) {
             return $this->errorResponse($requestId, "Missing rtp_port from API, params must include 'rtp_port'");
         }
 
@@ -146,7 +158,7 @@ class CommandDispatcher
         //  从params获取收流IP（由gbvr-iot根据media_server表的stream_ip传入）
         $mediaServerIp = $params['stream_ip'] ?? null;
         if (!$mediaServerIp) {
-            return $this->errorResponse($requestId, 'Missing media_server_ip in params');
+            return $this->errorResponse($requestId, 'Missing stream_ip in params');
         }
 
         $this->log("Media server IP: {$mediaServerIp}");
@@ -155,7 +167,7 @@ class CommandDispatcher
         $sdp = SdpBuilder::buildLiveVideoSdp(
             serverId: $this->config['server_id'],
             mediaIp: $mediaServerIp,  // 使用从params传入的收流IP
-            mediaPort: $zlmPort,
+            mediaPort: $rtpPort,
             ssrc: $ssrc,
             tcpMode: $tcpMode
         );
@@ -169,37 +181,51 @@ class CommandDispatcher
         $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
         $subject = "{$channelId}:{$channelId},{$this->config['server_id']}:0";
 
-        $dialogId = $this->sipServer->sendInvite($targetUri, $sdp, [
+        $callId = $this->sipServer->sendInvite($targetUri, $sdp, [
             'Subject' => $subject,
             'Content-Type' => 'application/sdp'
         ]);
 
-        if ($dialogId === false) {
+        if ($callId === false) {
             return $this->errorResponse($requestId, "Failed to send INVITE");
         }
 
         // 保存会话信息
-        $sessionKey = "{$deviceId}:{$channelId}:live";
-        $this->activeSessions[$sessionKey] = [
+//        $sessionKey = $streamId; //"{$deviceId}:{$channelId}:live"
+        if (isset($this->activeSessions[$streamId])) {
+            // 会话已存在，直接返回现有信息（viewer_count 由 API 层数据库管理）
+            $this->log("INFO: 复用直播流 {$streamId}");
+            return [
+                'status' => 'success',
+                'request_id' => $this->activeSessions[$streamId]['request_id'],
+                'call_id' => $this->activeSessions[$streamId]['call_id'],
+                'stream_id' => $streamId,
+                'reused' => true,
+            ];
+        }
+
+        $this->activeSessions[$streamId] = [
             'request_id' => $requestId,
-            'dialog_id' => $dialogId,
+            'call_id' => $callId,
+            'dialog_id' => -1,  // 等待 200 OK 后更新
             'device_id' => $deviceId,
             'channel_id' => $channelId,
             'type' => 'live',
             'ssrc' => $ssrc,
-            'rtp_port' => $zlmPort,
+            'rtp_port' => $rtpPort,
             'stream_id' => $streamId,
             'started_at' => time(),
+            // viewer_count 已移至 API 层数据库管理
         ];
 
-        $this->log("Live video session created: {$sessionKey} (Dialog: {$dialogId}, SSRC: {$ssrc}, ZLM Port: {$zlmPort})");
+        $this->log("Live video session created: {$streamId} (CallID: {$callId}, SSRC: {$ssrc}, Rtp Port: {$rtpPort})");
 
         return [
             'success' => true,
             'request_id' => $requestId,
-            'dialog_id' => $dialogId,
+            'call_id' => $callId,
             'ssrc' => $ssrc,
-            'rtp_port' => $zlmPort,
+            'rtp_port' => $rtpPort,
             'stream_id' => $streamId,
         ];
     }
@@ -208,27 +234,30 @@ class CommandDispatcher
      * 停止实时视频
      * 流程: BYE -> 200 OK
      */
-    private function handleStopLiveVideo(string $requestId, string $deviceId, string $channelId): array
+    private function handleStopLiveVideo(string $requestId, string $deviceId, string $channelId, array $params): array
     {
         $this->log("Stop live video: {$channelId}");
+        if (!isset($params['stream_id'])) {
+            return $this->errorResponse($requestId, "Missing stream_id in params");
+        }
 
-        $sessionKey = "{$deviceId}:{$channelId}:live";
+        $sessionKey = $params['stream_id'];
         $session = $this->activeSessions[$sessionKey] ?? null;
 
         if (!$session) {
             return $this->errorResponse($requestId, "No active live video session");
         }
 
-        // 发送 BYE
-        $result = $this->sipServer->sendBye($session['dialog_id']);
+        // 直接发送 BYE 关闭会话（viewer_count 由 API 层数据库管理）
+        $dialogId = $session['dialog_id'] ?? -1;
+        $result = $this->sipServer->sendBye($session['call_id'], $dialogId);
 
         if ($result === false) {
-            return $this->errorResponse($requestId, "Failed to send BYE");
+            $this->log("WARNING: sendBye failed (call_id={$session['call_id']}, dialog_id={$dialogId})");
         }
 
         // 移除会话
         unset($this->activeSessions[$sessionKey]);
-
         $this->log("Live video session stopped: {$sessionKey}");
 
         return [
@@ -255,9 +284,9 @@ class CommandDispatcher
 
         //  从params获取SSRC和ZLM端口
         $ssrc = $params['ssrc'] ?? null;
-        $zlmPort = $params['rtp_port'] ?? null;
+        $rtpPort = $params['rtp_port'] ?? null;
 
-        if (!$ssrc || !$zlmPort) {
+        if (!$ssrc || !$rtpPort) {
             return $this->errorResponse($requestId, "Missing ssrc or rtp_port from API");
         }
 
@@ -267,61 +296,82 @@ class CommandDispatcher
         $streamId = $params['stream_id'] ?? null;
 
         //  从params获取收流IP
-        $mediaServerIp = $params['media_server_ip'] ?? null;
+        $mediaServerIp = $params['stream_ip'] ?? null;
         if (!$mediaServerIp) {
-            return $this->errorResponse($requestId, 'Missing media_server_ip in params');
+            return $this->errorResponse($requestId, 'Missing stream_ip in params');
         }
 
-        // 构建 SDP (回放使用 Playback)
-        // 注意: GB28181 录像回放的时间参数通常在 INVITE 的 XML body 中传递,
-        // SDP 的 t= 行仍然使用 0 0 表示永久会话
+        // 将 ISO 8601 时间转换为 NTP 时间戳（SDP t= 行使用）
+        // NTP 时间戳 = Unix 时间戳 + 2208988800（NTP epoch: 1900-01-01）
+        $startUnix = strtotime($startTime);
+        $endUnix = strtotime($endTime);
+        $startNtp = $startUnix;
+        $endNtp = $endUnix;
+
+        // 先检查是否有活跃的会话可以复用（避免重复发送 INVITE）
+        if (isset($this->activeSessions[$streamId])) {
+            // 会话已存在，直接返回现有信息（viewer_count 由 API 层数据库管理）
+            $this->log("INFO: 复用回放流 {$streamId}");
+
+            return [
+                'status' => 'success',
+                'request_id' => $this->activeSessions[$streamId]['request_id'],
+                'call_id' => $this->activeSessions[$streamId]['call_id'],
+                'stream_id' => $streamId,
+                'reused' => true,
+            ];
+        }
+
+        // 构建 SDP (回放必须包含时间范围)
+        // GB28181 标准: 录像回放的 SDP t= 行必须使用 NTP 时间戳
         $sdp = SdpBuilder::buildPlaybackSdp(
             serverId: $this->config['server_id'],
             mediaIp: $mediaServerIp,  // 使用从params传入的收流IP
-            mediaPort: $zlmPort,
+            mediaPort: $rtpPort,
             ssrc: $ssrc,
-            startTime: 0,  // SDP 中通常为 0 0
-            endTime: 0,
+            startTime: $startNtp,  // NTP 时间戳
+            endTime: $endNtp,      // NTP 时间戳
             tcpMode: $tcpMode
         );
 
-        // 发送 INVITE
+        // 发送 INVITE（只有新会话才需要）
         $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
         $subject = "{$channelId}:{$channelId},{$this->config['server_id']}:0";
 
-        $dialogId = $this->sipServer->sendInvite($targetUri, $sdp, [
+        $callId = $this->sipServer->sendInvite($targetUri, $sdp, [
             'Subject' => $subject,
             'Content-Type' => 'application/sdp'
         ]);
 
-        if ($dialogId === false) {
+        if ($callId === false) {
             return $this->errorResponse($requestId, "Failed to send INVITE");
         }
-
-        // 保存会话信息
-        $sessionKey = "{$deviceId}:{$channelId}:playback";
-        $this->activeSessions[$sessionKey] = [
+        
+        // 保存新会话信息
+        $this->activeSessions[$streamId] = [
             'request_id' => $requestId,
-            'dialog_id' => $dialogId,
+            'call_id' => $callId,
+            'dialog_id' => -1,  // 等待 200 OK 后更新
             'device_id' => $deviceId,
             'channel_id' => $channelId,
             'type' => 'playback',
             'ssrc' => $ssrc,
-            'rtp_port' => $zlmPort,
+            'rtp_port' => $rtpPort,
             'stream_id' => $streamId,
             'start_time' => $startTime,
             'end_time' => $endTime,
             'started_at' => time(),
+            // viewer_count 已移至 API 层数据库管理
         ];
 
-        $this->log("Playback session created: {$sessionKey} (Dialog: {$dialogId})");
+        $this->log("Playback session created: {$streamId} (CallId: {$callId})");
 
         return [
             'success' => true,
             'request_id' => $requestId,
-            'dialog_id' => $dialogId,
+            'call_id' => $callId,
             'ssrc' => $ssrc,
-            'rtp_port' => $zlmPort,
+            'rtp_port' => $rtpPort,
             'stream_id' => $streamId,
         ];
     }
@@ -329,28 +379,30 @@ class CommandDispatcher
     /**
      * 停止录像回放
      */
-    private function handleStopPlayback(string $requestId, string $deviceId, string $channelId): array
+    private function handleStopPlayback(string $requestId, string $deviceId, string $channelId, array $params): array
     {
         $this->log("Stop playback: {$channelId}");
+        if (!isset($params['stream_id'])) {
+            return $this->errorResponse($requestId, "Missing stream_id in params");
+        }
 
-        $sessionKey = "{$deviceId}:{$channelId}:playback";
+        $sessionKey = $params['stream_id']; //"{$deviceId}:{$channelId}:playback";
         $session = $this->activeSessions[$sessionKey] ?? null;
 
         if (!$session) {
             return $this->errorResponse($requestId, "No active playback session");
         }
 
-        // 发送 BYE
-        $result = $this->sipServer->sendBye($session['dialog_id']);
+        // 直接发送 BYE 关闭会话（viewer_count 由 API 层管理）
+        $dialogId = $session['dialog_id'] ?? -1;
+        $result = $this->sipServer->sendBye($session['call_id'], $dialogId);
 
         if ($result === false) {
-            return $this->errorResponse($requestId, "Failed to send BYE");
+            $this->log("WARNING: sendBye failed for playback (call_id={$session['call_id']}, dialog_id={$dialogId})");
         }
 
-        // 释放资源
-        $this->releaseMediaPort($session['media_port']);
+        // 移除会话
         unset($this->activeSessions[$sessionKey]);
-
         $this->log("Playback session stopped: {$sessionKey}");
 
         return [
@@ -409,7 +461,8 @@ class CommandDispatcher
         $endTime = $params['end_time'];
         $type = $params['type'] ?? 'all';  // all, time, alarm, manual
 
-        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+//        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
         $result = $this->querySender->queryRecordInfo($targetUri, $channelId, $startTime, $endTime, $type);
 
         return [
@@ -596,6 +649,61 @@ class CommandDispatcher
     }
 
     /**
+     * 构建巡航命令
+     * GB28181 巡航命令格式: A5 0F 01 [指令码] [巡航组号] [预置位号/参数低8位] [参数高4位] [校验码]
+     *
+     * 指令码(第4字节):
+     * - 0x84: 添加巡航点 (AddCruisePoint)
+     * - 0x85: 删除巡航点 (DeleteCruisePoint)
+     * - 0x86: 设置巡航速度 (SetCruiseSpeed) - 参数范围 1-4095
+     * - 0x87: 设置巡航时间 (SetCruiseDuration) - 参数范围 1-4095 秒
+     * - 0x88: 开始巡航 (StartCruise)
+     *
+     * 注意事项:
+     * 1. 巡航必须基于预置位（需要先设置预置位）
+     * 2. 速度和时间参数使用12位编码（字节6低8位 + 字节7高4位）
+     * 3. 字节5: 巡航组号 (0-255)
+     * 4. 字节6: 预置位编号 或 参数低8位
+     * 5. 字节7: 参数高4位 或 0x00
+     *
+     * 参考: GB/T 28181-2016, ak-stream 实现, 天翼云文档
+     */
+    private function buildCruiseCommand(string $action, int $groupId, int $param = 0): string
+    {
+        $cmdCode = match ($action) {
+            'add_point' => 0x84,      // 添加巡航点
+            'delete_point' => 0x85,   // 删除巡航点
+            'set_speed' => 0x86,      // 设置巡航速度
+            'set_duration' => 0x87,   // 设置巡航时间
+            'start' => 0x88,          // 开始巡航
+            default => 0x00
+        };
+
+        // 巡航组号范围: 0-255
+        $groupId = max(0, min(255, $groupId));
+
+        // 参数编码（12位：字节6低8位 + 字节7高4位）
+        if (in_array($action, ['set_speed', 'set_duration'])) {
+            // 速度/时间范围: 1-4095 (0x001-0xFFF)
+            $param = max(1, min(4095, $param));
+            $byte6 = $param & 0xFF;           // 低8位
+            $byte7 = ($param >> 8) & 0x0F;    // 高4位
+        } else {
+            // 添加/删除巡航点：byte6 = 预置位编号, byte7 = 0x00
+            $byte6 = max(1, min(255, $param));  // 预置位编号 1-255
+            $byte7 = 0x00;
+        }
+
+        // 计算校验码
+        $checksum = (0xA5 + 0x0F + 0x01 + $cmdCode + $groupId + $byte6 + $byte7) % 0x100;
+
+        // 构建命令: A5 0F 01 [cmdCode] [groupId] [byte6] [byte7] [checksum]
+        $cruiseCmd = sprintf("A50F01%02X%02X%02X%02X%02X", $cmdCode, $groupId, $byte6, $byte7, $checksum);
+
+        return $cruiseCmd;
+    }
+
+    /**
      * 设置预置位
      */
     private function handlePresetSet(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
@@ -610,7 +718,7 @@ class CommandDispatcher
         return [
             'success' => $result,
             'request_id' => $requestId,
-            'message' => $result ? 'Preset set command sent' : 'Failed to send preset set command',
+            'message' => $result, // ? 'Preset set command sent' : 'Failed to send preset set command',
             'preset_id' => $presetId
         ];
     }
@@ -652,6 +760,133 @@ class CommandDispatcher
             'request_id' => $requestId,
             'message' => $result ? 'Preset delete command sent' : 'Failed to send preset delete command',
             'preset_id' => $presetId
+        ];
+    }
+
+    /**
+     * 添加巡航点
+     */
+    private function handleCruiseAddPoint(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $groupId = $params['group_id'] ?? 0;
+        $presetId = $params['preset_id'] ?? 1;
+        $this->log("Add cruise point: {$channelId}, group={$groupId}, preset={$presetId}");
+
+        $ptzCmd = $this->buildCruiseCommand('add_point', $groupId, $presetId);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Cruise point added' : 'Failed to add cruise point',
+            'group_id' => $groupId,
+            'preset_id' => $presetId
+        ];
+    }
+
+    /**
+     * 删除巡航点
+     */
+    private function handleCruiseDeletePoint(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $groupId = $params['group_id'] ?? 0;
+        $presetId = $params['preset_id'] ?? 1;
+        $this->log("Delete cruise point: {$channelId}, group={$groupId}, preset={$presetId}");
+
+        $ptzCmd = $this->buildCruiseCommand('delete_point', $groupId, $presetId);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Cruise point deleted' : 'Failed to delete cruise point',
+            'group_id' => $groupId,
+            'preset_id' => $presetId
+        ];
+    }
+
+    /**
+     * 设置巡航速度
+     */
+    private function handleCruiseSetSpeed(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $groupId = $params['group_id'] ?? 0;
+        $speed = $params['speed'] ?? 50;  // 1-4095
+        $this->log("Set cruise speed: {$channelId}, group={$groupId}, speed={$speed}");
+
+        $ptzCmd = $this->buildCruiseCommand('set_speed', $groupId, $speed);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Cruise speed set' : 'Failed to set cruise speed',
+            'group_id' => $groupId,
+            'speed' => $speed
+        ];
+    }
+
+    /**
+     * 设置巡航停留时间
+     */
+    private function handleCruiseSetDuration(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $groupId = $params['group_id'] ?? 0;
+        $duration = $params['duration'] ?? 10;  // 1-4095 秒
+        $this->log("Set cruise duration: {$channelId}, group={$groupId}, duration={$duration}s");
+
+        $ptzCmd = $this->buildCruiseCommand('set_duration', $groupId, $duration);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Cruise duration set' : 'Failed to set cruise duration',
+            'group_id' => $groupId,
+            'duration' => $duration
+        ];
+    }
+
+    /**
+     * 开始巡航
+     */
+    private function handleCruiseStart(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $groupId = $params['group_id'] ?? 0;
+        $this->log("Start cruise: {$channelId}, group={$groupId}");
+
+        $ptzCmd = $this->buildCruiseCommand('start', $groupId, 0);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Cruise started' : 'Failed to start cruise',
+            'group_id' => $groupId
+        ];
+    }
+
+    /**
+     * 停止巡航（使用PTZ停止命令）
+     */
+    private function handleCruiseStop(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("Stop cruise: {$channelId}");
+
+        // 停止巡航使用普通的PTZ停止命令
+        $ptzCmd = $this->buildPtzCommand(['command' => 'stop']);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Cruise stopped' : 'Failed to stop cruise'
         ];
     }
 
@@ -728,14 +963,6 @@ class CommandDispatcher
         ];
     }
 
-    /**
-     * 释放媒体端口
-     */
-    private function releaseMediaPort(int $port): void
-    {
-        // TODO: 实现端口池管理
-        $this->log("Release media port: {$port}");
-    }
 
     /**
      * 错误响应
@@ -848,8 +1075,7 @@ class CommandDispatcher
         foreach ($this->activeSessions as $key => $session) {
             if ($now - $session['started_at'] > $timeout) {
                 $this->log("Cleanup timeout session: {$key}");
-                $this->sipServer->sendBye($session['dialog_id']);
-                $this->releaseMediaPort($session['media_port']);
+                $this->sipServer->sendBye($session['call_id']);
                 unset($this->activeSessions[$key]);
             }
         }
@@ -861,17 +1087,17 @@ class CommandDispatcher
     private function handleSubscribeCatalog(string $requestId, string $deviceId, array $params): array
     {
         $this->log("Subscribe catalog: {$deviceId}");
-        
+
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
 
         $expires = $params['expires'] ?? 3600; // 默认1小时
-        
+
         try {
             $this->querySender->sendSubscribeCatalog($device, $expires);
-            
+
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'Catalog',
@@ -888,7 +1114,7 @@ class CommandDispatcher
     private function handleSubscribeAlarm(string $requestId, string $deviceId, array $params): array
     {
         $this->log("Subscribe alarm: {$deviceId}");
-        
+
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
@@ -898,7 +1124,7 @@ class CommandDispatcher
         $startAlarmPriority = $params['start_priority'] ?? 0;
         $endAlarmPriority = $params['end_priority'] ?? 3;
         $alarmMethod = $params['alarm_method'] ?? null;
-        
+
         try {
             $this->querySender->sendSubscribeAlarm(
                 $device,
@@ -907,7 +1133,7 @@ class CommandDispatcher
                 $endAlarmPriority,
                 $alarmMethod
             );
-            
+
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'Alarm',
@@ -924,7 +1150,7 @@ class CommandDispatcher
     private function handleSubscribeMobilePosition(string $requestId, string $deviceId, array $params): array
     {
         $this->log("Subscribe mobile position: {$deviceId}");
-        
+
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
@@ -932,10 +1158,10 @@ class CommandDispatcher
 
         $expires = $params['expires'] ?? 3600; // 默认1小时
         $interval = $params['interval'] ?? 5; // 上报间隔，默认5秒
-        
+
         try {
             $this->querySender->sendSubscribeMobilePosition($device, $expires, $interval);
-            
+
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'MobilePosition',
@@ -953,15 +1179,15 @@ class CommandDispatcher
     private function handleUnsubscribeCatalog(string $requestId, string $deviceId): array
     {
         $this->log("Unsubscribe catalog: {$deviceId}");
-        
+
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
-        
+
         try {
             $this->querySender->sendUnsubscribeCatalog($device);
-            
+
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'Catalog',
@@ -978,15 +1204,15 @@ class CommandDispatcher
     private function handleUnsubscribeAlarm(string $requestId, string $deviceId): array
     {
         $this->log("Unsubscribe alarm: {$deviceId}");
-        
+
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
-        
+
         try {
             $this->querySender->sendUnsubscribeAlarm($device);
-            
+
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'Alarm',
@@ -998,20 +1224,48 @@ class CommandDispatcher
     }
 
     /**
+     * 更新会话的 dialog_id (当收到 200 OK 响应时)
+     * 
+     * 调用时机：在 onResponse 回调中收到 INVITE 的 200 OK 时
+     * 
+     * @param int $callId Call ID
+     * @param int $dialogId Dialog ID
+     * 
+     * @example 在 gb28181_server.php 中：
+     * ```php
+     * $sipServer->onResponse = function($event) use ($commandDispatcher) {
+     *     if ($event->getCode() === 200) {
+     *         $commandDispatcher->updateSessionDialog($event->getCallId(), $event->getDialogId());
+     *     }
+     * };
+     * ```
+     */
+    public function updateSessionDialog(int $callId, int $dialogId): void
+    {
+        foreach ($this->activeSessions as $key => &$session) {
+            if ($session['call_id'] === $callId) {
+                $session['dialog_id'] = $dialogId;
+                $this->log("Updated session {$key} with dialog_id: {$dialogId}");
+                break;
+            }
+        }
+    }
+
+    /**
      * 处理取消移动位置订阅
      */
     private function handleUnsubscribeMobilePosition(string $requestId, string $deviceId): array
     {
         $this->log("Unsubscribe mobile position: {$deviceId}");
-        
+
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
-        
+
         try {
             $this->querySender->sendUnsubscribeMobilePosition($device);
-            
+
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'MobilePosition',

@@ -27,11 +27,18 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
         ]);
     }
 
-    public function getByStreamId(string $callId)
+    public function getByStreamId(string $streamId)
     {
         return $this->getByFields([
-            'stream_id' => $callId
+            'stream_id' => $streamId
         ]);
+    }
+
+    public function getActiveByStreamIdAndType(string $streamId, string $type): array|false
+    {
+        $sql = "SELECT * FROM {$this->table()} WHERE stream_id=? AND `type` =? AND `viewer_count` >= 1 AND `status` IN ('inviting', 'active') order by id desc limit 1;";
+
+        return $this->db()->fetchAssociative($sql, [$streamId, $type]);
     }
 
     public function getBySsrc(string $ssrc)
@@ -52,7 +59,18 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
     {
         return  $this->db()->delete($this->table(), ['device_id' => $deviceId]);
     }
-    
+
+    /**
+     * 根据流ID删除会话
+     * @param string $streamId
+     * @return int|string
+     * @throws \Doctrine\DBAL\Exception
+     */
+    public function deleteByStreamId(string $streamId): int|string
+    {
+        return  $this->db()->delete($this->table(), ['stream_id' => $streamId]);
+    }
+
     /**
      * 获取冷却中的端口
      * 
@@ -87,6 +105,19 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
                 'id > :id_GT',
                 'id IN (:ids)',
                 'id NOT IN (:noIds)',
+                'stream_id = :stream_id',
+                'type = :type',
+                'ssrc = :ssrc',
+                'call_id = :call_id',
+                'status = :status',
+                'media_server_id = :media_server_id',
+                'device_id = :device_id',
+                'channel_id = :channel_id',
+                'viewer_count = :viewer_count',
+                'viewer_count >= :viewer_count_GE',
+                'viewer_count <= :viewer_count_LE',
+                'viewer_count > :viewer_count_GT',
+                'viewer_count < :viewer_count_LT',
             ],
         ];
     }

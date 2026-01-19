@@ -2,6 +2,7 @@
 
 namespace CoreW\Business\Devices\Task;
 
+use CoreW\Business\Common\BaseCrontabTask;
 use CoreW\Business\Common\CrontabTaskInterface;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
@@ -9,16 +10,14 @@ use CoreW\Business\GB\Gb28181Service;
 use CoreW\Core;
 use support\Log;
 
-class Gb28181DeviceCatalogQueryTask implements CrontabTaskInterface
+class Gb28181DeviceCatalogQueryTask  extends BaseCrontabTask
 {
-    private Gb28181Service $gb28181Service;
-    public function __construct()
-    {
-        $this->gb28181Service = new Gb28181Service(Core::instance());
-    }
+
 
     public function execute(): void
     {
+        /**@var Gb28181Service $gb28181Service */
+        $gb28181Service = $this->getBfw()->offsetGet('gb28181_service');
         try {
             $devices = $this->getDeviceService()->searchDevices([
                 'status' => DeviceStatusEnum::ONLINE->value,
@@ -34,8 +33,8 @@ class Gb28181DeviceCatalogQueryTask implements CrontabTaskInterface
                     continue;
                 }
 
-                $this->gb28181Service->queryCatalog($device['device_id']);
-                $this->gb28181Service->queryDeviceInfo($device['device_id']);
+                $gb28181Service->queryCatalog($device['device_id']);
+                $gb28181Service->queryDeviceInfo($device['device_id']);
                 // 更新设备目录查询时间
                 $this->getDeviceService()->updateDevice($device['id'], [
                     'last_catalog_at' => time(),
@@ -55,6 +54,6 @@ class Gb28181DeviceCatalogQueryTask implements CrontabTaskInterface
      */
     private function getDeviceService(): DeviceService
     {
-        return Core::instance()->service('Devices:DeviceService');
+        return $this->getBfw()->service('Devices:DeviceService');
     }
 }
