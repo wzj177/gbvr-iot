@@ -288,6 +288,11 @@ class GB28181Handler
             }
             $this->log("Command failed: {$msg}", 'ERROR');
         }
+
+        $this->curlPost($this->config['api_hock_url'], [
+            'scene' => 'gateway_cmd_after',
+            'body' => $result, // 替换为你要发送的实际数据
+        ]);
     }
 
     /**

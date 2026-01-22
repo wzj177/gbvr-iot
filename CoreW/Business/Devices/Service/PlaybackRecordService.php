@@ -33,4 +33,9 @@ interface PlaybackRecordService
      * 获取指定时间范围内的录像数量
      */
     public function countRecordsByTimeRange(string $deviceId, string $channelId, int $startTime, int $endTime): int;
+
+    /**
+     * 删除指定时间范围内的所有录像记录（用于全量同步）
+     */
+    public function deleteRecordsInTimeRange(string $deviceId, int $startTime, int $endTime, ?string $channelId = null): int;
 }

@@ -134,6 +134,14 @@ class PlaybackRecordServiceImpl extends BaseService implements PlaybackRecordSer
     }
 
     /**
+     * 删除指定时间范围内的所有录像记录（用于全量同步）
+     */
+    public function deleteRecordsInTimeRange(string $deviceId, int $startTime, int $endTime, ?string $channelId = null): int
+    {
+        return $this->getPlaybackRecordDao()->deleteRecordsInTimeRange($deviceId, $channelId, $startTime, $endTime);
+    }
+
+    /**
      * @return PlaybackRecordDao|DaoProxy
      */
     protected function getPlaybackRecordDao()

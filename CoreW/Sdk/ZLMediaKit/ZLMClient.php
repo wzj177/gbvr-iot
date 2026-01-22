@@ -59,14 +59,14 @@ class ZLMClient
      */
     public function listRtpServer(): ?array
     {
-        $result = $this->request('openRtpServer', []);
+        $result = $this->request('listRtpServer', []);
 
         if ($result && $result['code'] === 0) {
             if ($this->debug) {
                 Log::channel('zlm')->info('listRtpServer success', $result);
             }
 
-            return $result['data'];
+            return $result['data'] ?? [];
         }
 
         return [];
@@ -202,7 +202,7 @@ class ZLMClient
         $resp =  $this->request('getMediaList', $params);
 
         if ($resp['code'] === 0) {
-            return $resp['data'];
+            return $resp['data'] ?? [];
         }
 
         return [];

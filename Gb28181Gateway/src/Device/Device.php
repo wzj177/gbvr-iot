@@ -342,11 +342,17 @@ class Device
 
     /**
      * 添加订阅
+     * 
+     * @param string $eventType 事件类型（Catalog, Alarm, MobilePosition）
+     * @param int $subscriptionId ExoSip 返回的订阅 ID（用于后续取消订阅）
+     * @param int $expires 订阅有效期（秒）
+     * @param array $params 额外参数
      */
-    public function addSubscription(string $eventType, int $expires, array $params = []): void
+    public function addSubscription(string $eventType, int $subscriptionId, int $expires, array $params = []): void
     {
         $this->subscriptions[$eventType] = [
             'event_type' => $eventType,
+            'subscription_id' => $subscriptionId,
             'expires' => $expires,
             'expires_at' => time() + $expires,
             'created_at' => time(),
@@ -376,6 +382,14 @@ class Device
     public function hasSubscription(string $eventType): bool
     {
         return isset($this->subscriptions[$eventType]);
+    }
+
+    /**
+     * 获取订阅ID（用于取消订阅）
+     */
+    public function getSubscriptionId(string $eventType): ?int
+    {
+        return $this->subscriptions[$eventType]['subscription_id'] ?? null;
     }
 
     /**

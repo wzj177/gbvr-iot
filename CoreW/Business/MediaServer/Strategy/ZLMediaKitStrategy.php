@@ -82,8 +82,8 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             $streamCount = 0;
             $totalReaderCount = 0;
             $totalBytesSpeed = 0;
-            $streamCount = count($mediaList['data']);
-            foreach ($mediaList['data'] as $media) {
+            $streamCount = count($mediaList);
+            foreach ($mediaList as $media) {
                 $totalReaderCount += $media['totalReaderCount'] ?? 0;
                 $totalBytesSpeed += $media['bytesSpeed'] ?? 0;
             }
@@ -107,6 +107,8 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
                 $avgWorkThreadLoad = round($totalLoad / count($workThreadLoadData), 2);
             }
 
+            $rtpList = $client->listRtpServer();
+            $rtpCount = count($rtpList);
             return [
                 // 服务状态
                 'running' => $running,
@@ -121,6 +123,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
                     'memory_usage' => 0, // ZLM 不直接提供内存使用率，需要从系统获取
                     'stream_count' => $streamCount,
                     'total_connection_count' => $totalReaderCount,
+                    'rtp_count' => $rtpCount,
                     'bytes_speed' => $totalBytesSpeed,
                     'network_thread_count' => count($threadLoadData),
                     'work_thread_count' => count($workThreadLoadData),

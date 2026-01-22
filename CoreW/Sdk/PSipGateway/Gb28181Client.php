@@ -133,6 +133,7 @@ class Gb28181Client
      * @param int $tcpMode TCP模式 (0=UDP, 1=TCP被动, 2=TCP主动)
      * @param string|null $streamId ZLM流ID (用于标识和管理流)
      * @param string|null $streamIp 收流IP (媒体服务器IP，用于SDP中的c=行)
+     * @param bool $seniorSdp 是否扩展SDP
      */
     public function startLiveVideo(
         string  $deviceId,
@@ -141,7 +142,8 @@ class Gb28181Client
         int     $zlmPort,
         int     $tcpMode = 1,
         ?string $streamId = null,
-        ?string $streamIp = null
+        ?string $streamIp = null,
+        bool $seniorSdp  = false
     ): bool
     {
         return $this->sendCommand($deviceId, 'start_live_video', [
@@ -150,7 +152,8 @@ class Gb28181Client
             'rtp_port' => $zlmPort,
             'tcp_mode' => $tcpMode,
             'stream_id' => $streamId,
-            'stream_ip' => $streamIp
+            'stream_ip' => $streamIp,
+            'senior_sdp' => $seniorSdp
         ]);
     }
 
@@ -210,6 +213,88 @@ class Gb28181Client
         return $this->sendCommand($deviceId, 'stop_playback', [
             'channel_id' => $channelId,
             'stream_id' => $streamId
+        ]);
+    }
+
+    /**
+     * 回放控制
+     * 
+     * 支持的操作:
+     * - play: 正常播放
+     * - pause: 暂停
+     * - fast_forward: 快进 (speed: 2=2倍速, 4=4倍速)
+     * - slow_forward: 慢放 (speed: 1=0.5倍速, 2=0.25倍速)
+     * - seek: 拖动到指定时间
+     * - scale: 缩放
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $action 操作类型
+     * @param int $speed 倍速（用于快进/慢放）
+     * @param string|null $seekTime 拖动时间（ISO8601格式，用于seek操作）
+     * @param float $scale 缩放比例（用于scale操作）
+     * @return bool
+     */
+    public function playbackControl(
+        string $deviceId,
+        string $channelId,
+        string $streamId,
+        string $action,
+        int $speed = 1,
+        ?string $seekTime = null,
+        float $scale = 1.0
+    ): bool {
+        return $this->sendCommand($deviceId, 'playback_control', [
+            'channel_id' => $channelId,
+            'stream_id' => $streamId,
+            'action' => $action,
+            'speed' => $speed,
+            'seek_time' => $seekTime,
+            'scale' => $scale
+        ]);
+    }
+
+    /**
+     * 开始录像下载
+     * 
+     * 与普通回放的区别：
+     * - session_name = 'Download' (而非 'Playback')
+     * - 用于将录像下载为文件
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $startTime 开始时间
+     * @param string $endTime 结束时间
+     * @param string $ssrc 平台SSRC
+     * @param int $zlmPort ZLM端口
+     * @param int $tcpMode TCP模式
+     * @param string|null $streamId ZLM流ID
+     * @param string|null $streamIp 收流IP
+     * @param int $downloadSpeed 下载倍速（1-4）
+     * @return bool
+     */
+    public function startDownload(
+        string $deviceId,
+        string $channelId,
+        string $startTime,
+        string $endTime,
+        string $ssrc,
+        int $zlmPort,
+        int $tcpMode = 1,
+        ?string $streamId = null,
+        ?string $streamIp = null,
+        int $downloadSpeed = 1
+    ): bool {
+        return $this->sendCommand($deviceId, 'download_record', [
+            'channel_id' => $channelId,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'ssrc' => $ssrc,
+            'rtp_port' => $zlmPort,
+            'tcp_mode' => $tcpMode,
+            'stream_id' => $streamId,
+            'stream_ip' => $streamIp,
+            'download_speed' => $downloadSpeed
         ]);
     }
 

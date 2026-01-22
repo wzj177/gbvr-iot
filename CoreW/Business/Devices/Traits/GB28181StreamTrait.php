@@ -115,7 +115,8 @@ trait GB28181StreamTrait
             $zlmPort,
             $tcpMode,
             $streamId,
-            $streamIp  // 传递收流IP到信令网关
+            $streamIp,  // 传递收流IP到信令网关,
+            $device['senior_sdp'] ?? false
         );
 
         if (!$result) {
@@ -129,7 +130,7 @@ trait GB28181StreamTrait
 //            'updated_at' => date('Y-m-d H:i:s'),
 //        ]);
 
-        Log::channel('sip')->info('Start live video command sent', [
+        Log::channel('gb_stream')->info('Start live video command sent', [
             'channel' => $channel,
             'ssrc' => $ssrc,
             'rtp_port' => $zlmPort,
@@ -173,11 +174,11 @@ trait GB28181StreamTrait
                         }
 
                         if ($result['hit'] === 1) {
-                            Log::channel('sip')->info('Close RTP server has exist record');
+                            Log::channel('gb_stream')->info('Close RTP server has exist record');
                             return true;
                         }
 
-                        Log::channel('sip')->info('Close RTP server has no exist record');
+                        Log::channel('gb_stream')->info('Close RTP server has no exist record');
                     }
 
                     return false;
@@ -187,10 +188,10 @@ trait GB28181StreamTrait
                 }
 
 
-                Log::channel('sip')->info('Stop live video command sent', $channel);
+                Log::channel('gb_stream')->info('Stop live video command sent', $channel);
                 return true;
             } catch (\Exception $e) {
-                Log::channel('sip')->warning('Close RTP server failed', [
+                Log::channel('gb_stream')->warning('Close RTP server failed', [
                     'stream_id' => $channel['stream_id'],
                     'error' => $e->getMessage(),
                 ]);
@@ -275,7 +276,7 @@ trait GB28181StreamTrait
             throw new \RuntimeException('发送回放请求失败', 500);
         }
 
-        Log::channel('sip')->info('Start playback command sent', [
+        Log::channel('gb_stream')->info('Start playback command sent', [
             'device_id' => $channel['device_id'],
             'channel_id' => $channel['channel_id'],
             'start_time' => $startTime,
@@ -368,6 +369,172 @@ trait GB28181StreamTrait
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    /**
+     * 录像回放控制核心逻辑
+     * 
+     * 支持的操作:
+     * - play: 正常播放
+     * - pause: 暂停
+     * - fast_forward: 快进 (speed: 2=2倍速, 4=4倍速)
+     * - slow_forward: 慢放 (speed: 1=0.5倍速, 2=0.25倍速)
+     * - seek: 拖动到指定时间
+     * - scale: 缩放
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $streamId 流ID（用于标识活跃会话）
+     * @param string $action 操作类型
+     * @param int|float $speed 倍速（用于快进/慢放）
+     * @param string|null $seekTime 拖动时间（ISO8601格式，用于seek操作）
+     * @param float $scale 缩放比例（用于scale操作）
+     * @return array 返回执行结果
+     * @throws \Exception
+     */
+    protected function playbackControlCore(
+        string $deviceId,
+        string $channelId,
+        string $streamId,
+        string $action,
+        int|float $speed = 1,
+        ?string $seekTime = null,
+        float $scale = 1.0
+    ): array {
+        Log::info('Playback control request', [
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'stream_id' => $streamId,
+            'action' => $action,
+            'speed' => $speed,
+            'seek_time' => $seekTime,
+            'scale' => $scale,
+        ]);
+
+        // 推送命令到 Redis 队列，由 Gateway 处理
+        $result = $this->getGb28181Service()->sendPlaybackControl(
+            $deviceId,
+            $channelId,
+            $streamId,
+            $action,
+            $speed,
+            $seekTime,
+            $scale
+        );
+
+        if (!$result) {
+            throw new \RuntimeException('发送回放控制命令失败', 500);
+        }
+
+        return [
+            'success' => true,
+            'action' => $action,
+            'speed' => $speed,
+        ];
+    }
+
+    /**
+     * 录像下载核心逻辑
+     * 
+     * 与普通回放的区别：
+     * - session_name = 'Download' (而非 'Playback')
+     * - 媒体服务器会将流录制为文件
+     * - 返回文件下载地址
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $startTime 开始时间（ISO8601格式）
+     * @param string $endTime 结束时间（ISO8601格式）
+     * @param int $downloadSpeed 下载倍速（1-4）
+     * @return array 返回下载会话信息
+     * @throws \Exception
+     */
+    protected function downloadRecordCore(
+        string $deviceId,
+        string $channelId,
+        string $startTime,
+        string $endTime,
+        int $downloadSpeed = 1
+    ): array {
+        // 验证设备和通道
+        ['device' => $device, 'channel' => $channel] = $this->validateDeviceAndChannel($deviceId, $channelId);
+
+        // 检查媒体服务器
+        if ($channel['media_server_id'] === MediaServerType::NONE->value) {
+            throw new \InvalidArgumentException('通道未关联媒体服务器', 400);
+        }
+
+        // 获取媒体服务器信息
+        $mediaServer = $this->getMediaServerService()->getMediaServerByServerId($channel['media_server_id']);
+        if (!$mediaServer) {
+            throw new \InvalidArgumentException('媒体服务器不存在', 404);
+        }
+
+        // 检查媒体服务器状态
+        if ($mediaServer['status'] !== ServerStatusEnum::RUNNING->value) {
+            throw new \InvalidArgumentException('媒体服务器未运行', 503);
+        }
+
+        // 获取收流IP
+        $streamIp = !empty($mediaServer['stream_ip']) ? $mediaServer['stream_ip'] : $mediaServer['host'];
+        if (empty($streamIp)) {
+            throw new \InvalidArgumentException('媒体服务器缺少收流IP配置', 500);
+        }
+
+        // 创建下载会话
+        $tcpMode = $this->getTcpMode($device, $channel);
+        $sessionResult = $this->getGb28181Service()->createDownloadSessionAndOpenRtp(
+            $deviceId,
+            $channelId,
+            $startTime,
+            $endTime,
+            $mediaServer,
+            $tcpMode,
+            $downloadSpeed
+        );
+
+        if (!$sessionResult) {
+            throw new \RuntimeException('创建下载会话失败', 500);
+        }
+
+        $downloadStreamId = $sessionResult['stream_id'];
+        $downloadSsrc = $sessionResult['ssrc'];
+        $zlmPort = $sessionResult['rtp_port'];
+
+        // 发送 INVITE 到信令网关（session_name = Download）
+        $result = $this->getGb28181Service()->startDownload(
+            $channel,
+            $startTime,
+            $endTime,
+            $downloadSsrc,
+            $zlmPort,
+            $tcpMode,
+            $downloadStreamId,
+            $streamIp,
+            $downloadSpeed
+        );
+
+        if (!$result) {
+            $this->getGb28181Service()->closeRtpServer($downloadStreamId, $channel['media_server_id']);
+            throw new \RuntimeException('发送下载请求失败', 500);
+        }
+
+        Log::channel('gb_stream')->info('Start download command sent', [
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'download_speed' => $downloadSpeed,
+        ]);
+
+        return [
+            'stream_id' => $downloadStreamId,
+            'ssrc' => $downloadSsrc,
+            'rtp_port' => $zlmPort,
+            'download_speed' => $downloadSpeed,
+            'download_url' => null,  // 由 ZLM 录制完成后提供
+            'file_size' => 0,
+        ];
     }
 
     /**

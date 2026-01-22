@@ -61,6 +61,7 @@ class GBServerHookController extends BaseController
                 'catalog_update' => Log::channel('sip')->warning('目录变更通知', ['scene' => $scene]), // 目录变更通知
                 'alarm_event' => Log::channel('sip')->warning('报警事件通知', ['scene' => $scene]), // 报警事件通知
                 'position_update' => Log::channel('sip')->warning('位置更新通知', ['scene' => $scene]), // 位置更新通知
+                'gateway_cmd_after' => $this->handleGatewayCmdAfter($body),
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
 
@@ -96,6 +97,16 @@ class GBServerHookController extends BaseController
         $filename = $path . $deviceId . '-' . date('Ymd') . '.log';
 
         file_put_contents($filename, $xml, FILE_APPEND);
+    }
+
+    /**
+     * 处理网关命令执行完成将接口回推到api
+     * @param array $body
+     * @return void
+     */
+    private function handleGatewayCmdAfter(array $body): void
+    {
+        Log::channel('sip')->info('Gateway command after', $body);
     }
 
     /**

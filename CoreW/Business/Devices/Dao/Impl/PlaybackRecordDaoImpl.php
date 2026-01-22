@@ -45,6 +45,26 @@ class PlaybackRecordDaoImpl extends AdvancedDaoImpl implements PlaybackRecordDao
         ]);
     }
 
+    /**
+     * 删除指定时间范围内的所有录像记录（用于全量同步）
+     */
+    public function deleteRecordsInTimeRange(string $deviceId, ?string $channelId, int $startTime, int $endTime): int
+    {
+        $sql = "DELETE FROM {$this->table()}
+                WHERE device_id = ?
+                AND start_time >= ?
+                AND end_time <= ?";
+
+        $params = [$deviceId, $startTime, $endTime];
+
+        if ($channelId) {
+            $sql .= " AND channel_id = ?";
+            $params[] = $channelId;
+        }
+
+        return $this->db()->executeStatement($sql, $params);
+    }
+
     public function declares():array
     {
         return [

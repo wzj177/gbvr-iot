@@ -185,6 +185,7 @@ class GB28181DeviceController extends BaseController
 
             // 通道过滤
             'filter_channel_types',  // 过滤的通道类型列表，如[134,135]
+            'senior_sdp'
         ];
 
         // 过滤只允许更新的字段

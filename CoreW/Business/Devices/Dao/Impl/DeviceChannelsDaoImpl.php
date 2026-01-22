@@ -57,6 +57,7 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
             ],
             'orderbys' => [
                 'id',
+                'status'
             ],
             'conditions' => [
                 'id = :id',
@@ -64,7 +65,11 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
                 'id IN (:ids)',
                 'id NOT IN (:noIds)',
                 'device_id IN (:device_ids)',
-                'device_id = :device_id'
+                'device_id = :device_id',
+                'status = :status',
+                'channel_type = :channel_type',
+                'channel_id = :channel_id',
+                '(channel_name LIKE :keywords OR show_name LIKE :keywords OR channel_id LIKE :keywords)',
             ],
         ];
     }

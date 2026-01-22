@@ -408,6 +408,84 @@ class ExoSip {
     public function sendAck(string $dialogId): bool {}
     
     /**
+     * Send SIP INFO request (Playback Control - GB28181)
+     * 
+     * Sends an INFO request within an established INVITE dialog for playback control.
+     * This is the correct method for GB28181 playback control (pause, resume, seek, speed).
+     * 
+     * ⚠️ **Important**: INFO is different from MESSAGE:
+     * - INFO: Sent within an established dialog (requires dialog_id from INVITE)
+     * - MESSAGE: Sent outside a dialog (standalone request)
+     * 
+     * ## MANSRTSP Protocol (GB28181 Annex B)
+     * 
+     * GB28181 defines a subset of RTSP for playback control called MANSRTSP.
+     * The Content-Type MUST be `Application/MANSRTSP`.
+     * 
+     * Supported commands:
+     * - **PAUSE**: Pause playback
+     * - **PLAY**: Resume or seek playback, or change speed
+     * - **TEARDOWN**: Stop playback (same as BYE)
+     * 
+     * @param int $dialogId Dialog ID from established INVITE session
+     * @param string $body MANSRTSP command body
+     * @param string|null $contentType Content-Type (default: 'Application/MANSRTSP')
+     * @return bool True on success, false on failure
+     * 
+     * @example Pause playback
+     * ```php
+     * $body = "PAUSE RTSP/1.0\r\n"
+     *       . "CSeq: 1\r\n"
+     *       . "PauseTime: now\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body, 'Application/MANSRTSP');
+     * ```
+     * 
+     * @example Resume playback
+     * ```php
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 2\r\n"
+     *       . "Range: npt=now-\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @example Seek to position (300 seconds from start)
+     * ```php
+     * $seekTime = 300;  // seconds
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 3\r\n"
+     *       . "Range: npt={$seekTime}-\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @example Speed control (2x fast forward)
+     * ```php
+     * $speed = 2.0;
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 4\r\n"
+     *       . "Scale: " . sprintf("%.6f", $speed) . "\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @example Speed control (0.5x slow motion)
+     * ```php
+     * $speed = 0.5;
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 5\r\n"
+     *       . "Scale: " . sprintf("%.6f", $speed) . "\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @see WVP-PRO SIPCommander.playbackControlCmd() for reference implementation
+     * @see GB/T 28181-2016 Annex B for MANSRTSP protocol specification
+     */
+    public function sendInfo(int $dialogId, string $body, ?string $contentType = null): bool {}
+    
+    /**
      * Send SIP INVITE request (Server-side)
      * 
      * Initiates a SIP dialog/call session. Used in GB28181 for:

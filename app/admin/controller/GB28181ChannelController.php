@@ -27,8 +27,6 @@ class GB28181ChannelController extends BaseController
      */
     public function index(Request $request)
     {
-
-
         // 构建查询条件
         $conditions = [];
 
@@ -41,14 +39,22 @@ class GB28181ChannelController extends BaseController
             $conditions['device_id'] = $request->get('device_id');
         }
 
+        if ($request->get('channel_id')) {
+            $conditions['channel_id'] = $request->get('channel_id');
+        }
+
+        if ($request->get('channel_type')) {
+            $conditions['channel_type'] = $request->get('channel_type');
+        }
+
         if ($request->get('keyword')) {
-            $conditions['keyword'] = $request->get('keyword');
+            $conditions['keywords'] = $request->get('keyword');
         }
 
         $total = $this->getDeviceService()->countChannels($conditions);
         list($offset, $limit) = $this->getOffsetAndLimit($request);
 
-        $channels = $this->getDeviceService()->searchChannels($conditions, ['id' => 'DESC'], $offset, $limit);
+        $channels = $this->getDeviceService()->searchChannels($conditions, ['status' => 'ASC', 'id' => 'DESC'], $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         // 关联查询媒体服务器信息
@@ -420,6 +426,12 @@ class GB28181ChannelController extends BaseController
         return null;
     }
 
+    /**
+     * 查询录像
+     * @param Request $request
+     * @param $id
+     * @return \support\Response
+     */
     public function queryPlayback(Request $request, $id)
     {
         $channel = $this->getDeviceService()->getChannelById($id);
@@ -437,6 +449,17 @@ class GB28181ChannelController extends BaseController
             return $this->createErrorJsonResponse('请指定结束时间', 400);
         }
 
+        $startTimeTs = strtotime($startTime);
+        $endTimeTs = strtotime($endTime);
+
+        // 先删除查询时间范围内的旧记录（全量同步模式）
+        $this->getPlaybackRecordService()->deleteRecordsInTimeRange(
+            $channel['device_id'],
+            $startTimeTs,
+            $endTimeTs,
+            $channel['channel_id']
+        );
+
         $type = $request->post('type', 'all');
         $resp = $this->getGb28181Service()->queryRecord($channel['device_id'], $channel['channel_id'], $startTime, $endTime, $type);
         if (!$resp) {
@@ -445,6 +468,8 @@ class GB28181ChannelController extends BaseController
 
         return $this->createSuccessJsonResponse();
     }
+
+
     public function getRecordInfoResult(Request $request, $id)
     {
         $channel = $this->getDeviceService()->getChannelById($id);

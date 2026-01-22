@@ -168,6 +168,124 @@ class GB28181StreamController extends BaseController
         };
         try {
             $result = $this->stopPlaybackCore($deviceId, $channelId, $streamId);
+
+            return $this->createSuccessJsonResponse([
+                'message' => '录像回放已停止',
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleStreamException($e);
+        }
+    }
+
+    /**
+     * 录像回放控制（倍速、暂停、拖动）
+     * 
+     * 支持的操作：
+     * - play: 正常播放（恢复）
+     * - pause: 暂停
+     * - fast_forward: 快进（2倍速/4倍速）
+     * - slow_forward: 慢放（0.5倍速）
+     * - seek: 拖动到指定时间
+     * - scale: 缩放（数字缩放）
+     * 
+     * POST 参数：
+     * - device_id: 设备ID
+     * - channel_id: 通道ID
+     * - action: 操作类型
+     * - speed: 倍速（1-4，仅快进/慢放需要）
+     * - seek_time: 拖动时间（2024-01-01T10:30:00，仅 seek 需要）
+     * - scale: 缩放比例（仅 scale 需要）
+     */
+    public function playbackControl(Request $request, $id)
+    {
+        $channel = $this->getDeviceService()->getChannelById($id);
+        if (!$channel) {
+            return $this->createErrorJsonResponse('通道不存在');
+        }
+
+        $streamId = $request->post('stream_id');
+        if (!$streamId) {
+            return $this->createErrorJsonResponse('缺少参数stream_id');
+        }
+
+        $action = $request->post('action');
+        $speed = $request->post('speed', 1);
+        $seekTime = $request->post('seek_time');
+        $scale = $request->post('scale', 1.0);
+
+        if (!$action) {
+            return $this->createErrorJsonResponse('缺少参数device_id、channel_id或action');
+        }
+
+        // 验证 action
+        $validActions = ['play', 'pause', 'fast_forward', 'slow_forward', 'seek', 'scale'];
+        if (!in_array($action, $validActions)) {
+            return $this->createErrorJsonResponse('无效的action参数，支持：' . implode(', ', $validActions), 400);
+        }
+
+        // seek 必须提供 seek_time
+        if ($action === 'seek' && !$seekTime) {
+            return $this->createErrorJsonResponse('seek 操作需要提供 seek_time 参数', 400);
+        }
+
+        try {
+            $result = $this->playbackControlCore($channel['device_id'], $channel['channel_id'], $streamId, $action, $speed, $seekTime, $scale);
+
+            return $this->createSuccessJsonResponse([
+                'message' => '回放控制命令已发送',
+                'action' => $action,
+                'speed' => $speed,
+                'stream_id' => $streamId,
+            ]);
+        } catch (\Exception $e) {
+            return $this->handleStreamException($e);
+        }
+    }
+
+    /**
+     * 录像下载
+     * 
+     * 流程：
+     * 1. 发送 INVITE (session_name = 'Download')
+     * 2. 设备推流到 ZLM
+     * 3. ZLM 录制为文件
+     * 4. 返回文件下载地址
+     * 
+     * POST 参数：
+     * - device_id: 设备ID
+     * - channel_id: 通道ID
+     * - start_time: 开始时间（2024-01-01T00:00:00）
+     * - end_time: 结束时间
+     * - download_speed: 下载倍速（1-4，可选，默认1）
+     */
+    public function playbackDownload(Request $request, $id)
+    {
+        $channel = $this->getDeviceService()->getChannelById($id);
+        if (!$channel) {
+            return $this->createErrorJsonResponse('通道不存在');
+        }
+        $startTime = $request->post('start_time');
+        $endTime = $request->post('end_time');
+        $downloadSpeed = $request->post('download_speed', 1);
+
+        if ( !$startTime || !$endTime) {
+            return $this->createErrorJsonResponse('缺少参数device_id、channel_id、start_time或end_time', 400);
+        }
+
+        // 验证时间格式
+        if (!$this->validateTimeFormat($startTime) || !$this->validateTimeFormat($endTime)) {
+            return $this->createErrorJsonResponse('时间格式错误，需要ISO8601格式：2024-01-01T00:00:00', 400);
+        }
+
+        try {
+            $result = $this->downloadRecordCore($channel['device_id'], $channel['channel_id'], $startTime, $endTime, $downloadSpeed);
+
+            return $this->createSuccessJsonResponse([
+                'message' => '录像下载已开始',
+                'stream_id' => $result['stream_id'],
+                'download_url' => $result['download_url'] ?? null,  // 文件下载地址
+                'file_size' => $result['file_size'] ?? 0,
+            ]);
         } catch (\Exception $e) {
             return $this->handleStreamException($e);
         }

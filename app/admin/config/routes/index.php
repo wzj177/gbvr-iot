@@ -233,6 +233,8 @@ Route::group('/api/admin', function () {
             Route::get('/type/options', [GB28181ChannelController::class, 'channelTypeOptions'])->name('admin.gb28181.channels.type-options');
             Route::post('/codec-info', [GB28181ChannelController::class, 'getUrlCodecInfo'])->name('admin.gb28181.channels.codec-info');
             Route::post('/{id}/playback/query', [GB28181ChannelController::class, 'queryPlayback'])->name('admin.gb28181.streams.query-playback');
+            Route::post('/{id}/playback/control', [GB28181StreamController::class, 'playbackControl'])->name('admin.gb28181.streams.control-playback');
+            Route::post('/{id}/playback/download', [GB28181StreamController::class, 'playbackDownload'])->name('admin.gb28181.streams.download-playback');
             Route::get('/{id}/record-info-result', [GB28181ChannelController::class, 'getRecordInfoResult']);
         });
 

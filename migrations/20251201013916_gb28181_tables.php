@@ -41,6 +41,7 @@ CREATE TABLE `gv_devices` (
   `county_id` varchar(16) NOT NULL DEFAULT '' COMMENT '所在区县',
   `rtp_trans_mode` int(1) NOT NULL DEFAULT '0' COMMENT 'rtp传输模式，0=UDP模式（延迟最低，局域网推荐），1=TCP被动模式（公网推荐，设备主动连接），2=TCP主动模式（服务器连接设备，需设备端口映射）',
   `city_id` varchar(16) NOT NULL DEFAULT '' COMMENT ' 所在城市',
+  `senior_sdp` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否扩展SDP,0=不扩展，1=扩展',
   `created_at` datetime NOT NULL COMMENT '创建时间',
   `updated_at` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`),
@@ -142,16 +143,15 @@ ALTER TABLE `device_channels` ADD INDEX `idx_device_id` (`device_id`);
 ALTER TABLE `stream_sessions` ADD INDEX `idx_started_at` (`started_at`);
 
 CREATE TABLE `gv_record_plan` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `partner_id` int(10) NOT NULL DEFAULT '0' COMMENT '所属合作方',
   `name` varchar(255) NOT NULL DEFAULT '' COMMENT '录制计划名称',
   `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否启用该录制计划(1=启用；0=禁用)',
   `remark` text COMMENT '录制计划的描述',
   `limit_space` bigint(20) NOT NULL DEFAULT '0' COMMENT '录制占用空间限制（Byte）,最大录制到某个值后做相应处理',
   `limit_days` int(6) NOT NULL DEFAULT '0' COMMENT '录制占用天数限制,最大录制到某个值后做相应处理',
-  `over_step_plan` enum('stopDvr','delFile') NOT NULL DEFAULT 'delFile' COMMENT '超出天数限制后执行动作\n',
-  `created_time` int(11) NOT NULL DEFAULT '0' COMMENT '创建时间',
-  `updated_time` int(11) NOT NULL DEFAULT '0' COMMENT '修改时间',
+  `over_step_plan` enum('stop_record','del_file') NOT NULL DEFAULT 'del_file' COMMENT '超出天数限制后执行动作\n',
+  `created_at` datetime NOT NULL COMMENT '创建时间',
+  `updated_at` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='录制计划';
 CREATE TABLE `gv_record_plan_range` (
@@ -160,8 +160,8 @@ CREATE TABLE `gv_record_plan_range` (
   `week_day` varchar(16) NOT NULL DEFAULT '' COMMENT '星期n枚举',
   `start_time` varchar(32) NOT NULL COMMENT '录制开始时间(时分格式)',
   `end_time` varchar(32) NOT NULL DEFAULT '' COMMENT '录制结束时间',
-  `created_time` int(11) NOT NULL DEFAULT '0' COMMENT '创建时间',
-  `updated_time` int(11) NOT NULL COMMENT '修改时间',
+  `created_at` datetime NOT NULL COMMENT '创建时间',
+  `updated_at` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='录制计划明细';
 CREATE TABLE `gv_record_file` (
@@ -172,6 +172,7 @@ CREATE TABLE `gv_record_file` (
   `channel_id` varchar(64) NOT NULL COMMENT 'GB21818设备通道ID',
   `channel_name` varchar(255) NOT NULL COMMENT '通道名称',
   `device_id` varchar(64) NOT NULL COMMENT 'GB28181设备ID',
+  `source_type` enum('cloud_plan','device_playback', 'alarm', 'playback_download')  default 'cloud_plan' NOT NULL COMMENT '文件来源类型',
   `video_src_url` varchar(500) DEFAULT '' COMMENT '非gb28181设备的视频流源地址',
   `start_time` int(11) unsigned NOT NULL COMMENT '文件的开始时间',
   `end_time` int(11) NOT NULL COMMENT '文件的结束时间',
@@ -184,9 +185,11 @@ CREATE TABLE `gv_record_file` (
   `download_url` varchar(255) DEFAULT '' COMMENT '文件下载与播放地址',
   `is_undo` tinyint(1) DEFAULT NULL COMMENT '是否可撤销删除操作(0:否，1：是）',
   `record_date` varchar(20) NOT NULL DEFAULT '' COMMENT '记录日期',
-  `deleted_time` int(11) NOT NULL DEFAULT '0' COMMENT '是否删除',
-  `created_time` int(11) NOT NULL DEFAULT '0' COMMENT '创建时间',
-  `updated_time` int(11) NOT NULL DEFAULT '0' COMMENT '更新时间',
+  `source_id` BIGINT DEFAULT NULL COMMENT '来源ID（plan_id / alarm_event_id / task_id）',
+  `source_desc` VARCHAR(255) DEFAULT NULL COMMENT '来源说明',
+  `delete_at` datetime  DEFAULT NULL  COMMENT '是否删除',
+  `created_at` datetime NOT NULL COMMENT '创建时间',
+  `updated_at` datetime NOT NULL COMMENT '更新时间',
   `plan_id` int(10) NOT NULL DEFAULT '0' COMMENT '录制计划id',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='录制文件实例';

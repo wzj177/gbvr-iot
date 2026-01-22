@@ -115,6 +115,8 @@ class CommandDispatcher
                 'unsubscribe_catalog' => $this->handleUnsubscribeCatalog($requestId, $deviceId),
                 'unsubscribe_alarm' => $this->handleUnsubscribeAlarm($requestId, $deviceId),
                 'unsubscribe_mobile_position' => $this->handleUnsubscribeMobilePosition($requestId, $deviceId),
+                'playback_control' => $this->handlePlaybackControl($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'download_record' => $this->handleDownloadRecord($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 default => $this->errorResponse($requestId, "Unknown action: {$action}"),
             };
         } catch (\Exception $e) {
@@ -169,7 +171,9 @@ class CommandDispatcher
             mediaIp: $mediaServerIp,  // 使用从params传入的收流IP
             mediaPort: $rtpPort,
             ssrc: $ssrc,
-            tcpMode: $tcpMode
+            tcpMode: $tcpMode,
+            seniorSdp: $params['senior_sdp'] ?? false,
+            streamId: $streamId,
         );
 
         // 调试:打印生成的SDP
@@ -473,6 +477,260 @@ class CommandDispatcher
     }
 
     /**
+     * 录像回放控制（会话内 SIP INFO 命令）
+     * 
+     * 要修复：回放控制必须使用 SIP INFO（不是 MESSAGE）
+     * 必须在已建立的 INVITE 会话内发送，需要 dialog_id
+     * 
+     * 支持的操作:
+     * - play/resume: 正常播放/恢复
+     * - pause: 暂停
+     * - seek: 拖动到指定时间
+     * - scale/speed: 倍速播放（0.5x, 1.0x, 2.0x, 4.0x）
+     */
+    private function handlePlaybackControl(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("Playback control: {$channelId}");
+
+        // 验证参数
+        if (!isset($params['action'])) {
+            return $this->errorResponse($requestId, "Missing action parameter");
+        }
+        
+        if (!isset($params['stream_id'])) {
+            return $this->errorResponse($requestId, "Missing stream_id parameter (required to find active session)");
+        }
+
+        $action = $params['action'];
+        $streamId = $params['stream_id'];
+
+        // 查找活跃的回放会话
+        $session = $this->activeSessions[$streamId] ?? null;
+        if (!$session) {
+            return $this->errorResponse($requestId, "No active playback session found: {$streamId}");
+        }
+
+        if ($session['type'] !== 'playback') {
+            return $this->errorResponse($requestId, "Session is not a playback session: {$session['type']}");
+        }
+
+        $dialogId = $session['dialog_id'];
+        if ($dialogId <= 0) {
+            return $this->errorResponse($requestId, "Session dialog_id not ready (waiting for 200 OK?)");
+        }
+
+        // 构建控制选项
+        $options = [];
+        
+        switch ($action) {
+            case 'play':
+            case 'resume':
+                // 恢复播放：从暂停位置以原倍速恢复（GB28181 B.2.1）
+                // PLAY RTSP/1.0 + Range: npt=now-
+                $options['range'] = 'npt=now-';
+                $action = 'play';  // 统一为 play
+                break;
+            
+            case 'pause':
+                // 暂停播放：停止在当前位置（GB28181 B.2.2）
+                // PAUSE RTSP/1.0 + PauseTime: now
+                // 不需要额外参数，QuerySender 会自动添加 PauseTime
+                break;
+            
+            case 'stop':
+            case 'teardown':
+                // 停止播放：结束会话并释放资源（GB28181 B.2.5）
+                // TEARDOWN RTSP/1.0
+                $action = 'teardown';
+                break;
+            
+            case 'seek':
+                // 随机拖放：跳转到指定时间点（GB28181 B.2.4）
+                // PLAY RTSP/1.0 + Range: npt=100-（不携带 Scale）
+                $seekTime = $params['seek_time'] ?? null;
+                if ($seekTime === null) {
+                    return $this->errorResponse($requestId, "Missing seek_time for seek action");
+                }
+                
+                // 如果是时间字符串，转换为秒数
+                if (is_string($seekTime) && strpos($seekTime, ':') !== false) {
+                    // 格式：HH:MM:SS 或 MM:SS
+                    $timeParts = explode(':', $seekTime);
+                    if (count($timeParts) === 3) {
+                        $seconds = $timeParts[0] * 3600 + $timeParts[1] * 60 + $timeParts[2];
+                    } else {
+                        $seconds = $timeParts[0] * 60 + $timeParts[1];
+                    }
+                } else {
+                    $seconds = floatval($seekTime);
+                }
+                
+                $options['range'] = "npt={$seconds}-";
+                break;
+                
+            case 'scale':
+            case 'speed':
+                // 倍速播放：只携带 Scale 头（GB28181 B.2.3）
+                // PLAY RTSP/1.0 + Scale: 2.0（不携带 Range）
+                $scale = $params['scale'] ?? $params['speed'] ?? null;
+                if ($scale === null) {
+                    return $this->errorResponse($requestId, "Missing scale/speed parameter");
+                }
+                $options['scale'] = floatval($scale);
+                $action = 'scale';
+                break;
+                
+            case 'fast_forward':
+                // 快进：向后兼容别名（GB28181 B.2.3）
+                $speed = $params['speed'] ?? 2;
+                $options['scale'] = floatval($speed);
+                $action = 'scale';
+                break;
+                
+            case 'slow_forward':
+                // 慢放：向后兼容别名（GB28181 B.2.3）
+                $speed = $params['speed'] ?? 2;
+                $options['scale'] = 1.0 / floatval($speed);
+                $action = 'scale';
+                break;
+            
+            case 'reverse':
+                // 倒放：负倍速播放（GB28181 B.2.8）
+                // PLAY RTSP/1.0 + Scale: -1.0
+                $speed = $params['speed'] ?? 1;
+                $options['scale'] = -floatval($speed);
+                $action = 'scale';
+                break;
+            
+            case 'seek_and_play':
+                // 跳转并播放：同时指定位置和倍速
+                // PLAY RTSP/1.0 + Range: npt=100- + Scale: 2.0
+                $seekTime = $params['seek_time'] ?? null;
+                if ($seekTime === null) {
+                    return $this->errorResponse($requestId, "Missing seek_time for seek_and_play action");
+                }
+                
+                $seconds = is_numeric($seekTime) ? floatval($seekTime) : 0;
+                $options['range'] = "npt={$seconds}-";
+                
+                // 可选：同时指定倍速
+                if (isset($params['speed']) || isset($params['scale'])) {
+                    $scale = $params['scale'] ?? $params['speed'] ?? 1.0;
+                    $options['scale'] = floatval($scale);
+                }
+                $action = 'play';  // 使用 play 方法
+                break;
+            
+            default:
+                return $this->errorResponse($requestId, "Unknown playback action: {$action}");
+        }
+
+        // 发送控制命令（使用修复后的 QuerySender::playbackControl）
+        $result = $this->querySender->playbackControl($dialogId, $action, $options);
+
+        $this->log("Playback control sent: action={$action}, dialog_id={$dialogId}, result=" . ($result ? 'success' : 'failed'));
+
+        return [
+            'success' => $result,
+            'request_id' => $requestId,
+            'message' => $result ? 'Playback control command sent' : 'Failed to send command',
+            'action' => $action,
+            'dialog_id' => $dialogId,
+            'options' => $options,
+        ];
+    }
+
+    /**
+     * 录像下载
+     * 
+     * 流程:
+     * 1. 发送 INVITE (Download SDP)
+     * 2. 设备推流到 ZLM
+     * 3. ZLM 录制成文件
+     * 
+     * 注意: 与普通回放的区别是 session_name = 'Download'
+     */
+    private function handleDownloadRecord(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("Download record: {$channelId}");
+
+        // 验证参数（与 startPlayback 相同）
+        if (!isset($params['start_time']) || !isset($params['end_time'])) {
+            return $this->errorResponse($requestId, "Missing start_time or end_time");
+        }
+
+        $startTime = $params['start_time'];
+        $endTime = $params['end_time'];
+        $ssrc = $params['ssrc'] ?? null;
+        $rtpPort = $params['rtp_port'] ?? null;
+        $streamId = $params['stream_id'] ?? null;
+        $mediaServerIp = $params['stream_ip'] ?? null;
+        $tcpMode = $params['tcp_mode'] ?? 0;
+
+        if (!$ssrc || !$rtpPort || !$streamId || !$mediaServerIp) {
+            return $this->errorResponse($requestId, "Missing required params: ssrc, rtp_port, stream_id, stream_ip");
+        }
+
+        // 转换时间为 NTP 时间戳
+        $startUnix = strtotime($startTime);
+        $endUnix = strtotime($endTime);
+        $startNtp = $startUnix;
+        $endNtp = $endUnix;
+
+        // 构建下载 SDP（session_name 为 Download）
+        $sdp = SdpBuilder::buildDownloadSdp(
+            serverId: $this->config['server_id'],
+            mediaIp: $mediaServerIp,
+            mediaPort: $rtpPort,
+            ssrc: $ssrc,
+            startTime: $startNtp,
+            endTime: $endNtp,
+            tcpMode: $tcpMode
+        );
+
+        // 发送 INVITE
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $subject = "{$channelId}:{$channelId},{$this->config['server_id']}:0";
+
+        $callId = $this->sipServer->sendInvite($targetUri, $sdp, [
+            'Subject' => $subject,
+            'Content-Type' => 'application/sdp'
+        ]);
+
+        if ($callId === false) {
+            return $this->errorResponse($requestId, "Failed to send INVITE for download");
+        }
+
+        // 保存下载会话
+        $this->activeSessions[$streamId] = [
+            'request_id' => $requestId,
+            'call_id' => $callId,
+            'dialog_id' => -1,
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'type' => 'download',
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpPort,
+            'stream_id' => $streamId,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'started_at' => time(),
+        ];
+
+        $this->log("Download session created: {$streamId} (CallId: {$callId})");
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'call_id' => $callId,
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpPort,
+            'stream_id' => $streamId,
+            'stream_type' => 'download'
+        ];
+    }
+
+    /**
      * PTZ 云台控制
      */
     private function handlePtzControl(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
@@ -618,7 +876,8 @@ class CommandDispatcher
         return $ptzCmd;
     }
 
-    /**     * 构建预置位命令
+    /**
+     * 构建预置位命令
      *
      * GB28181 预置位命令:
      * - 0x81: 设置预置位

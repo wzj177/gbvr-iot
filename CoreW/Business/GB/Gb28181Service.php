@@ -65,16 +65,28 @@ class Gb28181Service
         }
     }
 
+    /**
+     *
+     * @param array $channel
+     * @param int $zlmPort
+     * @param int $tcpMode
+     * @param string|null $streamId
+     * @param string|null $streamIp
+     * @param bool $seniorSdp
+     * @return bool
+     * @throws ZlmException
+     */
     public function startLiveVideo(
         array   $channel,
         int     $zlmPort,
         int     $tcpMode = 1,
         ?string $streamId = null,
         ?string $streamIp = null,
+        bool $seniorSdp  = false
     ): bool
     {
         $this->checkZlmState($channel['media_server_id']);
-        return $this->getGb28181Client()->startLiveVideo($channel['device_id'], $channel['channel_id'], $channel['ssrc'], $zlmPort, $tcpMode, $streamId, $streamIp);
+        return $this->getGb28181Client()->startLiveVideo($channel['device_id'], $channel['channel_id'], $channel['ssrc'], $zlmPort, $tcpMode, $streamId, $streamIp, $seniorSdp);
     }
 
     public function stopLiveVideo(string $deviceId, string $channelId, string $streamId): bool
@@ -100,6 +112,132 @@ class Gb28181Service
     public function stopPlayback(string $deviceId, string $channelId, string $streamId): bool
     {
         return $this->getGb28181Client()->stopPlayback($deviceId, $channelId, $streamId);
+    }
+
+    /**
+     * 发送回放控制命令
+     * 
+     * 支持的操作:
+     * - play: 正常播放
+     * - pause: 暂停
+     * - fast_forward: 快进 (speed: 2=2倍速, 4=4倍速)
+     * - slow_forward: 慢放 (speed: 1=0.5倍速, 2=0.25倍速)
+     * - seek: 拖动到指定时间
+     * - scale: 缩放
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $streamId 流ID (用于标识活跃会话)
+     * @param string $action 操作类型
+     * @param int|float $speed 倍速（用于快进/慢放）
+     * @param string|null $seekTime 拖动时间（ISO8601格式，用于seek操作）
+     * @param float $scale 缩放比例（用于scale操作）
+     * @return bool
+     */
+    public function sendPlaybackControl(
+        string $deviceId,
+        string $channelId,
+        string $streamId,
+        string $action,
+        int|float $speed = 1,
+        ?string $seekTime = null,
+        float $scale = 1.0
+    ): bool {
+        return $this->getGb28181Client()->playbackControl(
+            $deviceId,
+            $channelId,
+            $streamId,
+            $action,
+            $speed,
+            $seekTime,
+            $scale
+        );
+    }
+
+    /**
+     * 创建下载会话并打开 RTP 端口
+     * 
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $startTime 开始时间
+     * @param string $endTime 结束时间
+     * @param array $mediaServer 媒体服务器配置
+     * @param int $tcpMode TCP模式
+     * @param int $downloadSpeed 下载倍速
+     * @return array|null 返回会话信息或null
+     */
+    public function createDownloadSessionAndOpenRtp(
+        string $deviceId,
+        string $channelId,
+        string $startTime,
+        string $endTime,
+        array $mediaServer,
+        int $tcpMode = 1,
+        int $downloadSpeed = 1
+    ): ?array {
+        try {
+            // 创建下载会话（类似回放会话）
+            return $this->createPlaybackSessionAndOpenRtp(
+                $deviceId,
+                $channelId,
+                $startTime,
+                $endTime,
+                $mediaServer,
+                $tcpMode,
+                StreamSessionType::DOWNLOAD->value  // 标记为下载类型
+            );
+        } catch (\Throwable $e) {
+            Log::channel('sip')->error('Create download session failed', [
+                'device_id' => $deviceId,
+                'channel_id' => $channelId,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * 开始录像下载
+     * 
+     * 与普通回放的区别：
+     * - session_name = 'Download' (而非 'Playback')
+     * - 用于将录像下载为文件
+     * 
+     * @param array $channel 通道信息
+     * @param string $startTime 开始时间
+     * @param string $endTime 结束时间
+     * @param string $ssrc SSRC
+     * @param int $zlmPort RTP端口
+     * @param int $tcpMode TCP模式
+     * @param string|null $streamId 流ID
+     * @param string|null $streamIp 收流IP
+     * @param int $downloadSpeed 下载倍速
+     * @return bool
+     */
+    public function startDownload(
+        array $channel,
+        string $startTime,
+        string $endTime,
+        string $ssrc,
+        int $zlmPort,
+        int $tcpMode = 1,
+        ?string $streamId = null,
+        ?string $streamIp = null,
+        int $downloadSpeed = 1
+    ): bool {
+        $this->checkZlmState($channel['media_server_id']);
+        return $this->getGb28181Client()->startDownload(
+            $channel['device_id'],
+            $channel['channel_id'],
+            $startTime,
+            $endTime,
+            $ssrc,
+            $zlmPort,
+            $tcpMode,
+            $streamId,
+            $streamIp,
+            $downloadSpeed
+        );
     }
 
     public function queryCatalog(string $deviceId): bool
@@ -540,7 +678,8 @@ class Gb28181Service
     {
         if ($mediaServer['type'] === MediaServerType::ZLM->value) {
             // 生成流ID
-            $streamId = $this->generateStreamId($deviceId, $channelId, 'pb_' . crc32($startTime . '_' . $endTime));
+            $crcStr = crc32($startTime . '_' . $endTime);
+            $streamId = $this->generateStreamId($deviceId, $channelId, 'pb_' . $crcStr);
 
             //  回放流也支持复用
             $info = $this->getRtpInfo($streamId, $mediaServer['server_id']);
@@ -653,6 +792,7 @@ class Gb28181Service
         }
 
         // 如果尝试了最大次数仍未找到合适端口，则返回失败
+        Log::channel('gb_stream')->error("[Gb28181Service] 无法分配可用端口，所有端口都在冷却中");
         return [
             'code' => -1,
             'msg' => '无法分配可用端口，所有端口都在冷却中'
