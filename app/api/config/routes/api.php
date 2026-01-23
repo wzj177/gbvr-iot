@@ -153,13 +153,33 @@ Route::group('/api', function () {
             Route::post('/devices/{id}/catalog', [\app\api\v2\controller\GB28181DeviceController::class, 'queryCatalog']);
             // 删除设备
             Route::delete('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'destroy']);
-            
+
             // 流控制
             Route::post('/channels/start-live', [\app\api\v2\controller\GB28181StreamController::class, 'startLive']);
             Route::post('/channels/stop-live', [\app\api\v2\controller\GB28181StreamController::class, 'stopLive']);
             Route::get('/channels/play-urls', [\app\api\v2\controller\GB28181StreamController::class, 'getPlayUrls']);
             Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
             Route::post('/channels/ptz', [\app\api\v2\controller\GB28181DeviceController::class, 'ptzControl']);
+        })->middleware([
+            AuthIdentityMiddleware::class
+        ]);
+
+        // GB28181 订阅管理
+        Route::group('/gb28181/subscribe', function () {
+            Route::post('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'saveConfig']);
+            Route::post('/batch', [\app\api\v2\controller\GB28181SubscribeController::class, 'batchCreate']);
+            Route::post('/cancel', [\app\api\v2\controller\GB28181SubscribeController::class, 'cancel']);
+            Route::get('/configs', [\app\api\v2\controller\GB28181SubscribeController::class, 'listConfigs']);
+            Route::get('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'getConfig']);
+            Route::get('/options', [\app\api\v2\controller\GB28181SubscribeController::class, 'options']);
+        })->middleware([
+            AuthIdentityMiddleware::class
+        ]);
+
+        // 报警事件
+        Route::group('/alarm', function () {
+            Route::get('/events', [\app\api\v2\controller\AlarmEventController::class, 'index']);
+            Route::get('/events/{id}', [\app\api\v2\controller\AlarmEventController::class, 'show']);
         })->middleware([
             AuthIdentityMiddleware::class
         ]);

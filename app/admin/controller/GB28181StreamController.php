@@ -218,7 +218,7 @@ class GB28181StreamController extends BaseController
         }
 
         // 验证 action
-        $validActions = ['play', 'pause', 'fast_forward', 'slow_forward', 'seek', 'scale'];
+        $validActions = ['play', 'pause', 'seek', 'scale', 'teardown'];
         if (!in_array($action, $validActions)) {
             return $this->createErrorJsonResponse('无效的action参数，支持：' . implode(', ', $validActions), 400);
         }
@@ -226,6 +226,10 @@ class GB28181StreamController extends BaseController
         // seek 必须提供 seek_time
         if ($action === 'seek' && !$seekTime) {
             return $this->createErrorJsonResponse('seek 操作需要提供 seek_time 参数', 400);
+        }
+
+        if ($action === 'scale' && $scale == 1.0) {
+            $action = 'play';
         }
 
         try {

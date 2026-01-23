@@ -316,6 +316,145 @@
       ]
     },
     {
+      "id": "alarm-management",
+      "name": "报警管理",
+      "icon": "Warning",
+      "path": "/alarm-management",
+      "component": "",
+      "title": "报警管理",
+      "parentId": 0,
+      "sort": 5,
+      "type": "directory",
+      "children": [
+        {
+          "id": "alarm-plan",
+          "name": "报警计划",
+          "icon": "Bell",
+          "path": "/alarm-plans",
+          "component": "AlarmPlanList",
+          "title": "报警计划",
+          "parentId": "alarm-management",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "alarm-plan-list-api",
+              "name": "计划列表API",
+              "path": "/api/admin/alarm-plan",
+              "httpMethod": "GET",
+              "routeName": "admin.alarm-plan.index",
+              "parentId": "alarm-plan",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-show-api",
+              "name": "计划详情API",
+              "path": "/api/admin/alarm-plan/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.alarm-plan.show",
+              "parentId": "alarm-plan",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-create-api",
+              "name": "创建计划API",
+              "path": "/api/admin/alarm-plan",
+              "httpMethod": "POST",
+              "routeName": "admin.alarm-plan.store",
+              "parentId": "alarm-plan",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-update-api",
+              "name": "更新计划API",
+              "path": "/api/admin/alarm-plan/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.alarm-plan.update",
+              "parentId": "alarm-plan",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-delete-api",
+              "name": "删除计划API",
+              "path": "/api/admin/alarm-plan/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.alarm-plan.destroy",
+              "parentId": "alarm-plan",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-bind-channel-api",
+              "name": "绑定通道API",
+              "path": "/api/admin/alarm-plan/{id}/channels",
+              "httpMethod": "POST",
+              "routeName": "admin.alarm-plan.bind-channels",
+              "parentId": "alarm-plan",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-unbind-channel-api",
+              "name": "解绑通道API",
+              "path": "/api/admin/alarm-plan/{id}/channels/{channelId}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.alarm-plan.unbind-channel",
+              "parentId": "alarm-plan",
+              "sort": 7,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "alarm-event",
+          "name": "报警事件",
+          "icon": "WarnTriangleFilled",
+          "path": "/alarm-events",
+          "component": "AlarmEventList",
+          "title": "报警事件",
+          "parentId": "alarm-management",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "alarm-event-list-api",
+              "name": "事件列表API",
+              "path": "/api/v2/alarm/events",
+              "httpMethod": "GET",
+              "routeName": "api.v2.alarm.events.index",
+              "parentId": "alarm-event",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "alarm-event-show-api",
+              "name": "事件详情API",
+              "path": "/api/v2/alarm/events/{id}",
+              "httpMethod": "GET",
+              "routeName": "api.v2.alarm.events.show",
+              "parentId": "alarm-event",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "alarm-event-count-api",
+              "name": "事件统计API",
+              "path": "/api/admin/alarm-event/stats",
+              "httpMethod": "GET",
+              "routeName": "admin.alarm-event.stats",
+              "parentId": "alarm-event",
+              "sort": 3,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "permission",
       "name": "权限管理",
       "icon": "Lock",

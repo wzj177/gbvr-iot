@@ -564,8 +564,11 @@ class QuerySender
                 // 标准支持：0.25, 0.5, 1, 2, 4
                 $lines[] = "PLAY RTSP/1.0";
                 $lines[] = "CSeq: {$cseq}";
-                $scale = $options['scale'] ?? 1.0;
+                $scale = $options['scale'] ?? 1.00000;
                 $lines[] = "Scale: {$scale}";
+//                if (isset($options['range'])) {
+//                    $lines[] = "Range: {$options['range']}";
+//                }
                 break;
 
             case 'reverse':
@@ -574,7 +577,7 @@ class QuerySender
                 // 标准：至少支持 -1（一倍速倒放）
                 $lines[] = "PLAY RTSP/1.0";
                 $lines[] = "CSeq: {$cseq}";
-                $scale = $options['scale'] ?? -1.0;
+                $scale = $options['scale'] ?? -1.000000;
                 $lines[] = "Scale: {$scale}";
                 
                 // 可选：指定倒放起点
@@ -582,25 +585,6 @@ class QuerySender
                 if (isset($options['range'])) {
                     $lines[] = "Range: {$options['range']}";
                 }
-                break;
-
-            case 'fast_forward':
-                // 快进（向后兼容旧 API）
-                // 实际就是正倍速 > 1
-                $lines[] = "PLAY RTSP/1.0";
-                $lines[] = "CSeq: {$cseq}";
-                $speed = $options['speed'] ?? 2;
-                $lines[] = "Scale: {$speed}";
-                break;
-
-            case 'slow_forward':
-                // 慢放（向后兼容旧 API）
-                // 实际就是正倍速 < 1
-                $lines[] = "PLAY RTSP/1.0";
-                $lines[] = "CSeq: {$cseq}";
-                $speed = $options['speed'] ?? 2;
-                $scale = 1.0 / $speed;
-                $lines[] = "Scale: {$scale}";
                 break;
 
             case 'teardown':
@@ -678,5 +662,57 @@ class QuerySender
     public function playbackStop(int $dialogId): bool
     {
         return $this->playbackControl($dialogId, 'teardown');
+    }
+
+    /**
+     * 快捷方法：倒放（GB28181-2022 B.2.8）
+     *
+     * @param int $dialogId INVITE 会话的 Dialog ID
+     * @param float $speed 倒放倍速（默认1，表示一倍速倒放）
+     * @param float|null $startSeconds 倒放起点（秒，可选。如600表示从第600秒开始倒放）
+     * @param float|null $endSeconds 倒放终点（秒，可选。如120表示倒放到第120秒停止）
+     * @return bool
+     */
+    public function playbackReverse(int $dialogId, float $speed = 1.0, ?float $startSeconds = null, ?float $endSeconds = null): bool
+    {
+        $options = [
+            'scale' => -abs($speed)  // 负数表示倒放
+        ];
+        
+        // 如果指定了倒放范围
+        if ($startSeconds !== null) {
+            if ($endSeconds !== null) {
+                // Range: npt=600-120 表示从第600秒倒放到第120秒
+                $options['range'] = "npt={$startSeconds}-{$endSeconds}";
+            } else {
+                // Range: npt=600- 表示从第600秒倒放到开始
+                $options['range'] = "npt={$startSeconds}-";
+            }
+        }
+        // 否则从当前位置倒放（相当于 Range: npt=now-）
+        
+        return $this->playbackControl($dialogId, 'reverse', $options);
+    }
+
+    /**
+     * 快捷方法：跳转并指定倍速播放
+     *
+     * @param int $dialogId INVITE 会话的 Dialog ID
+     * @param float $seconds 跳转位置（秒）
+     * @param float $scale 播放倍速（默认1.0）
+     * @return bool
+     */
+    public function playbackSeekAndPlay(int $dialogId, float $seconds, float $scale = 1.0): bool
+    {
+        $options = [
+            'range' => "npt={$seconds}-"
+        ];
+        
+        // 如果倍速不是1.0，添加 Scale 头
+        if (abs($scale - 1.0) > 0.01) {
+            $options['scale'] = $scale;
+        }
+        
+        return $this->playbackControl($dialogId, 'play', $options);
     }
 }

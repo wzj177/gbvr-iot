@@ -524,7 +524,6 @@ class CommandDispatcher
         
         switch ($action) {
             case 'play':
-            case 'resume':
                 // 恢复播放：从暂停位置以原倍速恢复（GB28181 B.2.1）
                 // PLAY RTSP/1.0 + Range: npt=now-
                 $options['range'] = 'npt=now-';
@@ -537,7 +536,6 @@ class CommandDispatcher
                 // 不需要额外参数，QuerySender 会自动添加 PauseTime
                 break;
             
-            case 'stop':
             case 'teardown':
                 // 停止播放：结束会话并释放资源（GB28181 B.2.5）
                 // TEARDOWN RTSP/1.0
@@ -553,7 +551,7 @@ class CommandDispatcher
                 }
                 
                 // 如果是时间字符串，转换为秒数
-                if (is_string($seekTime) && strpos($seekTime, ':') !== false) {
+                if (is_string($seekTime) && str_contains($seekTime, ':')) {
                     // 格式：HH:MM:SS 或 MM:SS
                     $timeParts = explode(':', $seekTime);
                     if (count($timeParts) === 3) {
@@ -564,33 +562,20 @@ class CommandDispatcher
                 } else {
                     $seconds = floatval($seekTime);
                 }
-                
+
+                $seconds = abs($seconds);
                 $options['range'] = "npt={$seconds}-";
                 break;
                 
             case 'scale':
-            case 'speed':
                 // 倍速播放：只携带 Scale 头（GB28181 B.2.3）
                 // PLAY RTSP/1.0 + Scale: 2.0（不携带 Range）
                 $scale = $params['scale'] ?? $params['speed'] ?? null;
                 if ($scale === null) {
                     return $this->errorResponse($requestId, "Missing scale/speed parameter");
                 }
-                $options['scale'] = floatval($scale);
-                $action = 'scale';
-                break;
-                
-            case 'fast_forward':
-                // 快进：向后兼容别名（GB28181 B.2.3）
-                $speed = $params['speed'] ?? 2;
-                $options['scale'] = floatval($speed);
-                $action = 'scale';
-                break;
-                
-            case 'slow_forward':
-                // 慢放：向后兼容别名（GB28181 B.2.3）
-                $speed = $params['speed'] ?? 2;
-                $options['scale'] = 1.0 / floatval($speed);
+                $options['range'] = "npt=now-";
+                $options['scale'] = sprintf("%.6f", $scale);//floatval($scale);
                 $action = 'scale';
                 break;
             
@@ -616,7 +601,8 @@ class CommandDispatcher
                 // 可选：同时指定倍速
                 if (isset($params['speed']) || isset($params['scale'])) {
                     $scale = $params['scale'] ?? $params['speed'] ?? 1.0;
-                    $options['scale'] = floatval($scale);
+                    $options['scale'] = sprintf("%.6f", $scale);
+//                    $options['scale'] = floatval($scale);
                 }
                 $action = 'play';  // 使用 play 方法
                 break;

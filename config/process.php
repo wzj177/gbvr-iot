@@ -67,4 +67,10 @@ return [
     'CleanupRtpPortAndClearStreamSessionTask' => [
         'handler' => app\process\CleanupRtpPortAndClearStreamSessionTaskProcess::class
     ],
+    'SubscriptionRenewTask' => [
+        'handler' => app\process\SubscriptionRenewTaskProcess::class
+    ],
+    'AlarmRecordTaskExecutor' => [
+        'handler' => app\process\AlarmRecordTaskExecutorProcess::class
+    ],
 ];

@@ -240,7 +240,7 @@ class Gb28181Client
         string $channelId,
         string $streamId,
         string $action,
-        int $speed = 1,
+        int|float $speed = 1,
         ?string $seekTime = null,
         float $scale = 1.0
     ): bool {
@@ -397,29 +397,127 @@ class Gb28181Client
         ];
     }
 
-    public function subscribeCatalog(string $deviceId, int $expires = 3600): array
+    /**
+     * 订阅目录变更
+     *
+     * @param string $deviceId 设备ID
+     * @param array $params 参数
+     *   - expires: 订阅有效期（秒），默认3600
+     * @return array 返回命令信息
+     */
+    public function subscribeCatalog(string $deviceId, array $params = []): array
     {
-        return [];
+        $expires = $params['expires'] ?? 3600;
+
+        $success = $this->sendCommand($deviceId, 'subscribe_catalog', [
+            'expires' => $expires,
+        ]);
+
+        return [
+            'success' => $success,
+            'device_id' => $deviceId,
+            'event_type' => 'Catalog',
+            'expires' => $expires,
+        ];
     }
 
-    public function subscribeAlarm(string $deviceId, int $expires = 3600): array
+    /**
+     * 订阅报警
+     *
+     * @param string $deviceId 设备ID
+     * @param array $params 参数
+     *   - expires: 订阅有效期（秒），默认3600
+     *   - start_priority: 报警最低优先级（0-4），默认0
+     *   - end_priority: 报警最高优先级（0-4），默认4
+     *   - alarm_method: 报警方式（1=电话,2=短信,3=邮件,4=APP,5=客户端），可选
+     * @return array 返回命令信息
+     */
+    public function subscribeAlarm(string $deviceId, array $params = []): array
     {
-        return [];
+        $expires = $params['expires'] ?? 3600;
+        $startPriority = $params['start_priority'] ?? 0;
+        $endPriority = $params['end_priority'] ?? 4;
+        $alarmMethod = $params['alarm_method'] ?? null;
+
+        $cmdParams = [
+            'expires' => $expires,
+            'start_priority' => $startPriority,
+            'end_priority' => $endPriority,
+        ];
+
+        if ($alarmMethod !== null) {
+            $cmdParams['alarm_method'] = $alarmMethod;
+        }
+
+        $success = $this->sendCommand($deviceId, 'subscribe_alarm', $cmdParams);
+
+        return [
+            'success' => $success,
+            'device_id' => $deviceId,
+            'event_type' => 'Alarm',
+            'expires' => $expires,
+        ];
     }
 
-    public function subscribeMobilePosition(string $deviceId, int $expires = 3600): array
+    /**
+     * 订阅移动位置
+     *
+     * @param string $deviceId 设备ID
+     * @param array $params 参数
+     *   - expires: 订阅有效期（秒），默认3600
+     *   - interval: 位置上报间隔（秒），默认5
+     * @return array 返回命令信息
+     */
+    public function subscribeMobilePosition(string $deviceId, array $params = []): array
     {
-        return [];
+        $expires = $params['expires'] ?? 3600;
+        $interval = $params['interval'] ?? 5;
+
+        $success = $this->sendCommand($deviceId, 'subscribe_mobile_position', [
+            'expires' => $expires,
+            'interval' => $interval,
+        ]);
+
+        return [
+            'success' => $success,
+            'device_id' => $deviceId,
+            'event_type' => 'MobilePosition',
+            'expires' => $expires,
+            'interval' => $interval,
+        ];
     }
 
-    public function cancelSubscription(string $deviceId, string $eventType): array
+    /**
+     * 取消目录订阅
+     *
+     * @param string $deviceId 设备ID
+     * @return bool
+     */
+    public function unsubscribeCatalog(string $deviceId): bool
     {
-        return [];
+        return $this->sendCommand($deviceId, 'unsubscribe_catalog');
     }
 
-    public function getSubscriptions(string $deviceId): array
+    /**
+     * 取消报警订阅
+     *
+     * @param string $deviceId 设备ID
+     * @return bool
+     */
+    public function unsubscribeAlarm(string $deviceId): bool
     {
-        return [];
+        return $this->sendCommand($deviceId, 'unsubscribe_alarm');
+    }
+
+    /**
+     * 取消移动位置订阅
+     *
+     * @param string $deviceId 设备ID
+     * @return bool
+     */
+    public function unsubscribeMobilePosition(string $deviceId): bool
+    {
+        return $this->sendCommand($deviceId, 'unsubscribe_mobile_position');
     }
 
     private function checkGatewayIsRunning(): bool

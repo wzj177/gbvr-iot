@@ -1,5 +1,6 @@
 <?php
 
+use app\admin\controller\AlarmPlanController;
 use app\admin\controller\AttachmentController;
 use app\admin\controller\AttachmentGroupController;
 use app\admin\controller\AuthController;
@@ -195,6 +196,20 @@ Route::group('/api/admin', function () {
         PermissionCheckMiddleware::class
     ]);
 
+    // 报警计划管理
+    Route::group('/alarm-plan', function () {
+        Route::get('', [AlarmPlanController::class, 'index'])->name('admin.alarm-plan.index');
+        Route::get('/{id:\d+}', [AlarmPlanController::class, 'show'])->name('admin.alarm-plan.show');
+        Route::post('', [AlarmPlanController::class, 'store'])->name('admin.alarm-plan.store');
+        Route::put('/{id:\d+}', [AlarmPlanController::class, 'update'])->name('admin.alarm-plan.update');
+        Route::delete('/{id:\d+}', [AlarmPlanController::class, 'destroy'])->name('admin.alarm-plan.destroy');
+        Route::post('/{id:\d+}/channels', [AlarmPlanController::class, 'bindChannels'])->name('admin.alarm-plan.bind-channels');
+        Route::get('/{id:\d+}/channels', [AlarmPlanController::class, 'boundChannels'])->name('admin.alarm-plan.bound-channels');
+        Route::delete('/{id:\d+}/channels/{channelId:\w+}', [AlarmPlanController::class, 'unbindChannel'])->name('admin.alarm-plan.unbind-channel');
+    })->middleware([
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
+    ]);
 
     Route::group('/gb28181', function () {
         // 设备管理

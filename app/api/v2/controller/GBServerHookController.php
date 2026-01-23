@@ -3,6 +3,7 @@
 namespace app\api\v2\controller;
 
 use app\api\BaseController;
+use CoreW\Business\Alarm\Service\AlarmEventService;
 use CoreW\Business\Devices\Enums\ChannelStreamStatus;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Enums\StreamSessionStatus;
@@ -57,10 +58,12 @@ class GBServerHookController extends BaseController
                 'device_status' => $this->handleDeviceStatus($body),
                 'record_info' => $this->handleRecordInfo($body),
                 'alarm' => $this->handleAlarm($body),
-                'command_confirmed' => $this->handleCommandConfirmed($body),  // 🆕 设备确认收到指令
-                'catalog_update' => Log::channel('sip')->warning('目录变更通知', ['scene' => $scene]), // 目录变更通知
-                'alarm_event' => Log::channel('sip')->warning('报警事件通知', ['scene' => $scene]), // 报警事件通知
-                'position_update' => Log::channel('sip')->warning('位置更新通知', ['scene' => $scene]), // 位置更新通知
+                'command_confirmed' => $this->handleCommandConfirmed($body),  // 设备确认收到指令
+                'catalog_update' => $this->handleCatalogUpdate($body), // 目录变更通知
+                'alarm_event' => $this->handleAlarmEvent($body), // 报警事件通知
+                'position_update' => $this->handlePositionUpdate($body), // 位置更新通知
+                'mobile_position_subscribe' => $this->handleMobilePositionSubscribe($body), // 移动位置订阅确认
+                'mobile_position_unsubscribe' => $this->handleMobilePositionUnsubscribe($body), // 移动位置取消订阅
                 'gateway_cmd_after' => $this->handleGatewayCmdAfter($body),
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
@@ -653,5 +656,175 @@ class GBServerHookController extends BaseController
     private function getPlaybackRecordService(): PlaybackRecordService
     {
         return $this->createService('Devices:PlaybackRecordService');
+    }
+
+    /**
+     * @return AlarmEventService
+     */
+    private function getAlarmEventService(): AlarmEventService
+    {
+        return $this->createService('Alarm:AlarmEventService');
+    }
+
+    /**
+     * 处理目录变更通知（NOTIFY with Event: Catalog）
+     * 设备主动推送目录变更时触发
+     */
+    private function handleCatalogUpdate(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $devices = $body['devices'] ?? [];
+
+        if (!$deviceId || empty($devices)) {
+            Log::channel('sip')->warning('Catalog update missing data', [
+                'device_id' => $deviceId,
+                'count' => count($devices),
+            ]);
+            return;
+        }
+
+        try {
+            // 复用 handleCatalog 方法，逻辑完全相同
+            $count = $this->getDeviceService()->batchUpdateOrCreateChannels($deviceId, $devices);
+
+            Log::channel('sip')->info('Catalog update handled', [
+                'device_id' => $deviceId,
+                'count' => $count,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Catalog update handler failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * 处理报警事件通知（NOTIFY with Event: Alarm）
+     * 设备主动推送报警时触发
+     */
+    private function handleAlarmEvent(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $alarmData = $body['data'] ?? [];
+
+        if (!$deviceId) {
+            Log::channel('sip')->warning('Alarm event without device_id');
+            return;
+        }
+
+        try {
+            // 解析报警数据
+            $alarmEvent = [
+                'device_id' => $deviceId,
+                'channel_id' => $alarmData['channel_id'] ?? $deviceId,
+                'level' => $alarmData['priority'] ?? $alarmData['level'] ?? 1,
+                'method' => $alarmData['method'] ?? $alarmData['alarm_method'] ?? 1,
+                'type' => $alarmData['alarm_type'] ?? $alarmData['type'] ?? null,
+                'eventtype' => $alarmData['event_type'] ?? $alarmData['eventtype'] ?? null,
+                'description' => $alarmData['description'] ?? $alarmData['alarm_description'] ?? '',
+                'longitude' => $alarmData['longitude'] ?? null,
+                'latitude' => $alarmData['latitude'] ?? null,
+                'alarm_time' => $alarmData['alarm_time'] ?? date('Y-m-d H:i:s.v'),
+                'recv_time' => date('Y-m-d H:i:s.v'),
+                'raw_payload' => $body['raw_payload'] ?? json_encode($alarmData, JSON_UNESCAPED_UNICODE),
+            ];
+
+            // 调用 AlarmEventService 处理报警事件
+            $event = $this->getAlarmEventService()->handleAlarmNotify($alarmEvent);
+
+            Log::channel('sip')->info('Alarm event handled', [
+                'event_id' => $event['id'],
+                'device_id' => $deviceId,
+                'channel_id' => $event['channel_id'],
+                'level' => $event['level'],
+                'alarm_plan_id' => $event['alarm_plan_id'] ?? null,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Alarm event handler failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * 处理位置更新通知（NOTIFY with Event: presence）
+     * 移动设备周期性推送位置时触发
+     */
+    private function handlePositionUpdate(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $positionData = $body['position'] ?? $body['data'] ?? [];
+
+        if (!$deviceId || empty($positionData)) {
+            Log::channel('sip')->warning('Position update missing data', [
+                'device_id' => $deviceId,
+            ]);
+            return;
+        }
+
+        try {
+            $position = [
+                'device_id' => $deviceId,
+                'longitude' => $positionData['longitude'] ?? 0,
+                'latitude' => $positionData['latitude'] ?? 0,
+                'speed' => $positionData['speed'] ?? 0,
+                'direction' => $positionData['direction'] ?? 0,
+                'altitude' => $positionData['altitude'] ?? 0,
+                'record_time' => $positionData['time'] ?? $positionData['alarm_time'] ?? date('Y-m-d H:i:s'),
+            ];
+
+            // TODO: 保存位置信息到数据库
+            // $this->getDevicePositionService()->savePosition($position);
+
+            Log::channel('sip')->debug('Position update received', [
+                'device_id' => $deviceId,
+                'longitude' => $position['longitude'],
+                'latitude' => $position['latitude'],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Position update handler failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * 处理移动位置订阅确认
+     * 订阅成功后网关推送确认
+     */
+    private function handleMobilePositionSubscribe(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $expires = $body['expires'] ?? 0;
+        $interval = $body['interval'] ?? 5;
+
+        Log::channel('sip')->info('Mobile position subscribed', [
+            'device_id' => $deviceId,
+            'expires' => $expires,
+            'interval' => $interval,
+        ]);
+
+        // TODO: 更新订阅配置状态
+        // $this->getSubscribeService()->markSubscriptionActive($deviceId, 'mobile_position');
+    }
+
+    /**
+     * 处理移动位置取消订阅确认
+     */
+    private function handleMobilePositionUnsubscribe(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+
+        Log::channel('sip')->info('Mobile position unsubscribed', [
+            'device_id' => $deviceId,
+        ]);
+
+        // TODO: 更新订阅配置状态
+        // $this->getSubscribeService()->markSubscriptionCancelled($deviceId, 'mobile_position');
     }
 }
