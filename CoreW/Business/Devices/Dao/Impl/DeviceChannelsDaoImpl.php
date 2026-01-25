@@ -68,6 +68,7 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
                 'device_id = :device_id',
                 'status = :status',
                 'channel_type = :channel_type',
+                'channel_type IN (:channel_types)',
                 'channel_id = :channel_id',
                 '(channel_name LIKE :keywords OR show_name LIKE :keywords OR channel_id LIKE :keywords)',
             ],

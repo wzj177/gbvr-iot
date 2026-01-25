@@ -415,6 +415,156 @@ class ZLMClient
         ];
     }
 
+    /**
+     * 开始录制hls或MP4
+     *
+     * @param string $vhost 虚拟主机 (如: __defaultVhost__)
+     * @param string $app 应用名 (如: rtp)
+     * @param string $stream 流id
+     * @param int $type 0为hls，1为mp4
+     * @param string $customizedPath 录像保存目录 (可选)
+     * @param int $maxSecond mp4录像切片时间大小,单位秒 (可选)
+     * @return bool 成功与否
+     */
+    public function startRecord(string $vhost, string $app, string $stream, int $type = 1, string $customizedPath = '', int $maxSecond = 0): bool
+    {
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'type' => $type,
+        ];
+
+        if ($customizedPath) {
+            $params['customized_path'] = $customizedPath;
+        }
+
+        if ($maxSecond > 0) {
+            $params['max_second'] = $maxSecond;
+        }
+
+        $result = $this->request('startRecord', $params);
+
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('Start record', [
+                'vhost' => $vhost,
+                'app' => $app,
+                'stream' => $stream,
+                'type' => $type,
+                'code' => $result['code'] ?? null,
+            ]);
+        }
+
+        return $result && ($result['code'] ?? -1) === 0 && ($result['result'] ?? false);
+    }
+
+    /**
+     * 停止录制流
+     *
+     * @param string $vhost 虚拟主机 (如: __defaultVhost__)
+     * @param string $app 应用名 (如: rtp)
+     * @param string $stream 流id
+     * @param int $type 0为hls，1为mp4
+     * @return bool 成功与否
+     */
+    public function stopRecord(string $vhost, string $app, string $stream, int $type = 1): bool
+    {
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'type' => $type,
+        ];
+
+        $result = $this->request('stopRecord', $params);
+
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('Stop record', [
+                'vhost' => $vhost,
+                'app' => $app,
+                'stream' => $stream,
+                'type' => $type,
+                'code' => $result['code'] ?? null,
+            ]);
+        }
+
+        return $result && ($result['code'] ?? -1) === 0 && ($result['result'] ?? false);
+    }
+
+    /**
+     * 获取流录制状态
+     *
+     * @param string $vhost 虚拟主机 (如: __defaultVhost__)
+     * @param string $app 应用名 (如: rtp)
+     * @param string $stream 流id
+     * @param int $type 0为hls，1为mp4
+     * @return bool|null false:未录制,true:正在录制
+     */
+    public function isRecording(string $vhost, string $app, string $stream, int $type = 1): ?bool
+    {
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'type' => $type,
+        ];
+
+        $result = $this->request('isRecording', $params);
+
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('Check recording status', [
+                'vhost' => $vhost,
+                'app' => $app,
+                'stream' => $stream,
+                'type' => $type,
+                'status' => $result['status'] ?? null,
+            ]);
+        }
+
+        return $result && ($result['code'] ?? -1) === 0 ? ($result['status'] ?? false) : null;
+    }
+
+    /**
+     * 获取MP4录像文件列表
+     *
+     * @param string $vhost 虚拟主机 (如: __defaultVhost__)
+     * @param string $app 应用名 (如: rtp)
+     * @param string $stream 流id
+     * @param string $period 流的录像日期，格式为2020-01-24
+     * @param string $customizedPath 自定义搜索路径 (可选)
+     * @return array|null ['paths' => [], 'rootPath' => '']
+     */
+    public function getMp4RecordFile(string $vhost, string $app, string $stream, string $period = '', string $customizedPath = ''): ?array
+    {
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+        ];
+
+        if ($period) {
+            $params['period'] = $period;
+        }
+
+        if ($customizedPath) {
+            $params['customized_path'] = $customizedPath;
+        }
+
+        $result = $this->request('getMp4RecordFile', $params);
+
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('Get MP4 record files', [
+                'vhost' => $vhost,
+                'app' => $app,
+                'stream' => $stream,
+                'period' => $period,
+                'code' => $result['code'] ?? null,
+            ]);
+        }
+
+        return $result && ($result['code'] ?? -1) === 0 ? ($result['data'] ?? null) : null;
+    }
+
 
     public function getVersion(): ?array
     {

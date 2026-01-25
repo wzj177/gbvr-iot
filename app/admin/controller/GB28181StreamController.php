@@ -9,6 +9,7 @@ use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Traits\GB28181StreamTrait;
 use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\MediaServer\Service\MediaServerService;
+use CoreW\Business\Record\Service\RecordTaskService;
 use support\Request;
 
 /**
@@ -268,12 +269,13 @@ class GB28181StreamController extends BaseController
         if (!$channel) {
             return $this->createErrorJsonResponse('通道不存在');
         }
+
         $startTime = $request->post('start_time');
         $endTime = $request->post('end_time');
         $downloadSpeed = $request->post('download_speed', 1);
 
         if ( !$startTime || !$endTime) {
-            return $this->createErrorJsonResponse('缺少参数device_id、channel_id、start_time或end_time', 400);
+            return $this->createErrorJsonResponse('缺少必要参数', 400);
         }
 
         // 验证时间格式
@@ -309,6 +311,14 @@ class GB28181StreamController extends BaseController
     protected function getDeviceService(): DeviceService
     {
         return $this->createService('Devices:DeviceService');
+    }
+
+    /**
+     * @return RecordTaskService
+     */
+    protected function getRecordTaskService(): RecordTaskService
+    {
+        return $this->createService('Record:RecordTaskService');
     }
 
 

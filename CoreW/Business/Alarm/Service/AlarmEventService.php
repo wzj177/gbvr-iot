@@ -62,4 +62,13 @@ interface AlarmEventService
      * @return array
      */
     public function getSummary(): array;
+
+    /**
+     * 更新报警事件
+     *
+     * @param int $id 报警事件ID
+     * @param array $data 更新数据
+     * @return array 更新后的报警事件
+     */
+    public function updateAlarmEvent(int $id, array $data): array;
 }

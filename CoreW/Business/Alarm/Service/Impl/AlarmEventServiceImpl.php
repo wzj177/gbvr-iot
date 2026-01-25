@@ -2,6 +2,7 @@
 
 namespace CoreW\Business\Alarm\Service\Impl;
 
+use CoreW\Business\Alarm\Exception\AlarmException;
 use CoreW\Business\Alarm\Service\AlarmEventService;
 use CoreW\Business\Alarm\Dao\AlarmEventDao;
 use CoreW\Business\Alarm\Dao\AlarmPlanDao;
@@ -79,6 +80,21 @@ class AlarmEventServiceImpl extends BaseService implements AlarmEventService
     public function getAlarmEvent(int $id): ?array
     {
         return $this->getAlarmEventDao()->get($id);
+    }
+
+    public function updateAlarmEvent(int $id, array $data): array
+    {
+        $event = $this->getAlarmEventDao()->get($id);
+
+        if (!$event) {
+            throw AlarmException::NOTFOUND_ALARM_EVENT();
+        }
+
+        if (empty($data)) {
+            throw AlarmException::ERROR_PARAMETER();
+        }
+
+        return $this->getAlarmEventDao()->update($id, $data);
     }
 
     public function findMatchedAlarmPlan(array $alarmEvent): ?array

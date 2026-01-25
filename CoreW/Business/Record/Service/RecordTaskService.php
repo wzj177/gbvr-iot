@@ -16,6 +16,20 @@ interface RecordTaskService
     public function createAlarmRecordTask(string $deviceId, string $channelId, int $durationSec, string $customizedPath = ''): array;
 
     /**
+     * 创建回放下载录像任务
+     *
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $startTime 开始时间（ISO8601格式）
+     * @param string $endTime 结束时间（ISO8601格式）
+     * @param string $streamId 流ID
+     * @param string $ssrc SSRC
+     * @param int $downloadSpeed 下载倍速
+     * @return array 创建的任务
+     */
+    public function createDownloadRecordTask(string $deviceId, string $channelId, string $startTime, string $endTime, string $streamId, string $ssrc, int $downloadSpeed = 1): array;
+
+    /**
      * 执行录像任务
      *
      * @param int $taskId 任务ID
@@ -63,4 +77,26 @@ interface RecordTaskService
      * @return int 停止的任务数量
      */
     public function stopExpiredRecordings(): int;
+
+    /**
+     * 媒体流就绪时更新任务状态（INVITE 200 OK）
+     *
+     * @param string $ssrc 设备SSRC
+     * @return bool
+     */
+    public function updateTaskStatusWhenMediaReady(string $ssrc): bool;
+
+    /**
+     * 检查并启动等待稳定的RTP任务的录像（定时任务调用）
+     *
+     * @return int 启动的任务数量
+     */
+    public function startRecordingForStableRtp(): int;
+
+    /**
+     * 监控并停止已完成的录像任务（定时任务调用）
+     *
+     * @return int 停止的任务数量
+     */
+    public function stopCompletedRecordings(): int;
 }

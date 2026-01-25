@@ -3,6 +3,7 @@
 namespace CoreW\Business\Record\Dao\Impl;
 
 use CoreW\Business\Record\Dao\RecordTaskDao;
+use CoreW\Business\Record\Enums\RecordTaskTypeEnum;
 use CoreW\Dao\AdvancedDaoImpl;
 
 class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
@@ -41,6 +42,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
                 'channel_id = :channel_id',
                 'channel_id IN (:channel_ids)',
                 'stream_id = :stream_id',
+                'ssrc = :ssrc',
                 'status = :status',
                 'status IN (:statuses)',
                 'media_server_id = :media_server_id',
@@ -82,5 +84,34 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
     public function getByStreamId(string $streamId): ?array
     {
         return $this->getByFields(['stream_id' => $streamId]);
+    }
+
+    public function getBySsrc(string $ssrc): ?array
+    {
+        return $this->getByFields(['ssrc' => $ssrc]);
+    }
+
+    public function findWaitStreamTasks(int $limit = 100): array
+    {
+        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $sql = "SELECT * FROM {$this->table()}
+                WHERE status = 'wait_stream'
+                AND task_type = '{$task_type}'
+                ORDER BY created_at ASC
+                LIMIT {$limit}";
+
+        return $this->db()->fetchAll($sql);
+    }
+
+    public function findRecordingTasks(int $limit = 100): array
+    {
+        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $sql = "SELECT * FROM {$this->table()}
+                WHERE status = 'recording'
+                AND task_type = '{$task_type}'
+                ORDER BY created_at ASC
+                LIMIT {$limit}";
+
+        return $this->db()->fetchAll($sql);
     }
 }

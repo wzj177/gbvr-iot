@@ -280,8 +280,7 @@ class GBServerHookController extends BaseController
         $callId = $body['call_id'] ?? 0;
         $deviceSsrc = $body['device_ssrc'] ?? '';
         $sdp = $body['sdp'] ?? [];
-        //{"device_id":"34020000002000000001","call_id":3,"dialog_id":4,"device_ssrc":"0790858880","device_ip":null,"device_port":"20006","sdp":{"version":"0","origin":{"username":"34020000001320456628","session_id":"0","session_version":"0","nettype":"IN","addrtype":"IP4","addr":"10.18.136.1"},"session_name":"Play","medias":[{"media":"video","port":"20006","proto":"RTP/AVP","payloads":["96"],"attributes":{"rtpmap":"96 PS/90000","sendonly":null}}],"gb28181":{"ssrc":"0790858880","f":"v/2////a/6//1"}},"timestamp":1768471090}
-        Log::channel('sip')->info('Media ready', $body);
+        $sessionName = $sdp['session_name'] ?? '';
 
         if (!$callId) {
             Log::channel('sip')->warning('Media ready without call_id');
@@ -289,6 +288,11 @@ class GBServerHookController extends BaseController
         }
 
         try {
+            // 如果是 Download 类型，更新录像任务状态
+            if (strtolower($sessionName) === 'download') {
+                $this->getRecordTaskService()->updateTaskStatusWhenMediaReady((string)$deviceSsrc);
+            }
+
             // 查找会话
             $session = $this->getDeviceService()->getSessionBySsrc((string)$deviceSsrc);
             if (!$session) {
@@ -310,28 +314,6 @@ class GBServerHookController extends BaseController
                 'stream_status' => ChannelStreamStatus::PUSHING->value,
             ]);
             $this->getDeviceService()->updateSessionBySSRC($deviceSsrc, $updateData);
-            // 如果有设备 SSRC，更新 ZLM
-//            if ($deviceSsrc && $streamId) {
-//                try {
-//                    $result = $this->getGb28181Service()->updateRtpServerSsrc($streamId, $deviceSsrc);
-//
-//                    if ($result) {
-//                        Log::channel('sip')->info('ZLM SSRC updated', [
-//                            'stream_id' => $streamId,
-//                            'device_ssrc' => $deviceSsrc,
-//                        ]);
-//                    } else {
-//                        Log::channel('sip')->warning('ZLM SSRC update failed', [
-//                            'stream_id' => $streamId,
-//                        ]);
-//                    }
-//                } catch (\Exception $e) {
-//                    Log::channel('sip')->error('ZLM update error', [
-//                        'stream_id' => $streamId,
-//                        'error' => $e->getMessage(),
-//                    ]);
-//                }
-//            }
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Media ready handler failed', [
@@ -664,6 +646,14 @@ class GBServerHookController extends BaseController
     private function getAlarmEventService(): AlarmEventService
     {
         return $this->createService('Alarm:AlarmEventService');
+    }
+
+    /**
+     * @return RecordTaskService
+     */
+    private function getRecordTaskService(): \CoreW\Business\Record\Service\RecordTaskService
+    {
+        return $this->createService('Record:RecordTaskService');
     }
 
     /**

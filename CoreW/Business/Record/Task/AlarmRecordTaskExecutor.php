@@ -19,7 +19,7 @@ class AlarmRecordTaskExecutor extends BaseCrontabTask
 
         try {
             /** @var RecordTaskService $recordTaskService */
-            $recordTaskService = $this->getBfw()->offsetGet('Record:RecordTaskService');
+            $recordTaskService = $this->getBfw()->service('Record:RecordTaskService');
 
             // 1. 处理待执行的任务
             $processedCount = $recordTaskService->processPendingTasks();

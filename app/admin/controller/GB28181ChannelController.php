@@ -28,7 +28,9 @@ class GB28181ChannelController extends BaseController
     public function index(Request $request)
     {
         // 构建查询条件
-        $conditions = [];
+        $conditions = [
+            'channel_types' => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value]
+        ];
 
         if ($request->get('status')) {
             $conditions['status'] = $request->get('status');

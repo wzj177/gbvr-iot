@@ -6,6 +6,7 @@ use app\admin\BaseController;
 use app\admin\filters\AlarmEventFilter;
 use CoreW\Business\Alarm\Service\AlarmEventService;
 use support\Request;
+use support\utils\ArrayToolkit;
 use support\utils\Paginator;
 
 /**
@@ -86,6 +87,22 @@ class GB28181AlarmController extends BaseController
         if (!$event) {
             return $this->createErrorJsonResponse('报警事件不存在', null, 404);
         }
+
+        return $this->createSuccessJsonResponse(AlarmEventFilter::one($event));
+    }
+
+    /**
+     * 更新报警事件状态 (如: 已确认、已处理)
+     * PUT /admin/api/gb28181/alarms/:id
+     */
+    public function update(Request $request, $id)
+    {
+        $data = $request->post();
+
+        // 只保留允许更新的字段
+        $fields = ArrayToolkit::parts($data, ['status', 'remark', 'handled_by', 'handled_time']);
+
+        $event = $this->getAlarmEventService()->updateAlarmEvent((int) $id, $fields);
 
         return $this->createSuccessJsonResponse(AlarmEventFilter::one($event));
     }

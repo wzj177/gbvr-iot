@@ -11,6 +11,7 @@ use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\MediaServer\Enums\ServerStatusEnum;
 use CoreW\Business\MediaServer\Service\MediaServerService;
+use CoreW\Business\Record\Service\RecordTaskService;
 use support\Log;
 
 /**
@@ -519,12 +520,24 @@ trait GB28181StreamTrait
             throw new \RuntimeException('发送下载请求失败', 500);
         }
 
+        // 创建录像任务
+        $recordTask = $this->getRecordTaskService()->createDownloadRecordTask(
+            $deviceId,
+            $channelId,
+            $startTime,
+            $endTime,
+            $downloadStreamId,
+            $downloadSsrc,
+            $downloadSpeed
+        );
+
         Log::channel('gb_stream')->info('Start download command sent', [
             'device_id' => $deviceId,
             'channel_id' => $channelId,
             'start_time' => $startTime,
             'end_time' => $endTime,
             'download_speed' => $downloadSpeed,
+            'task_id' => $recordTask['id'],
         ]);
 
         return [
@@ -532,6 +545,7 @@ trait GB28181StreamTrait
             'ssrc' => $downloadSsrc,
             'rtp_port' => $zlmPort,
             'download_speed' => $downloadSpeed,
+            'task_id' => $recordTask['id'],
             'download_url' => null,  // 由 ZLM 录制完成后提供
             'file_size' => 0,
         ];
@@ -554,6 +568,11 @@ trait GB28181StreamTrait
      * @return DeviceService
      */
     abstract protected function getDeviceService(): DeviceService;
+
+    /**
+     * @return RecordTaskService
+     */
+    abstract protected function getRecordTaskService(): RecordTaskService;
 
 
     protected function getMediaServerService(): MediaServerService

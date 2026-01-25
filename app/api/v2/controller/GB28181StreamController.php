@@ -6,6 +6,7 @@ use app\api\BaseController;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Traits\GB28181StreamTrait;
 use CoreW\Business\GB\Gb28181Service;
+use CoreW\Business\Record\Service\RecordTaskService;
 use CoreW\Business\Service\MediaServerService;
 use support\Request;
 
@@ -176,6 +177,14 @@ class GB28181StreamController extends BaseController
     protected function getMediaServerService(): MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
+    }
+
+    /**
+     * @return RecordTaskService
+     */
+    protected function getRecordTaskService(): RecordTaskService
+    {
+        return $this->createService('Record:RecordTaskService');
     }
 
     /**
