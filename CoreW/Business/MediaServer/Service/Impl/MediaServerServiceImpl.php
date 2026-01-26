@@ -60,6 +60,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         $fields['created_at'] = $fields['created_at'] ?? date('Y-m-d H:i:s');
         $fields['updated_at'] = $fields['updated_at'] ?? date('Y-m-d H:i:s');
         $fields['status'] = $fields['status'] ?? ServerStatusEnum::UNKNOWN->value;
+        empty($fields['record_path']) && $fields['record_path'] = '/www/wwwroot/zlm/records';
 
         // 验证类型
         if (isset($fields['type']) && !MediaServerStrategyFactory::isSupported($fields['type'])) {

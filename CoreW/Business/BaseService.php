@@ -3,6 +3,7 @@
 
 namespace CoreW\Business;
 
+use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\User\CurrentUser;
 use CoreW\Exception\AbstractBizException;
 use CoreW\Exception\ServiceException;
@@ -77,6 +78,14 @@ class BaseService
         }
 
         throw new \Exception();
+    }
+
+    /**
+     * @return SystemLogService
+     */
+    protected function getSystemLogService()
+    {
+        return $this->createService('SystemLog:SystemLogService');
     }
 
     /**

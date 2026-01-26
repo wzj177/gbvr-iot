@@ -273,8 +273,9 @@ class GB28181StreamController extends BaseController
         $startTime = $request->post('start_time');
         $endTime = $request->post('end_time');
         $downloadSpeed = $request->post('download_speed', 1);
+        $force = $request->post('force', 0);
 
-        if ( !$startTime || !$endTime) {
+        if (!$startTime || !$endTime) {
             return $this->createErrorJsonResponse('缺少必要参数', 400);
         }
 
@@ -284,15 +285,59 @@ class GB28181StreamController extends BaseController
         }
 
         try {
+            $startTimestamp = strtotime($startTime);
+            $endTimestamp = strtotime($endTime);
+            $crcStr = crc32($startTimestamp . '_' . $endTimestamp);
+            $streamId = $channel['device_id'] . '_' . $channel['channel_id'] . '_download_' . $crcStr;
+
+            // 根据 stream_id 查找已有任务（在有效时间范围内）
+            $existingTask = $this->getRecordTaskService()->getDownloadTaskByStreamId($streamId);
+
+            if ($existingTask) {
+                $status = $existingTask['status'];
+
+                // 进行中的任务
+                if (in_array($status, ['inviting', 'wait_stream', 'recording'])) {
+                    // 强制模式：先停止并删除旧任务
+                    if ($force) {
+                        $this->getRecordTaskService()->cancelRecordTask($existingTask['id']);
+                    } else {
+                        return $this->createSuccessJsonResponse([
+                            'message' => '下载任务进行中',
+                            'task_id' => $existingTask['id'],
+                            'status' => $status,
+                            'stream_id' => $existingTask['stream_id'],
+                        ]);
+                    }
+                }
+                // 已完成的任务
+                elseif ($status === 'done') {
+                    if (!$force) {
+                        // 返回已有文件信息
+                        return $this->createSuccessJsonResponse([
+                            'message' => '录像已存在',
+                            'task_id' => $existingTask['id'],
+                            'customized_path' => $existingTask['customized_path'] ?? null,
+                            'record_start_time' => $existingTask['record_start_time'] ?? null,
+                            'record_end_time' => $existingTask['record_end_time'] ?? null,
+                        ]);
+                    }
+                    // force=true 时继续，删除旧任务后重新创建
+                }
+
+                // 删除旧任务（任何状态）
+                $this->getRecordTaskService()->deleteRecordTask($existingTask['id']);
+            }
+
             $result = $this->downloadRecordCore($channel['device_id'], $channel['channel_id'], $startTime, $endTime, $downloadSpeed);
 
             return $this->createSuccessJsonResponse([
                 'message' => '录像下载已开始',
                 'stream_id' => $result['stream_id'],
-                'download_url' => $result['download_url'] ?? null,  // 文件下载地址
+                'download_url' => $result['download_url'] ?? null,
                 'file_size' => $result['file_size'] ?? 0,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->handleStreamException($e);
         }
     }
@@ -326,7 +371,7 @@ class GB28181StreamController extends BaseController
     /**
      * 处理流媒体异常
      */
-    protected function handleStreamException(\Exception $e): \support\Response
+    protected function handleStreamException(\Throwable $e): \support\Response
     {
         $code = $e->getCode() ?: 500;
         $message = $e->getMessage();

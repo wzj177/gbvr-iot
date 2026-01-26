@@ -106,6 +106,7 @@ class MediaServerController extends BaseController
             'status',         // 状态
             'area_id',        // 区域ID
             'remark',         // 备注
+            'record_path'     // 录制路径
         ];
 
         // 过滤只允许创建的字段
@@ -201,6 +202,7 @@ class MediaServerController extends BaseController
             'status',         // 状态
             'area_id',        // 区域ID
             'remark',         // 备注
+            'record_path'     // 录制路径
         ];
 
         // 过滤只允许更新的字段

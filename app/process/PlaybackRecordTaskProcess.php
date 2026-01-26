@@ -17,28 +17,21 @@ class PlaybackRecordTaskProcess extends BaseCrontabTask
 {
     public function execute(): void
     {
-        $this->log()->info('PlaybackRecordTaskProcess started');
+//        $this->log()->info('PlaybackRecordTaskProcess started');
+        echo 'PlaybackRecordTaskProcess started', PHP_EOL;
+        /** @var RecordTaskService $recordTaskService */
+        $recordTaskService = $this->getBfw()->service('Record:RecordTaskService');
 
-        try {
-            /** @var RecordTaskService $recordTaskService */
-            $recordTaskService = $this->getBfw()->service('Record:RecordTaskService');
+        // 1. 检查并启动等待稳定RTP的录像任务
+        $startedCount = $recordTaskService->startRecordingForStableRtp();
 
-            // 1. 检查并启动等待稳定RTP的录像任务
-            $startedCount = $recordTaskService->startRecordingForStableRtp();
+        // 2. 监控并停止已完成的录像任务
+        $stoppedCount = $recordTaskService->stopCompletedRecordings();
 
-            // 2. 监控并停止已完成的录像任务
-            $stoppedCount = $recordTaskService->stopCompletedRecordings();
-
-            $this->log()->info('PlaybackRecordTaskProcess completed', [
-                'started_count' => $startedCount,
-                'stopped_count' => $stoppedCount,
-            ]);
-
-        } catch (\Exception $e) {
-            $this->log()->error('PlaybackRecordTaskProcess failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
+//            $this->log()->info('PlaybackRecordTaskProcess completed', [
+//                'started_count' => $startedCount,
+//                'stopped_count' => $stoppedCount,
+//            ]);
+        echo 'PlaybackRecordTaskProcess completed', ':started_count=', $startedCount, ',stopped_count=', $stoppedCount,PHP_EOL;
     }
 }

@@ -445,13 +445,13 @@ class ZLMClient
 
         $result = $this->request('startRecord', $params);
 
-        if ($this->debug && $result) {
+        if ($this->debug) {
             Log::channel('zlm')->info('Start record', [
                 'vhost' => $vhost,
                 'app' => $app,
                 'stream' => $stream,
                 'type' => $type,
-                'code' => $result['code'] ?? null,
+                'result' => $result,
             ]);
         }
 

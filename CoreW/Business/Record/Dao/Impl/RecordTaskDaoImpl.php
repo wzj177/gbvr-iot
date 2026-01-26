@@ -25,8 +25,6 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
                 'updated_at',
             ],
             'datetime' => [
-                'start_time',
-                'end_time',
                 'created_at',
                 'updated_at',
             ],
@@ -60,7 +58,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 
     public function findPendingTasks(int $limit = 100): array
     {
-        $now = date('Y-m-d H:i:s');
+        $now = time();
         $sql = "SELECT * FROM {$this->table()}
                 WHERE status = 'pending'
                 AND start_time <= ?
@@ -72,7 +70,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 
     public function findRecordingTasksToStop(): array
     {
-        $now = date('Y-m-d H:i:s');
+        $now = time();
         $sql = "SELECT * FROM {$this->table()}
                 WHERE status = 'recording'
                 AND end_time <= ?
@@ -111,6 +109,76 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
                 AND task_type = '{$task_type}'
                 ORDER BY created_at ASC
                 LIMIT {$limit}";
+
+        return $this->db()->fetchAll($sql);
+    }
+
+    public function getDownloadTaskByStreamId(string $streamId): ?array
+    {
+        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $now = time();
+        $sql = "SELECT * FROM {$this->table()}
+                WHERE task_type = '{$task_type}'
+                AND stream_id = ?
+                AND (
+                    -- 未开始录制的任务
+                    record_start_time = 0
+                    OR
+                    -- 正在录制的任务（录制开始时间 + 预计时长 > 当前时间，给30秒缓冲）
+                    (record_start_time > 0
+                     AND record_start_time + record_duration + 30 > ?)
+                )
+                LIMIT 1";
+
+        return $this->db()->fetchOne($sql, [$streamId, $now]) ?: null;
+    }
+
+    public function findWaitStreamTasksWithMediaServer(): array
+    {
+        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        // 只查询最近1小时内创建的任务，避免扫描旧数据
+        $oneHourAgo = date('Y-m-d H:i:s', time() - 3600);
+        $sql = "SELECT t.*,
+                       ms.id as media_server_db_id,
+                       ms.server_id,
+                       ms.type,
+                       ms.host,
+                       ms.port,
+                       ms.secret,
+                       ms.record_path,
+                       ms.stream_ip,
+                       ms.status as media_server_status
+                FROM {$this->table()} t
+                LEFT JOIN gv_media_servers ms ON t.media_server_id = ms.server_id
+                WHERE t.status = 'wait_stream'
+                AND t.task_type = '{$task_type}'
+                AND t.created_at >= '{$oneHourAgo}'
+                ORDER BY t.created_at ASC";
+
+        return $this->db()->fetchAll($sql);
+    }
+
+    public function findRecordingTasksWithMediaServer(): array
+    {
+        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        // 只查询最近1小时内创建的任务，避免扫描旧数据
+        $oneHourAgo = date('Y-m-d H:i:s', time() - 3600);
+        $sql = "SELECT t.*,
+                       ms.id as media_server_db_id,
+                       ms.server_id,
+                       ms.type,
+                       ms.host,
+                       ms.port,
+                       ms.secret,
+                       ms.record_path,
+                       ms.stream_ip,
+                       ms.status as media_server_status
+                FROM {$this->table()} t
+                LEFT JOIN gv_media_servers ms ON t.media_server_id = ms.server_id
+                WHERE t.status = 'recording'
+                AND t.task_type = '{$task_type}'
+                AND t.created_at >= '{$oneHourAgo}'
+                ORDER BY t.created_at ASC";
 
         return $this->db()->fetchAll($sql);
     }

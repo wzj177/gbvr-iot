@@ -476,6 +476,9 @@ trait GB28181StreamTrait
             throw new \InvalidArgumentException('媒体服务器未运行', 503);
         }
 
+        if (empty($mediaServer['record_path'])) {
+            throw new \InvalidArgumentException('媒体服务器缺少录像保存路径配置', 500);
+        }
         // 获取收流IP
         $streamIp = !empty($mediaServer['stream_ip']) ? $mediaServer['stream_ip'] : $mediaServer['host'];
         if (empty($streamIp)) {

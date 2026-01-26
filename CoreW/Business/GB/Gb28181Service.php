@@ -176,7 +176,7 @@ class Gb28181Service
         int $downloadSpeed = 1
     ): ?array {
         try {
-            // 创建下载会话（类似回放会话）
+            // 创建下载会话（使用独立的 stream_id 前缀 download_）
             return $this->createPlaybackSessionAndOpenRtp(
                 $deviceId,
                 $channelId,
@@ -184,7 +184,7 @@ class Gb28181Service
                 $endTime,
                 $mediaServer,
                 $tcpMode,
-                StreamSessionType::DOWNLOAD->value  // 标记为下载类型
+                true  // isDownload = true，使用 download_ 前缀
             );
         } catch (\Throwable $e) {
             Log::channel('sip')->error('Create download session failed', [
@@ -673,23 +673,31 @@ class Gb28181Service
         string $startTime,
         string $endTime,
         array  $mediaServer,
-        int    $tcpMode = 1
+        int    $tcpMode = 1,
+        bool   $isDownload = false
     ): ?array
     {
         if ($mediaServer['type'] === MediaServerType::ZLM->value) {
-            // 生成流ID
-            $crcStr = crc32($startTime . '_' . $endTime);
-            $streamId = $this->generateStreamId($deviceId, $channelId, 'pb_' . $crcStr);
+            // 生成流ID：回放用 pb_，下载用 download_
+            // 使用时间戳计算 CRC32，确保格式统一、长度固定
+            $startTimestamp = strtotime($startTime);
+            $endTimestamp = strtotime($endTime);
+            $crcStr = crc32($startTimestamp . '_' . $endTimestamp);
+            $suffix = $isDownload ? 'download_' . $crcStr : 'pb_' . $crcStr;
+            $streamId = $this->generateStreamId($deviceId, $channelId, $suffix);
 
-            //  回放流也支持复用
+            // 流复用检查
             $info = $this->getRtpInfo($streamId, $mediaServer['server_id']);
             if ($info['exist'] ?? false) {
-                // 检查是否有活跃回放 session
-                $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($streamId, StreamSessionType::PLAYBACK->value);
+                // 根据类型检查对应的活跃 session
+                $sessionType = $isDownload ? StreamSessionType::DOWNLOAD->value : StreamSessionType::PLAYBACK->value;
+                $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($streamId, $sessionType);
+
                 if ($activeSession) {
-                    //  复用现有回放流
+                    // 复用现有流
                     $this->incrementViewerCount($streamId);
-                    Log::channel('gb_stream')->info("[Gb28181Service] 复用现有回放流: {$streamId}");
+                    $logMsg = $isDownload ? "复用现有下载流" : "复用现有回放流";
+                    Log::channel('gb_stream')->info("[Gb28181Service] {$logMsg}: {$streamId}");
                     return [
                         'session' => $activeSession,
                         'stream_id' => $streamId,
@@ -699,8 +707,9 @@ class Gb28181Service
                     ];
                 }
 
-                // 僵尸回放流清理
-                Log::channel('gb_stream')->info("[Gb28181Service] 清理僵尸回放流: {$streamId}");
+                // 僵尸流清理
+                $logMsg = $isDownload ? "清理僵尸下载流" : "清理僵尸回放流";
+                Log::channel('gb_stream')->info("[Gb28181Service] {$logMsg}: {$streamId}");
                 $this->closeRtpServer($streamId, $mediaServer['server_id']);
             }
 

@@ -35,4 +35,21 @@ interface RecordTaskDao extends AdvancedDaoInterface
      * 查找正在录制的下载任务（recording状态）
      */
     public function findRecordingTasks(int $limit = 100): array;
+
+    /**
+     * 获取下载任务（根据 stream_id）
+     */
+    public function getDownloadTaskByStreamId(string $streamId): ?array;
+
+    /**
+     * 查找等待稳定RTP的下载任务（带 media_server 信息）
+     * 只查询最近1小时内创建的任务
+     */
+    public function findWaitStreamTasksWithMediaServer(): array;
+
+    /**
+     * 查找正在录制的下载任务（带 media_server 信息）
+     * 只查询最近1小时内创建的任务
+     */
+    public function findRecordingTasksWithMediaServer(): array;
 }

@@ -1176,13 +1176,6 @@ class VIPServiceImpl extends BaseService implements VIPService
         return $this->createDao('VIP:VIPBindDao');
     }
 
-    /**
-     * @return SystemLogService
-     */
-    protected function getSystemLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
-    }
 
     /**
      * @return TokenService

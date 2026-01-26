@@ -32,6 +32,7 @@ CREATE TABLE `gv_media_servers` (
   `network_out` bigint(20) DEFAULT '0' COMMENT '网络出流量(字节,缓存)',
   `uptime` int(11) DEFAULT '0' COMMENT '运行时长(秒,缓存)',
   `last_sync_at` datetime DEFAULT NULL COMMENT '最后同步时间',
+  `record_path` varchar(255) DEFAULT '' COMMENT '录像存储目录',
   `created_at` datetime NOT NULL COMMENT '创建时间',
   `updated_at` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`),

@@ -104,7 +104,7 @@ class SystemLogServiceImpl extends BaseService implements SystemLogService
             'module' => $module,
             'action' => $action,
             'message' => $message,
-            'data' => empty($params) ? '' : (is_string($params) ? $params : json_encode($params)),
+            'data' => empty($params) ? [] : $params,
             'userId' => !empty($params['userId']) ? $params['userId'] : 1,
             'ip' => !empty($params['currentIp']) ? $params['currentIp'] : '127.0.0.1',
             'createdTime' => time(),

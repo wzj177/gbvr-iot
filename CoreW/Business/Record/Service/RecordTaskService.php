@@ -99,4 +99,28 @@ interface RecordTaskService
      * @return int 停止的任务数量
      */
     public function stopCompletedRecordings(): int;
+
+    /**
+     * 获取下载任务（根据 stream_id）
+     *
+     * @param string $streamId 流ID
+     * @return array|null 任务信息，不存在返回 null
+     */
+    public function getDownloadTaskByStreamId(string $streamId): ?array;
+
+    /**
+     * 删除录像任务
+     *
+     * @param int $taskId 任务ID
+     * @return bool
+     */
+    public function deleteRecordTask(int $taskId): bool;
+
+    /**
+     * 取消录像任务（停止录制并删除）
+     *
+     * @param int $taskId 任务ID
+     * @return bool
+     */
+    public function cancelRecordTask(int $taskId): bool;
 }
