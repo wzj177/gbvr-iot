@@ -45,6 +45,12 @@ class SyncMediaServerStatusJob implements Consumer
                 'last_sync_at' => date('Y-m-d H:i:s'),
             ]);
 
+            if ($isOnline) {
+                $strategy->setConfig($server, [
+                    'general' => ['mediaServerId' => $server['server_id']]
+                ]);
+            }
+
             Log::channel('queue')->info('SyncMediaServerStatusJob: completed', [
                 'id' => $mediaServerId,
                 'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value

@@ -7,10 +7,14 @@ enum RecordTaskStatusEnum: string
     case PENDING = 'pending';
     case INVITING = 'inviting';
     case WAIT_STREAM = 'wait_stream';
+
     case RECORDING = 'recording';
     case FINALIZING = 'finalizing';
+
     case DONE = 'done';
+
     case FAILED = 'failed';
+
     case CANCELLED = 'cancelled';
 
     public function label(): string

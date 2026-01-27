@@ -55,9 +55,9 @@ return [
     'ScheduleTask' => [
         'handler' => app\process\ScheduleTaskProcess::class
     ],
-    'Gb28181DeviceCatalogQueryTask' => [
-        'handler' => app\process\Gb28181DeviceCatalogQueryTaskProcess::class
-    ],
+//    'Gb28181DeviceCatalogQueryTask' => [
+//        'handler' => app\process\Gb28181DeviceCatalogQueryTaskProcess::class
+//    ],
     'Gb28181DeviceStatusCheckTask' => [
         'handler' => app\process\Gb28181DeviceStatusCheckTaskProcess::class
     ],
@@ -70,10 +70,7 @@ return [
     'CleanupRtpPortAndClearStreamSessionTask' => [
         'handler' => app\process\CleanupRtpPortAndClearStreamSessionTaskProcess::class
     ],
-//    'SubscriptionRenewTask' => [
-//        'handler' => app\process\SubscriptionRenewTaskProcess::class
-//    ],
-//    'AlarmRecordTaskExecutor' => [
-//        'handler' => app\process\AlarmRecordTaskExecutorProcess::class
-//    ],
+    'SubscriptionRenewTask' => [
+        'handler' => app\process\SubscriptionRenewTaskProcess::class
+    ],
 ];

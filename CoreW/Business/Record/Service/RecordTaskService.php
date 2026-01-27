@@ -82,9 +82,10 @@ interface RecordTaskService
      * 媒体流就绪时更新任务状态（INVITE 200 OK）
      *
      * @param string $ssrc 设备SSRC
+     * @param int $inviteOkTime INVITE成功时间戳
      * @return bool
      */
-    public function updateTaskStatusWhenMediaReady(string $ssrc): bool;
+    public function updateTaskStatusWhenMediaReady(string $ssrc, int $inviteOkTime): bool;
 
     /**
      * 检查并启动等待稳定的RTP任务的录像（定时任务调用）
@@ -101,12 +102,30 @@ interface RecordTaskService
     public function stopCompletedRecordings(): int;
 
     /**
-     * 获取下载任务（根据 stream_id）
+     * 完成完成中的任务（定时任务调用）
+     *
+     * @return int 完成的任务数量
+     */
+    public function completeFinalizingTasks(): int;
+
+    /**
+     * 获有效期内下载任务（根据 stream_id）
      *
      * @param string $streamId 流ID
      * @return array|null 任务信息，不存在返回 null
      */
-    public function getDownloadTaskByStreamId(string $streamId): ?array;
+    public function getValidityDownloadTaskByStreamId(string $streamId): ?array;
+
+    public function getDoneRecordTaskByStreamId(string $streamId): ?array;
+
+    /**
+     * 根据 stream_id 获取任务（不过滤状态）
+     * 用于 onRecordMp4 hook 查找任务，因为 hook 触发时机可能在任务状态更新之前
+     *
+     * @param string $streamId 流ID
+     * @return array|null 任务信息，不存在返回 null
+     */
+    public function getByStreamId(string $streamId): ?array;
 
     /**
      * 删除录像任务
@@ -123,4 +142,46 @@ interface RecordTaskService
      * @return bool
      */
     public function cancelRecordTask(int $taskId): bool;
+
+    /**
+     * Hook 更新：根据 stream_id 和 media_server_id 更新 record_start_time（如果为 0）
+     *
+     * @param string $streamId 流ID
+     * @param string $mediaServerId 媒体服务器ID
+     * @param int $time 时间戳
+     * @return void
+     */
+    public function updateRecordStartTimeByStreamId(string $streamId, string $mediaServerId, int $time): void;
+
+    /**
+     * Hook 更新：根据 stream_id 和 media_server_id 更新 record_end_time（如果为 0）
+     *
+     * @param string $streamId 流ID
+     * @param string $mediaServerId 媒体服务器ID
+     * @param int $time 时间戳
+     * @return void
+     */
+    public function updateRecordEndTimeByStreamId(string $streamId, string $mediaServerId, int $time): void;
+
+    /**
+     * Scheduler 更新：更新 last_rtp_time
+     *
+     * @param int $taskId 任务ID
+     * @param int $time 时间戳
+     * @return void
+     */
+    public function updateLastRtpTime(int $taskId, int $time): void;
+
+    /**
+     * Hook 更新：从 onRecordMp4 hook 完成任务
+     *
+     * 将 FINALIZING 状态的任务更新为 DONE，并设置 record_end_time 和 record_duration
+     * 时间来自 ZLM hook 的实际文件信息
+     *
+     * @param int $taskId 任务ID
+     * @param int $endTime 录制结束时间戳（来自 hook）
+     * @param int $duration 录制时长（秒）
+     * @return void
+     */
+    public function completeTaskFromHook(int $taskId, int $endTime, int $duration): void;
 }

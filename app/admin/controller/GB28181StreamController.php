@@ -273,7 +273,7 @@ class GB28181StreamController extends BaseController
         $startTime = $request->post('start_time');
         $endTime = $request->post('end_time');
         $downloadSpeed = $request->post('download_speed', 1);
-        $force = $request->post('force', 0);
+        $force = 0; //$request->post('force', 0);
 
         if (!$startTime || !$endTime) {
             return $this->createErrorJsonResponse('缺少必要参数', 400);
@@ -291,7 +291,7 @@ class GB28181StreamController extends BaseController
             $streamId = $channel['device_id'] . '_' . $channel['channel_id'] . '_download_' . $crcStr;
 
             // 根据 stream_id 查找已有任务（在有效时间范围内）
-            $existingTask = $this->getRecordTaskService()->getDownloadTaskByStreamId($streamId);
+            $existingTask = $this->getRecordTaskService()->getValidityDownloadTaskByStreamId($streamId);
 
             if ($existingTask) {
                 $status = $existingTask['status'];

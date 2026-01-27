@@ -42,7 +42,6 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     {
         $route = $request->route;
         $routeName = $route?->getName();
-
         // 如果没有路由名称，放行
         if (!$routeName) {
             return $next($request);

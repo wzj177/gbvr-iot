@@ -172,7 +172,7 @@ CREATE TABLE `gv_record_file` (
   `channel_id` varchar(64) NOT NULL COMMENT 'GB21818设备通道ID',
   `channel_name` varchar(255) NOT NULL COMMENT '通道名称',
   `device_id` varchar(64) NOT NULL COMMENT 'GB28181设备ID',
-  `source_type` enum('cloud_plan','device_playback', 'alarm', 'playback_download')  default 'cloud_plan' NOT NULL COMMENT '文件来源类型',
+  `source_type` enum('cloud_plan', 'alarm', 'playback_download')  default 'cloud_plan' NOT NULL COMMENT '文件来源类型',
   `video_src_url` varchar(500) DEFAULT '' COMMENT '非gb28181设备的视频流源地址',
   `start_time` int(11) unsigned NOT NULL COMMENT '文件的开始时间',
   `end_time` int(11) NOT NULL COMMENT '文件的结束时间',

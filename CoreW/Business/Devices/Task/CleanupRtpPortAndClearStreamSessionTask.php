@@ -17,7 +17,9 @@ class CleanupRtpPortAndClearStreamSessionTask extends BaseCrontabTask
     {
         // 获取所有活跃的流会话
         $sessions = $this->getDeviceService()->searchSessions(
-            [],
+            [
+                'no_type' => StreamSessionType::DOWNLOAD->value
+            ],
             [],
             0,
             PHP_INT_MAX,

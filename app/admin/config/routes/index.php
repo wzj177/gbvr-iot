@@ -265,6 +265,15 @@ Route::group('/api/admin', function () {
 
         // 云端录像管理
 //        Route::group('/recordings', function () { });
+        // GB28181 订阅管理
+        Route::group('/gb28181/subscribe', function () {
+            Route::post('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'saveConfig']);
+            Route::post('/batch', [\app\api\v2\controller\GB28181SubscribeController::class, 'batchCreate']);
+            Route::post('/cancel', [\app\api\v2\controller\GB28181SubscribeController::class, 'cancel']);
+            Route::get('/configs', [\app\api\v2\controller\GB28181SubscribeController::class, 'listConfigs']);
+            Route::get('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'getConfig']);
+            Route::get('/options', [\app\api\v2\controller\GB28181SubscribeController::class, 'options']);
+        });
 
         // 报警管理
         Route::group('/alarms', function () {

@@ -2,8 +2,8 @@
 
 namespace app\process;
 
-use CoreW\Business\Common\BaseCrontabTask;
-use CoreW\Business\Record\Task\AlarmRecordTaskExecutor;
+use CoreW\Business\Devices\Task\Gb28181DeviceCatalogQueryTask;
+use CoreW\Business\Record\Task\PlaybackRecordTask;
 use Workerman\Crontab\Crontab;
 
 class ScheduleTaskProcess
@@ -17,7 +17,12 @@ class ScheduleTaskProcess
 
         // 每5秒执行一次 - 回放下载录像任务
         new Crontab('*/5 * * * * *', function () {
-            PlaybackRecordTaskProcess::run();
+            PlaybackRecordTask::run();
+        });
+
+        // 每5分钟执行一次 - 获取国标设备目录任务
+        new Crontab('* */5 * * * *', function () {
+            Gb28181DeviceCatalogQueryTask::run();
         });
     }
 }

@@ -46,12 +46,12 @@ class GB28181DeviceController extends BaseController
     }
 
     /**
-     * 拉取在线设备列表（用于信令网关启动时恢复设备状态）
+     * 推送在线设备列表（用于信令网关启动时恢复设备状态）
      *
      * @param Request $request
      * @return \support\Response
      */
-    public function pullOnLineList(Request $request): \support\Response
+    public function pushOnLineList(Request $request): \support\Response
     {
         $devices = $this->getDeviceService()->searchDevices(
             [

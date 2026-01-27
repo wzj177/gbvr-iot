@@ -38,7 +38,7 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
     {
         $sql = "SELECT * FROM {$this->table()} WHERE stream_id=? AND `type` =? AND `viewer_count` >= 1 AND `status` IN ('inviting', 'active') order by id desc limit 1;";
 
-        return $this->db()->fetchAssociative($sql, [$streamId, $type]);
+        return $this->db()->fetchAssoc($sql, [$streamId, $type]);
     }
 
     public function getBySsrc(string $ssrc)
@@ -107,6 +107,7 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
                 'id NOT IN (:noIds)',
                 'stream_id = :stream_id',
                 'type = :type',
+                'type != :no_type',
                 'ssrc = :ssrc',
                 'call_id = :call_id',
                 'status = :status',

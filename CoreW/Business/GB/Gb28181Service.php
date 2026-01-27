@@ -729,7 +729,7 @@ class Gb28181Service
                 'channel_id' => $channelId,
                 'ssrc' => $playbackSsrc,
                 'stream_id' => $streamId,
-                'type' => StreamSessionType::PLAYBACK->value,
+                'type' => !$isDownload ? StreamSessionType::PLAYBACK->value : StreamSessionType::DOWNLOAD->value,
                 'rtp_port' => $portResult['port'],
                 'media_server_id' => $mediaServer['server_id'],
                 'tcp_mode' => $tcpMode,

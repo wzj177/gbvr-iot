@@ -12,6 +12,7 @@ use app\middleware\ProductAnonymousVisitMiddleware;
 use support\Request;
 use Webman\Route;
 
+// 对外开放 openapi 接口
 Route::group('/api', function () {
     Route::group('/v1', function () {
         // 登录、注册
@@ -138,50 +139,57 @@ Route::group('/api', function () {
             Route::post('/server/hook', [\app\api\v2\controller\GBServerHookController::class, 'index'])->middleware([
                 \app\middleware\GBHook::class
             ]);
-            Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pullOnLineList']);
+            Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pushOnLineList']);
         });
-        
-        // GB28181 设备管理
-        Route::group('/gb28181', function () {
-            // 设备列表
-            Route::get('/devices', [\app\api\v2\controller\GB28181DeviceController::class, 'index']);
-            // 设备详情
-            Route::get('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'show']);
-            // 设备通道列表
-            Route::get('/devices/{id}/channels', [\app\api\v2\controller\GB28181DeviceController::class, 'channels']);
-            // 查询设备目录（主动向设备发起Catalog查询）
-            Route::post('/devices/{id}/catalog', [\app\api\v2\controller\GB28181DeviceController::class, 'queryCatalog']);
-            // 删除设备
-            Route::delete('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'destroy']);
 
-            // 流控制
-            Route::post('/channels/start-live', [\app\api\v2\controller\GB28181StreamController::class, 'startLive']);
-            Route::post('/channels/stop-live', [\app\api\v2\controller\GB28181StreamController::class, 'stopLive']);
-            Route::get('/channels/play-urls', [\app\api\v2\controller\GB28181StreamController::class, 'getPlayUrls']);
-            Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
-            Route::post('/channels/ptz', [\app\api\v2\controller\GB28181DeviceController::class, 'ptzControl']);
-        })->middleware([
-            AuthIdentityMiddleware::class
-        ]);
+        Route::group('/zlm_hook', function () {
 
-        // GB28181 订阅管理
-        Route::group('/gb28181/subscribe', function () {
-            Route::post('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'saveConfig']);
-            Route::post('/batch', [\app\api\v2\controller\GB28181SubscribeController::class, 'batchCreate']);
-            Route::post('/cancel', [\app\api\v2\controller\GB28181SubscribeController::class, 'cancel']);
-            Route::get('/configs', [\app\api\v2\controller\GB28181SubscribeController::class, 'listConfigs']);
-            Route::get('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'getConfig']);
-            Route::get('/options', [\app\api\v2\controller\GB28181SubscribeController::class, 'options']);
-        })->middleware([
-            AuthIdentityMiddleware::class
-        ]);
+            // 流量报告事件
+            Route::post('/on_flow_report', [\app\api\v2\controller\ZLMHookController::class, 'onFlowReport'])->name('api.zlm_hook.on_flow_report');
 
-        // 报警事件
-        Route::group('/alarm', function () {
-            Route::get('/events', [\app\api\v2\controller\AlarmEventController::class, 'index']);
-            Route::get('/events/{id}', [\app\api\v2\controller\AlarmEventController::class, 'show']);
+            // HTTP 访问鉴权事件
+            Route::any('/on_http_access', [\app\api\v2\controller\ZLMHookController::class, 'onHttpAccess'])->name('api.zlm_hook.on_http_access');
+
+            // 播放事件
+            Route::post('/on_play', [\app\api\v2\controller\ZLMHookController::class, 'onPlay'])->name('api.zlm_hook.on_play');
+
+            // 推流事件
+            Route::post('/on_publish', [\app\api\v2\controller\ZLMHookController::class, 'onPublish'])->name('api.zlm_hook.on_publish');
+
+            // MP4 录像完成事件
+            Route::post('/on_record_mp4', [\app\api\v2\controller\ZLMHookController::class, 'onRecordMp4'])->name('api.zlm_hook.on_record_mp4');
+
+            // HLS/TS 录像完成事件
+            Route::post('/on_record_ts', [\app\api\v2\controller\ZLMHookController::class, 'onRecordTs'])->name('api.zlm_hook.on_record_ts');
+
+            // RTSP 认证事件
+            Route::post('/on_rtsp_auth', [\app\api\v2\controller\ZLMHookController::class, 'onRtspAuth'])->name('api.zlm_hook.on_rtsp_auth');
+
+            // RTSP Realm 事件
+            Route::any('/on_rtsp_realm', [\app\api\v2\controller\ZLMHookController::class, 'onRtspRealm'])->name('api.zlm_hook.on_rtsp_realm');
+
+            // 服务器启动事件
+            Route::post('/on_server_started', [\app\api\v2\controller\ZLMHookController::class, 'onServerStarted'])->name('api.zlm_hook.on_server_started');
+
+            // Shell 登录事件
+            Route::post('/on_shell_login', [\app\api\v2\controller\ZLMHookController::class, 'onShellLogin'])->name('api.zlm_hook.on_shell_login');
+
+            // 流注册/注销事件
+            Route::post('/on_stream_changed', [\app\api\v2\controller\ZLMHookController::class, 'onStreamChanged'])->name('api.zlm_hook.on_stream_changed');
+
+            // 流无人观看事件
+            Route::post('/on_stream_none_reader', [\app\api\v2\controller\ZLMHookController::class, 'onStreamNoneReader'])->name('api.zlm_hook.on_stream_none_reader');
+
+            // 流未找到事件
+            Route::post('/on_stream_not_found', [\app\api\v2\controller\ZLMHookController::class, 'onStreamNotFound'])->name('api.zlm_hook.on_stream_not_found');
+
+            // FFmpeg 拉流未找到事件
+            Route::post('/on_stream_not_found_ffmpeg', [\app\api\v2\controller\ZLMHookController::class, 'onStreamNotFoundFfmpeg'])->name('api.zlm_hook.on_stream_not_found_ffmpeg');
+
+            // RTP 超时事件
+            Route::post('/on_rtp_server_timeout', [\app\api\v2\controller\ZLMHookController::class, 'onRtpServerTimeout'])->name('api.zlm_hook.on_rtp_server_timeout');
         })->middleware([
-            AuthIdentityMiddleware::class
+            \app\middleware\ZLMHook::class
         ]);
     });
 });

@@ -78,7 +78,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     }
 
     /**
-     * 执行录像任务-需要改
+     * TODO： 执行录像任务-需要改
      * @param int $taskId
      * @return bool
      * @throws \CoreW\Dao\DaoException
@@ -165,48 +165,49 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      */
     public function stopRecording(int $taskId): bool
     {
-        $task = $this->getRecordTaskDao()->get($taskId);
-        if (!$task) {
-            return false;
-        }
-
-        if ($task['status'] !== RecordTaskStatusEnum::RECORDING->value) {
-            return false;
-        }
-
-        try {
-            $streamId = $task['stream_id'] ?? null;
-            if ($streamId) {
-                // 关闭 ZLM 流
-                $this->getGb28181Service()->closeStream('rtp', $streamId);
-            }
-
-            // 发送 BYE
-            $this->getGb28181Service()->stopPlayback(
-                $task['device_id'],
-                $task['channel_id'],
-                $streamId ?? ''
-            );
-
-            // 更新任务状态
-            $this->getRecordTaskDao()->update($taskId, [
-                'status' => RecordTaskStatusEnum::DONE->value,
-            ]);
-
-            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording stopped', [
-                'task_id' => $taskId,
-                'stream_id' => $streamId,
-            ]);
-
-            return true;
-
-        } catch (\Exception $e) {
-            $this->getSystemLogService()->error('Record', 'stop_recording', 'Stop recording failed', [
-                'task_id' => $taskId,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
+        return false;
+//        $task = $this->getRecordTaskDao()->get($taskId);
+//        if (!$task) {
+//            return false;
+//        }
+//
+//        if ($task['status'] !== RecordTaskStatusEnum::RECORDING->value) {
+//            return false;
+//        }
+//
+//        try {
+//            $streamId = $task['stream_id'] ?? null;
+//            if ($streamId) {
+//                // 关闭 ZLM 流
+//                $this->getGb28181Service()->closeStream('rtp', $streamId);
+//            }
+//
+//            // 发送 BYE
+//            $this->getGb28181Service()->stopPlayback(
+//                $task['device_id'],
+//                $task['channel_id'],
+//                $streamId ?? ''
+//            );
+//
+//            // 更新任务状态
+//            $this->getRecordTaskDao()->update($taskId, [
+//                'status' => RecordTaskStatusEnum::DONE->value,
+//            ]);
+//
+//            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording stopped', [
+//                'task_id' => $taskId,
+//                'stream_id' => $streamId,
+//            ]);
+//
+//            return true;
+//
+//        } catch (\Exception $e) {
+//            $this->getSystemLogService()->error('Record', 'stop_recording', 'Stop recording failed', [
+//                'task_id' => $taskId,
+//                'error' => $e->getMessage(),
+//            ]);
+//            return false;
+//        }
     }
 
     public function searchRecordTasks(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
@@ -221,7 +222,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
     public function processPendingTasks(): int
     {
-        $tasks = $this->getRecordTaskDao()->findPendingTasks(100);
+        $tasks = $this->getRecordTaskDao()->findPendingTasks();
         $count = 0;
 
         foreach ($tasks as $task) {
@@ -247,7 +248,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $count;
     }
 
-    public function updateTaskStatusWhenMediaReady(string $ssrc): bool
+    public function updateTaskStatusWhenMediaReady(string $ssrc, int $inviteOkTime): bool
     {
         $task = $this->getRecordTaskDao()->getBySsrc($ssrc);
         if (!$task) {
@@ -258,13 +259,55 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             return false;
         }
 
-        $this->getRecordTaskDao()->update($task['id'], [
+        // 检查 ZLM hook 配置，如果未开启或回调地址不对，直接设置时间
+        $shouldSetTimeDirectly = false;
+        try {
+            $mediaServer = $this->getMediaService()->getMediaServerByServerId($task['media_server_id']);
+            if ($mediaServer && $mediaServer['type'] === MediaServerType::ZLM->value) {
+                $zlmClient = $this->getZlmClient($mediaServer);
+                $config = $zlmClient->getServerConfig();
+
+                $hookEnabled = $config['hook.enable'] ?? 0;
+                $onPublishHook = $config['hook.on_publish'] ?? '';
+
+                // 检查 hook 是否开启，且回调地址包含 /zlm_hook/on_publish
+                if ($hookEnabled != 1 || !str_contains($onPublishHook, '/zlm_hook/on_publish')) {
+                    $shouldSetTimeDirectly = true;
+//                    $this->getSystemLogService()->warning('Record', 'media_ready', 'ZLM hook not properly configured, setting time directly', [
+//                        'task_id' => $task['id'],
+//                        'hook_enabled' => $hookEnabled,
+//                        'on_publish' => $onPublishHook,
+//                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // 获取配置失败，保守处理：直接设置时间
+            $shouldSetTimeDirectly = true;
+
+            $this->getSystemLogService()->warning('Record', 'media_ready', 'Failed to get ZLM config, setting time directly', [
+                'task_id' => $task['id'],
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // 更新状态和 invite_ok_time
+        $updateData = [
             'status' => RecordTaskStatusEnum::WAIT_STREAM->value,
-        ]);
+            'invite_ok_time' => $inviteOkTime,
+        ];
+
+        // 如果 hook 未配置，直接设置时间（相当于提前填充）
+        if ($shouldSetTimeDirectly) {
+            $updateData['record_start_time'] = $inviteOkTime;
+            $updateData['last_rtp_time'] = $inviteOkTime;
+        }
+
+        $this->getRecordTaskDao()->update($task['id'], $updateData);
 
         $this->getSystemLogService()->info('Record', 'media_ready', 'Download task media ready', [
             'task_id' => $task['id'],
             'ssrc' => $ssrc,
+            'set_time_directly' => $shouldSetTimeDirectly,
         ]);
 
         return true;
@@ -273,6 +316,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     public function startRecordingForStableRtp(): int
     {
         $tasks = $this->getRecordTaskDao()->findWaitStreamTasksWithMediaServer();
+//        var_dump($tasks);
         $count = 0;
 
         foreach ($tasks as $task) {
@@ -298,8 +342,26 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $count;
     }
 
+    public function completeFinalizingTasks(): int
+    {
+        $tasks = $this->getRecordTaskDao()->findFinalizingTasks();
+        $count = 0;
+
+        foreach ($tasks as $task) {
+            if ($this->checkAndCompleteRecording($task)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
     /**
      * 检查并启动录像（等待稳定 RTP）
+     *
+     * 状态转换条件：WAIT_STREAM → RECORDING
+     * - last_rtp_time > 0（RTP 存在）
+     * - time() - last_rtp_time >= 3（RTP 稳定至少 3 秒）
      */
     private function checkAndStartRecording(array $task): bool
     {
@@ -319,20 +381,35 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 return false;
             }
 
-            // 获取 RTP 状态
             $zlmClient = $this->getZlmClient($mediaServer);
+
+            // 获取 RTP 状态
             $rtpInfo = $zlmClient->getRtpInfo($streamId);
+            $rtpExists = $rtpInfo && isset($rtpInfo['exist']) && $rtpInfo['exist'];
+            // 更新 last_rtp_time（如果 RTP 存在）
+            if ($rtpExists) {
+                $this->updateLastRtpTime($task['id'], time());
+            }
+
+            // 使用 last_rtp_time 判断状态转换条件
+            $lastRtpTime = $task['last_rtp_time'] ?? 0;
 
             // 判断 RTP 稳定条件：
-            // 1. RTP 存在（exist = true）
-            // 2. 持续时间 >= 3 秒（通过 created_time 判断，避免录制黑屏）
-            if (!$rtpInfo || empty($rtpInfo['exist'])) {
+            // 1. last_rtp_time > 0（RTP 存在或曾经存在）
+            // 2. time() - last_rtp_time >= 3（RTP 稳定至少 3 秒）
+            if ($lastRtpTime <= 0 || (time() - $lastRtpTime) < 3) {
                 return false;
             }
 
-            // 获取任务创建时间，检查是否已持续至少3秒
-            $taskCreated = strtotime($task['created_at']);
-            if (time() - $taskCreated < 3) {
+            // 检查是否已经在录制
+            $isRecording = $zlmClient->isRecording(
+                $task['vhost'],
+                $task['app'],
+                $streamId,
+                1
+            );
+
+            if ($isRecording) {
                 return false;
             }
 
@@ -347,7 +424,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             );
 
             if (!$result) {
-                $this->getSystemLogService()->warning('Record', 'start_recording', 'Start record failed', [
+                $this->getSystemLogService()->warning('Record', 'start_recording', 'start record failed', [
                     'task_id' => $task['id'],
                     'stream_id' => $streamId,
                 ]);
@@ -357,7 +434,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
             $this->getRecordTaskDao()->update($task['id'], [
                 'status' => RecordTaskStatusEnum::RECORDING->value,
-                'record_start_time' => time(),
+                'record_start_time' => $task['record_start_time'] > 0 ? $task['record_start_time'] : time(),
                 'customized_path' => $recordPath,
             ]);
 
@@ -373,7 +450,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         } catch (\Exception $e) {
             $this->getSystemLogService()->error('Record', 'start_recording', 'Check and start recording failed', [
                 'task_id' => $task['id'],
-                'error' => $e->getMessage(),
+                'error' => $e->getTraceAsString(),
             ]);
             return false;
         }
@@ -381,6 +458,12 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
     /**
      * 检查并停止录像（监控结束）
+     *
+     * 状态转换条件：RECORDING → FINALIZING
+     * - time() - last_rtp_time >= 10（RTP 超时 10 秒）
+     *
+     * 注意：不设置 record_end_time 和 record_duration
+     * 这些字段由 onRecordMp4 hook 根据实际文件信息填充
      */
     private function checkAndStopRecording(array $task): bool
     {
@@ -400,33 +483,20 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 return false;
             }
 
-            // 获取 RTP 状态
             $zlmClient = $this->getZlmClient($mediaServer);
+            // 获取 RTP 状态
             $rtpInfo = $zlmClient->getRtpInfo($streamId);
-
-            // 判断结束条件（满足任意一个）：
-            // A. RTP Server 不存在了
-            // B. 已录制时长 >= 期望时长
-            $isFinished = false;
-
-            if (!$rtpInfo || empty($rtpInfo['exist'])) {
-                // RTP 不存在，设备停止推流
-                $isFinished = true;
-            } else {
-                // 检查已录制时长
-                $recordStartTime = $task['record_start_time'];
-                if ($recordStartTime) {
-                    $recordedSeconds = time() - $recordStartTime;
-                    $expectedSeconds = $task['record_duration'];  // 预计录制时长
-
-                    // 已录 >= 80% 预计时长，可以结束
-                    if ($recordedSeconds >= ($expectedSeconds * 0.8)) {
-                        $isFinished = true;
-                    }
-                }
+            $rtpExists = $rtpInfo && isset($rtpInfo['exist']) && $rtpInfo['exist'];
+            // 更新 last_rtp_time（如果 RTP 存在）
+            if ($rtpExists) {
+                $this->updateLastRtpTime($task['id'], time());
             }
 
-            if (!$isFinished) {
+            // 使用 last_rtp_time 判断状态转换条件
+            $lastRtpTime = $task['last_rtp_time'] ?? 0;
+
+            // 判断结束条件：time() - last_rtp_time >= 10（RTP 超时 10 秒）
+            if ($lastRtpTime <= 0 || (time() - $lastRtpTime) < 10) {
                 return false;
             }
 
@@ -438,18 +508,12 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 0  // 0=MP4
             );
 
-            // 关闭流
-            $zlmClient->closeStream('rtp', $streamId);
-
-            // 更新任务状态
-            $actualDuration = time() - ($task['record_start_time'] ?? time());
+            // 转换到 FINALIZING 状态，等待 onRecordMp4 hook 填充 record_end_time
             $this->getRecordTaskDao()->update($task['id'], [
-                'status' => RecordTaskStatusEnum::DONE->value,
-                'record_end_time' => time(),
-                'record_duration' => $actualDuration,
+                'status' => RecordTaskStatusEnum::FINALIZING->value,
             ]);
 
-            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording completed', [
+            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording finalizing, waiting for mp4 hook', [
                 'task_id' => $task['id'],
                 'stream_id' => $streamId,
             ]);
@@ -458,6 +522,66 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
         } catch (\Exception $e) {
             $this->getSystemLogService()->error('Record', 'stop_recording', 'Check and stop recording failed', [
+                'task_id' => $task['id'],
+                'error' => $e->getTraceAsString(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * 检查并完成录像（最终化）
+     *
+     * 状态转换条件：FINALIZING → DONE
+     * - 计算最终录制时长
+     * - 更新任务状态为 DONE
+     */
+    private function checkAndCompleteRecording(array $task): bool
+    {
+        try {
+            // 计算实际录制时长
+            $recordStartTime = $task['record_start_time'] ?? 0;
+            $recordEndTime = $task['record_end_time'] ?? time();
+
+            if ($recordStartTime <= 0) {
+                $this->getSystemLogService()->warning('Record', 'complete_recording', 'No record_start_time found', [
+                    'task_id' => $task['id'],
+                ]);
+                return false;
+            }
+
+            $actualDuration = $recordEndTime - $recordStartTime;
+
+            // 更新任务状态为 DONE
+            $this->getRecordTaskDao()->update($task['id'], [
+                'status' => RecordTaskStatusEnum::DONE->value,
+                'record_end_time' => $recordEndTime,
+                'record_duration' => $actualDuration,
+            ]);
+
+            // 删除同一 stream_id 的其他任务（排除当前任务ID）
+            $streamId = $task['stream_id'] ?? '';
+            if ($streamId) {
+                $deletedCount = $this->getRecordTaskDao()->deleteOtherTasksByStreamId($streamId, $task['id']);
+                if ($deletedCount > 0) {
+                    $this->getSystemLogService()->info('Record', 'complete_recording', 'Deleted other tasks with same stream_id', [
+                        'task_id' => $task['id'],
+                        'stream_id' => $streamId,
+                        'deleted_count' => $deletedCount,
+                    ]);
+                }
+            }
+
+            $this->getSystemLogService()->info('Record', 'complete_recording', 'Recording completed', [
+                'task_id' => $task['id'],
+                'stream_id' => $task['stream_id'] ?? '',
+                'duration' => $actualDuration,
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            $this->getSystemLogService()->error('Record', 'complete_recording', 'Complete recording failed', [
                 'task_id' => $task['id'],
                 'error' => $e->getMessage(),
             ]);
@@ -471,7 +595,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     private function buildRecordPath(array $task, array $mediaServer): string
     {
         if (empty($mediaServer['record_path'])) {
-            throw new \RuntimeException('Media server record_path not found');
+            return '';
         }
 
         $relativePath = '/playback';
@@ -506,9 +630,19 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return null;
     }
 
-    public function getDownloadTaskByStreamId(string $streamId): ?array
+    public function getValidityDownloadTaskByStreamId(string $streamId): ?array
     {
-        return $this->getRecordTaskDao()->getDownloadTaskByStreamId($streamId);
+        return $this->getRecordTaskDao()->getValidityTaskByStreamId($streamId);
+    }
+
+    public function getDoneRecordTaskByStreamId(string $streamId): ?array
+    {
+        return  $this->getRecordTaskDao()->getDoneByStreamId($streamId);
+    }
+
+    public function getByStreamId(string $streamId): ?array
+    {
+        return $this->getRecordTaskDao()->getByStreamId($streamId);
     }
 
     public function deleteRecordTask(int $taskId): bool
@@ -527,14 +661,23 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         if ($task['status'] === RecordTaskStatusEnum::RECORDING->value) {
             $streamId = $task['stream_id'] ?? '';
             if ($streamId) {
+                $zlmClient = $this->getZlmClientByServerId($task['media_server_id']);
                 try {
-                    $this->getZlmClientByServerId($task['media_server_id'])->stopRecord(
+                    $isRecording = $zlmClient->isRecording(
                         $task['vhost'],
                         $task['app'],
                         $streamId,
-                        0
+                        1
                     );
-                    $this->getGb28181Service()->closeStream('rtp', $streamId);
+                    if ($isRecording) {
+                        $zlmClient->stopRecord(
+                            $task['vhost'],
+                            $task['app'],
+                            $streamId,
+                            0
+                        );
+                        $zlmClient->closeStream('rtp', $streamId);
+                    }
                 } catch (\Throwable $e) {
                     $this->getSystemLogService()->warning('Record', 'cancel_task', 'Cancel record task stop record failed', [
                         'task_id' => $taskId,
@@ -576,6 +719,69 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     {
         return $this->bfw->service('MediaServer:MediaServerService');
     }
+
+    public function updateRecordStartTimeByStreamId(string $streamId, string $mediaServerId, int $time): void
+    {
+        $this->getRecordTaskDao()->updateRecordStartTimeByStreamId($streamId, $mediaServerId, $time);
+    }
+
+    public function updateRecordEndTimeByStreamId(string $streamId, string $mediaServerId, int $time): void
+    {
+        $this->getRecordTaskDao()->updateRecordEndTimeByStreamId($streamId, $mediaServerId, $time);
+    }
+
+    public function updateLastRtpTime(int $taskId, int $time): void
+    {
+        $this->getRecordTaskDao()->update($taskId, [
+            'last_rtp_time' => $time,
+        ]);
+    }
+
+    public function completeTaskFromHook(int $taskId, int $endTime, int $duration): void
+    {
+        $task = $this->getRecordTaskDao()->get($taskId);
+        if (!$task) {
+            return;
+        }
+
+        // 只处理 FINALIZING 状态的任务
+        if ($task['status'] !== RecordTaskStatusEnum::FINALIZING->value) {
+            $this->getSystemLogService()->warning('Record', 'complete_from_hook', 'Task not in FINALIZING status', [
+                'task_id' => $taskId,
+                'status' => $task['status'],
+            ]);
+            return;
+        }
+
+        $streamId = $task['stream_id'] ?? '';
+
+        // 更新任务状态为 DONE，设置 record_end_time 和 record_duration
+        $this->getRecordTaskDao()->update($taskId, [
+            'status' => RecordTaskStatusEnum::DONE->value,
+            'record_end_time' => $endTime,
+            'record_duration' => $duration,
+        ]);
+
+        // 删除同一 stream_id 的其他任务（排除当前任务ID）
+        if ($streamId) {
+            $deletedCount = $this->getRecordTaskDao()->deleteOtherTasksByStreamId($streamId, $taskId);
+            if ($deletedCount > 0) {
+                $this->getSystemLogService()->info('Record', 'complete_from_hook', 'Deleted other tasks with same stream_id', [
+                    'task_id' => $taskId,
+                    'stream_id' => $streamId,
+                    'deleted_count' => $deletedCount,
+                ]);
+            }
+        }
+
+        $this->getSystemLogService()->info('Record', 'complete_from_hook', 'Task completed from hook', [
+            'task_id' => $taskId,
+            'stream_id' => $streamId,
+            'end_time' => $endTime,
+            'duration' => $duration,
+        ]);
+    }
+
     protected function getRecordTaskDao(): RecordTaskDao|DaoProxy
     {
         return $this->createDao('Record:RecordTaskDao');

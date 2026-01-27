@@ -20,6 +20,7 @@ class Gb28181DeviceCatalogQueryTask  extends BaseCrontabTask
         $gb28181Service = $this->getBfw()->offsetGet('gb28181_service');
         try {
             $devices = $this->getDeviceService()->searchDevices([
+                'subscribe_catalog' => 0, // 对于开启设备目录订阅的设备，系统不会主动查询目录
                 'status' => DeviceStatusEnum::ONLINE->value,
             ], [], 0,PHP_INT_MAX, ['id', 'device_id', 'catalog_interval', 'last_catalog_at', 'last_heartbeat_at']);
             foreach ($devices as $device) {

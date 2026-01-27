@@ -48,7 +48,7 @@ class GBServerHookController extends BaseController
                 'register' => $this->handleRegister($body),
                 'device_unregister' => $this->handleUnRegister($body),
                 'device_expired' => $this->handleExpired($body),
-                'device_offline' => $this->handleOffline($body),
+//                'device_offline' => $this->handleOffline($body),
                 'update_heartbeat' => $this->handleHeartbeat($body),
                 'device_catalog' => $this->handleCatalog($body),
                 'device_info' => $this->handleDeviceInfo($body),
@@ -194,6 +194,7 @@ class GBServerHookController extends BaseController
     }
 
     /**
+     * @deprecated
      * 处理设备长期注销，这里仅更新设备状态为已注销
      */
     private function handleOffline(array $body): void
@@ -288,9 +289,9 @@ class GBServerHookController extends BaseController
         }
 
         try {
-            // 如果是 Download 类型，更新录像任务状态
+            // 如果是 Download 类型，更新录像任务状态和 INVITE 成功时间
             if (strtolower($sessionName) === 'download') {
-                $this->getRecordTaskService()->updateTaskStatusWhenMediaReady((string)$deviceSsrc);
+                $this->getRecordTaskService()->updateTaskStatusWhenMediaReady((string)$deviceSsrc, time());
             }
 
             // 查找会话

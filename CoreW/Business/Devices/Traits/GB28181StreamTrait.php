@@ -60,7 +60,7 @@ trait GB28181StreamTrait
     /**
      * 获取 TCP 模式
      */
-    protected function getTcpMode(array $device, array $channel): int
+    protected function getTcpMode(array $device): int
     {
         // 优先使用设备的 rtp_trans_mode 配置
         return $device['rtp_trans_mode'] ?? 1; // 0=UDP, 1=TCP被动(推荐), 2=TCP主动
@@ -97,7 +97,11 @@ trait GB28181StreamTrait
         }
 
         // 获取 TCP 模式
-        $tcpMode = $this->getTcpMode($device, $channel);
+        $tcpMode = $this->getTcpMode($device);
+        // TODO：增加SRS Media Server 兼容性判断
+        if ($mediaServer['type'] === MediaServerType::SRS->value) {
+            $tcpMode = 1;
+        }
 
         // 创建直播会话
         $sessionResult = $this->getGb28181Service()->createLiveSessionAndOpenRtp($channel, $mediaServer, $tcpMode);
@@ -242,7 +246,7 @@ trait GB28181StreamTrait
         }
 
         // 创建回放会话
-        $tcpMode = $this->getTcpMode($device, $channel);
+        $tcpMode = $this->getTcpMode($device);
         $sessionResult = $this->getGb28181Service()->createPlaybackSessionAndOpenRtp(
             $channel['device_id'],
             $channel['channel_id'],
@@ -325,7 +329,7 @@ trait GB28181StreamTrait
                 $this->getGb28181Service()->closeRtpServer($streamId, $channel['media_server_id']);
             }
 
-            if ($activeSession['viewer_count'] === 1) {
+            if ($activeSession && $activeSession['viewer_count'] === 1) {
                 // 只有一个观看者时，关闭ZLM端口后删除会话
                 $this->getDeviceService()->deleteSession($activeSession['id']);
             }
@@ -476,9 +480,6 @@ trait GB28181StreamTrait
             throw new \InvalidArgumentException('媒体服务器未运行', 503);
         }
 
-        if (empty($mediaServer['record_path'])) {
-            throw new \InvalidArgumentException('媒体服务器缺少录像保存路径配置', 500);
-        }
         // 获取收流IP
         $streamIp = !empty($mediaServer['stream_ip']) ? $mediaServer['stream_ip'] : $mediaServer['host'];
         if (empty($streamIp)) {
@@ -486,7 +487,7 @@ trait GB28181StreamTrait
         }
 
         // 创建下载会话
-        $tcpMode = $this->getTcpMode($device, $channel);
+        $tcpMode = $this->getTcpMode($device);
         $sessionResult = $this->getGb28181Service()->createDownloadSessionAndOpenRtp(
             $deviceId,
             $channelId,

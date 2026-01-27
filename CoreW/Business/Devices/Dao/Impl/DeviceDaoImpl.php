@@ -44,6 +44,10 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
                 'device_id IN (:device_ids)',
                 'device_id NOT IN (:noDevice_ids)',
                 'status = :status',
+                'subscribe_catalog = :subscribe_catalog',
+                'subscribe_alarm = :subscribe_alarm',
+                'subscribe_position = :subscribe_position',
+                'subscribe_ptz = :subscribe_ptz',
             ],
         ];
     }
