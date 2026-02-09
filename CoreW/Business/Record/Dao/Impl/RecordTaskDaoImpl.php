@@ -3,7 +3,6 @@
 namespace CoreW\Business\Record\Dao\Impl;
 
 use CoreW\Business\Record\Dao\RecordTaskDao;
-use CoreW\Business\Record\Enums\RecordTaskTypeEnum;
 use CoreW\Dao\AdvancedDaoImpl;
 
 class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
@@ -100,7 +99,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 
     public function getValidityTaskByStreamId(string $streamId): ?array
     {
-        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $task_type = 'playback_download';
         $now = time();
         // 未开始录制的任务超时时间：20秒（国标业务从 INVITE 到推流很快）
         $notStartedTimeout = 20;
@@ -132,7 +131,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 
     public function findWaitStreamTasksWithMediaServer(): array
     {
-        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $task_type = 'playback_download';
         // 只查询最近1小时内创建的任务，避免扫描旧数据
         $oneHourAgo = date('Y-m-d H:i:s', time() - 3600);
         $sql = "SELECT t.*,
@@ -157,7 +156,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 
     public function findRecordingTasksWithMediaServer(): array
     {
-        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $task_type = 'playback_download';
         // 只查询最近1小时内创建的任务，避免扫描旧数据
         $oneHourAgo = date('Y-m-d H:i:s', time() - 3600);
         $sql = "SELECT t.*,
@@ -208,7 +207,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 
     public function findFinalizingTasks(): array
     {
-        $task_type = RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value;
+        $task_type = 'playback_download';
         // 只查询最近1小时内创建的任务
         $oneHourAgo = date('Y-m-d H:i:s', time() - 3600);
         $sql = "SELECT t.*,

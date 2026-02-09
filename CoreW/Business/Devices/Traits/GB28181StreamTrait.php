@@ -112,6 +112,7 @@ trait GB28181StreamTrait
 
         $zlmPort = $sessionResult['rtp_port'];
         $ssrc = $sessionResult['ssrc'];
+//        echo '[实时流], $ssrc=' . $ssrc . PHP_EOL;
         $streamId = $sessionResult['stream_id'];
 
         // 发送命令到信令网关（传递收流IP）

@@ -72,14 +72,42 @@ class QuerySender
     }
 
     /**
-     * 构建查询 XML
+     * 解析字符集
+     * 
+     * @param string|null $charset 设备配置的字符集 (gb2312/utf8/auto)
+     * @return string 解析后的字符集 (GB2312 或 UTF-8)
      */
-    private function buildQueryXml(string $cmdType, string $deviceId): string
+    private function resolveCharset(?string $charset): string
+    {
+        if ($charset === null || $charset === '' || strtolower($charset) === 'auto') {
+            return 'GB2312';  // 默认 GB2312
+        }
+        // 规范化字符集名称
+        $lower = strtolower($charset);
+        if ($lower === 'utf8' || $lower === 'utf-8') {
+            return 'UTF-8';
+        }
+        if ($lower === 'gb2312' || $lower === 'gbk') {
+            return 'GB2312';
+        }
+        return 'GB2312';  // 未知字符集默认 GB2312
+    }
+
+    /**
+     * 构建查询 XML
+     * 
+     * @param string $cmdType 命令类型
+     * @param string $deviceId 设备ID
+     * @param string $charset 字符集 (默认 GB2312)
+     * @return string XML 字符串
+     */
+    private function buildQueryXml(string $cmdType, string $deviceId, string $charset = 'GB2312'): string
     {
         $sn = $this->generateSN();
+        $encoding = $this->resolveCharset($charset);
 
         // 手动构建 XML，确保格式正确
-        $xml = '<?xml version="1.0" encoding="GB2312"?>' . "\r\n";
+        $xml = '<?xml version="1.0" encoding="' . $encoding . '"?>' . "\r\n";
         $xml .= '<Query>' . "\r\n";
         $xml .= '<CmdType>' . $cmdType . '</CmdType>' . "\r\n";
         $xml .= '<SN>' . $sn . '</SN>' . "\r\n";
@@ -91,11 +119,18 @@ class QuerySender
 
     /**
      * 构建控制 XML
+     * 
+     * @param string $cmdType 命令类型
+     * @param string $deviceId 设备ID
+     * @param array $params 额外参数
+     * @param string $charset 字符集 (默认 GB2312)
+     * @return string XML 字符串
      */
-    private function buildControlXml(string $cmdType, string $deviceId, array $params): string
+    private function buildControlXml(string $cmdType, string $deviceId, array $params, string $charset = 'GB2312'): string
     {
         $sn = $this->generateSN();
-        $xml = new SimpleXMLElement("<?xml version=\"1.0\" encoding=\"GB2312\"?><Control></Control>");
+        $encoding = $this->resolveCharset($charset);
+        $xml = new SimpleXMLElement("<?xml version=\"1.0\" encoding=\"{$encoding}\"?><Control></Control>");
         $xml->addChild('CmdType', $cmdType);
         $xml->addChild('SN', (string)$sn);
         $xml->addChild('DeviceID', $deviceId);
@@ -110,10 +145,14 @@ class QuerySender
 
     /**
      * 发送目录查询
+     * 
+     * @param string $deviceUri 设备 URI
+     * @param string $deviceId 设备 ID
+     * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryCatalog(string $deviceUri, string $deviceId): bool|int
+    public function queryCatalog(string $deviceUri, string $deviceId, string $charset = 'GB2312'): bool|int
     {
-        $xml = $this->buildQueryXml('Catalog', $deviceId);
+        $xml = $this->buildQueryXml('Catalog', $deviceId, $charset);
 
         if ($this->config['debug']) {
             error_log("[DEBUG] QuerySender sending Catalog query to: {$deviceUri}");
@@ -131,29 +170,45 @@ class QuerySender
 
     /**
      * 发送设备信息查询
+     * 
+     * @param string $deviceUri 设备 URI
+     * @param string $deviceId 设备 ID
+     * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryDeviceInfo(string $deviceUri, string $deviceId): bool|int
+    public function queryDeviceInfo(string $deviceUri, string $deviceId, string $charset = 'GB2312'): bool|int
     {
-        $xml = $this->buildQueryXml('DeviceInfo', $deviceId);
+        $xml = $this->buildQueryXml('DeviceInfo', $deviceId, $charset);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
 
     /**
      * 发送设备状态查询
+     * 
+     * @param string $deviceUri 设备 URI
+     * @param string $deviceId 设备 ID
+     * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryDeviceStatus(string $deviceUri, string $deviceId): bool|int
+    public function queryDeviceStatus(string $deviceUri, string $deviceId, string $charset = 'GB2312'): bool|int
     {
-        $xml = $this->buildQueryXml('DeviceStatus', $deviceId);
+        $xml = $this->buildQueryXml('DeviceStatus', $deviceId, $charset);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
 
     /**
      * 发送录像文件查询
+     * 
+     * @param string $deviceUri 设备 URI
+     * @param string $deviceId 设备 ID
+     * @param string $startTime 开始时间
+     * @param string $endTime 结束时间
+     * @param string $type 类型
+     * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryRecordInfo(string $deviceUri, string $deviceId, string $startTime, string $endTime, string $type = 'all'): bool|int
+    public function queryRecordInfo(string $deviceUri, string $deviceId, string $startTime, string $endTime, string $type = 'all', string $charset = 'GB2312'): bool|int
     {
         $sn = $this->generateSN();
-        $xml = new SimpleXMLElement("<?xml version=\"1.0\" encoding=\"GB2312\"?><Query></Query>");
+        $encoding = $this->resolveCharset($charset);
+        $xml = new SimpleXMLElement("<?xml version=\"1.0\" encoding=\"{$encoding}\"?><Query></Query>");
         $xml->addChild('CmdType', 'RecordInfo');
         $xml->addChild('SN', (string)$sn);
         $xml->addChild('DeviceID', $deviceId);
@@ -166,31 +221,42 @@ class QuerySender
 
     /**
      * PTZ 控制
+     * 
+     * @param string $deviceUri 设备 URI
+     * @param string $channelId 通道 ID
+     * @param string $ptzCmd PTZ 控制命令
+     * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function ptzControl(string $deviceUri, string $channelId, string $ptzCmd): bool|int
+    public function ptzControl(string $deviceUri, string $channelId, string $ptzCmd, string $charset = 'GB2312'): bool|int
     {
         $xml = $this->buildControlXml('DeviceControl', $channelId, [
             'PTZCmd' => $ptzCmd
-        ]);
+        ], $charset);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
 
 
     /**
      * 发送目录订阅
+     * 
+     * @param Device $device 设备对象
+     * @param int $expires 订阅有效期（秒）
+     * @return int 订阅ID（dialog_id），用于续订和取消订阅
      */
-    public function sendSubscribeCatalog(Device $device, int $expires = 3600): void
+    public function sendSubscribeCatalog(Device $device, int $expires = 3600): int
     {
         try {
             $eventType = 'Catalog';
             $deviceId = $device->deviceId;
+            $encoding = $this->resolveCharset($device->charset);
 
             // 构造目标 SIP URI
             $toUri = "sip:{$deviceId}@{$device->ip}:{$device->port}";
 
             // 构造 GB28181 订阅 XML 消息体
-            $sn = time();
-            $xmlBody = "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+//            $sn = time();
+            $sn = (int) ((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
+            $xmlBody = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
             $xmlBody .= "<Query>\r\n";
             $xmlBody .= "<CmdType>Catalog</CmdType>\r\n";
             $xmlBody .= "<SN>{$sn}</SN>\r\n";
@@ -207,50 +273,74 @@ class QuerySender
             // 记录订阅信息到设备（包含 subscription_id）
             $device->addSubscription($eventType, $subscriptionId, $expires);
 
-            $this->logger->info('发送目录订阅成功', [
-                'device_id' => $deviceId,
-                'event_type' => $eventType,
-                'expires' => $expires,
-                'subscription_id' => $subscriptionId
-            ]);
+            $this->logger->info('发送目录订阅成功', 'send_subscribe_catalog');
+
+            return $subscriptionId;
         } catch (\Throwable $e) {
-            $this->logger->error('发送目录订阅失败', [
-                'device_id' => $device->deviceId,
-                'error' => $e->getMessage()
-            ]);
+            $this->logger->error('发送目录订阅失败,' . $e->getMessage(), 'send_subscribe_catalog');
             throw $e;
         }
     }
 
     /**
      * 发送报警订阅
+     * 
+     * @param Device $device 设备对象
+     * @param int $expires 订阅有效期（秒）
+     * @param int|null $startAlarmPriority 起始报警优先级 (1~4, 1最低,4最高)
+     * @param int|null $endAlarmPriority 终止报警优先级 (1~4)
+     * @param string|null $alarmMethod 报警方式 (1=电话,2=设备故障,3=视频丢失,4=移动侦测...)
+     * @param string|null $alarmType 报警类型 (1=视频遮挡,2=视频丢失,3=移动侦测,4=声光报警...)
+     * @param string|null $startAlarmTime 起始时间 (ISO8601格式, 如: 2025-01-01T00:00:00)
+     * @param string|null $endAlarmTime 终止时间 (ISO8601格式, 如: 2025-12-31T23:59:59)
+     * @return int 订阅ID（subscription_id），用于续订和取消订阅
      */
     public function sendSubscribeAlarm(
         Device  $device,
         int     $expires = 3600,
-        int     $startAlarmPriority = 0,
-        int     $endAlarmPriority = 3,
-        ?string $alarmMethod = null
-    ): void
+        ?int     $startAlarmPriority = null,
+        ?int     $endAlarmPriority = null,
+        ?string $alarmMethod = null,
+        ?string $alarmType = null,
+        ?string $startAlarmTime = null,
+        ?string $endAlarmTime = null
+    ): int
     {
         try {
-            $eventType = 'Alarm';
+            // GB28181 标准：报警订阅使用 Event: presence，通过 CmdType 区分
+            $eventType = 'presence';
+            $subscriptionType = 'Alarm';  // 用于设备记录
             $deviceId = $device->deviceId;
+            $encoding = $this->resolveCharset($device->charset);
 
             // 构造目标 SIP URI
             $toUri = "sip:{$deviceId}@{$device->ip}:{$device->port}";
 
             // 构造 GB28181 报警订阅 XML 消息体
-            $sn = time();
-            $xmlBody = "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+//            $sn = time();
+            $sn = (int) ((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
+            $xmlBody = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
             $xmlBody .= "<Query>\r\n";
             $xmlBody .= "<CmdType>Alarm</CmdType>\r\n";
             $xmlBody .= "<SN>{$sn}</SN>\r\n";
             $xmlBody .= "<DeviceID>{$deviceId}</DeviceID>\r\n";
-            $xmlBody .= "<StartAlarmPriority>{$startAlarmPriority}</StartAlarmPriority>\r\n";
-            $xmlBody .= "<EndAlarmPriority>{$endAlarmPriority}</EndAlarmPriority>\r\n";
+            // 可选字段：报警优先级范围
+            $startAlarmPriority && $xmlBody .= "<StartAlarmPriority>{$startAlarmPriority}</StartAlarmPriority>\r\n";
+            $endAlarmPriority && $xmlBody .= "<EndAlarmPriority>{$endAlarmPriority}</EndAlarmPriority>\r\n";
+            // 可选字段：报警方式
             if ($alarmMethod !== null) {
                 $xmlBody .= "<AlarmMethod>{$alarmMethod}</AlarmMethod>\r\n";
+            }
+            // 可选字段：报警类型
+            if ($alarmType !== null) {
+                $xmlBody .= "<AlarmType>{$alarmType}</AlarmType>\r\n";
+            }
+            // 可选字段：报警时间范围 (ISO8601格式)
+            if ($startAlarmTime !== null) {
+                $xmlBody .= "<StartAlarmTime>{$startAlarmTime}</StartAlarmTime>\r\n";
+            }
+            if ($endAlarmTime !== null) {
+                $xmlBody .= "<EndAlarmTime>{$endAlarmTime}</EndAlarmTime>\r\n";
             }
             $xmlBody .= "</Query>\r\n";
 
@@ -262,44 +352,50 @@ class QuerySender
             }
 
             // 记录订阅信息到设备（包含 subscription_id）
-            $device->addSubscription($eventType, $subscriptionId, $expires, [
+            // 注意：使用 subscriptionType ('Alarm') 而不是 eventType ('presence')
+            $device->addSubscription($subscriptionType, $subscriptionId, $expires, [
                 'start_priority' => $startAlarmPriority,
                 'end_priority' => $endAlarmPriority,
-                'alarm_method' => $alarmMethod
+                'alarm_method' => $alarmMethod,
+                'start_alarm_time' => $startAlarmTime,
+                'end_alarm_time' => $endAlarmTime,
+                'sip_event_type' => $eventType  // 记录实际的 SIP Event 头值
             ]);
 
-            $this->logger->info('发送报警订阅成功', [
-                'device_id' => $deviceId,
-                'event_type' => $eventType,
-                'expires' => $expires,
-                'subscription_id' => $subscriptionId,
-                'start_priority' => $startAlarmPriority,
-                'end_priority' => $endAlarmPriority
-            ]);
+            $this->logger->info('发送报警订阅成功');
+
+            return $subscriptionId;
         } catch (\Throwable $e) {
-            $this->logger->error('发送报警订阅失败', [
-                'device_id' => $device->deviceId,
-                'error' => $e->getMessage()
-            ]);
+            $this->logger->error('发送报警订阅失败,' . $e->getMessage(), 'send_subscribe_alarm');
+
             throw $e;
         }
     }
 
     /**
      * 发送移动位置订阅
+     * 
+     * @param Device $device 设备对象
+     * @param int $expires 订阅有效期（秒）
+     * @param int $interval 位置上报间隔（秒）
+     * @return int 订阅ID（subscription_id），用于续订和取消订阅
      */
-    public function sendSubscribeMobilePosition(Device $device, int $expires = 3600, int $interval = 5): void
+    public function sendSubscribeMobilePosition(Device $device, int $expires = 3600, int $interval = 5): int
     {
         try {
-            $eventType = 'MobilePosition';
+            // GB28181 标准：移动位置订阅使用 Event: presence，通过 CmdType 区分
+            $eventType = 'presence';
+            $subscriptionType = 'MobilePosition';  // 用于设备记录
             $deviceId = $device->deviceId;
+            $encoding = $this->resolveCharset($device->charset);
 
             // 构造目标 SIP URI
             $toUri = "sip:{$deviceId}@{$device->ip}:{$device->port}";
 
             // 构造 GB28181 移动位置订阅 XML 消息体
-            $sn = time();
-            $xmlBody = "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n";
+//            $sn = time();
+            $sn = (int) ((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
+            $xmlBody = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
             $xmlBody .= "<Query>\r\n";
             $xmlBody .= "<CmdType>MobilePosition</CmdType>\r\n";
             $xmlBody .= "<SN>{$sn}</SN>\r\n";
@@ -315,23 +411,43 @@ class QuerySender
             }
 
             // 记录订阅信息到设备（包含 subscription_id）
-            $device->addSubscription($eventType, $subscriptionId, $expires, ['interval' => $interval]);
+            // 注意：使用 subscriptionType ('MobilePosition') 而不是 eventType ('presence')
+            $device->addSubscription($subscriptionType, $subscriptionId, $expires, [
+                'interval' => $interval,
+                'sip_event_type' => $eventType  // 记录实际的 SIP Event 头值
+            ]);
 
-            $this->logger->info('发送移动位置订阅成功', [
-                'device_id' => $deviceId,
-                'event_type' => $eventType,
-                'expires' => $expires,
-                'subscription_id' => $subscriptionId,
-                'interval' => $interval
-            ]);
+            $this->logger->info('发送移动位置订阅成功');
+
+            return $subscriptionId;
         } catch (\Throwable $e) {
-            $this->logger->error('发送移动位置订阅失败', [
-                'device_id' => $device->deviceId,
-                'error' => $e->getMessage()
-            ]);
+            $this->logger->error('发送移动位置订阅失败,' . $e->getMessage(), 'send_mobile_position_subscribe');
+
             throw $e;
         }
     }
+
+//PTZ 精准状态查询或订阅请求
+//<! - 命令类型：PTZ 精准状态查询(必选)一>
+//<elementname="CmdType"fixed="PTZPosition"/>
+//<!-命令序列号(必选)--〉
+//<element               name="SN"type="tg:SNType"/>
+//<!-查询目标设备编码(必选)--〉
+//<elementname="DeviceID"type="tg:deviceIDType"/>
+//GB/T  28181—2022
+//
+//A.2.4.14  存储卡状态查询请求
+//〈! --  命令类型：存储卡状态查询(可选)--〉
+//<element                 name="CmdType"fixed="SDCardStatus"minOccurs="0"/>
+//<! - 命令序列号(必选) -〉
+//<element           name="SN"type="tg:SNType"/>
+//<!-查询目标设备编码(必选)--)
+//<element           name="DevicelD"type="tg:devicelDType"/>\
+
+public function sendSubscribePtzStatus(Device $device): void
+{
+
+}
 
     /**
      * 取消目录订阅
@@ -358,17 +474,9 @@ class QuerySender
             // 从设备移除订阅信息
             $device->removeSubscription($eventType);
 
-            $this->logger->info('取消目录订阅成功', [
-                'device_id' => $deviceId,
-                'event_type' => $eventType,
-                'subscription_id' => $subscriptionId,
-                'result' => $result
-            ]);
+            $this->logger->info('取消目录订阅成功');
         } catch (\Throwable $e) {
-            $this->logger->error('取消目录订阅失败', [
-                'device_id' => $device->deviceId,
-                'error' => $e->getMessage()
-            ]);
+            $this->logger->error('取消目录订阅失败：' . $e->getMessage(), 'cancel_catalog_subscribe');
             throw $e;
         }
     }
@@ -398,17 +506,9 @@ class QuerySender
             // 从设备移除订阅信息
             $device->removeSubscription($eventType);
 
-            $this->logger->info('取消报警订阅成功', [
-                'device_id' => $deviceId,
-                'event_type' => $eventType,
-                'subscription_id' => $subscriptionId,
-                'result' => $result
-            ]);
+            $this->logger->info('取消报警订阅成功', 'cancel_alarm');
         } catch (\Throwable $e) {
-            $this->logger->error('取消报警订阅失败', [
-                'device_id' => $device->deviceId,
-                'error' => $e->getMessage()
-            ]);
+            $this->logger->error('取消报警订阅失败：' . $e->getMessage(), 'cancel_alarm');
             throw $e;
         }
     }
@@ -425,10 +525,7 @@ class QuerySender
             // 获取订阅 ID
             $subscriptionId = $device->getSubscriptionId($eventType);
             if ($subscriptionId === null) {
-                $this->logger->warning('取消订阅失败：未找到订阅记录', [
-                    'device_id' => $deviceId,
-                    'event_type' => $eventType
-                ]);
+                $this->logger->warning('取消订阅失败：未找到订阅记录');
                 return;
             }
 
@@ -438,17 +535,9 @@ class QuerySender
             // 从设备移除订阅信息
             $device->removeSubscription($eventType);
 
-            $this->logger->info('取消移动位置订阅成功', [
-                'device_id' => $deviceId,
-                'event_type' => $eventType,
-                'subscription_id' => $subscriptionId,
-                'result' => $result
-            ]);
+            $this->logger->info('取消移动位置订阅成功');
         } catch (\Throwable $e) {
-            $this->logger->error('取消移动位置订阅失败', [
-                'device_id' => $device->deviceId,
-                'error' => $e->getMessage()
-            ]);
+            $this->logger->error('取消移动位置订阅失败：' . $e->getMessage(), 'cancel_mobile_position');
             throw $e;
         }
     }

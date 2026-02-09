@@ -6,6 +6,7 @@ use CoreW\Business\BaseService;
 
 use CoreW\Business\BizEnum;
 use CoreW\Business\Common\CommonBizException;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\Auth\Handler\TokenHandlerInterface;
 use CoreW\Business\VIP\CurrentUser;
@@ -111,7 +112,7 @@ class VIPServiceImpl extends BaseService implements VIPService
             return $key;
 
         } catch (\Throwable $e) {
-            $this->getSystemLogService()->warning('vip', 'send_email_login_code', "邮箱登录验证码发送失败：{$e->getMessage()}");
+            $this->getLogService()->warning(LogEnum::MODULE_VIP, LogEnum::ACTION_SEND_EMAIL_LOGIN_CODE, "邮箱登录验证码发送失败：{$e->getMessage()}");
             return null;
         }
 
@@ -410,11 +411,11 @@ class VIPServiceImpl extends BaseService implements VIPService
             /** @var $mail AbstractMail */
             $mail = $mailFactory($mailOptions);
             $mail->send();
-            $this->getSystemLogService()->info('VIP', 'email_verify_notification', '成功推送会员：' . $user . '邮箱验证通知');
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_EMAIL_VERIFY_NOTIFICATION, '成功推送会员：' . $user . '邮箱验证通知');
 
             return true;
         } catch (\Throwable $e) {
-            $this->getSystemLogService()->error('VIP', 'email_verify_notification', '失败推送会员：' . $user . '邮箱验证通知，' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_VIP, LogEnum::ACTION_EMAIL_VERIFY_NOTIFICATION, '失败推送会员：' . $user . '邮箱验证通知，' . $e->getMessage());
 
             return false;
         }
@@ -482,14 +483,14 @@ class VIPServiceImpl extends BaseService implements VIPService
         try {
             $vip = $this->getVIPDao()->create($data);
             $this->createVIPProfile($vip, $fields);
-            $this->getSystemLogService()->info('VIP', 'add_vip', '新增会员成功', [
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_ADD_VIP, '新增会员成功', [
                 'currentIp' => $requestIp
             ]);
             $this->commit();
             return $vip;
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getSystemLogService()->info('VIP', 'add_vip', '新增会员失败，' . $e->getMessage(), [
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_ADD_VIP, '新增会员失败，' . $e->getMessage(), [
                 'currentIp' => $requestIp
             ]);
             return null;
@@ -566,7 +567,7 @@ class VIPServiceImpl extends BaseService implements VIPService
                 ];
             }
 
-            $this->getSystemLogService()->info('VIP', 'edit_vip_info', '会员修改个人失败，' . $e->getMessage(), $params);
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_EDIT_VIP_INFO, '会员修改个人失败，' . $e->getMessage(), $params);
             return false;
         }
 
@@ -833,7 +834,7 @@ class VIPServiceImpl extends BaseService implements VIPService
             $convertedType = $this->convertOAuthType($type);
             $this->getVIPBindDao()->deleteByTypeAndToId($convertedType, $toId);
             $this->dispatchEvent('vip.unbind', new Event($user, ['bind' => $bind, 'bindType' => $type, 'convertedType' => $convertedType]));
-            $this->getSystemLogService()->info('vip', 'unbind', sprintf('用户名%s解绑成功，操作用户为%s', $user['nickname']));
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_UNBIND, sprintf('用户名%s解绑成功，操作用户为%s', $user['nickname']));
         }
 
         return $bind;

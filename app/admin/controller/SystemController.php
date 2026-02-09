@@ -20,10 +20,11 @@ class SystemController extends BaseController
     public function logs(Request $request)
     {
         $conditions = $request->get();
+        if (!empty($conditions['keyword'])) {
+            $conditions['keywordsLike'] = $conditions['keyword'];
+        }
         $total = $this->getLogService()->countLogs($conditions);
         list($offset, $limit) = $this->getOffsetAndLimit($request);
-//        $sort = $this->getSort($request);
-//        $sort['id'] = 'DESC';
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
         $logs = $this->getLogService()->searchLogs(
             $conditions,
@@ -32,12 +33,10 @@ class SystemController extends BaseController
             $paginator->getPerPageCount()
         );
 
-        $filter = new SystemLogFilter(SystemLogFilter::SIMPLE_MODE);
-        $filter->filters($logs);
 
         return $this->createSuccessJsonResponse(
             [
-                'list' => $logs,
+                'list' => SystemLogFilter::publicList($logs),
                 'paginator' => Paginator::toArray($paginator)
             ]
         );

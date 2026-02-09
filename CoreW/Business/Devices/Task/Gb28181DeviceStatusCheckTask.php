@@ -19,8 +19,11 @@ class Gb28181DeviceStatusCheckTask  extends BaseCrontabTask
                 $last_heartbeat_at_timestamp = (int)$device['last_heartbeat_at'];
 //                echo "设备ID: {$device['device_id']} 最后心跳时间: {$device['last_heartbeat_at']} \n";
                 if ($last_heartbeat_at_timestamp < time() - config('gb28181.check_offline_device_interval', 3600)) {
-//                    echo "设备ID: {$device['device_id']} 离线 \n";
                     $this->getDeviceService()->updateDeviceStatus($device['device_id'], DeviceStatusEnum::UNREGISTERED->value);
+                } elseif ($last_heartbeat_at_timestamp < time() - config('gb28181.timer_interval', 30)) {
+                    $this->getDeviceService()->updateDeviceStatus($device['device_id'], DeviceStatusEnum::EXPIRED->value);
+                } else if ($device['status'] !== DeviceStatusEnum::ONLINE->value) {
+                    $this->getDeviceService()->updateDeviceStatus($device['device_id'], DeviceStatusEnum::ONLINE->value);
                 }
             }
 

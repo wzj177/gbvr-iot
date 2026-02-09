@@ -8,7 +8,8 @@ use CoreW\Business\Devices\Enums\ChannelTypeEnum;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\GB\Gb28181Service;
-use support\Log;
+use CoreW\Business\Subscribe\Service\SubscribeService;
+use CoreW\Business\SystemLog\LogEnum;
 use support\Redis;
 use support\Request;
 use support\Response;
@@ -84,7 +85,7 @@ class GB28181DeviceController extends BaseController
                 'message' => '设备已删除',
             ]);
         } catch (\Exception $e) {
-            $this->getLogService()->error('GB28181', 'delete_device', "删除设备失败，{$e->getMessage()}", [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_DELETE_DEVICE, "删除设备失败，{$e->getMessage()}", [
                 'device_id' => $device['device_id'],
             ]);
 
@@ -118,8 +119,8 @@ class GB28181DeviceController extends BaseController
             return $this->createErrorJsonResponse('发送目录查询请求异常: ' . $e->getMessage(), 500);
         }
 
-        Log::channel('sip')->info('Query catalog command sent', [
-            'device' => $device,
+        $this->getLogService()->info('gb28181', 'query_catalog', '目录查询命令已发送', [
+            'device_id' => $device['device_id'],
         ]);
 
         return $this->createSuccessJsonResponse([
@@ -237,13 +238,47 @@ class GB28181DeviceController extends BaseController
         }
 
         try {
+            // 检测订阅配置字段变化
+            $subscriptionFields = [
+                'subscribe_catalog', 'subscribe_alarm', 'subscribe_position',
+                'subscribe_ptz', 'subscribe_expires', 'position_interval'
+            ];
+            $hasSubscriptionUpdate = !empty(array_intersect_key($updateData, array_flip($subscriptionFields)));
+
+            // 更新设备信息
             $this->getDeviceService()->updateDeviceExtendInfo($id, $updateData);
+
+            // 如果订阅配置有变化，调用订阅服务
+            if ($hasSubscriptionUpdate) {
+                try {
+                    // 构建订阅配置
+                    $subscribeConfig = [
+                        'event_catalog' => (int)($updateData['subscribe_catalog'] ?? 0),
+                        'event_alarm' => (int)($updateData['subscribe_alarm'] ?? 0),
+                        'event_mobile_position' => (int)($updateData['subscribe_position'] ?? 0),
+                        'subscribe_expires' => (int)($updateData['subscribe_expires'] ?? 3600),
+                        'mobile_interval_sec' => (int)($updateData['position_interval'] ?? 5),
+                        'status' => 1,  // 默认启用
+                    ];
+
+                    $this->getSubscribeService()->saveSubscribeConfig($device['device_id'], null, $subscribeConfig);
+
+                    $this->getLogService()->info('subscribe', 'update_subscribe', '设备订阅配置已更新', [
+                        'device_id' => $device['device_id'],
+                        'config' => $subscribeConfig,
+                    ]);
+                } catch (\Exception $e) {
+                    $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_UPDATE_SUBSCRIBE, '更新订阅配置失败: ' . $e->getMessage(), [
+                        'device_id' => $device['device_id'],
+                    ]);
+                    // 订阅失败不影响设备更新成功
+                }
+            }
 
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {
-            Log::error('Update device failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_UPDATE, '更新设备失败: ' . $e->getMessage(), [
                 'id' => $id,
-                'error' => $e->getMessage(),
             ]);
 
             return $this->createErrorJsonResponse('更新设备失败: ' . $e->getMessage(), 500);
@@ -341,9 +376,8 @@ class GB28181DeviceController extends BaseController
                 'message' => "成功设置 {$successCount} 个设备的地区信息",
             ]);
         } catch (\Exception $e) {
-            Log::error('Batch update device area failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_BATCH_UPDATE_AREA, '批量设置设备地区失败: ' . $e->getMessage(), [
                 'ids' => $ids,
-                'error' => $e->getMessage(),
             ]);
 
             return $this->createErrorJsonResponse('批量设置地区失败: ' . $e->getMessage(), 500);
@@ -366,9 +400,8 @@ class GB28181DeviceController extends BaseController
 
             return $this->createSuccessJsonResponse($tree);
         } catch (\Exception $e) {
-            Log::error('Get device tree failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_UPDATE, '获取设备树失败: ' . $e->getMessage(), [
                 'tree_type' => $treeType,
-                'error' => $e->getMessage(),
             ]);
 
             return $this->createErrorJsonResponse('获取设备树失败: ' . $e->getMessage(), 500);
@@ -503,5 +536,13 @@ class GB28181DeviceController extends BaseController
     private function getGb28181Service(): Gb28181Service
     {
         return $this->getBiz()->offsetGet('gb28181_service');
+    }
+
+    /**
+     * @return SubscribeService
+     */
+    private function getSubscribeService(): SubscribeService
+    {
+        return $this->createService('Subscribe:SubscribeService');
     }
 }

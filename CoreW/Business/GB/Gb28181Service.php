@@ -19,10 +19,6 @@ use support\utils\ArrayToolkit;
 
 class Gb28181Service
 {
-    /**
-     *  内存中的 viewer 计数器（streamId => count）
-     * 不修改数据库结构，用内存管理并发访问
-     */
 
     public function __construct(protected Bfw $bfw)
     {
@@ -238,6 +234,53 @@ class Gb28181Service
             $streamIp,
             $downloadSpeed
         );
+    }
+
+
+    /**
+     * 启动语音对讲（发送 INVITE）
+     * @param array $session
+     * @return bool
+     * @throws ZlmException
+     */
+    public function startVoiceTalk(array $session): bool
+    {
+        $this->checkZlmState($session['media_server_id']);
+        // 调用 GB28181Client 的 startVoiceTalk 方法
+        $result = $this->getGb28181Client()->startVoiceTalk(
+            $session['device_id'],
+            $session['channel_id'],
+            $session
+        );
+
+        return $result['success'] ?? false;
+    }
+
+    /**
+     * 停止语音对讲（发送 BYE）
+     * @param array $session
+     * @return bool
+     */
+    public function stopVoiceTalk(array $session): bool
+    {
+        // 获取 dialog_id（从 metadata 或 dialog_id 字段）
+        $dialogId = $session['dialog_id'] ?? null;
+
+        if (!$dialogId) {
+            Log::channel('gb_stream')->error("[Gb28181Service] 缺少 dialog_id，无法停止对讲", $session);
+            return false;
+        }
+
+        $this->getZlmClientByServerId($session['media_server_id'])->stopSendRtp('__defaultVhost__', $session['app'], $session['stream'], $session['ssrc']);
+
+        // 调用 GB28181Client 的 stopVoiceTalk 方法
+        $result = $this->getGb28181Client()->stopVoiceTalk(
+            $session['device_ id'],
+            $session['channel_id'],
+            $dialogId  // 传递 dialog_id
+        );
+
+        return $result['success'] ?? false;
     }
 
     public function queryCatalog(string $deviceId): bool
@@ -560,9 +603,9 @@ class Gb28181Service
      * @param int|null $interval 位置上报间隔(秒)，null表示设备自行决定
      * @return bool
      */
-    public function subscribeMobilePosition(string $deviceId, int $expires = 3600, ?int $interval = null): bool
+    public function subscribeMobilePosition(string $deviceId, array $params = []): array
     {
-        return $this->getGb28181Client()->subscribeMobilePosition($deviceId, $expires, $interval);
+        return $this->getGb28181Client()->subscribeMobilePosition($deviceId, $params);
     }
 
     /**
@@ -577,6 +620,65 @@ class Gb28181Service
     public function unsubscribeMobilePosition(string $deviceId): bool
     {
         return $this->getGb28181Client()->unsubscribeMobilePosition($deviceId);
+    }
+
+    /**
+     * 订阅目录变更
+     *
+     * @param string $deviceId 设备ID
+     * @param array $params 参数，包含 expires 等字段
+     * @return array 返回结果，包含 success, dialog_id, error 等字段
+     */
+    public function subscribeCatalog(string $deviceId, array $params = []): array
+    {
+        return $this->getGb28181Client()->subscribeCatalog($deviceId, $params);
+    }
+
+    /**
+     * 取消目录订阅
+     *
+     * @param string $deviceId 设备ID
+     * @return bool
+     */
+    public function unsubscribeCatalog(string $deviceId): bool
+    {
+        return $this->getGb28181Client()->unsubscribeCatalog($deviceId);
+    }
+
+    /**
+     * 订阅报警事件
+     *
+     * @param string $deviceId 设备ID
+     * @param array $params 参数，包含 expires, start_priority, end_priority, alarm_method 等字段
+     * @return array 返回结果，包含 success, dialog_id, error 等字段
+     */
+    public function subscribeAlarm(string $deviceId, array $params = []): array
+    {
+        return $this->getGb28181Client()->subscribeAlarm($deviceId, $params);
+    }
+
+    /**
+     * 取消报警订阅
+     *
+     * @param string $deviceId 设备ID
+     * @return bool
+     */
+    public function unsubscribeAlarm(string $deviceId): bool
+    {
+        return $this->getGb28181Client()->unsubscribeAlarm($deviceId);
+    }
+
+    /**
+     * 刷新订阅(续订)
+     *
+     * @param int $dialogId Dialog ID
+     * @param string $event 订阅事件类型 (Catalog/Alarm/MobilePosition)
+     * @param int $expires 新的订阅有效期(秒)
+     * @return array 返回结果，包含 success, error 等字段
+     */
+    public function refreshSubscribe(int $dialogId, string $event, int $expires): array
+    {
+        return $this->getGb28181Client()->refreshSubscribe($dialogId, $event, $expires);
     }
 
     /**
@@ -720,7 +822,8 @@ class Gb28181Service
             }
 
             // 生成SSRC
-            $playbackSsrc = $this->getDeviceService()->generateUniqueSsrc();
+//            $playbackSsrc = $this->getDeviceService()->generateUniqueSsrc();
+            $playbackSsrc = $this->getSSRCFactory()->getPlayBackSsrc($mediaServer['server_id']);
 
             // 创建会话记录
             $sessionData = [
@@ -1018,7 +1121,7 @@ class Gb28181Service
         }
     }
 
-    public function generateStreamId(string $deviceId, string $channelId, ?string $suffix = null): string
+    private function generateStreamId(string $deviceId, string $channelId, ?string $suffix = null): string
     {
         $streamId = "{$deviceId}_{$channelId}";
         if ($suffix) {
@@ -1163,4 +1266,8 @@ class Gb28181Service
         return $this->getDeviceService()->decrementSessionViewerCount($streamId);
     }
 
+    protected function getSSRCFactory():SSRCFactory
+    {
+        return $this->bfw['SSRCFactory'];
+    }
 }

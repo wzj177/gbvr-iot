@@ -14,9 +14,11 @@ class ZLMClient
 {
     private string $host;
     private int $port;
+    private int $httpsPort;
     private string $secret;
     private bool $debug;
     private string $baseUrl;
+
 
     /**
      * 构造函数
@@ -31,17 +33,11 @@ class ZLMClient
     {
         $this->host = $config['host'] ?? '127.0.0.1';
         $this->port = $config['port'] ?? 80;
+        $this->httpsPort = $config['https_port'] ?? 4443;
         $this->secret = $config['secret'] ?? '';
         $this->debug = $config['debug'] ?? false;
 
         $this->baseUrl = "http://{$this->host}:{$this->port}/index/api";
-
-        if ($this->debug) {
-            Log::channel('zlm')->info('ZLMClient initialized', [
-                'host' => $this->host,
-                'port' => $this->port,
-            ]);
-        }
     }
 
     /**
@@ -184,9 +180,10 @@ class ZLMClient
      *
      * @param string|null $app 应用名 (null=所有)
      * @param string|null $stream 流ID (null=所有)
+     * @param string|null $schema 播放协议 (null=所有)
      * @return array
      */
-    public function getMediaList(?string $app = null, ?string $stream = null): array
+    public function getMediaList(?string $app = null, ?string $stream = null, ?string $schema = null): array
     {
         $params = [
             'vhost' => '__defaultVhost__',
@@ -199,6 +196,9 @@ class ZLMClient
             $params['stream'] = $stream;
         }
 
+        if ($schema) {
+            $params['schema'] = $schema;
+        }
         $resp =  $this->request('getMediaList', $params);
 
         if ($resp['code'] === 0) {
@@ -265,6 +265,35 @@ class ZLMClient
     }
 
     /**
+     * 获取推流地址（用于语音对讲等场景）
+     *
+     * @param string $streamId 流ID
+     * @param string $app 应用名 (默认: talk)
+     * @param string|null $accessDomain 访问地址（nginx反向代理地址，如果提供则使用此地址生成推流URL）
+     * @return array
+     */
+    public function getPushUrls(string $streamId, string $app = 'talk', ?string $accessDomain = null): array
+    {
+        $domain = !empty($accessDomain) ? $accessDomain : $this->host;
+
+        $httpsPort = $this->httpsPort ?? 443;  // HTTPS 端口
+        $rtmpPort = 1935;                 // RTMP 端口
+        $rtspPort = 554;                  // RTSP 端口
+        $srtPort = 9000;                  // SRT 端口
+
+        return [
+            // WebRTC HTTPS 推流地址（浏览器 HTTPS 页面必须用这个）
+            'webrtcs' => "https://{$domain}:{$httpsPort}/index/api/webrtc?app={$app}&stream={$streamId}&type=push",
+            // RTMP 推流地址（常用）
+            'rtmp' => "rtmp://{$domain}:{$rtmpPort}/{$app}/{$streamId}",
+            // RTSP 推流地址
+            'rtsp' => "rtsp://{$domain}:{$rtspPort}/{$app}/{$streamId}",
+            // SRT 推流地址（低延迟）
+            'srt' => "srt://{$domain}:{$srtPort}?streamid=#!::r={$app}/{$streamId},m=publish",
+        ];
+    }
+
+    /**
      * 获取播放地址
      *
      * @param string $streamId 流ID
@@ -278,19 +307,16 @@ class ZLMClient
         $vhost = '__defaultVhost__';
         $domain = !empty($accessDomain) ? $accessDomain : $this->host;
 
-        // 默认使用 host:port 生成播放地址
-        $httpPort = $this->port;
-
         return [
 //            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}?vhost={$vhost}",
-            'http_flv' => "http://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'https_flv' => "https://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'ws_flv' => "ws://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'wss_flv' => "wss://{$domain}:{$httpPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'hls' => "http://{$domain}:{$httpPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
-            "https_hls" => "https://{$domain}:{$httpPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
-            'hls_fmp4' => "http://{$domain}:{$httpPort}/{$app}/{$streamId}/hls.fmp4.m3u8?vhost={$vhost}",
-            "https_hls_fmp4" => "https://{$domain}:{$httpPort}/{$app}/{$streamId}/hls_fmp4.m3u8?vhost={$vhost}",
+            'http_flv' => "http://{$domain}:{$this->port}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'https_flv' => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'ws_flv' => "ws://{$domain}:{$this->port}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'wss_flv' => "wss://{$domain}:{$this->httpsPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'hls' => "http://{$domain}:{$this->port}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
+            "https_hls" => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
+            'hls_fmp4' => "http://{$domain}:{$this->port}/{$app}/{$streamId}/hls.fmp4.m3u8?vhost={$vhost}",
+            "https_hls_fmp4" => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}/hls_fmp4.m3u8?vhost={$vhost}",
         ];
     }
 
@@ -578,6 +604,136 @@ class ZLMClient
     }
 
     /**
+     * 启动发送RTP
+     * @param string $vhost
+     * @param string $app
+     * @param string $stream
+     * @param string $ssrc
+     * @param string $dst_url
+     * @param string $dst_port
+     * @param int $is_udp
+     * @param int $src_port
+     * @param int|null $pt
+     * @param int $use_ps
+     * @param int $only_audio
+     * @return int|null
+     */
+    public function startSendRtp(string $vhost, string $app, string $stream, string $ssrc, string $dst_url, string $dst_port, int $is_udp = 0, ?int $src_port = null, ?int $pt = null, int $use_ps = 0, int $only_audio = 0): ?array
+    {
+//        | vhost |    Y     | 虚拟主机，例如__defaultVhost__ |
+//    | app |    Y     | 应用名，例如 live |
+//    | stream |    Y     | 流id，例如 test |
+//    | ssrc |    Y     | 推流的rtp的ssrc,指定不同的ssrc可以同时推流到多个服务器 |
+//    | dst_url |    Y     | 目标ip或域名 |
+//    | dst_port |    Y     | 目标端口 |
+//    | is_udp |    Y     | 是否为udp模式,否则为tcp模式 |
+//    | src_port |    N     | 使用的本机端口，为0或不传时默认为随机端口 |
+//    | pt |    N     | 发送时，rtp的pt（uint8_t）,不传时默认为96 |
+//    | use_ps |    N     | 发送时，rtp的负载类型。为1时，负载为ps；为0时，为es；不传时默认为1 |
+//    | only_audio |    N     | 当use_ps 为0时，有效。为1时，发送音频；为0时，发送视频；不传时默认为0 |
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'ssrc' => $ssrc,
+            'dst_url' => $dst_url,
+            'dst_port' => $dst_port,
+            'is_udp' => $is_udp,
+        ];
+        if ($src_port) {
+            $params['src_port'] = $src_port;
+        }
+        if ($pt) {
+            $params['pt'] = $pt;
+        }
+        if ($use_ps) {
+            $params['use_ps'] = $use_ps;
+        }
+        if ($only_audio) {
+            $params['only_audio'] = $only_audio;
+        }
+        $this->debugLog('ZLM API Request', [
+            'api' => 'startSendRtp',
+            'params' => $params,
+        ]);
+        $result = $this->request('startSendRtp', $params);
+
+        if (!empty($result)) {
+            //&& $result['code'] === 0 && isset($result['local_port']
+            return $result;
+        }
+
+        return null;
+    }
+
+    public function startSendRtpPassive(string $vhost, string $app, string $stream, string $ssrc, ?int $src_port = null, ?int $pt = null, int $use_ps = 0, int $only_audio = 0): ?array
+    {
+//    | vhost |    Y     | 虚拟主机，例如__defaultVhost__ |
+//    | app |    Y     | 应用名，例如 live |
+//    | stream |    Y     | 流id，例如 test |
+//    | ssrc |    Y     | 推流的rtp的ssrc,指定不同的ssrc可以同时推流到多个服务器 |
+//    | src_port |    N     | 使用的本机端口，为0或不传时默认为随机端口 |
+//    | pt |    N     | 发送时，rtp的pt（uint8_t）,不传时默认为96 |
+//    | use_ps |    N     | 发送时，rtp的负载类型。为1时，负载为ps；为0时，为es；不传时默认为1 |
+//    | only_audio |    N     | 当use_ps 为0时，有效。为1时，发送音频；为0时，发送视频；不传时默认为0 |
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'ssrc' => $ssrc,
+        ];
+        if ($src_port) {
+            $params['src_port'] = $src_port;
+        }
+        if ($pt) {
+            $params['pt'] = $pt;
+        }
+        if ($use_ps) {
+            $params['use_ps'] = $use_ps;
+        }
+        if ($only_audio) {
+            $params['only_audio'] = $only_audio;
+        }
+        $this->debugLog('ZLM API Request', [
+            'api' => 'startSendRtp',
+            'params' => $params,
+        ]);
+        $result = $this->request('startSendRtpPassive', $params);
+
+        if (!empty($result)) {
+            //&& $result['code'] === 0 && isset($result['local_port']
+            return $result;
+        }
+
+
+        return null;
+    }
+    /**
+     * 停止发送RTP
+     * @param string $vhost
+     * @param string $app
+     * @param string $stream
+     * @param string $ssrc
+     * @return bool|null
+     */
+    public function stopSendRtp(string $vhost, string $app, string $stream, string $ssrc): ?bool
+    {
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'ssrc' => $ssrc,
+        ];
+        $this->debugLog('ZLM API Request', [
+            'api' => 'stopSendRtp',
+            'params' => $params,
+        ]);
+        $result = $this->request('stopSendRtp', $params);
+
+        return $result && $result['code'] === 0;
+    }
+
+    /**
      * HTTP请求封装
      *
      * @param string $api API名称
@@ -593,19 +749,24 @@ class ZLMClient
 
         $url = "{$this->baseUrl}/{$api}";
 
-        $this->debugLog('ZLM API Request', [
-            'api' => $api,
-            'params' => $params,
-        ]);
+        if ($api !== 'getMediaList') {
+            $this->debugLog('ZLM API Request', [
+                'api' => $api,
+                'params' => $params,
+            ]);
+        }
+
 
         $result = $method === 'GET'
             ? $this->__GetRequest($url, $params)
             : $this->__PostRequest($url, $params);
 
-        $this->debugLog('ZLM API Response', [
-            'api' => $api,
-            'result' => $result,
-        ]);
+        if ($api !== 'getMediaList') {
+            $this->debugLog('ZLM API Response', [
+                'api' => $api,
+                'result' => $result,
+            ]);
+        }
 
         return $result;
     }

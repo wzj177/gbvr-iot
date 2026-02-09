@@ -30,10 +30,6 @@ class Gb28181Client
      */
     public function sendCommand(string $deviceId, string $action, array $params = []): bool
     {
-        if (!$this->checkGatewayIsRunning()) {
-            throw new \RuntimeException("Gateway is not running");
-        }
-
         $requestId = uniqid('req_', true);
 
         $command = [
@@ -52,6 +48,41 @@ class Gb28181Client
         } catch (\Exception $e) {
             throw new \RuntimeException("Failed to send command: " . $e->getMessage());
         }
+    }
+    
+    /**
+     * 等待命令响应
+     *
+     * @param string $requestId 请求ID
+     * @param int $timeout 超时时间(秒)
+     * @return array 响应数据
+     * @throws \RuntimeException
+     */
+    private function waitResponse(string $requestId, int $timeout = 5): array
+    {
+        $responseKey = "gb28181:response:{$requestId}";
+        
+        // 使用 BRPOP 阻塞等待响应
+        $response = $this->redis->brPop([$responseKey], $timeout);
+        
+        if (!$response || !isset($response[1])) {
+            throw new \RuntimeException("Command timeout: no response from gateway after {$timeout}s");
+        }
+        
+        $data = json_decode($response[1], true);
+        
+        if (!$data) {
+            throw new \RuntimeException("Invalid response format from gateway");
+        }
+        
+        // 清理响应键(可选,Redis会自动过期)
+        try {
+            $this->redis->del($responseKey);
+        } catch (\Exception $e) {
+            // 忽略删除失败
+        }
+        
+        return $data;
     }
 
     /**
@@ -343,6 +374,47 @@ class Gb28181Client
     }
 
     /**
+     * 发起语音对讲（发送 INVITE 到设备）
+     *
+     * @param array $session 会话信息
+     * @return array
+     */
+    public function startVoiceTalk(array $session): array
+    {
+        $this->sendCommand($session['device_id'], 'voice_invite', $session);
+
+        return [
+            'success' => true,
+            'device_id' => $session['device_id'],
+            'channel_id' => $session['channel_id'],
+            'mode' => $session['mode'],
+            'pending' => true,
+        ];
+    }
+
+    /**
+     * 停止语音对讲（发送 BYE）
+     *
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $dialogId SIP Dialog ID
+     * @return array
+     */
+    public function stopVoiceTalk(string $deviceId, string $channelId, string $dialogId): array
+    {
+        $this->sendCommand($deviceId, 'voice_bye', [
+            'channel_id' => $channelId,
+            'dialog_id' => $dialogId,
+        ], false);
+
+        return [
+            'success' => true,
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+        ];
+    }
+
+    /**
      * GB28181-2022: 设备升级
      *
      * @param string $deviceId 设备ID
@@ -403,21 +475,22 @@ class Gb28181Client
      * @param string $deviceId 设备ID
      * @param array $params 参数
      *   - expires: 订阅有效期（秒），默认3600
-     * @return array 返回命令信息
+     * @return array 返回命令信息 (不等待网关响应，异步处理)
      */
     public function subscribeCatalog(string $deviceId, array $params = []): array
     {
         $expires = $params['expires'] ?? 3600;
 
-        $success = $this->sendCommand($deviceId, 'subscribe_catalog', [
+        $this->sendCommand($deviceId, 'subscribe_catalog', [
             'expires' => $expires,
-        ]);
+        ], false); // 不等待响应
 
         return [
-            'success' => $success,
+            'success' => true,
             'device_id' => $deviceId,
             'event_type' => 'Catalog',
             'expires' => $expires,
+            'pending' => true, // 标记为异步处理中
         ];
     }
 
@@ -427,35 +500,108 @@ class Gb28181Client
      * @param string $deviceId 设备ID
      * @param array $params 参数
      *   - expires: 订阅有效期（秒），默认3600
-     *   - start_priority: 报警最低优先级（0-4），默认0
-     *   - end_priority: 报警最高优先级（0-4），默认4
-     *   - alarm_method: 报警方式（1=电话,2=短信,3=邮件,4=APP,5=客户端），可选
-     * @return array 返回命令信息
+     *   - start_priority: 报警最低优先级（1-4) 0=全部
+     *   - end_priority: 报警最高优先级（1-4） 0=全部
+     *   - alarm_method: 报警方式（1=电话,2=短信,3=邮件,4=APP,5=客户端），0=全部，可选
+     *   - start_alarm_time: 报警开始时间，可选,iso
+     *   - end_alarm_time: 报警结束时间，可选,iso
+     * @return array 返回命令信息 (不等待网关响应，异步处理)
      */
     public function subscribeAlarm(string $deviceId, array $params = []): array
     {
         $expires = $params['expires'] ?? 3600;
-        $startPriority = $params['start_priority'] ?? 0;
-        $endPriority = $params['end_priority'] ?? 4;
+        $startPriority = $params['start_priority'] ?? null;
+        $endPriority = $params['end_priority'] ?? null;
         $alarmMethod = $params['alarm_method'] ?? null;
+        $alarmType = $params['alarm_type'] ?? null; // 🔑 新增 AlarmType 处理
+        $startAlarmTime = $params['start_alarm_time'] ?? null;
+        $endAlarmTime = $params['end_alarm_time'] ?? null;
+
+        // 校验 alarm_method 格式（支持单值或 / 分隔组合）
+        if ($alarmMethod !== null) {
+            if (!preg_match('/^\d+(\/\d+)*$/', $alarmMethod)) {
+                throw new \InvalidArgumentException(
+                    "Invalid alarm_method format. Expected single value (e.g., '5') or slash-separated values (e.g., '1/2/5')"
+                );
+            }
+        }
+
+        // 关键校验：alarm_method=5/6 时必须提供 alarm_type
+        if ($alarmMethod !== null && $alarmType === null) {
+            $methods = explode('/', $alarmMethod);
+            foreach ($methods as $method) {
+                if (in_array((int)$method, [5, 6], true)) {
+                    throw new \InvalidArgumentException(
+                        "alarm_type is required when alarm_method includes 5 (video analysis) or 6 (storage fault)"
+                    );
+                }
+            }
+        }
+
+        // 关键校验：alarm_type 与 alarm_method 的取值范围匹配
+        if ($alarmType !== null && $alarmMethod !== null) {
+            $methods = explode('/', $alarmMethod);
+            $validRanges = [
+                2 => [1, 5],    // 设备报警：1-5
+                5 => [1, 13],   // 智能分析：1-13
+                6 => [1, 2],    // 存储故障：1-2
+            ];
+
+            $isValid = false;
+            foreach ($methods as $method) {
+                $method = (int)$method;
+                if (isset($validRanges[$method])) {
+                    [$min, $max] = $validRanges[$method];
+                    if ($alarmType >= $min && $alarmType <= $max) {
+                        $isValid = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$isValid) {
+                throw new \InvalidArgumentException(
+                    sprintf("alarm_type=%d is invalid for alarm_method=%s", $alarmType, $alarmMethod)
+                );
+            }
+        }
 
         $cmdParams = [
             'expires' => $expires,
-            'start_priority' => $startPriority,
-            'end_priority' => $endPriority,
         ];
 
         if ($alarmMethod !== null) {
             $cmdParams['alarm_method'] = $alarmMethod;
         }
 
-        $success = $this->sendCommand($deviceId, 'subscribe_alarm', $cmdParams);
+        if ($alarmType !== null) { //必须显式传递
+            $cmdParams['alarm_type'] = $alarmType;
+        }
+
+        if ($startPriority !== null) {
+            $cmdParams['start_priority'] = $startPriority;
+        }
+
+        if ($endPriority !== null) {
+            $cmdParams['end_priority'] = $endPriority;
+        }
+
+        if ($startAlarmTime !== null) {
+            $cmdParams['start_alarm_time'] = $startAlarmTime;
+        }
+
+        if ($endAlarmTime !== null) {
+            $cmdParams['end_alarm_time'] = $endAlarmTime;
+        }
+
+        $this->sendCommand($deviceId, 'subscribe_alarm', $cmdParams);
 
         return [
-            'success' => $success,
+            'success' => true,
             'device_id' => $deviceId,
             'event_type' => 'Alarm',
             'expires' => $expires,
+            'pending' => true,
         ];
     }
 
@@ -466,24 +612,25 @@ class Gb28181Client
      * @param array $params 参数
      *   - expires: 订阅有效期（秒），默认3600
      *   - interval: 位置上报间隔（秒），默认5
-     * @return array 返回命令信息
+     * @return array 返回命令信息 (不等待网关响应，异步处理)
      */
     public function subscribeMobilePosition(string $deviceId, array $params = []): array
     {
         $expires = $params['expires'] ?? 3600;
         $interval = $params['interval'] ?? 5;
 
-        $success = $this->sendCommand($deviceId, 'subscribe_mobile_position', [
+        $this->sendCommand($deviceId, 'subscribe_mobile_position', [
             'expires' => $expires,
             'interval' => $interval,
-        ]);
+        ], false); // 不等待响应
 
         return [
-            'success' => $success,
+            'success' => true,
             'device_id' => $deviceId,
             'event_type' => 'MobilePosition',
             'expires' => $expires,
             'interval' => $interval,
+            'pending' => true,
         ];
     }
 
@@ -518,6 +665,42 @@ class Gb28181Client
     public function unsubscribeMobilePosition(string $deviceId): bool
     {
         return $this->sendCommand($deviceId, 'unsubscribe_mobile_position');
+    }
+    
+    /**
+     * 刷新订阅(续期)
+     *
+     * @param int|string $dialogId Dialog ID (从订阅时返回，数据库存储为string，但实际是int)
+     * @param string $eventType 事件类型 (Catalog/Alarm/MobilePosition)
+     * @param int $expires 新的有效期（秒），默认3600
+     * @return array 返回刷新结果 (不等待网关响应，异步处理)
+     */
+    public function refreshSubscribe(int|string $dialogId, string $eventType, int $expires = 3600): array
+    {
+        // dialog_id 必须是有效的整数
+        $dialogIdInt = (int)$dialogId;
+        if ($dialogIdInt <= 0) {
+            return [
+                'success' => false,
+                'dialog_id' => $dialogId,
+                'event_type' => $eventType,
+                'error' => 'Invalid dialog_id: must be a positive integer',
+            ];
+        }
+
+        $this->sendCommand('_refresh_', 'refresh_subscribe', [
+            'dialog_id' => $dialogIdInt,
+            'event_type' => $eventType,
+            'expires' => $expires,
+        ], false); // 不等待响应
+
+        return [
+            'success' => true,
+            'dialog_id' => $dialogIdInt,
+            'event_type' => $eventType,
+            'expires' => $expires,
+            'pending' => true,
+        ];
     }
 
     private function checkGatewayIsRunning(): bool

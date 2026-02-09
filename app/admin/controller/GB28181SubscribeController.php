@@ -1,6 +1,6 @@
 <?php
 
-namespace app\api\v2\controller;
+namespace app\admin\controller;
 
 use app\api\BaseController;
 use CoreW\Business\Subscribe\Service\SubscribeService;

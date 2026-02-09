@@ -3,10 +3,11 @@
 namespace CoreW\Business\Subscribe\Service\Impl;
 
 use CoreW\Business\BaseService;
+use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\Subscribe\Service\SubscribeService;
 use CoreW\Business\Subscribe\Dao\DeviceSubscribeConfigDao;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Dao\DaoProxy;
-use support\Log;
 
 class SubscribeServiceImpl extends BaseService implements SubscribeService
 {
@@ -44,14 +45,12 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
             'subscribe_expires' => (int)($config['subscribe_expires'] ?? 3600),
             'auto_renew' => (int)($config['auto_renew'] ?? 1),
             'status' => (int)($config['status'] ?? 1),
-            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
         if ($existing) {
             $this->getDeviceSubscribeConfigDao()->update($existing['id'], $data);
             $subscribeConfig = $this->getDeviceSubscribeConfigDao()->get($existing['id']);
         } else {
-            $data['created_at'] = date('Y-m-d H:i:s');
             $subscribeConfig = $this->getDeviceSubscribeConfigDao()->create($data);
         }
 
@@ -60,7 +59,7 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
             try {
                 $this->applySubscribeConfig($subscribeConfig);
             } catch (\Exception $e) {
-                Log::channel('sip')->error('下发订阅失败', [
+                $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_UPDATE_SUBSCRIBE, '下发订阅配置失败', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -81,7 +80,7 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
                 $this->saveSubscribeConfig($deviceId, null, $defaultConfig);
                 $count++;
             } catch (\Exception $e) {
-                Log::channel('sip')->error('批量创建订阅配置失败', [
+                $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_BATCH_CREATE_SUBSCRIBE_CONFIGS, '批量创建订阅配置失败', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -101,24 +100,47 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
         // 检查设备是否在线
         $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
         if (!$device || $device['status'] !== 'online') {
-            Log::channel('sip')->warning('设备离线，跳过订阅下发', [
+            $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_APPLY_SUBSCRIBE_CONFIG, '设备离线，跳过订阅下发', [
                 'device_id' => $deviceId
             ]);
             return false;
         }
 
-        $gb28181Client = $this->getGb28181Client();
+        $gb28181Service = $this->getGb28181Service();
         $success = true;
+        $updateFields = [];
 
         // 目录订阅
         if ($subscribeConfig['event_catalog']) {
             try {
-                $gb28181Client->subscribeCatalog($deviceId, [
-                    'expires' => $subscribeConfig['subscribe_expires']
-                ]);
-                Log::channel('sip')->info('目录订阅已下发', ['device_id' => $deviceId]);
+                // 如果已有 dialog_id，使用续订
+                if (!empty($subscribeConfig['catalog_dialog_id'])) {
+                    $result = $gb28181Service->refreshSubscribe(
+                        $subscribeConfig['catalog_dialog_id'],
+                        'Catalog',
+                        $subscribeConfig['subscribe_expires']
+                    );
+
+                    if ($result['success']) {
+                        $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+                        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '目录订阅已续订', [
+                            'device_id' => $deviceId,
+                            'dialog_id' => $subscribeConfig['catalog_dialog_id']
+                        ]);
+                    } else {
+                        $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '目录订阅续订失败，将重新订阅', [
+                            'device_id' => $deviceId,
+                            'error' => $result['error'] ?? 'Unknown error'
+                        ]);
+                        // 续订失败，尝试重新订阅
+                        $this->subscribeCatalogNew($gb28181Service, $deviceId, $subscribeConfig, $updateFields, $success);
+                    }
+                } else {
+                    // 首次订阅
+                    $this->subscribeCatalogNew($gb28181Service, $deviceId, $subscribeConfig, $updateFields, $success);
+                }
             } catch (\Exception $e) {
-                Log::channel('sip')->error('目录订阅失败', [
+                $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CATALOG_SUBSCRIBE, '目录订阅异常', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -127,9 +149,10 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
         } else {
             // 取消目录订阅
             try {
-                $gb28181Client->unsubscribeCatalog($deviceId);
+                $gb28181Service->unsubscribeCatalog($deviceId);
+                $updateFields['catalog_dialog_id'] = null;
             } catch (\Exception $e) {
-                Log::channel('sip')->warning('取消目录订阅失败', [
+                $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CANCEL_SUBSCRIBE, '取消目录订阅失败', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -139,14 +162,34 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
         // 报警订阅
         if ($subscribeConfig['event_alarm']) {
             try {
-                $gb28181Client->subscribeAlarm($deviceId, [
-                    'expires' => $subscribeConfig['subscribe_expires'],
-                    'start_priority' => $subscribeConfig['alarm_priority_min'],
-                    'end_priority' => $subscribeConfig['alarm_priority_max']
-                ]);
-                Log::channel('sip')->info('报警订阅已下发', ['device_id' => $deviceId]);
+                // 如果已有 dialog_id，使用续订
+                if (!empty($subscribeConfig['alarm_dialog_id'])) {
+                    $result = $gb28181Service->refreshSubscribe(
+                        $subscribeConfig['alarm_dialog_id'],
+                        'Alarm',
+                        $subscribeConfig['subscribe_expires']
+                    );
+
+                    if ($result['success']) {
+                        $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+                        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '报警订阅已续订', [
+                            'device_id' => $deviceId,
+                            'dialog_id' => $subscribeConfig['alarm_dialog_id']
+                        ]);
+                    } else {
+                        $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '报警订阅续订失败，将重新订阅', [
+                            'device_id' => $deviceId,
+                            'error' => $result['error'] ?? 'Unknown error'
+                        ]);
+                        // 续订失败，尝试重新订阅
+                        $this->subscribeAlarmNew($gb28181Service, $deviceId, $subscribeConfig, $updateFields, $success);
+                    }
+                } else {
+                    // 首次订阅
+                    $this->subscribeAlarmNew($gb28181Service, $deviceId, $subscribeConfig, $updateFields, $success);
+                }
             } catch (\Exception $e) {
-                Log::channel('sip')->error('报警订阅失败', [
+                $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_ALARM_SUBSCRIBE, '报警订阅异常', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -154,9 +197,10 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
             }
         } else {
             try {
-                $gb28181Client->unsubscribeAlarm($deviceId);
+                $gb28181Service->unsubscribeAlarm($deviceId);
+                $updateFields['alarm_dialog_id'] = null;
             } catch (\Exception $e) {
-                Log::channel('sip')->warning('取消报警订阅失败', [
+                $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CANCEL_SUBSCRIBE, '取消报警订阅失败', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -166,13 +210,34 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
         // 移动位置订阅
         if ($subscribeConfig['event_mobile_position']) {
             try {
-                $gb28181Client->subscribeMobilePosition($deviceId, [
-                    'expires' => $subscribeConfig['subscribe_expires'],
-                    'interval' => $subscribeConfig['mobile_interval_sec']
-                ]);
-                Log::channel('sip')->info('移动位置订阅已下发', ['device_id' => $deviceId]);
+                // 如果已有 dialog_id，使用续订
+                if (!empty($subscribeConfig['position_dialog_id'])) {
+                    $result = $gb28181Service->refreshSubscribe(
+                        $subscribeConfig['position_dialog_id'],
+                        'MobilePosition',
+                        $subscribeConfig['subscribe_expires']
+                    );
+
+                    if ($result['success']) {
+                        $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+                        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '移动位置订阅已续订', [
+                            'device_id' => $deviceId,
+                            'dialog_id' => $subscribeConfig['position_dialog_id']
+                        ]);
+                    } else {
+                        $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '移动位置订阅续订失败，将重新订阅', [
+                            'device_id' => $deviceId,
+                            'error' => $result['error'] ?? 'Unknown error'
+                        ]);
+                        // 续订失败，尝试重新订阅
+                        $this->subscribeMobilePositionNew($gb28181Service, $deviceId, $subscribeConfig, $updateFields, $success);
+                    }
+                } else {
+                    // 首次订阅
+                    $this->subscribeMobilePositionNew($gb28181Service, $deviceId, $subscribeConfig, $updateFields, $success);
+                }
             } catch (\Exception $e) {
-                Log::channel('sip')->error('移动位置订阅失败', [
+                $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_MOBILE_POSITION_SUBSCRIBE, '移动位置订阅异常', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
@@ -180,21 +245,24 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
             }
         } else {
             try {
-                $gb28181Client->unsubscribeMobilePosition($deviceId);
+                $gb28181Service->unsubscribeMobilePosition($deviceId);
+                $updateFields['position_dialog_id'] = null;
             } catch (\Exception $e) {
-                Log::channel('sip')->warning('取消移动位置订阅失败', [
+                $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_MOBILE_POSITION_UNSUBSCRIBE, '取消移动位置订阅失败', [
                     'device_id' => $deviceId,
                     'error' => $e->getMessage()
                 ]);
             }
         }
 
-        // 更新最后订阅时间
+        // 更新最后订阅时间和 dialog_id
         if ($success) {
-            $this->getDeviceSubscribeConfigDao()->update($subscribeConfig['id'], [
-                'last_subscribed_at' => date('Y-m-d H:i:s'),
-                'subscription_expires_at' => date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires'])
-            ]);
+            $updateFields['last_subscribed_at'] = date('Y-m-d H:i:s');
+            $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+        }
+        
+        if (!empty($updateFields)) {
+            $this->getDeviceSubscribeConfigDao()->update($subscribeConfig['id'], $updateFields);
         }
 
         return $success;
@@ -211,25 +279,25 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
         }
 
         $deviceId = $config['device_id'];
-        $gb28181Client = $this->getGb28181Client();
+        $gb28181Service = $this->getGb28181Service();
 
         // 取消各类订阅
         try {
-            $gb28181Client->unsubscribeCatalog($deviceId);
+            $gb28181Service->unsubscribeCatalog($deviceId);
         } catch (\Exception $e) {
-            Log::channel('sip')->warning('取消目录订阅失败', ['error' => $e->getMessage()]);
+            $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CANCEL_SUBSCRIBE, '取消目录订阅失败', ['error' => $e->getMessage()]);
         }
 
         try {
-            $gb28181Client->unsubscribeAlarm($deviceId);
+            $gb28181Service->unsubscribeAlarm($deviceId);
         } catch (\Exception $e) {
-            Log::channel('sip')->warning('取消报警订阅失败', ['error' => $e->getMessage()]);
+            $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CANCEL_SUBSCRIBE, '取消报警订阅失败', ['error' => $e->getMessage()]);
         }
 
         try {
-            $gb28181Client->unsubscribeMobilePosition($deviceId);
+            $gb28181Service->unsubscribeMobilePosition($deviceId);
         } catch (\Exception $e) {
-            Log::channel('sip')->warning('取消移动位置订阅失败', ['error' => $e->getMessage()]);
+            $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CANCEL_SUBSCRIBE, '取消移动位置订阅失败', ['error' => $e->getMessage()]);
         }
 
         // 更新状态
@@ -251,18 +319,89 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
         $configs = $this->getDeviceSubscribeConfigDao()->findExpiringConfigs($expireTime);
 
         $renewed = 0;
+        $gb28181Service = $this->getGb28181Service();
 
         foreach ($configs as $config) {
-            if ($config['auto_renew'] && $config['status'] == 1) {
-                try {
+            if (!$config['auto_renew'] || $config['status'] != 1) {
+                continue;
+            }
+            
+            $deviceId = $config['device_id'];
+            $expires = $config['subscribe_expires'];
+            $hasDialogId = false;
+
+            try {
+                // 目录订阅续期
+                if ($config['event_catalog'] && !empty($config['catalog_dialog_id'])) {
+                    $result = $gb28181Service->refreshSubscribe(
+                        $config['catalog_dialog_id'],
+                        'Catalog',
+                        $expires
+                    );
+
+                    if ($result['success']) {
+                        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '目录订阅续期成功', [
+                            'device_id' => $deviceId,
+                            'dialog_id' => $config['catalog_dialog_id']
+                        ]);
+                        $hasDialogId = true;
+                    }
+                }
+
+                // 报警订阅续期
+                if ($config['event_alarm'] && !empty($config['alarm_dialog_id'])) {
+                    $result = $gb28181Service->refreshSubscribe(
+                        $config['alarm_dialog_id'],
+                        'Alarm',
+                        $expires
+                    );
+
+                    if ($result['success']) {
+                        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '报警订阅续期成功', [
+                            'device_id' => $deviceId,
+                            'dialog_id' => $config['alarm_dialog_id']
+                        ]);
+                        $hasDialogId = true;
+                    }
+                }
+
+                // 移动位置订阅续期
+                if ($config['event_mobile_position'] && !empty($config['position_dialog_id'])) {
+                    $result = $gb28181Service->refreshSubscribe(
+                        $config['position_dialog_id'],
+                        'MobilePosition',
+                        $expires
+                    );
+
+                    if ($result['success']) {
+                        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '移动位置订阅续期成功', [
+                            'device_id' => $deviceId,
+                            'dialog_id' => $config['position_dialog_id']
+                        ]);
+                        $hasDialogId = true;
+                    }
+                }
+
+                // 如果没有 dialog_id,则重新订阅
+                if (!$hasDialogId) {
+                    $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '没有dialog_id，重新执行订阅', [
+                        'device_id' => $deviceId
+                    ]);
                     $this->applySubscribeConfig($config);
-                    $renewed++;
-                } catch (\Exception $e) {
-                    Log::channel('sip')->error('续订失败', [
-                        'device_id' => $config['device_id'],
-                        'error' => $e->getMessage()
+                } else {
+                    // 更新过期时间
+                    $this->getDeviceSubscribeConfigDao()->update($config['id'], [
+                        'subscription_expires_at' => date('Y-m-d H:i:s', time() + $expires)
                     ]);
                 }
+
+                $renewed++;
+
+            } catch (\Exception $e) {
+                $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_RENEW_SUBSCRIPTION, '续订失败', [
+                    'device_id' => $deviceId,
+                    'error' => $e->getMessage()
+                ]);
             }
         }
 
@@ -310,11 +449,12 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
     }
 
     /**
-     * 获取 Gb28181Client
+     * 获取 Gb28181Service
+     * @return Gb28181Service
      */
-    protected function getGb28181Client()
+    protected function getGb28181Service(): Gb28181Service
     {
-        return $this->bfw['gb28181_client'];
+        return $this->bfw->offsetGet('gb28181_service');
     }
 
     /**
@@ -333,5 +473,209 @@ class SubscribeServiceImpl extends BaseService implements SubscribeService
                 throw new \InvalidArgumentException('alarm_priority_min must be <= alarm_priority_max');
             }
         }
+    }
+
+    /**
+     * 首次订阅或重新订阅目录
+     */
+    private function subscribeCatalogNew($gb28181Service, string $deviceId, array $subscribeConfig, array &$updateFields, bool &$success): void
+    {
+        $result = $gb28181Service->subscribeCatalog($deviceId, [
+            'expires' => $subscribeConfig['subscribe_expires']
+        ]);
+
+        if ($result['success']) {
+            // 异步处理，dialog_id 将由网关通过 hook 回调更新
+            $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+            $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CATALOG_SUBSCRIBE, '目录订阅命令已发送', [
+                'device_id' => $deviceId,
+                'pending' => $result['pending'] ?? true
+            ]);
+        } else {
+            $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_CATALOG_SUBSCRIBE, '目录订阅失败', [
+                'device_id' => $deviceId,
+                'error' => $result['error'] ?? 'Unknown error'
+            ]);
+            $success = false;
+        }
+    }
+
+    /**
+     * 首次订阅或重新订阅报警
+     */
+    private function subscribeAlarmNew($gb28181Service, string $deviceId, array $subscribeConfig, array &$updateFields, bool &$success): void
+    {
+        $result = $gb28181Service->subscribeAlarm($deviceId, [
+            'expires' => $subscribeConfig['subscribe_expires']
+        ]);
+
+        if ($result['success']) {
+            // 异步处理，dialog_id 将由网关通过 hook 回调更新
+            $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+            $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_ALARM_SUBSCRIBE, '报警订阅命令已发送', [
+                'device_id' => $deviceId,
+                'pending' => $result['pending'] ?? true
+            ]);
+        } else {
+            $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_ALARM_SUBSCRIBE, '报警订阅失败', [
+                'device_id' => $deviceId,
+                'error' => $result['error'] ?? 'Unknown error'
+            ]);
+            $success = false;
+        }
+    }
+
+    /**
+     * 首次订阅或重新订阅移动位置
+     */
+    private function subscribeMobilePositionNew($gb28181Service, string $deviceId, array $subscribeConfig, array &$updateFields, bool &$success): void
+    {
+        $result = $gb28181Service->subscribeMobilePosition($deviceId, [
+            'expires' => $subscribeConfig['subscribe_expires'],
+            'interval' => $subscribeConfig['mobile_interval_sec']
+        ]);
+
+        if ($result['success']) {
+            // 异步处理，dialog_id 将由网关通过 hook 回调更新
+            $updateFields['subscription_expires_at'] = date('Y-m-d H:i:s', time() + $subscribeConfig['subscribe_expires']);
+            $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_MOBILE_POSITION_SUBSCRIBE, '移动位置订阅命令已发送', [
+                'device_id' => $deviceId,
+                'pending' => $result['pending'] ?? true
+            ]);
+        } else {
+            $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_MOBILE_POSITION_SUBSCRIBE, '移动位置订阅失败', [
+                'device_id' => $deviceId,
+                'error' => $result['error'] ?? 'Unknown error'
+            ]);
+            $success = false;
+        }
+    }
+
+    /**
+     * 更新订阅的 dialog_id
+     * 当收到 SUBSCRIBE 200 OK 响应时调用
+     */
+    public function updateDialogId(string $deviceId, string $eventType, int $dialogId, int $subscriptionId, int $expires): bool
+    {
+        $config = $this->getDeviceSubscribeConfigDao()->getByDeviceAndChannel($deviceId, null);
+        
+        if (!$config) {
+            $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, 'update_dialog_id', '订阅配置不存在', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+            ]);
+            return false;
+        }
+
+        // 根据事件类型更新对应的 dialog_id 字段
+        $updateData = [
+            'subscription_expires_at' => date('Y-m-d H:i:s', time() + $expires),
+            'last_subscribed_at' => date('Y-m-d H:i:s'),
+        ];
+
+        switch (strtolower($eventType)) {
+            case 'catalog':
+                $updateData['catalog_dialog_id'] = $dialogId;
+                $updateData['catalog_subscription_id'] = $subscriptionId;
+                break;
+            case 'alarm':
+                $updateData['alarm_dialog_id'] = $dialogId;
+                $updateData['alarm_subscription_id'] = $subscriptionId;
+                break;
+            case 'mobileposition':
+            case 'mobile_position':
+                $updateData['position_dialog_id'] = $dialogId;
+                $updateData['position_subscription_id'] = $subscriptionId;
+                break;
+            default:
+                $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, 'update_dialog_id', '未知的事件类型', [
+                    'device_id' => $deviceId,
+                    'event_type' => $eventType,
+                ]);
+                return false;
+        }
+
+        $this->getDeviceSubscribeConfigDao()->update($config['id'], $updateData);
+
+        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, 'update_dialog_id', 'dialog_id 更新成功', [
+            'device_id' => $deviceId,
+            'event_type' => $eventType,
+            'dialog_id' => $dialogId,
+            'subscription_id' => $subscriptionId,
+            'expires' => $expires,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * 更新订阅过期时间（续订成功时调用）
+     */
+    public function updateSubscriptionExpires(string $deviceId, string $eventType, int $dialogId, int $expires): bool
+    {
+        $config = $this->getDeviceSubscribeConfigDao()->getByDeviceAndChannel($deviceId, null);
+        
+        if (!$config) {
+            return false;
+        }
+
+        $updateData = [
+            'subscription_expires_at' => date('Y-m-d H:i:s', time() + $expires),
+            'last_subscribed_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $this->getDeviceSubscribeConfigDao()->update($config['id'], $updateData);
+
+        $this->getLogService()->info(LogEnum::MODULE_SUBSCRIBE, 'update_expires', '订阅过期时间更新成功', [
+            'device_id' => $deviceId,
+            'event_type' => $eventType,
+            'dialog_id' => $dialogId,
+            'expires' => $expires,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * 标记订阅为已过期/失效（续订失败时调用）
+     */
+    public function markSubscriptionExpired(string $deviceId, string $eventType, int $dialogId): bool
+    {
+        $config = $this->getDeviceSubscribeConfigDao()->getByDeviceAndChannel($deviceId, null);
+        
+        if (!$config) {
+            return false;
+        }
+
+        // 清除失效的 dialog_id
+        $updateData = [];
+        
+        switch (strtolower($eventType)) {
+            case 'catalog':
+                $updateData['catalog_dialog_id'] = 0;
+                $updateData['catalog_subscription_id'] = 0;
+                break;
+            case 'alarm':
+                $updateData['alarm_dialog_id'] = 0;
+                $updateData['alarm_subscription_id'] = 0;
+                break;
+            case 'mobileposition':
+            case 'mobile_position':
+                $updateData['position_dialog_id'] = 0;
+                $updateData['position_subscription_id'] = 0;
+                break;
+            default:
+                return false;
+        }
+
+        $this->getDeviceSubscribeConfigDao()->update($config['id'], $updateData);
+
+        $this->getLogService()->warning(LogEnum::MODULE_SUBSCRIBE, 'mark_expired', '订阅已标记为失效', [
+            'device_id' => $deviceId,
+            'event_type' => $eventType,
+            'dialog_id' => $dialogId,
+        ]);
+
+        return true;
     }
 }

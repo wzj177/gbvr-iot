@@ -56,6 +56,7 @@ interface DeviceService
     public function updateSessionBySSRC(string $ssrc, array $fields);
     public function deleteSession($id);
     public function deleteSessionByCallId(int $callId): bool;
+    public function deleteSessionByStreamIdAndMediaServerId(string $streamId, string $mediaServerId);
     public function cleanupExpiredSessions(int $ttl = 300): int;
 
     public function countSessions(array $conditions): int;
@@ -72,6 +73,17 @@ interface DeviceService
 
     // 树形数据
     public function getDeviceTree(string $treeType = 'dc'): array;
+
+    // ==================== 推送相关 ====================
+
+    /**
+     * 获取推送设备列表（包含订阅配置）
+     * 用于 Gateway 启动时恢复设备状态
+     *
+     * @param array $deviceIds 设备ID列表
+     * @return array 设备列表，每个设备包含 subscription_status 字段
+     */
+    public function getDevicesForPush(array $deviceIds): array;
 
     // ==================== 预置位管理 ====================
 

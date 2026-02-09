@@ -3,7 +3,10 @@
 namespace CoreW\Business\MediaServer\Service\Impl;
 
 use CoreW\Business\BaseService;
+use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Devices\Enums\MediaServerType;
+use CoreW\Business\Exception\MediaServerException;
+use CoreW\Business\GB\SSRCFactory;
 use CoreW\Business\MediaServer\Dao\MediaServerDao;
 use CoreW\Business\MediaServer\Enums\ServerStatusEnum;
 use CoreW\Business\MediaServer\Strategy\MediaServerStrategyFactory;
@@ -60,6 +63,9 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         $fields['created_at'] = $fields['created_at'] ?? date('Y-m-d H:i:s');
         $fields['updated_at'] = $fields['updated_at'] ?? date('Y-m-d H:i:s');
         $fields['status'] = $fields['status'] ?? ServerStatusEnum::UNKNOWN->value;
+        if (empty($fields['send_rtp_port_range'])) {
+            $fields['send_rtp_port_range'] = '50000-60000';
+        }
 
         // 验证类型
         if (isset($fields['type']) && !MediaServerStrategyFactory::isSupported($fields['type'])) {
@@ -70,19 +76,18 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
         // 创建后尝试异步同步状态
         if (!empty($row)) {
-            try {
-                Client::send('sync_media_server_status_job', [
-                    'mediaServerId' => $row['id']
-                ]);
-            } catch (\Exception $e) {
-                Log::warning('Failed to dispatch sync media server status job after creation', [
-                    'instance' => $row,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            $this->getSSRCFactory()->initMediaServerSSRC($row['server_id']);
+            Client::send('sync_media_server_status_job', [
+                'mediaServerId' => $row['id']
+            ]);
         }
 
         return $row;
+    }
+
+    protected function getSSRCFactory():SSRCFactory
+    {
+        return $this->bfw['SSRCFactory'];
     }
 
     protected function generateServerId(): string
@@ -118,8 +123,12 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
     public function deleteMediaServerById($id)
     {
+        $mediaServer = $this->getMediaServerById($id);
+        if (!$mediaServer) {
+            throw CommonBizException::NOTFOUND_RESOURCE("流媒体服务器不存在");
+        }
         // TODO: 检查是否有关联的通道，如果有关联的通道，不允许删除
-
+        $this->getSSRCFactory()->removeMediaServerSSRC($mediaServer['server_id']);
         return $this->getMediaServerDao()->delete($id);
     }
 
@@ -193,7 +202,13 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
         $strategy = $this->getStrategy($server['type']);
 
-        return $strategy->restart($server);
+        $resp =  $strategy->restart($server);
+        // 重启完成，重置流媒体保存的ssrc
+        if ($resp && $server['type'] === MediaServerType::ZLM->value) {
+            $this->getSSRCFactory()->reset($server['server_id']);
+        }
+
+        return $resp;
     }
 
     public function syncStatus(int $id): bool

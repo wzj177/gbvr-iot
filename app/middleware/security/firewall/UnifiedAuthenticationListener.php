@@ -19,14 +19,14 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 class UnifiedAuthenticationListener
 {
-    protected $tokenKey = 'x-auth-token';
-    protected $tokenTypeKey = 'x-auth-type';
+    protected string $tokenKey = 'x-auth-token';
+    protected string $tokenTypeKey = 'x-auth-type';
     protected $authType = null;
-    protected $userIdKey = 'userId';
+    protected string $userIdKey = 'userId';
     const TOKEN_LENGTH = 32;
 
-    protected $handler = 'default';
-    protected $isApiRequest = false;
+    protected mixed $handler = 'default';
+    protected mixed $isApiRequest = false;
     protected $jwtRefreshData = null;
     protected $biz;
 

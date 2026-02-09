@@ -41,10 +41,7 @@ ALTER TABLE `gv_devices`
     ADD COLUMN `stream_index` VARCHAR(16) NOT NULL DEFAULT 'auto' COMMENT '码流索引: auto=自动, stream:0=stream:0 - 主码流,stream:1=stream:1 - 主码流,streamnumber:0=streamnumber:0 - 主码流(2022),streamnumber:1=streamnumber:1 - 子码流，streamprofile:0=streamprofile:0 - 主码流，streamprofile:1=streamprofile:1 - 子码流，streamMode:MAIN = streamMode:MAIN - 主码流，streamMode:SUB = streamMode:SUB - 子码流' AFTER `charset`,
     
     -- 通道过滤
-    ADD COLUMN `filter_channel_types` JSON DEFAULT NULL COMMENT '过滤的通道类型列表，如[134,135]' AFTER `stream_index`,
-        
-    -- 订阅状态追踪
-    ADD COLUMN `subscription_status` JSON DEFAULT NULL COMMENT '订阅状态信息，包含各类型订阅的状态和过期时间' AFTER `filter_channel_types`;
+    ADD COLUMN `filter_channel_types` JSON DEFAULT NULL COMMENT '过滤的通道类型列表，如[134,135]' AFTER `stream_index`;
 SQL
         );
         
@@ -62,7 +59,7 @@ SQL
     public function down()
     {
         $container = $this->getContainer();
-        
+
         $container['db']->exec(<<<SQL
 ALTER TABLE `gv_devices`
     DROP INDEX `idx_subscribe_status`,
@@ -78,8 +75,7 @@ ALTER TABLE `gv_devices`
     DROP COLUMN `stream_index`,
     DROP COLUMN `filter_channel_types`,
     DROP COLUMN `record_mode`,
-    DROP COLUMN `catalog_structure`,
-    DROP COLUMN `subscription_status`;
+    DROP COLUMN `catalog_structure`;
 SQL
         );
     }

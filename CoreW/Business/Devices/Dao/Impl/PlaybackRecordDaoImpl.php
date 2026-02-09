@@ -5,7 +5,7 @@ namespace CoreW\Business\Devices\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\Devices\Dao\PlaybackRecordDao;
 
-class PlaybackRecordDaoImpl extends AdvancedDaoImpl implements PlaybackRecordDao 
+class PlaybackRecordDaoImpl extends AdvancedDaoImpl implements PlaybackRecordDao
 {
 
     protected $table = 'gv_device_playback_records';
@@ -65,16 +65,16 @@ class PlaybackRecordDaoImpl extends AdvancedDaoImpl implements PlaybackRecordDao
         return $this->db()->executeStatement($sql, $params);
     }
 
-    public function declares():array
+    public function declares(): array
     {
         return [
             'serializes' => [
-           ],
+            ],
             'orderbys' => [
                 'id',
                 'start_time',
                 'end_time',
-           ],
+            ],
             'timestamps' => [
             ],
             'datetime' => [
@@ -94,7 +94,7 @@ class PlaybackRecordDaoImpl extends AdvancedDaoImpl implements PlaybackRecordDao
                 'start_time <= :start_time_LTE',
                 'end_time >= :end_time_GTE',
                 'end_time <= :end_time_LTE',
-           ],
+            ],
         ];
-    } 
+    }
 }

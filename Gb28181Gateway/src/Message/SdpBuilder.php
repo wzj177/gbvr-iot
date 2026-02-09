@@ -45,8 +45,11 @@ class SdpBuilder
         $mode = $params['mode'];
         $ssrc = $params['ssrc'];
         $tcpMode = $params['tcp_mode'] ?? 0;
-        $seniorSdp = $params['senior_sdp'] ?? false;  // WVP 兼容：扩展 SDP
+        $seniorSdp = $params['senior_sdp'] ?? false;
         $streamId = $params['stream_identification'] ?? null;
+
+        //  判断是否为 Talk 会话
+        $isTalk = ($sessionName === 'Talk');
 
         // 根据 TCP 模式选择传输协议
         $transport = self::getTransportProtocol($tcpMode);
@@ -55,29 +58,36 @@ class SdpBuilder
         $startTime = $params['start_time'] ?? 0;
         $endTime = $params['end_time'] ?? 0;
 
-        // Payload 类型配置（支持标准和扩展模式）
-        if (isset($params['payload_types'])) {
-            // 自定义 payload
-            $payloads = $params['payload_types'];
-        } elseif ($seniorSdp) {
-            // 扩展模式支持更多编码格式
+        //  Talk 会话的特殊处理：只使用音频 Payload
+        if ($isTalk) {
+            // Talk 固定使用 Payload Type 8 (PCMA/8000)
             $payloads = [
-                96  => ['type' => 'PS', 'rate' => 90000],       // PS 流
-                126 => ['type' => 'H264', 'rate' => 90000, 'fmtp' => 'profile-level-id=42e01e'],
-                125 => ['type' => 'H264S', 'rate' => 90000, 'fmtp' => 'profile-level-id=42e01e'],
-                99  => ['type' => 'H265', 'rate' => 90000],
-                34  => ['type' => 'H263', 'rate' => 90000],     // H263
-                98  => ['type' => 'H264', 'rate' => 90000],
-                97  => ['type' => 'MPEG4', 'rate' => 90000],
+                8 => ['type' => 'PCMA', 'rate' => 8000, 'channels' => 1],
             ];
+            $mediaType = 'audio';  // 使用 m=audio
         } else {
-            // 标准模式（GB28181 基础配置）
-            $payloads = [
-                96 => ['type' => 'PS', 'rate' => 90000],      // PS 流(最常用)
-                97 => ['type' => 'MPEG4', 'rate' => 90000],   // MPEG4
-                98 => ['type' => 'H264', 'rate' => 90000],    // H264
-                99 => ['type' => 'H265', 'rate' => 90000],    // H265
-            ];
+            // 视频会话的 Payload 配置
+            if (isset($params['payload_types'])) {
+                $payloads = $params['payload_types'];
+            } elseif ($seniorSdp) {
+                $payloads = [
+                    96  => ['type' => 'PS', 'rate' => 90000],
+                    126 => ['type' => 'H264', 'rate' => 90000, 'fmtp' => 'profile-level-id=42e01e'],
+                    125 => ['type' => 'H264S', 'rate' => 90000, 'fmtp' => 'profile-level-id=42e01e'],
+                    99  => ['type' => 'H265', 'rate' => 90000],
+                    34  => ['type' => 'H263', 'rate' => 90000],
+                    98  => ['type' => 'H264', 'rate' => 90000],
+                    97  => ['type' => 'MPEG4', 'rate' => 90000],
+                ];
+            } else {
+                $payloads = [
+                    96 => ['type' => 'PS', 'rate' => 90000],
+                    97 => ['type' => 'MPEG4', 'rate' => 90000],
+                    98 => ['type' => 'H264', 'rate' => 90000],
+                    99 => ['type' => 'H265', 'rate' => 90000],
+                ];
+            }
+            $mediaType = 'video';  // 使用 m=video
         }
 
         // 构造 SDP
@@ -89,43 +99,51 @@ class SdpBuilder
 
         // m= 行: 媒体描述
         $payloadList = implode(' ', array_keys($payloads));
-        $sdp .= "m=video {$port} {$transport} {$payloadList}\r\n";
+        $sdp .= "m={$mediaType} {$port} {$transport} {$payloadList}\r\n";
 
         // a= 行: 媒体属性
         $sdp .= "a={$mode}\r\n";
 
         // TCP 模式的额外属性
         if ($tcpMode == 1) {
-            $sdp .= "a=setup:passive\r\n";    // 被动模式：等待设备连接
+            $sdp .= "a=setup:passive\r\n";
             $sdp .= "a=connection:new\r\n";
         } elseif ($tcpMode == 2) {
-            $sdp .= "a=setup:active\r\n";     // 主动模式：主动连接设备
+            $sdp .= "a=setup:active\r\n";
             $sdp .= "a=connection:new\r\n";
         }
 
-        // rtpmap 映射（按 payload 序号顺序输出，与 WVP 保持一致）
+        // rtpmap 映射
         foreach ($payloads as $pt => $config) {
-            // fmtp 参数（如果存在）
             if (isset($config['fmtp'])) {
                 $sdp .= "a=fmtp:{$pt} {$config['fmtp']}\r\n";
             }
-            $sdp .= "a=rtpmap:{$pt} {$config['type']}/{$config['rate']}\r\n";
+            //  Talk 使用 PCMA/8000/1 (单声道)
+            if ($isTalk) {
+                $sdp .= "a=rtpmap:{$pt} {$config['type']}/{$config['rate']}\r\n";
+            } else {
+                $sdp .= "a=rtpmap:{$pt} {$config['type']}/{$config['rate']}\r\n";
+            }
         }
 
-        // 流标识属性（WVP streamIdentification）
+        // 流标识属性
         if ($streamId !== null && $streamId !== '') {
             $sdp .= "a={$streamId}\r\n";
         }
 
         // GB28181 扩展字段
-        $sdp .= "y={$ssrc}\r\n";  // SSRC (流标识)
-        
-        // f= 字段：下载速度（Download 模式）或预留
-        if ($sessionName === 'Download' && isset($params['download_speed'])) {
+        $sdp .= "y={$ssrc}\r\n";
+
+        // f= 字段：媒体格式描述
+        if ($isTalk) {
+            //  Talk 的 f= 格式：v/////a/1/8/1
+            // 含义：视频(无)/音频(通道1/Payload8/通道数1)
+            $sdp .= "f=v/////a/1/8/1\r\n";
+        } elseif ($sessionName === 'Download' && isset($params['download_speed'])) {
             $speed = $params['download_speed'];
-            $sdp .= "f=v/{$speed}///a///\r\n";  // GB28181 下载速度格式
+            $sdp .= "f=v/{$speed}///a///\r\n";
         } else {
-            $sdp .= "f=\r\n";  // 预留（空值）
+            $sdp .= "f=\r\n";
         }
 
         return $sdp;
@@ -137,21 +155,13 @@ class SdpBuilder
     private static function getTransportProtocol(int $tcpMode): string
     {
         return match ($tcpMode) {
-            1, 2 => 'TCP/RTP/AVP',  // TCP 被动或主动模式
-            default => 'RTP/AVP',     // UDP 模式
+            1, 2 => 'TCP/RTP/AVP',
+            default => 'RTP/AVP',
         };
     }
 
     /**
      * 快捷方法: 构建实时视频 SDP
-     * @param string $serverId
-     * @param string $mediaIp
-     * @param int $mediaPort
-     * @param string $ssrc
-     * @param int $tcpMode
-     * @param bool $seniorSdp
-     * @param string|null $streamId
-     * @return string
      */
     public static function buildLiveVideoSdp(
         string $serverId,
@@ -178,9 +188,6 @@ class SdpBuilder
 
     /**
      * 快捷方法: 构建录像回放 SDP
-     * 
-     * @param bool $seniorSdp 是否使用扩展 SDP (更多编码格式)
-     * @param string|null $streamId 流标识属性 (可选)
      */
     public static function buildPlaybackSdp(
         string $serverId,
@@ -211,6 +218,17 @@ class SdpBuilder
 
     /**
      * 快捷方法: 构建语音对讲 SDP
+     *
+     * @param string $serverId 服务器ID (20位国标编码)
+     * @param string $mediaIp 媒体服务器IP
+     * @param int $mediaPort 媒体服务器端口
+     * @param string $ssrc SSRC标识
+     * @param int $tcpMode TCP模式 (0=UDP, 1=TCP被动, 2=TCP主动)
+     * @param string $mode 媒体模式:
+     *                     - 'recvonly': 设备只接收音频(平台→设备)
+     *                     - 'sendonly': 设备只发送音频(设备→平台)
+     *                     - 'sendrecv': 双向对讲
+     * @return string 符合 GB28181 标准的 Talk SDP
      */
     public static function buildTalkSdp(
         string $serverId,
@@ -218,34 +236,24 @@ class SdpBuilder
         int    $mediaPort,
         string $ssrc,
         int    $tcpMode = 0,
-        string $mode = 'sendrecv',
-        bool   $seniorSdp = false
+        string $mode = 'recvonly'  //  默认 recvonly (设备接收音频)
     ): string
     {
         return self::buildInviteSdp([
             'server_id' => $serverId,
             'media_ip' => $mediaIp,
             'media_port' => $mediaPort,
-            'session_name' => 'Talk',
-            'mode' => $mode,
+            'session_name' => 'Talk',       // 关键标识
+            'mode' => $mode,                // recvonly/sendonly/sendrecv
             'ssrc' => $ssrc,
             'tcp_mode' => $tcpMode,
-            'senior_sdp' => $seniorSdp,
-            // 语音对讲通常只需要 PS 流（除非 seniorSdp=true）
-            'payload_types' => $seniorSdp ? null : [
-                96 => ['type' => 'PS', 'rate' => 90000],
-            ],
+            // alk 会话固定使用 Payload 8 (PCMA/8000)
+            // 由 buildInviteSdp 内部根据 session_name='Talk' 自动处理
         ]);
     }
 
     /**
      * 快捷方法: 构建录像下载 SDP
-     * 
-     * 与 Playback 的区别：
-     * - session_name = 'Download' (而非 'Playback')
-     * - 需要 downloadspeed 属性（可选，默认1倍速）
-     * 
-     * GB28181 标准：Download 用于录像文件下载，Playback 用于在线回放
      */
     public static function buildDownloadSdp(
         string $serverId,
@@ -255,14 +263,14 @@ class SdpBuilder
         int    $startTime,
         int    $endTime,
         int    $tcpMode = 0,
-        int    $downloadSpeed = 1  // 下载速度（倍速，1-4）
+        int    $downloadSpeed = 1
     ): string
     {
         return self::buildInviteSdp([
             'server_id' => $serverId,
             'media_ip' => $mediaIp,
             'media_port' => $mediaPort,
-            'session_name' => 'Download',  // 关键区别
+            'session_name' => 'Download',
             'mode' => 'recvonly',
             'ssrc' => $ssrc,
             'tcp_mode' => $tcpMode,
@@ -271,7 +279,6 @@ class SdpBuilder
             'payload_types' => [
                 96 => ['type' => 'PS', 'rate' => 90000],
             ],
-            // 可选：添加下载速度属性
             'download_speed' => $downloadSpeed,
         ]);
     }

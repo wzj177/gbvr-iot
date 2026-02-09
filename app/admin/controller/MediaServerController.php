@@ -4,7 +4,7 @@ namespace app\admin\controller;
 
 use app\admin\BaseController;
 use CoreW\Business\MediaServer\Service\MediaServerService;
-use support\Log;
+use CoreW\Business\SystemLog\LogEnum;
 use support\Request;
 use support\Response;
 use support\utils\Paginator;
@@ -56,7 +56,7 @@ class MediaServerController extends BaseController
 
             return $this->createErrorJsonResponse('重启失败');
         } catch (\Exception $e) {
-            Log::error('Media server restart failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'restart_media_server', '重启媒体服务器失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -75,7 +75,7 @@ class MediaServerController extends BaseController
 
             return $this->createSuccessJsonResponse($stats);
         } catch (\Exception $e) {
-            Log::error('Get media server stats failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'get_media_server_stats', '获取媒体服务器统计失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -96,6 +96,7 @@ class MediaServerController extends BaseController
             'type',           // 服务器类型
             'host',           // 服务器地址
             'port',           // 服务器端口
+            'https_port',     // https端口
             'stream_ip',      // 收流IP（用于SDP，为空则使用host）
             'secret',         // 认证密钥
             'http_port',      // HTTP端口
@@ -106,14 +107,15 @@ class MediaServerController extends BaseController
             'status',         // 状态
             'area_id',        // 区域ID
             'remark',         // 备注
-            'record_path'     // 录制路径
+            'record_path',     // 录制路径
+            'send_rtp_port_range' // 发送RTP端口范围
         ];
 
         // 过滤只允许创建的字段
         $createData = array_intersect_key($data, array_flip($allowedFields));
 
         // 验证必填字段
-        $required = ['name', 'type', 'host', 'port'];
+        $required = ['name', 'type', 'host', 'port', 'https_port'];
         foreach ($required as $field) {
             if (empty($createData[$field])) {
                 return $this->createErrorJsonResponse("缺少必填字段: {$field}", 400);
@@ -123,7 +125,7 @@ class MediaServerController extends BaseController
         try {
             return $this->createSuccessJsonResponse($this->getMediaServerService()->createMediaServer($createData), '创建成功');
         } catch (\Exception $e) {
-            Log::error('Create media server failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'create_media_server', '创建媒体服务器失败', [
                 'data' => $createData,
                 'error' => $e->getMessage(),
             ]);
@@ -152,7 +154,7 @@ class MediaServerController extends BaseController
 
             return $this->createErrorJsonResponse('配置保存失败');
         } catch (\Exception $e) {
-            Log::error('Set media server config failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'set_media_server_config', '设置媒体服务器配置失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -171,7 +173,7 @@ class MediaServerController extends BaseController
 
             return $this->createSuccessJsonResponse($config);
         } catch (\Exception $e) {
-            Log::error('Get media server config failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'get_media_server_config', '获取媒体服务器配置失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -217,7 +219,7 @@ class MediaServerController extends BaseController
 
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {
-            Log::error('Update media server failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'update_media_server', '更新媒体服务器失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -236,7 +238,7 @@ class MediaServerController extends BaseController
 
             return $this->createSuccessJsonResponse(null, '删除成功');
         } catch (\Exception $e) {
-            Log::error('Delete media server failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'delete_media_server', '删除媒体服务器失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -259,7 +261,7 @@ class MediaServerController extends BaseController
 
             return $this->createSuccessJsonResponse($server);
         } catch (\Exception $e) {
-            Log::error('Get media server failed', [
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'get_media_server', '获取媒体服务器失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);

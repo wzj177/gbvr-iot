@@ -61,12 +61,9 @@ return [
     'Gb28181DeviceStatusCheckTask' => [
         'handler' => app\process\Gb28181DeviceStatusCheckTaskProcess::class
     ],
-    'Gb28181SubscriptionTask' => [
-        'handler' => app\process\Gb28181SubscriptionTaskProcess::class
-    ],
-    'RefreshMediaServerStatusTask' => [
-        'handler' => app\process\RefreshMediaServerStatusTaskProcess::class
-    ],
+//    'RefreshMediaServerStatusTask' => [
+//        'handler' => app\process\RefreshMediaServerStatusTaskProcess::class
+//    ],
     'CleanupRtpPortAndClearStreamSessionTask' => [
         'handler' => app\process\CleanupRtpPortAndClearStreamSessionTaskProcess::class
     ],

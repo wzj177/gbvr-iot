@@ -9,28 +9,21 @@ use app\admin\controller\GB28181ChannelController;
 use app\admin\controller\GB28181DeviceController;
 use app\admin\controller\GB28181MapController;
 use app\admin\controller\GB28181PTZController;
-use app\admin\controller\GB28181RecordingController;
+use app\admin\controller\GB28181RecordTaskController;
 use app\admin\controller\GB28181StreamController;
 use app\admin\controller\GB28181SystemMonitoringController;
+use app\admin\controller\MediaServerController;
+use app\admin\controller\MenuController;
 use app\admin\controller\ProductCatalogController;
 use app\admin\controller\ProductTagController;
+use app\admin\controller\RoleController;
 use app\admin\controller\SettingController;
 use app\admin\controller\SystemController;
 use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
-use app\admin\controller\MediaServerController;
-use app\admin\controller\MenuController;
-use app\admin\controller\RoleController;
 use app\middleware\admin\AuthIdentityMiddleware;
 use app\middleware\admin\PermissionCheckMiddleware;
 use CoreW\CustomRoute as Route;
-use function Swoole\Coroutine\Http\post;
-
-// Include GB28181 routes
-$gb28181RoutesFile = __DIR__ . '/gb28181.php';
-if (file_exists($gb28181RoutesFile)) {
-    include_once $gb28181RoutesFile;
-}
 
 Route::group('/api/admin', function () {
     // 登录认证
@@ -226,11 +219,8 @@ Route::group('/api/admin', function () {
             Route::post('/ptz', [GB28181PTZController::class, 'control'])->name('admin.gb28181.ptz.control');
         });
 
-
-
-
         // 预置位管理
-            Route::group('/presets', function () {
+        Route::group('/presets', function () {
             Route::get('', [GB28181PTZController::class, 'getPresetList'])->name('admin.gb28181.presets.list');
             Route::post('', [GB28181PTZController::class, 'setPreset'])->name('admin.gb28181.presets.set');
             Route::post('/call', [GB28181PTZController::class, 'callPreset'])->name('admin.gb28181.presets.call');
@@ -244,7 +234,7 @@ Route::group('/api/admin', function () {
             Route::put('/{id}', [GB28181ChannelController::class, 'update'])->name('admin.gb28181.channels.update');
             Route::delete('/{id}', [GB28181ChannelController::class, 'destroy'])->name('admin.gb28181.channels.destroy');
             Route::put('/batch/bind-media', [GB28181ChannelController::class, 'batchBindMedia'])->name('admin.gb28181.channels.batch-bind-media');
-            Route::get('/type/filters',  [GB28181ChannelController::class, 'filterChannelTypes'])->name('admin.gb28181.devices.filter-channel-types');
+            Route::get('/type/filters', [GB28181ChannelController::class, 'filterChannelTypes'])->name('admin.gb28181.devices.filter-channel-types');
             Route::get('/type/options', [GB28181ChannelController::class, 'channelTypeOptions'])->name('admin.gb28181.channels.type-options');
             Route::post('/codec-info', [GB28181ChannelController::class, 'getUrlCodecInfo'])->name('admin.gb28181.channels.codec-info');
             Route::post('/{id}/playback/query', [GB28181ChannelController::class, 'queryPlayback'])->name('admin.gb28181.streams.query-playback');
@@ -263,17 +253,20 @@ Route::group('/api/admin', function () {
             Route::post('/playback/stop', [GB28181StreamController::class, 'stopPlayback'])->name('admin.gb28181.streams.stop-playback');
         });
 
+        // 录像任务管理
+        Route::group('/record-tasks', function () {
+            Route::get('', [GB28181RecordTaskController::class, 'index'])->name('admin.gb28181.record-tasks.index');
+            Route::delete('/{id:\d+}', [GB28181RecordTaskController::class, 'destroy'])->name('admin.gb28181.record-tasks.destroy');
+        });
+
+        // GB28181 语音对讲/广播
+        Route::group('/broadcast', function () {
+            Route::post('/start', [\app\admin\controller\GB28181BroadcastController::class, 'start']);
+            Route::post('/stop', [\app\admin\controller\GB28181BroadcastController::class, 'stop']);
+        });
+
         // 云端录像管理
 //        Route::group('/recordings', function () { });
-        // GB28181 订阅管理
-        Route::group('/gb28181/subscribe', function () {
-            Route::post('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'saveConfig']);
-            Route::post('/batch', [\app\api\v2\controller\GB28181SubscribeController::class, 'batchCreate']);
-            Route::post('/cancel', [\app\api\v2\controller\GB28181SubscribeController::class, 'cancel']);
-            Route::get('/configs', [\app\api\v2\controller\GB28181SubscribeController::class, 'listConfigs']);
-            Route::get('/config', [\app\api\v2\controller\GB28181SubscribeController::class, 'getConfig']);
-            Route::get('/options', [\app\api\v2\controller\GB28181SubscribeController::class, 'options']);
-        });
 
         // 报警管理
         Route::group('/alarms', function () {
@@ -297,7 +290,7 @@ Route::group('/api/admin', function () {
 
     Route::group('/media-server', function () {
         // TODO: 需要实现
-        Route::get('',  [MediaServerController::class, 'index'])->name( 'media-server.index');
+        Route::get('', [MediaServerController::class, 'index'])->name('media-server.index');
         Route::post('/{id}/restart', [MediaServerController::class, 'restart'])->name('media-server.restart');
         Route::get('/{id}/stats', [MediaServerController::class, 'getZLMediaKitStats'])->name('media-server.stats');
         Route::post('/add', [MediaServerController::class, 'store'])->name('media-server.store');

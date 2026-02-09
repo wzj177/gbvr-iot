@@ -9,6 +9,7 @@ use CoreW\Business\Product\Dao\ProductCatalogTagDao;
 use CoreW\Business\Product\Dao\TagDao;
 use CoreW\Business\Product\Exception\ProductException;
 use CoreW\Business\Product\Service\ProductTagService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use support\utils\ArrayToolkit;
 
@@ -131,7 +132,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
         // TODO: 校验是否与作品绑定（与product_tag_item取交集）
         $this->getTagDao()->batchDelete(['ids' => $ids]);
         $total = count($ids);
-        $this->getLogService()->info('product_tag', 'delete_tags', "批量删除{$total}个标签数据", $ids, ['userId' => $userId, 'currentIp' => $userIp]);
+        $this->getLogService()->info(LogEnum::MODULE_PRODUCT_TAG, LogEnum::ACTION_DELETE_TAGS, "批量删除{$total}个标签数据", $ids, ['userId' => $userId, 'currentIp' => $userIp]);
 
         return true;
     }
@@ -150,13 +151,5 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
     protected function getCatalogTagDao()
     {
         return $this->createDao('Product:ProductCatalogTagDao');
-    }
-
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
     }
 }

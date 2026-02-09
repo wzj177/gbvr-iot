@@ -16,6 +16,7 @@ use support\Request;
 
 return [
     'name' => env('APP_NAME'),
+    'app_id' => env('APP_ID', 'wanjij_easy_gbvr_iot_cloud_2025888'),
     'id' => 'common',
     'debug' => intval(env('APP_DEBUG')),
     'biz_config' => [

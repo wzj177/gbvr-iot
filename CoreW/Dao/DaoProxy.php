@@ -48,7 +48,7 @@ class DaoProxy
     public function __call($method, $arguments)
     {
         $proxyMethod = $this->getProxyMethod($method);
-        if ($proxyMethod) {
+        if ($proxyMethod && method_exists($this, $proxyMethod)) {
             return $this->$proxyMethod($method, $arguments);
         } else {
             return $this->callRealDao($method, $arguments);

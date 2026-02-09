@@ -37,6 +37,7 @@ class CommandDispatcher
     private DeviceManager $deviceManager;
     private array $config;
     private array $activeSessions = [];  // 活跃的会话(INVITE)
+    private array $pendingSubscribes = [];  // 等待响应的订阅请求 (subscription_id => context)
     private Logger $logger;
 
     /**
@@ -50,6 +51,7 @@ class CommandDispatcher
         $this->config = array_merge([
             'server_id' => '',
             'debug' => false,
+            'api_hook_url' => 'http://127.0.0.1:8082/api/v2/gb/hook',  // API Hook URL
         ], $config);
         $this->logger = Logger::getInstance();
     }
@@ -69,6 +71,11 @@ class CommandDispatcher
         $requestId = $command['request_id'] ?? uniqid();
 
         $this->log("Dispatch command: {$action} (Device: {$deviceId}, Channel: {$channelId})");
+
+        // refresh_subscribe 不需要设备检查，只需要 dialog_id
+        if ($action === 'refresh_subscribe') {
+            return $this->handleRefreshSubscribe($requestId, (int)($params['dialog_id'] ?? 0), $params);
+        }
 
         // 检查设备是否在线
         $device = $this->deviceManager->getDevice($deviceId);
@@ -112,11 +119,14 @@ class CommandDispatcher
                 'subscribe_catalog' => $this->handleSubscribeCatalog($requestId, $deviceId, $params),
                 'subscribe_alarm' => $this->handleSubscribeAlarm($requestId, $deviceId, $params),
                 'subscribe_mobile_position' => $this->handleSubscribeMobilePosition($requestId, $deviceId, $params),
+                // refresh_subscribe 已在前面单独处理，不需要设备检查
                 'unsubscribe_catalog' => $this->handleUnsubscribeCatalog($requestId, $deviceId),
                 'unsubscribe_alarm' => $this->handleUnsubscribeAlarm($requestId, $deviceId),
                 'unsubscribe_mobile_position' => $this->handleUnsubscribeMobilePosition($requestId, $deviceId),
                 'playback_control' => $this->handlePlaybackControl($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'download_record' => $this->handleDownloadRecord($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'voice_invite' => $this->handleVoiceInvite($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'voice_bye' => $this->handleVoiceBye($requestId, $deviceId, $channelId, $params),
                 default => $this->errorResponse($requestId, "Unknown action: {$action}"),
             };
         } catch (\Exception $e) {
@@ -350,7 +360,7 @@ class CommandDispatcher
         if ($callId === false) {
             return $this->errorResponse($requestId, "Failed to send INVITE");
         }
-        
+
         // 保存新会话信息
         $this->activeSessions[$streamId] = [
             'request_id' => $requestId,
@@ -416,6 +426,230 @@ class CommandDispatcher
     }
 
     /**
+     * 处理语音对讲邀请（INVITE）
+     *
+     * 流程: INVITE -> 200 OK -> ACK
+     *
+     * 与视频点播的区别：
+     * 1. 使用 buildTalkSdp 构建音频 SDP (m=audio, Payload 8)
+     * 2. mode 默认为 'recvonly' (设备接收音频，平台推流)
+     * 3. 如果需要双向对讲，可传入 mode='sendrecv'
+     * 4. session_type 为 'talk'
+     *
+     * @param string $requestId 请求ID
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $deviceIp 设备IP
+     * @param int $devicePort 设备端口
+     * @param array $session 会话信息
+     * @return array
+     */
+    private function handleVoiceInvite(
+        string $requestId,
+        string $deviceId,
+        string $channelId,
+        string $deviceIp,
+        int    $devicePort,
+        array $session
+    ): array
+    {
+//        NVITE sip:34020000001320000001@192.168.1.100:5060 SIP/2.0
+//        Via: SIP/2.0/UDP 192.168.1.3:5060;rport;branch=z9hG4bK1234567890
+//        From: <sip:34020000002000000001@3402000000>;tag=abcd1234
+//        To: <sip:34020000001320000001@192.168.1.100:5060>
+//        Call-ID: 1234567890abcdef@192.168.1.3
+//        CSeq: 1 INVITE
+//        Contact: <sip:34020000002000000001@192.168.1.3:5060>
+//        Max-Forwards: 70
+//        User-Agent: WVP-PRO
+//        Subject: 34020000001320000001:0000000001,34020000002000000001:0
+//        Content-Type: APPLICATION/SDP
+//        Content-Length: 258
+//
+//        v=0
+//        o=34020000001320000001 0 0 IN IP4 192.168.1.3
+//        s=Talk
+//        c=IN IP4 192.168.1.3
+//        t=0 0
+//        m=audio 50001 TCP/RTP/AVP 8
+//        a=setup:passive
+//        a=connection:new
+//        a=sendrecv
+//        a=rtpmap:8 PCMA/8000
+//        y=0000000001
+//        f=v/////a/1/8/1
+        $this->log("Start voice talk: {$channelId}");
+
+        // 调试：打印接收到的params
+        if ($this->config['debug'] ?? false) {
+            $this->log("Received params: " . json_encode($session, JSON_UNESCAPED_UNICODE));
+        }
+
+        //  1. 验证必需参数：SSRC（由gbvr-iot数据库分配）
+        $ssrc = $session['ssrc'] ?? null;
+        if (!$ssrc) {
+            return $this->errorResponse($requestId, "Missing SSRC from API, params must include 'ssrc'");
+        }
+
+        $rtpPort = $session['rtp_local_port'] ?? null;
+        if (!$rtpPort) {
+            return $this->errorResponse($requestId, "Missing rtp_port from API, params must include 'rtp_local_port'");
+        }
+
+        //  3. 验证必需参数：收流IP（由gbvr-iot根据media_server表的stream_ip传入）
+        $mediaServerIp = $session['stream_ip'] ?? null;
+        if (!$mediaServerIp) {
+            return $this->errorResponse($requestId, 'Missing stream_ip in params');
+        }
+
+        $this->log("Media server IP: {$mediaServerIp}");
+
+        //  4. 可选参数
+        $tcpMode = $session['tcp_mode'] ?? 1;  // 默认TCP被动
+        $mode = $session['mode'] ?? 'sendrecv';  // 默认设备接收音频（平台→设备）
+        $streamId = $session['stream_id'] ?? null;
+
+        //  5. 检查是否已存在对讲会话（同一通道同时只能有一个对讲）
+        if ($streamId && isset($this->activeSessions[$streamId])) {
+            $this->log("WARNING: Talk session already exists for stream {$streamId}, returning existing session");
+            return [
+                'status' => 'success',
+                'request_id' => $this->activeSessions[$streamId]['request_id'],
+                'call_id' => $this->activeSessions[$streamId]['call_id'],
+                'stream_id' => $streamId,
+                'reused' => true,
+                'message' => 'Talk session already in progress'
+            ];
+        }
+
+        //  6. 构建 Talk SDP（音频对讲）
+        $sdp = SdpBuilder::buildTalkSdp(
+            serverId: $this->config['server_id'],
+            mediaIp: $mediaServerIp,
+            mediaPort: $rtpPort,
+            ssrc: $ssrc,
+            tcpMode: $tcpMode,
+            mode: $mode  // recvonly/sendonly/sendrecv
+        );
+
+        // 调试：打印生成的SDP
+        if ($this->config['debug'] ?? false) {
+            $this->log("Generated Talk SDP:\n{$sdp}");
+        }
+
+        //  7. 发送 INVITE（语音对讲）
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+
+        // Subject 格式：channelId:channelId,serverId:0
+        $subject = "{$channelId}:{$channelId},{$this->config['server_id']}:0";
+
+        $callId = $this->sipServer->sendInvite($targetUri, $sdp, [
+            'Subject' => $subject,
+            'Content-Type' => 'application/sdp'
+        ]);
+
+        if ($callId === false) {
+            return $this->errorResponse($requestId, "Failed to send INVITE for voice talk");
+        }
+
+        $this->activeSessions[$streamId] = [
+            'request_id' => $requestId,
+            'call_id' => $callId,
+            'dialog_id' => -1,  // 等待 200 OK 后更新
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'type' => 'talk',  //  会话类型：对讲
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpPort,
+            'stream_id' => $streamId,
+            'mode' => $mode,  // 保存媒体模式
+            'tcp_mode' => $tcpMode,
+            'started_at' => time(),
+        ];
+
+        $this->log("Voice talk session created: {$streamId} (CallID: {$callId}, SSRC: {$ssrc}, Port: {$rtpPort}, Mode: {$mode})");
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'call_id' => $callId,
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpPort,
+            'stream_id' => $streamId,
+            'mode' => $mode,
+            'tcp_mode' => $tcpMode,
+        ];
+    }
+
+    /**
+     * 处理语音对讲结束（BYE）
+     *
+     * 流程: BYE -> 200 OK
+     *
+     * 与视频点播的区别：
+     * - session_type 为 'talk'
+     * - 需要通知 ZLM 停止音频流
+     *
+     * @param string $requestId 请求ID
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param array $params 参数:
+     *   - stream_id: 流ID（必需，用于查找会话）
+     * @return array
+     */
+    private function handleVoiceBye(
+        string $requestId,
+        string $deviceId,
+        string $channelId,
+        array  $params
+    ): array
+    {
+        $this->log("Stop voice talk: {$channelId}");
+
+        //  1. 验证必需参数：stream_id
+        if (!isset($params['stream_id'])) {
+            return $this->errorResponse($requestId, "Missing stream_id in params");
+        }
+
+        $streamId = $params['stream_id'];
+        $session = $this->activeSessions[$streamId] ?? null;
+
+        //  2. 检查会话是否存在
+        if (!$session) {
+            $this->log("WARNING: No active talk session found for stream_id={$streamId}");
+            return $this->errorResponse($requestId, "No active voice talk session for stream_id={$streamId}");
+        }
+
+        //  3. 验证会话类型
+        if ($session['type'] !== 'talk') {
+            $this->log("WARNING: Session {$streamId} is not a talk session (type={$session['type']})");
+            return $this->errorResponse($requestId, "Session {$streamId} is not a talk session");
+        }
+
+        //  4. 发送 BYE 关闭 SIP 会话
+        $dialogId = $session['dialog_id'] ?? -1;
+        $result = $this->sipServer->sendBye($session['call_id'], $dialogId);
+
+        if ($result === false) {
+            $this->log("WARNING: sendBye failed (call_id={$session['call_id']}, dialog_id={$dialogId})");
+            // 即使 BYE 失败，也继续清理会话
+        }
+
+        //  5. 移除会话
+        unset($this->activeSessions[$streamId]);
+
+        $this->log("Voice talk session stopped: {$streamId} (CallID: {$session['call_id']})");
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'stream_id' => $streamId,
+            'call_id' => $session['call_id'],
+        ];
+    }
+
+
+    /**
      * 查询设备信息
      */
     private function handleQueryDeviceInfo(string $requestId, string $deviceId, string $deviceIp, int $devicePort): array
@@ -478,10 +712,10 @@ class CommandDispatcher
 
     /**
      * 录像回放控制（会话内 SIP INFO 命令）
-     * 
+     *
      * 要修复：回放控制必须使用 SIP INFO（不是 MESSAGE）
      * 必须在已建立的 INVITE 会话内发送，需要 dialog_id
-     * 
+     *
      * 支持的操作:
      * - play/resume: 正常播放/恢复
      * - pause: 暂停
@@ -496,7 +730,7 @@ class CommandDispatcher
         if (!isset($params['action'])) {
             return $this->errorResponse($requestId, "Missing action parameter");
         }
-        
+
         if (!isset($params['stream_id'])) {
             return $this->errorResponse($requestId, "Missing stream_id parameter (required to find active session)");
         }
@@ -521,7 +755,7 @@ class CommandDispatcher
 
         // 构建控制选项
         $options = [];
-        
+
         switch ($action) {
             case 'play':
                 // 恢复播放：从暂停位置以原倍速恢复（GB28181 B.2.1）
@@ -529,19 +763,19 @@ class CommandDispatcher
                 $options['range'] = 'npt=now-';
                 $action = 'play';  // 统一为 play
                 break;
-            
+
             case 'pause':
                 // 暂停播放：停止在当前位置（GB28181 B.2.2）
                 // PAUSE RTSP/1.0 + PauseTime: now
                 // 不需要额外参数，QuerySender 会自动添加 PauseTime
                 break;
-            
+
             case 'teardown':
                 // 停止播放：结束会话并释放资源（GB28181 B.2.5）
                 // TEARDOWN RTSP/1.0
                 $action = 'teardown';
                 break;
-            
+
             case 'seek':
                 // 随机拖放：跳转到指定时间点（GB28181 B.2.4）
                 // PLAY RTSP/1.0 + Range: npt=100-（不携带 Scale）
@@ -549,7 +783,7 @@ class CommandDispatcher
                 if ($seekTime === null) {
                     return $this->errorResponse($requestId, "Missing seek_time for seek action");
                 }
-                
+
                 // 如果是时间字符串，转换为秒数
                 if (is_string($seekTime) && str_contains($seekTime, ':')) {
                     // 格式：HH:MM:SS 或 MM:SS
@@ -566,7 +800,7 @@ class CommandDispatcher
                 $seconds = abs($seconds);
                 $options['range'] = "npt={$seconds}-";
                 break;
-                
+
             case 'scale':
                 // 倍速播放：只携带 Scale 头（GB28181 B.2.3）
                 // PLAY RTSP/1.0 + Scale: 2.0（不携带 Range）
@@ -578,7 +812,7 @@ class CommandDispatcher
                 $options['scale'] = sprintf("%.6f", $scale);//floatval($scale);
                 $action = 'scale';
                 break;
-            
+
             case 'reverse':
                 // 倒放：负倍速播放（GB28181 B.2.8）
                 // PLAY RTSP/1.0 + Scale: -1.0
@@ -586,7 +820,7 @@ class CommandDispatcher
                 $options['scale'] = -floatval($speed);
                 $action = 'scale';
                 break;
-            
+
             case 'seek_and_play':
                 // 跳转并播放：同时指定位置和倍速
                 // PLAY RTSP/1.0 + Range: npt=100- + Scale: 2.0
@@ -594,10 +828,10 @@ class CommandDispatcher
                 if ($seekTime === null) {
                     return $this->errorResponse($requestId, "Missing seek_time for seek_and_play action");
                 }
-                
+
                 $seconds = is_numeric($seekTime) ? floatval($seekTime) : 0;
                 $options['range'] = "npt={$seconds}-";
-                
+
                 // 可选：同时指定倍速
                 if (isset($params['speed']) || isset($params['scale'])) {
                     $scale = $params['scale'] ?? $params['speed'] ?? 1.0;
@@ -606,7 +840,7 @@ class CommandDispatcher
                 }
                 $action = 'play';  // 使用 play 方法
                 break;
-            
+
             default:
                 return $this->errorResponse($requestId, "Unknown playback action: {$action}");
         }
@@ -628,12 +862,12 @@ class CommandDispatcher
 
     /**
      * 录像下载
-     * 
+     *
      * 流程:
      * 1. 发送 INVITE (Download SDP)
      * 2. 设备推流到 ZLM
      * 3. ZLM 录制成文件
-     * 
+     *
      * 注意: 与普通回放的区别是 session_name = 'Download'
      */
     private function handleDownloadRecord(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
@@ -1208,6 +1442,14 @@ class CommandDispatcher
         ];
     }
 
+    private function successResponse(string $requestId, array $data): array
+    {
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'data' => $data
+        ];
+    }
 
     /**
      * 错误响应
@@ -1294,14 +1536,6 @@ class CommandDispatcher
         ];
     }
 
-    /**
-     * 日志输出
-     */
-    private function log(string $message, string $level = 'INFO'): void
-    {
-        $time = date('Y-m-d H:i:s');
-        $this->logger->log("[{$time}]  [CommandDispatcher] {$message}\n", $level);
-    }
 
     /**
      * 获取活跃会话
@@ -1328,12 +1562,18 @@ class CommandDispatcher
 
     /**
      * 处理目录订阅
+     *
+     * 流程：
+     * 1. Worker 发送 SUBSCRIBE 请求
+     * 2. 立即返回 subscription_id
+     * 3. 设备返回 200 OK 后，通过 onResponse 回调处理
+     * 4. dialog_id 通过 postTask -> HTTP 回调推送到 API
      */
     private function handleSubscribeCatalog(string $requestId, string $deviceId, array $params): array
     {
         $this->log("Subscribe catalog: {$deviceId}");
 
-        $device = $this->deviceManager->getDevice($deviceId);
+        $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
@@ -1341,13 +1581,31 @@ class CommandDispatcher
         $expires = $params['expires'] ?? 3600; // 默认1小时
 
         try {
-            $this->querySender->sendSubscribeCatalog($device, $expires);
+            // 发送 SUBSCRIBE 请求，获取 subscription_id
+            $subscriptionId = $this->querySender->sendSubscribeCatalog($device, $expires);
 
+            if ($subscriptionId === false) {
+                throw new \RuntimeException("Failed to send SUBSCRIBE");
+            }
+
+            // 注册等待订阅响应的上下文（用于 onResponse 回调时匹配）
+            $this->pendingSubscribes[$subscriptionId] = [
+                'request_id' => $requestId,
+                'device_id' => $deviceId,
+                'event_type' => 'Catalog',
+                'expires' => $expires,
+                'created_at' => time(),
+            ];
+
+            // 立即返回，dialog_id 将通过异步回调推送
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'Catalog',
-                'expires' => $expires
+                'subscription_id' => $subscriptionId,
+                'expires' => $expires,
+                'message' => 'SUBSCRIBE sent, dialog_id will be pushed via HTTP callback'
             ]);
+
         } catch (\Throwable $e) {
             return $this->errorResponse($requestId, "Subscribe catalog failed: {$e->getMessage()}");
         }
@@ -1360,30 +1618,52 @@ class CommandDispatcher
     {
         $this->log("Subscribe alarm: {$deviceId}");
 
-        $device = $this->deviceManager->getDevice($deviceId);
+        $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
 
-        $expires = $params['expires'] ?? 3600; // 默认1小时
-        $startAlarmPriority = $params['start_priority'] ?? 0;
-        $endAlarmPriority = $params['end_priority'] ?? 3;
+        $expires = $params['expires'] ?? 3600;
+        $startAlarmPriority = $params['start_priority'] ?? null;
+        $endAlarmPriority = $params['end_priority'] ?? null;
         $alarmMethod = $params['alarm_method'] ?? null;
+        $alarmType = $params['alarm_type'] ?? null;
+        $startAlarmTime = $params['start_alarm_time'] ?? null;
+        $endAlarmTime = $params['end_alarm_time'] ?? null;
 
         try {
-            $this->querySender->sendSubscribeAlarm(
+            $subscriptionId = $this->querySender->sendSubscribeAlarm(
                 $device,
                 $expires,
                 $startAlarmPriority,
                 $endAlarmPriority,
-                $alarmMethod
+                $alarmMethod,
+                $alarmType,
+                $startAlarmTime,
+                $endAlarmTime
             );
+
+            if ($subscriptionId === false) {
+                throw new \RuntimeException("Failed to send SUBSCRIBE");
+            }
+
+            // 注册等待响应上下文
+            $this->pendingSubscribes[$subscriptionId] = [
+                'request_id' => $requestId,
+                'device_id' => $deviceId,
+                'event_type' => 'Alarm',
+                'expires' => $expires,
+                'created_at' => time(),
+            ];
 
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'Alarm',
-                'expires' => $expires
+                'subscription_id' => $subscriptionId,
+                'expires' => $expires,
+                'message' => 'SUBSCRIBE sent, dialog_id will be pushed via HTTP callback'
             ]);
+
         } catch (\Throwable $e) {
             return $this->errorResponse($requestId, "Subscribe alarm failed: {$e->getMessage()}");
         }
@@ -1396,23 +1676,40 @@ class CommandDispatcher
     {
         $this->log("Subscribe mobile position: {$deviceId}");
 
-        $device = $this->deviceManager->getDevice($deviceId);
+        $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
 
-        $expires = $params['expires'] ?? 3600; // 默认1小时
-        $interval = $params['interval'] ?? 5; // 上报间隔，默认5秒
+        $expires = $params['expires'] ?? 3600;
+        $interval = $params['interval'] ?? 5;
 
         try {
-            $this->querySender->sendSubscribeMobilePosition($device, $expires, $interval);
+            $subscriptionId = $this->querySender->sendSubscribeMobilePosition($device, $expires, $interval);
+
+            if ($subscriptionId === false) {
+                throw new \RuntimeException("Failed to send SUBSCRIBE");
+            }
+
+            // 注册等待响应上下文
+            $this->pendingSubscribes[$subscriptionId] = [
+                'request_id' => $requestId,
+                'device_id' => $deviceId,
+                'event_type' => 'MobilePosition',
+                'expires' => $expires,
+                'interval' => $interval,
+                'created_at' => time(),
+            ];
 
             return $this->successResponse($requestId, [
                 'device_id' => $deviceId,
                 'event_type' => 'MobilePosition',
+                'subscription_id' => $subscriptionId,
                 'expires' => $expires,
-                'interval' => $interval
+                'interval' => $interval,
+                'message' => 'SUBSCRIBE sent, dialog_id will be pushed via HTTP callback'
             ]);
+
         } catch (\Throwable $e) {
             return $this->errorResponse($requestId, "Subscribe mobile position failed: {$e->getMessage()}");
         }
@@ -1425,7 +1722,7 @@ class CommandDispatcher
     {
         $this->log("Unsubscribe catalog: {$deviceId}");
 
-        $device = $this->deviceManager->getDevice($deviceId);
+        $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
@@ -1450,7 +1747,7 @@ class CommandDispatcher
     {
         $this->log("Unsubscribe alarm: {$deviceId}");
 
-        $device = $this->deviceManager->getDevice($deviceId);
+        $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
@@ -1470,12 +1767,12 @@ class CommandDispatcher
 
     /**
      * 更新会话的 dialog_id (当收到 200 OK 响应时)
-     * 
+     *
      * 调用时机：在 onResponse 回调中收到 INVITE 的 200 OK 时
-     * 
+     *
      * @param int $callId Call ID
      * @param int $dialogId Dialog ID
-     * 
+     *
      * @example 在 gb28181_server.php 中：
      * ```php
      * $sipServer->onResponse = function($event) use ($commandDispatcher) {
@@ -1503,7 +1800,7 @@ class CommandDispatcher
     {
         $this->log("Unsubscribe mobile position: {$deviceId}");
 
-        $device = $this->deviceManager->getDevice($deviceId);
+        $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             return $this->errorResponse($requestId, "Device not found: {$deviceId}");
         }
@@ -1519,5 +1816,253 @@ class CommandDispatcher
         } catch (\Throwable $e) {
             return $this->errorResponse($requestId, "Unsubscribe mobile position failed: {$e->getMessage()}");
         }
+    }
+
+    // ==================== 订阅响应处理 (非阻塞模式) ====================
+
+    /**
+     * 处理 SUBSCRIBE 200 OK 响应（在 onResponse 回调中调用）
+     *
+     * 流程：
+     * 1. 从 pendingSubscribes 查找对应的请求上下文
+     * 2. 通过 postTask() 异步推送到 GBServerHookController
+     * 3. 清理 pendingSubscribes 条目
+     *
+     * @param int $subscriptionId SUBSCRIBE 请求返回的 subscription_id
+     * @param int $dialogId 200 OK 响应中的 dialog_id
+     * @param int $statusCode 响应状态码（200=成功）
+     * @return void
+     */
+    public function handleSubscriptionResponse(int $subscriptionId, int $dialogId, int $statusCode = 200): void
+    {
+        $this->log("handleSubscriptionResponse: subscription_id={$subscriptionId}, dialog_id={$dialogId}, status={$statusCode}");
+
+        // 查找等待中的订阅请求
+        if (!isset($this->pendingSubscribes[$subscriptionId])) {
+            $this->log("No pending subscribe found for subscription_id: {$subscriptionId}");
+            return;
+        }
+
+        $context = $this->pendingSubscribes[$subscriptionId];
+        unset($this->pendingSubscribes[$subscriptionId]);
+
+        $this->log("Found pending subscribe context: " . json_encode($context));
+
+        // 构造回调数据
+        $callbackPayload = [
+            'scene' => 'subscribe_response',
+            'request_id' => $context['request_id'],
+            'device_id' => $context['device_id'],
+            'event_type' => $context['event_type'],
+            'subscription_id' => $subscriptionId,
+            'dialog_id' => $dialogId,
+            'expires' => $context['expires'] ?? 3600,
+            'status_code' => $statusCode,
+            'success' => ($statusCode >= 200 && $statusCode < 300),
+            'timestamp' => time(),
+        ];
+
+        // 异步推送到 Task 进程处理 HTTP 回调
+        $this->postTask('subscribe_response', $callbackPayload);
+
+        $this->log("✓ Posted subscribe_response task for dialog_id: {$dialogId}");
+    }
+
+    /**
+     * 处理订阅失败响应（4xx/5xx/6xx）
+     *
+     * @param int $subscriptionId SUBSCRIBE 请求返回的 subscription_id
+     * @param int $statusCode 错误响应状态码
+     * @param string $reason 错误原因
+     * @return void
+     */
+    public function handleSubscriptionError(int $subscriptionId, int $statusCode, string $reason = ''): void
+    {
+        $this->log("handleSubscriptionError: subscription_id={$subscriptionId}, status={$statusCode}, reason={$reason}");
+
+        if (!isset($this->pendingSubscribes[$subscriptionId])) {
+            $this->log("No pending subscribe found for subscription_id: {$subscriptionId}");
+            return;
+        }
+
+        $context = $this->pendingSubscribes[$subscriptionId];
+        unset($this->pendingSubscribes[$subscriptionId]);
+
+        // 构造错误回调数据
+        $callbackPayload = [
+            'scene' => 'subscribe_response',
+            'request_id' => $context['request_id'],
+            'device_id' => $context['device_id'],
+            'event_type' => $context['event_type'],
+            'subscription_id' => $subscriptionId,
+            'dialog_id' => 0,
+            'status_code' => $statusCode,
+            'success' => false,
+            'error' => $reason ?: "Subscribe failed with status {$statusCode}",
+            'timestamp' => time(),
+        ];
+
+        $this->postTask('subscribe_response', $callbackPayload);
+
+        $this->log("✓ Posted subscribe_error task for subscription_id: {$subscriptionId}");
+    }
+
+    /**
+     * 异步推送任务到 Task 进程
+     *
+     * 用于非阻塞地发送 HTTP 回调到 GBServerHookController
+     * 避免 curlPost 阻塞 Worker 进程
+     *
+     * @param string $type 任务类型（如 'subscribe_response'）
+     * @param array $payload 任务数据
+     * @return void
+     */
+    private function postTask(string $type, array $payload): void
+    {
+        $taskData = [
+            'action' => 'api_callback',
+            'type' => $type,
+            'payload' => $payload,
+            'api_hook_url' => $this->config['api_hook_url'] ?? '',
+            'created_at' => time(),
+        ];
+
+        $taskId = $this->sipServer->addTask($taskData);
+
+        if ($taskId !== false && $taskId > 0) {
+            $this->log("Task posted: #{$taskId} type={$type}");
+        } else {
+            // 如果 addTask 失败（如单进程模式），降级为同步调用
+            $this->log("Warning: addTask failed, falling back to sync curlPost");
+            $this->syncCurlPost($type, $payload);
+        }
+    }
+
+    /**
+     * 同步 HTTP POST（降级方案）
+     *
+     * 当 addTask 不可用时（单进程模式或无 Task Worker），直接同步调用
+     *
+     * @param string $type 回调类型
+     * @param array $payload 回调数据
+     * @return void
+     */
+    private function syncCurlPost(string $type, array $payload): void
+    {
+        $apiUrl = $this->config['api_hook_url'] ?? '';
+        if (empty($apiUrl)) {
+            $this->log("Warning: api_hook_url not configured, skip sync curlPost");
+            return;
+        }
+
+        try {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $apiUrl,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'X-Gateway-Callback: ' . $type,
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 5, // 5秒超时，避免长时间阻塞
+                CURLOPT_CONNECTTIMEOUT => 2,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                $this->log("Sync curlPost success: HTTP {$httpCode}");
+            } else {
+                $this->log("Sync curlPost failed: HTTP {$httpCode}, error: {$error}");
+            }
+        } catch (\Throwable $e) {
+            $this->log("Sync curlPost exception: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * 处理订阅续订（REFRESH SUBSCRIBE）
+     *
+     * @param string $requestId 请求ID
+     * @param int $dialogId dialog_id (已存在的订阅会话)
+     * @param array $params 参数 ['expires' => 新的过期时间, 'device_id' => 设备ID, 'event_type' => 事件类型]
+     * @return array 处理结果
+     */
+    private function handleRefreshSubscribe(string $requestId, int $dialogId, array $params): array
+    {
+        $this->log("Refresh subscribe (dialog_id: {$dialogId})");
+
+        $expires = $params['expires'] ?? 3600;
+        $deviceId = $params['device_id'] ?? '';
+        $eventType = $params['event_type'] ?? 'Catalog';
+
+        try {
+            // 调用 ExoSip 的 refreshSubscribe() 方法
+            $result = $this->sipServer->refreshSubscribe($dialogId, $expires);
+
+            if ($result === false) {
+                throw new \RuntimeException("Failed to send REFRESH SUBSCRIBE");
+            }
+
+            // 构造回调 payload
+            $callbackPayload = [
+                'scene' => 'subscribe_refresh',
+                'request_id' => $requestId,
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+                'dialog_id' => $dialogId,
+                'expires' => $expires,
+                'success' => true,
+                'action' => 'refreshed',
+                'timestamp' => time(),
+            ];
+
+            // 通过 Task 进程异步回调到 API 层
+            $this->postTask('subscribe_refresh', $callbackPayload);
+
+            return [
+                'success' => true,
+                'dialog_id' => $dialogId,
+                'request_id' => $requestId,
+                'expires' => $expires,
+                'action' => 'refreshed'
+            ];
+        } catch (\Throwable $e) {
+            // 构造错误回调 payload
+            $errorPayload = [
+                'scene' => 'subscribe_refresh',
+                'request_id' => $requestId,
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+                'dialog_id' => $dialogId,
+                'expires' => $expires,
+                'success' => false,
+                'error' => $e->getMessage(),
+                'timestamp' => time(),
+            ];
+
+            // 通过 Task 进程异步回调到 API 层
+            $this->postTask('subscribe_refresh_error', $errorPayload);
+
+            return [
+                'success' => false,
+                'request_id' => $requestId,
+                'error' => "Refresh subscribe failed: {$e->getMessage()}"
+            ];
+        }
+    }
+
+    /**
+     * 日志输出
+     */
+    private function log(string $message, string $level = 'INFO'): void
+    {
+        $time = date('Y-m-d H:i:s');
+        $this->logger->log("[{$time}]  [CommandDispatcher] {$message}\n", $level);
     }
 }

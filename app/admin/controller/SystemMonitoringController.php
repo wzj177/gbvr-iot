@@ -206,12 +206,4 @@ class SystemMonitoringController extends BaseController
     {
         return $this->createService('System:SystemService');
     }
-
-    /**
-     * @return ZLMClient
-     */
-    protected function getZlmClient(): ZLMClient
-    {
-        return $this->getBiz()->offsetGet('zlm_sdk');
-    }
 }

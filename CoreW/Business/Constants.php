@@ -219,27 +219,6 @@ class Constants
         return self::getItems($items, $key);
     }
 
-    const SYSTEM_LOG_MODULE_USER = 'user';
-    const SYSTEM_LOG_MODULE_SIP_LIVE = 'sipLive';
-    const SYSTEM_LOG_MODULE_VIDEO_RECORDER = 'VideoRecorder';
-    const SYSTEM_LOG_MODULE_DEVICE = 'device';
-    const SYSTEM_LOG_MODULE_VIDEO_CHANNELS = 'video-channels';
-    const SYSTEM_LOG_MODULE_AK_HOCK = 'ak-hock';
-
-    public static function getSystemLogModules($key = null)
-    {
-        $items = [
-            self::SYSTEM_LOG_MODULE_USER => '用户',
-            self::SYSTEM_LOG_MODULE_SIP_LIVE => '开放api',
-            self::SYSTEM_LOG_MODULE_VIDEO_RECORDER => '录像机',
-            self::SYSTEM_LOG_MODULE_DEVICE => '设备总览',
-            self::SYSTEM_LOG_MODULE_VIDEO_CHANNELS => '摄像头',
-            self::SYSTEM_LOG_MODULE_AK_HOCK => 'AK回调',
-        ];
-
-        return self::getItems($items, $key);
-    }
-
     const RECORD_PLAN_OVER_STEP_DEL_FILE = 'delFile';
     const RECORD_PLAN_OVER_STEP_STOP_DVR = 'stopDvr';
 

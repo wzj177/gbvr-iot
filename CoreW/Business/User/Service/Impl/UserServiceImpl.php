@@ -9,6 +9,7 @@ use CoreW\Business\BaseService;
 use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Role\Service\RoleService;
 use CoreW\Business\Setting\Service\SettingService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\User\Dao\TokenDao;
 use CoreW\Business\User\Dao\UserBindDao;
@@ -691,7 +692,7 @@ class UserServiceImpl extends BaseService implements UserService
 
         $this->refreshLoginSecurityFields($user['id'], $user['currentIp']);
 
-        $this->getLogService()->info('admin', 'login_success', BizEnum::getLoginTypeItems($type) . '成功', [
+        $this->getLogService()->info(LogEnum::MODULE_ADMIN, 'login_success', BizEnum::getLoginTypeItems($type) . '成功', [
             'currentIp' => $user['currentIp']
         ]);
     }
@@ -723,7 +724,7 @@ class UserServiceImpl extends BaseService implements UserService
             $lockDeadline = $currentTime + ($lockDuration * 60);
             $locked = 1;
 
-            $this->getLogService()->info('user', 'lock', '密码错误次数过多，用户被临时锁定', [
+            $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_LOCK, '密码错误次数过多，用户被临时锁定', [
                 'userId' => $userId,
                 'errorTimes' => $errorTimes,
                 'lockDeadline' => $lockDeadline,
@@ -984,14 +985,6 @@ class UserServiceImpl extends BaseService implements UserService
     protected function getSettingService()
     {
         return $this->createService('Setting:SettingService');
-    }
-
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
     }
 
     /**

@@ -9,9 +9,9 @@ use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Devices\Service\PlaybackRecordService;
 use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\MediaServer\Service\MediaServerService;
+use CoreW\Business\SystemLog\LogEnum;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
-use support\Log;
 use support\Redis;
 use support\Request;
 use support\utils\ArrayToolkit;
@@ -150,7 +150,7 @@ class GB28181ChannelController extends BaseController
 
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {
-            Log::error('Update channel failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, 'update_channel', '更新通道失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -175,7 +175,7 @@ class GB28181ChannelController extends BaseController
 
             return $this->createSuccessJsonResponse(null, '删除成功');
         } catch (\Exception $e) {
-            Log::error('Delete channel failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, 'delete_channel', '删除通道失败', [
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
@@ -221,7 +221,7 @@ class GB28181ChannelController extends BaseController
                 'message' => "成功绑定 {$affectedRows} 个通道到媒体服务器",
             ]);
         } catch (\Exception $e) {
-            Log::error('Batch bind media server for channels failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_BATCH_BIND_MEDIA, '批量绑定媒体服务器到通道失败', [
                 'ids' => $ids,
                 'mediaServerId' => $mediaServerId,
                 'error' => $e->getMessage(),
@@ -346,7 +346,7 @@ class GB28181ChannelController extends BaseController
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Get URL codec info failed', [
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, 'get_url_codec_info', '获取URL编码信息失败', [
                 'url' => $url,
                 'error' => $e->getMessage(),
             ]);

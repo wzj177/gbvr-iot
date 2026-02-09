@@ -8,15 +8,18 @@ class Gb28181VoiceSessions extends Migration
     {
         $container = $this->getContainer();
         $container['db']->exec("
-            CREATE TABLE IF NOT EXISTS `gv_gb28181_voice_sessions` (
+            CREATE TABLE IF NOT EXISTS `gv_voice_sessions` (
                 `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
                 `session_id` varchar(64) NOT NULL COMMENT '会话ID（自定义UUID）',
                 `device_id` varchar(32) NOT NULL COMMENT '设备国标ID',
                 `channel_id` varchar(32) NOT NULL COMMENT '通道国标ID',
                 `stream` varchar(100) DEFAULT NULL COMMENT 'ZLM流ID (app/stream)',
+                `receive_stream` varchar(100) DEFAULT NULL COMMENT '接收ZLM流ID (app/stream)',
                 `ssrc` varchar(20) DEFAULT NULL COMMENT 'SSRC',
-                `zlm_port` int(11) DEFAULT NULL COMMENT 'ZLM RTP端口',
-                `zlm_ip` varchar(50) DEFAULT NULL COMMENT 'ZLM IP',
+                `rtp_port` int(11) NOT NULL DEFAULT '0' COMMENT '流媒体 RTP端口',
+                `rtp_local_port` int(11) NOT NULL DEFAULT '0' COMMENT 'rtp被动推流端口号'
+                `media_server_ip` varchar(50) DEFAULT NULL COMMENT '流媒体 IP',
+                `media_server_id` varchar(50) DEFAULT NULL COMMENT '流媒体 ID',
                 `device_ip` varchar(50) DEFAULT NULL COMMENT '设备音频接收IP',
                 `device_port` int(11) DEFAULT NULL COMMENT '设备音频接收端口',
                 `dialog_id` varchar(32) DEFAULT NULL COMMENT 'SIP Dialog-ID',

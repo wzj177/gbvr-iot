@@ -13,9 +13,9 @@ abstract class AbstractBizException extends HttpException
      * @link  https://blog.csdn.net/ningxinyu520/article/details/18217077
      * @var int[]
      */
-    public $statusCodes = [200, 400, 403, 404, 413, 500, 401, 201, 422];
+    public array $statusCodes = [200, 400, 403, 404, 413, 500, 401, 201, 422];
 
-    protected $messages = [];
+    protected array $messages = [];
 
     public function __construct($code, $message = null)
     {
@@ -48,6 +48,6 @@ abstract class AbstractBizException extends HttpException
         $code = constant($class.'::'.$method); // 返回一个常量的值
         $reflection = new \ReflectionClass($class);
 
-        return $reflection->newInstance($code);
+        return $reflection->newInstanceArgs([$code, !empty($arguments[0]) ? $arguments[0] : null]);
     }
 }

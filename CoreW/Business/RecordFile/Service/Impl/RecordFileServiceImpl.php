@@ -6,6 +6,7 @@ use CoreW\Business\BaseService;
 use CoreW\Business\RecordFile\Service\RecordFileService;
 use CoreW\Business\RecordFile\Dao\RecordFileDao;
 use CoreW\Business\Record\Service\RecordTaskService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Dao\DaoProxy;
 use support\Redis;
 
@@ -25,7 +26,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
         $vhost = $hookData['vhost'] ?? '__defaultVhost__';
 
         if (empty($streamId)) {
-            $this->getSystemLogService()->warning('RecordFile', 'create_from_hook', 'stream_id is empty', $hookData);
+            $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, 'stream_id为空', $hookData);
             return null;
         }
 
@@ -62,7 +63,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
 
                 $this->getRecordTaskService()->completeTaskFromHook($recordTask['id'], $hookEndTime, $duration);
 
-                $this->getSystemLogService()->info('RecordFile', 'create_from_hook', 'Task completed from hook', [
+                $this->getLogService()->info(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '任务从钩子完成', [
                     'task_id' => $recordTask['id'],
                     'stream_id' => $streamId,
                     'record_end_time' => $hookEndTime,
@@ -76,7 +77,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
                 $channelId = $parts[1];
             }
 
-            $this->getSystemLogService()->warning('RecordFile', 'create_from_hook', 'Record task not found for stream_id', [
+            $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '找不到stream_id对应的录像任务', [
                 'device_id' => $deviceId,
                 'channel_id' => $channelId,
                 'stream_id' => $streamId,
@@ -137,7 +138,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
         try {
             $recordFile = $this->getRecordFileDao()->createRecordFile($data);
 
-            $this->getSystemLogService()->info('RecordFile', 'create_from_hook', 'Record file created from hook', [
+            $this->getLogService()->info(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '从钩子创建录像文件', [
                 'stream_id' => $streamId,
                 'file_path' => $filePath,
                 'duration' => $duration,
@@ -145,7 +146,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
 
             return $recordFile;
         } catch (\Throwable $e) {
-            $this->getSystemLogService()->error('RecordFile', 'create_from_hook', 'Failed to create record file', [
+            $this->getLogService()->error(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '创建录像文件失败', [
                 'stream_id' => $streamId,
                 'error' => $e->getMessage(),
             ]);

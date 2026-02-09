@@ -7,6 +7,7 @@ namespace CoreW\Business\Product\Service\Impl;
 use CoreW\Business\BaseService;
 use CoreW\Business\BizEnum;
 use CoreW\Business\Product\Dao\ProductCatalogDao;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\Product\Dao\ProductCatalogTagDao;
 use CoreW\Business\Product\Dao\TagDao;
 use CoreW\Business\Product\Exception\ProductException;
@@ -204,7 +205,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             $catalog = $this->getProductCatalogDao()->create($fields);
             $this->setCatalogPath($fields['parentId'] ?? 0, $catalog['id']);
             $this->makeRecommendCatalogTags($catalog, $recommendTags);
-            $this->getLogService()->info('product_catalog', 'add', '添加作品分类成功', $catalog, [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT_CATALOG, 'add', '添加作品分类成功', $catalog, [
                 'userId' => $fields['currentUserId'] ?? null,
                 'currentIp' => $fields['currentUserIp'] ?? ''
             ]);
@@ -213,7 +214,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             return true;
         } catch (\Exception $e) {
             $this->rollback();
-            $this->getLogService()->error('product_catalog', 'add', '添加作品分类失败，' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_CATALOG, LogEnum::ACTION_ADD_CATALOG, '添加作品分类失败，' . $e->getMessage());
             throw $e;
         }
     }
@@ -292,7 +293,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             }
             $catalog = $this->getProductCatalogDao()->update($id, $fields);
             $this->makeRecommendCatalogTags($catalog, $recommendTags);
-            $this->getLogService()->info('product_catalog', 'update', '更新作品分类成功', [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT_CATALOG, 'update', '更新作品分类成功', [
                 'old' => $oldCatalog,
                 'new' => $catalog
             ]);
@@ -301,7 +302,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             return true;
         } catch (\Exception $e) {
             $this->rollback();
-            $this->getLogService()->error('product_catalog', 'update', '更新作品分类失败，' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_CATALOG, LogEnum::ACTION_UPDATE_CATALOG, '更新作品分类失败，' . $e->getMessage());
             throw $e;
         }
     }
@@ -445,13 +446,6 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
         }
     }
 
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
-    }
 
     /**
      * @return TagDao

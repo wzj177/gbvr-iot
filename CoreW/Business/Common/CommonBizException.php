@@ -58,11 +58,11 @@ class CommonBizException extends AbstractBizException
     const PARAMETER_TYPE_ERROR = 4000003;
     const PARAMETER_FORMAT_ERROR = 4000004;
 
-    public function __construct($code)
+    public function __construct($code, ?string $message = null)
     {
         $this->setMessages();
 
-        parent::__construct($code);
+        parent::__construct($code, $message);
     }
 
 

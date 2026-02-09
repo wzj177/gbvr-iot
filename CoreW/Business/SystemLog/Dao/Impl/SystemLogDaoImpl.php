@@ -23,7 +23,7 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
     {
         return parent::search($conditions, $orderBys, $start, $limit, $columns);
 //        if (empty($columns)) {
-//            $columns = "vr_log.*,u.nickname as userName";
+//            $columns = "gv_log.*,u.nickname as userName";
 //        }
 //
 //        $builder = $this->createUserJoinQueryBuilder($conditions)
@@ -63,7 +63,7 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
                 'gv_log.createdTime <= :startDateTime_LE',
                 'gv_log.userId IN ( :userIds )',
                 'gv_log.action IN ( :actions )',
-                '(vr_log.action LIKE :keywordsLike OR vr_log.message LIKE :keywordsLike OR vr_log.ip LIKE :keywordsLike OR ipArea LIKE :keywordsLike)'
+                '(gv_log.action LIKE :keywordsLike OR gv_log.message LIKE :keywordsLike OR gv_log.ip LIKE :keywordsLike OR ipArea LIKE :keywordsLike)'
             ],
             'timestamps' => [
                 'createdTime',

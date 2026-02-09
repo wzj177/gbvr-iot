@@ -34,12 +34,12 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
         ]);
     }
 
-    public function getActiveByStreamIdAndType(string $streamId, string $type): array|false
-    {
-        $sql = "SELECT * FROM {$this->table()} WHERE stream_id=? AND `type` =? AND `viewer_count` >= 1 AND `status` IN ('inviting', 'active') order by id desc limit 1;";
+        public function getActiveByStreamIdAndType(string $streamId, string $type): array|false
+        {
+            $sql = "SELECT * FROM {$this->table()} WHERE stream_id=? AND `type` =? AND `viewer_count` >= 1 AND `status` IN ('inviting', 'active') order by id desc limit 1;";
 
-        return $this->db()->fetchAssoc($sql, [$streamId, $type]);
-    }
+            return $this->db()->fetchAssoc($sql, [$streamId, $type]);
+        }
 
     public function getBySsrc(string $ssrc)
     {

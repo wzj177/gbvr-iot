@@ -20,15 +20,9 @@ class DeviceSubscribeConfigDaoImpl extends AdvancedDaoImpl implements DeviceSubs
                 'last_subscribed_at',
                 'subscription_expires_at',
             ],
-            'timestamps' => [
-                'last_subscribed_at',
-                'subscription_expires_at',
-            ],
             'datetime' => [
                 'created_at',
                 'updated_at',
-                'last_subscribed_at',
-                'subscription_expires_at',
             ],
             'conditions' => [
                 'id = :id',

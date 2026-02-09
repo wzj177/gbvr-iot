@@ -3,9 +3,9 @@
 namespace CoreW\Business\Devices\Dao\Impl;
 
 use CoreW\Business\Devices\Dao\RecordFileDao;
-use CoreW\Dao\AbstractDao;
+use CoreW\Dao\AdvancedDaoImpl;
 
-class RecordFileDaoImpl extends AbstractDao implements RecordFileDao
+class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
 {
     protected string $tableName = 'gv_record_file';
     protected string $primaryKey = 'id';
@@ -20,5 +20,15 @@ class RecordFileDaoImpl extends AbstractDao implements RecordFileDao
         $sql = "SELECT COUNT(*) as count FROM {$this->tableName} WHERE record_date = ?";
         $result = $this->db->fetchOne($sql, [$date]);
         return (int)($result['count'] ?? 0);
+    }
+
+
+    public function declares(): array
+    {
+        return [
+            'serializes' => [
+                'data' => 'json',
+            ],
+        ];
     }
 }

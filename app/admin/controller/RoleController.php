@@ -5,6 +5,7 @@ namespace app\admin\controller;
 use app\admin\BaseController;
 use CoreW\Business\Role\Service\RoleService;
 use CoreW\Business\Menu\Service\MenuService;
+use CoreW\Business\SystemLog\LogEnum;
 use support\Request;
 use support\Response;
 
@@ -64,7 +65,7 @@ class RoleController extends BaseController
 
         $role = $this->getRoleService()->createRole($role);
 
-        $this->getLogService()->info('role', 'create', '创建角色', $role);
+        $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_CREATE_ROLE, '创建角色', $role);
 
         return $this->createSuccessJsonResponse($role);
     }
@@ -90,7 +91,7 @@ class RoleController extends BaseController
 
         $role = $this->getRoleService()->updateRole($id, $fields);
 
-        $this->getLogService()->info('role', 'update', '更新角色', ['id' => $id, 'fields' => $fields]);
+        $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_UPDATE_ROLE, '更新角色', ['id' => $id, 'fields' => $fields]);
 
         return $this->createSuccessJsonResponse($role);
     }
@@ -103,7 +104,7 @@ class RoleController extends BaseController
         $id = (int) $id;
         $this->getRoleService()->deleteRole($id);
 
-        $this->getLogService()->info('role', 'delete', '删除角色', ['id' => $id]);
+        $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_DELETE_ROLE, '删除角色', ['id' => $id]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }
@@ -170,7 +171,7 @@ class RoleController extends BaseController
             $this->getRoleService()->deleteRole((int) $id);
         }
 
-        $this->getLogService()->info('role', 'batch_delete', '批量删除角色', ['ids' => $ids]);
+        $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_BATCH_DELETE_ROLE, '批量删除角色', ['ids' => $ids]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }

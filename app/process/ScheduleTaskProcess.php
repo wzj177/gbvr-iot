@@ -3,6 +3,7 @@
 namespace app\process;
 
 use CoreW\Business\Devices\Task\Gb28181DeviceCatalogQueryTask;
+use CoreW\Business\MediaServer\Tasks\RefreshMediaServerStatusTask;
 use CoreW\Business\Record\Task\PlaybackRecordTask;
 use Workerman\Crontab\Crontab;
 
@@ -21,8 +22,13 @@ class ScheduleTaskProcess
         });
 
         // 每5分钟执行一次 - 获取国标设备目录任务
-        new Crontab('* */5 * * * *', function () {
+        new Crontab('* */10 * * * *', function () {
             Gb28181DeviceCatalogQueryTask::run();
+        });
+
+        // 每10分钟执行一次：刷新媒体服务器状态
+        new Crontab('* */10 * * * *', function () {
+            RefreshMediaServerStatusTask::run();
         });
     }
 }

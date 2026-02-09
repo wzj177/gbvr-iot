@@ -9,6 +9,7 @@ use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Role\Service\RoleService;
 use CoreW\Business\Role\Dao\RoleDao;
 use CoreW\Business\Setting\Service\SettingService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\User\Service\UserService;
 
@@ -295,7 +296,7 @@ class RoleServiceImpl extends BaseService implements RoleService
         $userRole['data_v2'] = $v2Role;
         $userRole['createdTime'] = time();
         $userRole['createdUserId'] = $this->getCurrentUser()->getId();
-        $this->getLogService()->info('role', 'init_create_role', '初始化四个角色"' . $userRole['name'] . '"', $userRole);
+        $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_INIT_CREATE_ROLE, '初始化四个角色"' . $userRole['name'] . '"', $userRole);
 
         return $this->getRoleDao()->create($userRole);
     }
@@ -374,14 +375,6 @@ class RoleServiceImpl extends BaseService implements RoleService
     protected function getSettingService()
     {
         return $this->createService('Setting:SettingService');
-    }
-
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
     }
 
     /**

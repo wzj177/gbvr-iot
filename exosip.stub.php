@@ -809,6 +809,63 @@ class ExoSip {
     public function sendNotifyResponse(int $tid, int $code): bool {}
     
     /**
+     * Send NOTIFY request to subscriber (as event source) (GB28181)
+     * 
+     * When platform is the event source (e.g., device catalog changed, alarm occurred),
+     * it sends NOTIFY to all subscribers to inform them of the event.
+     * 
+     * This is the OPPOSITE of sendNotifyResponse():
+     * - sendNotifyResponse(): Respond to incoming NOTIFY from devices
+     * - sendNotify(): Send outgoing NOTIFY to subscribers
+     * 
+     * GB28181 Subscription States:
+     * - "active": Subscription is valid and active
+     * - "pending": Subscription is being processed
+     * - "terminated": Subscription has ended (use with reason parameter)
+     * 
+     * Termination Reasons (when state is "terminated"):
+     * - "deactivated": Subscriber deactivated
+     * - "probation": Subscription on probation
+     * - "rejected": Subscription rejected
+     * - "timeout": Subscription timed out
+     * - "giveup": Server gave up
+     * - "noresource": Resource no longer exists
+     * 
+     * @param int $dialogId Dialog ID from the subscription (from onSubscribe event)
+     * @param string $subscriptionState Subscription state: "active", "pending", or "terminated"
+     * @param string $body XML body (GB28181 MANSCDP format)
+     * @param string|null $reason Termination reason (only when state is "terminated")
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // When device catalog changes, notify all subscribers
+     * $catalogXml = buildCatalogNotifyXml($deviceId, $channels);
+     * 
+     * foreach ($subscriptionManager->getCatalogSubscribers($deviceId) as $sub) {
+     *     $sip->sendNotify(
+     *         $sub['dialog_id'],
+     *         'active',           // Subscription still valid
+     *         $catalogXml,
+     *         null                // No termination reason
+     *     );
+     * }
+     * 
+     * // When subscription expires, send terminated NOTIFY
+     * $sip->sendNotify(
+     *     $dialogId,
+     *     'terminated',
+     *     $finalXml,
+     *     'timeout'           // Reason: subscription timed out
+     * );
+     * ```
+     * 
+     * @see subscribe() To create outgoing subscription
+     * @see sendNotifyResponse() To respond to incoming NOTIFY
+     */
+    public function sendNotify(int $dialogId, string $subscriptionState, string $body, ?string $reason = null): bool {}
+    
+    /**
      * Get socket file descriptor for external event loops
      * 
      * Advanced usage: integrate with select()/poll()/epoll().

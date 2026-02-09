@@ -51,7 +51,7 @@ class MenuController extends BaseController
         $menu = $request->post();
         $menu = $this->getMenuService()->createMenu($menu);
 
-        $this->getLogService()->info('menu', 'create', '创建菜单', $menu);
+        $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_CREATE_MENU, '创建菜单', $menu);
 
         return $this->createSuccessJsonResponse($menu);
     }
@@ -66,7 +66,7 @@ class MenuController extends BaseController
 
         $menu = $this->getMenuService()->updateMenu($id, $fields);
 
-        $this->getLogService()->info('menu', 'update', '更新菜单', ['id' => $id, 'fields' => $fields]);
+        $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_UPDATE_MENU, '更新菜单', ['id' => $id, 'fields' => $fields]);
 
         return $this->createSuccessJsonResponse($menu);
     }
@@ -79,7 +79,7 @@ class MenuController extends BaseController
         $id = (int) $id;
         $this->getMenuService()->deleteMenu($id);
 
-        $this->getLogService()->info('menu', 'delete', '删除菜单', ['id' => $id]);
+        $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_DELETE_MENU, '删除菜单', ['id' => $id]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }
@@ -110,7 +110,7 @@ class MenuController extends BaseController
 
         $this->getMenuService()->syncMenusFromJson($menuData);
 
-        $this->getLogService()->info('menu', 'sync', '同步菜单', ['file' => $menuFile]);
+        $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_SYNC_MENU, '同步菜单', ['file' => $menuFile]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }
@@ -147,7 +147,7 @@ class MenuController extends BaseController
             $this->getMenuService()->deleteMenu((int) $id);
         }
 
-        $this->getLogService()->info('menu', 'batch_delete', '批量删除菜单', ['ids' => $ids]);
+        $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_BATCH_DELETE_MENU, '批量删除菜单', ['ids' => $ids]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }

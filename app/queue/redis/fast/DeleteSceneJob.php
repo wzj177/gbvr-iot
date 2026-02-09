@@ -70,11 +70,11 @@ class DeleteSceneJob implements Consumer
 
             $this->getVIPService()->subUsedSpaceSize($product['userId'], $usedSize);
             $msg .= "用户空间减少:" . StringToolkit::printMem($usedSize);
-            $this->getLogService()->error('product', 'delete_scene_after', "清理场景(ID:{$scene['id']})资源文件完成:{$msg}", $scene);
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_DELETE_SCENE_AFTER, "清理场景(ID:{$scene['id']})资源文件完成:{$msg}", $scene);
 
             return true;
         } catch (\Throwable $e) {
-            $this->getLogService()->error('product', 'delete_scene_after', '清理场景资源文件失败,' . $e->getMessage(), $scene);
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_DELETE_SCENE_AFTER, '清理场景资源文件失败,' . $e->getMessage(), $scene);
             return false;
         }
     }

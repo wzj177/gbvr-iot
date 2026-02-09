@@ -17,10 +17,13 @@ use Gb28181\GateWay\Message\CommandType\DeviceStatusCommand;
 use Gb28181\GateWay\Message\CommandType\AlarmCommand;
 use Gb28181\GateWay\Message\CommandType\MobilePositionCommand;
 use Gb28181\GateWay\Message\CommandType\MediaStatusCommand;
+use Gb28181\GateWay\Message\CommandType\SubscribeNotifyCommand;
 use Gb28181\GateWay\Traits\CurlTrait;
 use Gb28181\GateWay\Traits\SIPMessageHandleTrait;
 use Gb28181\GateWay\Wrappers\CallbackWrapper;
 use Gb28181\GateWay\Libs\Logger;
+use Gb28181Gateway\src\Message\CommandType\DeviceSubscribeCommand;
+use Gb28181Gateway\src\Message\CommandType\DeviceToServerSubscribeHandler;
 
 /**
  * GB28181 信令网关核心处理类
@@ -310,10 +313,10 @@ class GB28181Handler
         if ($now - $lastCheckTime >= $this->config['check_interval']) {
             $timeoutDevices = $this->deviceManager->checkTimeout();
             $lastCheckTime = $now;
-            $this->log("Checking device heartbeat timeout:{$lastCheckTime}");
 
             // 通知 API 更新超时设备状态为 expired
             if (!empty($timeoutDevices)) {
+                $this->log("Checking device heartbeat timeout:{$lastCheckTime}");
                 $this->log("发现 " . count($timeoutDevices) . " 个心跳超时设备", 'WARNING');
                 foreach ($timeoutDevices as $device) {
 //                    $device = $this->deviceManager->getDevice($deviceId);
@@ -361,17 +364,40 @@ class GB28181Handler
     public function handleTask($taskId, $taskData): array
     {
         $this->log("Task #{$taskId} processing", 'DEBUG');
-        if (empty($taskData) || !isset($taskData['type'])) {
+        if (empty($taskData)) {
             return [
                 'success' => false,
                 'error' => 'Invalid task data',
             ];
         }
 
-        $this->curlPost($this->config['api_hock_url'], [
-            'scene' => $taskData['type'],
-            'body' => $taskData['payload'] ?? [], // 替换为你要发送的实际数据
-        ]);
+        // 检查 action 类型，区分 CommandDispatcher 的 api_callback 和普通任务
+        $action = $taskData['action'] ?? '';
+        
+        if ($action === 'api_callback') {
+            // 来自 CommandDispatcher 的 API 回调任务
+            $type = $taskData['type'] ?? 'unknown';
+            $payload = $taskData['payload'] ?? [];
+            
+            // 使用 payload 中的 api_hook_url 或默认配置
+            $apiUrl = !empty($taskData['api_hook_url']) 
+                ? $taskData['api_hook_url'] 
+                : $this->config['api_hock_url'];
+            
+            $this->log("Task #{$taskId} api_callback: type={$type}, url={$apiUrl}", 'DEBUG');
+            
+            $this->curlPost($apiUrl, [
+                'scene' => $type,  // 如 'subscribe_response', 'subscribe_refresh'
+                'body' => $payload,
+            ]);
+        } else {
+            // 普通任务（兼容旧格式）
+            $type = $taskData['type'] ?? 'unknown';
+            $this->curlPost($this->config['api_hock_url'], [
+                'scene' => $type,
+                'body' => $taskData['payload'] ?? [],
+            ]);
+        }
 
         return [
             'success' => true,
@@ -746,21 +772,22 @@ class GB28181Handler
 
     /**
      * 处理订阅请求（SUBSCRIBE）
+     * 
+     * 触发时机：当国标设备向服务器发送 SUBSCRIBE 请求时
+     * 事件类型：EXOSIP_IN_SUBSCRIPTION_NEW（IN_ 前缀表示 incoming 入站请求）
+     * 
+     * 使用场景（较少见，但需要支持）：
+     * - 下级平台向上级平台订阅目录变更
+     * - 设备订阅平台的报警推送
+     * - 级联模式下的事件订阅
      *
-     * GB28181 使用 SUBSCRIBE/NOTIFY 机制实现移动设备位置订阅：
-     * - Event: presence - 移动设备位置订阅
-     * - Expires: 订阅时长（秒），0表示取消订阅
+     * 订阅类型（通过 Event 头域判断）：
+     * - Event: Catalog        订阅目录变更
+     * - Event: Alarm          订阅报警事件
+     * - Event: MobilePosition 订阅位置上报（平台作为位置源）
+     * - Event: presence       兼容旧版位置订阅
      *
-     * 订阅流程：
-     * 1. 平台发送 SUBSCRIBE（Event: presence, Expires: 3600）
-     * 2. 设备回复 200 OK
-     * 3. 设备周期性发送 NOTIFY（Event: presence，包含位置信息）
-     * 4. 平台在过期前发送 SUBSCRIBE 刷新订阅
-     * 5. 取消订阅时发送 SUBSCRIBE（Expires: 0）
-     *
-     * 注意事项：
-     * - 如果 Expires 太小（< 设备最小值），设备可能返回 423 Interval Too Small
-     * - 返回头域需包含 Min-Expires 指示最小订阅时间
+     * @param \SipEvent $event SUBSCRIBE 事件
      */
     public function handleSubscribe(\SipEvent $event): void
     {
@@ -768,19 +795,98 @@ class GB28181Handler
         $eventType = $event->getHeader('Event') ?? 'unknown';
         $expires = $event->getExpires() ?? 3600;
         $body = $event->getBody();
+        $callId = $event->getCallId();
+        $dialogId = $event->getDialogId();
 
-        $this->log("订阅请求: {$deviceId}, Event: {$eventType}, Expires: {$expires}");
+        $this->log("收到 SUBSCRIBE: 设备={$deviceId}, Event={$eventType}, Expires={$expires}");
 
-        // 处理移动设备位置订阅（Event: presence）
-        if ($eventType === 'presence') {
-            $this->handleMobilePositionSubscribe($event, $deviceId, $expires, $body);
-        } else {
-            // 其他订阅类型（目录订阅等）
-            $this->log("未处理的订阅类型: {$eventType}", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => $expires
-            ]);
+        // 检查设备是否注册
+        $device = $this->deviceManager->getDeviceObject($deviceId);
+        if (!$device) {
+            $this->log("SUBSCRIBE 来自未注册设备: {$deviceId}", 'WARNING');
+            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            return;
         }
+
+        // 处理取消订阅（Expires: 0）
+        if ($expires === 0) {
+            $this->log("取消订阅: {$deviceId}, Event: {$eventType}");
+            
+            // 从设备管理器移除订阅
+            $subscriptionType = $this->mapEventToSubscriptionType($eventType);
+            if ($subscriptionType) {
+                $this->deviceManager->removeSubscription($deviceId, $subscriptionType);
+            }
+
+            // 通知业务系统
+            $this->postTask('subscription_cancelled', [
+                'device_id' => $deviceId,
+                'event_type' => $eventType,
+                'call_id' => $callId,
+                'timestamp' => time(),
+            ]);
+
+            $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
+                'Expires' => 0
+            ]);
+            return;
+        }
+
+        $this->log("处理订阅: {$deviceId}, Event: {$eventType}, Expires: {$expires}");
+        $handler = new DeviceToServerSubscribeHandler();
+        // 根据 Event 类型处理不同的订阅
+        switch (strtolower($eventType)) {
+            case 'catalog':
+                $handler->handleCatalogSubscribe($event, $deviceId, $expires, $body);
+                break;
+                
+            case 'alarm':
+                $handler->handleAlarmSubscribe($event, $deviceId, $expires, $body);
+                break;
+                
+            case 'mobileposition':
+            case 'presence':
+                $handler->andleMobilePositionSubscribe($event, $deviceId, $expires, $body);
+                break;
+                
+            default:
+                // 未知订阅类型，仍然接受但记录日志
+                $this->log("未知订阅类型: {$eventType}", 'WARNING');
+                
+                $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
+                    'Expires' => $expires
+                ]);
+                
+                // 通知业务系统
+                $this->postTask('subscription_unknown', [
+                    'device_id' => $deviceId,
+                    'event_type' => $eventType,
+                    'expires' => $expires,
+                    'call_id' => $callId,
+                    'dialog_id' => $dialogId,
+                    'body' => $body,
+                    'timestamp' => time(),
+                ]);
+                break;
+        }
+    }
+
+    /**
+     * 将 Event 头映射到订阅类型
+     *
+     * @param string $eventType Event 头的值
+     * @return string|null 订阅类型
+     */
+    private function mapEventToSubscriptionType(string $eventType): ?string
+    {
+        $map = [
+            'catalog' => 'catalog',
+            'alarm' => 'alarm',
+            'mobileposition' => 'mobile_position',
+            'presence' => 'mobile_position',
+        ];
+        
+        return $map[strtolower($eventType)] ?? null;
     }
 
     /**
@@ -788,21 +894,36 @@ class GB28181Handler
      *
      * NOTIFY 用于异步通知，设备主动向平台发送状态信息。
      *
-     * 两种 NOTIFY 类型：
+     * GB28181 订阅/通知场景说明：
+     * ===========================
+     * 1. 平台主动订阅设备：
+     *    - 平台调用 $sipServer->subscribe() 向设备发送 SUBSCRIBE
+     *    - 设备响应 200 OK（触发 onResponse 回调）
+     *    - 设备发生事件时主动推送 NOTIFY（触发本 handleNotify 回调）
      *
-     * 1. 订阅事件通知（通过 Event 头域判断）：
-     *    - Event: presence - 移动设备位置订阅通知
-     *    - 需要检查 Subscription-State 头域（active/pending/terminated）
-     *    - XML Body 包含位置信息（MobilePosition）
+     * 2. 设备主动订阅平台（较少见）：
+     *    - 设备向平台发送 SUBSCRIBE（触发 handleSubscribe 回调）
+     *    - 平台响应 200 OK
+     *    - 平台发生变化时向设备发送 NOTIFY
      *
-     * 2. XML 命令通知（通过 CmdType 判断）：
-     *    - MediaStatus: GB28181-2022 媒体状态通知（截图完成/流保活）
-     *    - 其他自定义命令类型
+     * 订阅事件类型（通过 Event 头域判断）：
+     * =====================================
+     * - Event: Catalog        目录变更通知（设备/通道增删改）
+     * - Event: Alarm          报警事件订阅通知
+     * - Event: MobilePosition 移动设备位置订阅通知
+     * - Event: presence       兼容旧版位置订阅（GB28181-2016）
+     *
+     * XML 命令通知（通过 CmdType 判断）：
+     * ==================================
+     * - MediaStatus: GB28181-2022 媒体状态通知（截图完成/流保活）
+     * - 其他自定义命令类型
      *
      * 处理流程：
+     * =========
      * 1. 优先检查 Event 头域（订阅事件）
      * 2. 如果没有 Event 或不识别，解析 XML CmdType（命令通知）
      * 3. 通过 MessageHandler 分发到对应的 CommandType 处理
+     * 4. 检查 Subscription-State 头判断订阅是否终止
      */
     public function handleNotify(\SipEvent $event): void
     {
@@ -811,26 +932,27 @@ class GB28181Handler
         $subscriptionState = $event->getHeader('Subscription-State') ?? '';
         $body = $event->getBody();
         $device = $this->deviceManager->getDeviceObject($deviceId);
+        
         if (!$device) {
-            $this->log("设备未注册: {$deviceId}", 'WARNING');
+            $this->log("NOTIFY 来自未注册设备: {$deviceId}", 'WARNING');
             $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
             return;
         }
 
-        $this->log("通知消息: {$deviceId}, Event: {$eventType}, State: {$subscriptionState}", 'DEBUG');
+        $this->log("收到 NOTIFY: 设备={$deviceId}, Event={$eventType}, State={$subscriptionState}");
 
-        // 优先处理订阅事件通知（Event 头域）
-        if ($eventType === 'presence') {
-            // 移动设备位置订阅通知
-            $this->handleMobilePositionNotify($event, $deviceId, $subscriptionState, $body);
+        // 使用 SubscribeNotifyCommand 统一处理订阅通知（Event 头方式）
+        if (SubscribeNotifyCommand::isSupportedEvent($eventType)) {
+            $this->handleSubscribeNotify($event, $deviceId, $eventType, $subscriptionState, $body);
             return;
         }
 
-        if ($body && $this->config['debug'] ?? false) {
+        // 调试日志
+        if ($body && ($this->config['debug'] ?? false)) {
             $this->log("NOTIFY Body: {$body}", 'DEBUG');
         }
 
-        // 处理 XML 命令通知（CmdType）
+        // 处理 XML 命令通知（无 Event 头或未识别的 Event，通过 CmdType 判断）
         if ($body) {
             // 规范化编码
             $body = $this->normalizeXmlEncoding($body, $device->charset);
@@ -846,7 +968,7 @@ class GB28181Handler
                     ]);
 
                     $cmdType = $result['cmd_type'] ?? 'Unknown';
-                    $this->log("收到 NOTIFY: $deviceId -> $cmdType");
+                    $this->log("收到 NOTIFY 命令: $deviceId -> $cmdType");
 
                     // 分发命令结果
                     $this->dispatchCommand($event, $deviceId, $result);
@@ -859,7 +981,105 @@ class GB28181Handler
             }
         }
 
-        // 处理通知内容（可能是设备状态变化等）
+        // 兜底：返回 200 OK
+        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+    }
+
+
+    /**
+     * 统一处理订阅通知（使用 SubscribeNotifyCommand）
+     *
+     * 使用 Command 模式统一处理所有订阅相关的 NOTIFY 消息：
+     * - Catalog: 目录变更通知
+     * - Alarm: 报警事件通知
+     * - MobilePosition/presence: 移动设备位置通知
+     *
+     * @param \SipEvent $event NOTIFY 事件
+     * @param string $deviceId 设备ID
+     * @param string $eventType Event 头的值
+     * @param string $subscriptionState Subscription-State 头的值
+     * @param string $body XML 消息体
+     */
+    private function handleSubscribeNotify(\SipEvent $event, string $deviceId, string $eventType, string $subscriptionState, string $body): void
+    {
+        $eventTypeDesc = SubscribeNotifyCommand::getEventTypeDesc($eventType);
+        $this->log("{$eventTypeDesc}通知: {$deviceId}, State: {$subscriptionState}");
+        
+        $device = $this->deviceManager->getDeviceObject($deviceId);
+        if (!$device) {
+            $this->log("设备未注册: {$deviceId}", 'WARNING');
+            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            return;
+        }
+
+        // 检查订阅状态是否终止
+        $isTerminated = stripos($subscriptionState, 'terminated') !== false;
+        if ($isTerminated) {
+            $subscriptionType = $this->mapEventToSubscriptionType($eventType);
+            if ($subscriptionType) {
+                $this->log("{$eventTypeDesc}订阅已终止: {$deviceId}");
+                $this->deviceManager->removeSubscription($deviceId, $subscriptionType);
+            }
+        }
+
+        // 消息体为空时直接返回
+        if (empty($body)) {
+            $this->log("{$eventTypeDesc}通知消息体为空", 'WARNING');
+            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            return;
+        }
+
+        // 规范化编码并解析 XML
+        $body = $this->normalizeXmlEncoding($body, $device->charset);
+        $xml = @simplexml_load_string($body);
+
+        if (!$xml) {
+            $this->log("{$eventTypeDesc}通知 XML 解析失败", 'ERROR');
+            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
+            return;
+        }
+
+        // 使用 SubscribeNotifyCommand 统一处理
+        $subscribeNotifyCommand = new SubscribeNotifyCommand();
+        $result = $subscribeNotifyCommand->handle($xml, $deviceId, [
+            'event_type' => $eventType,
+            'subscription_state' => $subscriptionState,
+            'sip_event' => $event,
+        ]);
+
+        $notifyType = $result['notify_type'] ?? $eventType;
+        
+        // 根据通知类型记录日志
+        switch ($notifyType) {
+            case 'catalog':
+                $deviceCount = $result['device_count'] ?? 0;
+                $eventInXml = $result['event_desc'] ?? $result['event'] ?? '';
+                $this->log("  事件类型: {$eventInXml}, 通道数: {$deviceCount}");
+                break;
+                
+            case 'alarm':
+                $alarmMethodDesc = $result['alarm_method_desc'] ?? '';
+                $priorityDesc = $result['alarm_priority_desc'] ?? '';
+                $this->log("  报警类型: {$alarmMethodDesc}, 优先级: {$priorityDesc}");
+                if (!empty($result['alarm_description'])) {
+                    $this->log("  报警描述: {$result['alarm_description']}");
+                }
+                break;
+                
+            case 'mobile_position':
+                $lon = $result['longitude'] ?? '';
+                $lat = $result['latitude'] ?? '';
+                $time = $result['time'] ?? '';
+                $this->log("  位置: 经度={$lon}, 纬度={$lat}, 时间={$time}");
+                break;
+        }
+
+        // 推送通知到业务系统
+        $scene = "{$notifyType}_notify";
+        $this->postTask($scene, $result);
+
+        $this->log("✓ {$eventTypeDesc}通知已处理: {$deviceId}");
+
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
 
@@ -915,233 +1135,6 @@ class GB28181Handler
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
 
-    /**
-     * 处理移动设备位置订阅（SUBSCRIBE）
-     *
-     * 订阅流程：
-     * 1. 平台发送 SUBSCRIBE（Event: presence, Expires: 3600）
-     * 2. 检查 Expires 值（需要 > 0 且 < 3600）
-     * 3. 如果 Expires 太小，返回 423 Interval Too Small + Min-Expires
-     * 4. 保存订阅信息（设备ID、过期时间、CallID等）
-     * 5. 返回 200 OK，等待设备发送 NOTIFY
-     *
-     * @param \SipEvent $event SUBSCRIBE 事件
-     * @param string $deviceId 设备ID
-     * @param int $expires 订阅时长（秒）
-     * @param string $body 消息体（可能包含订阅参数）
-     */
-    private function handleMobilePositionSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body): void
-    {
-        $device = $this->deviceManager->getDeviceObject($deviceId);
-        if (!$device) {
-            $this->log("设备未注册: {$deviceId}", 'WARNING');
-            return;
-        }
-
-        $callId = $event->getCallId();
-        $minExpires = $this->config['mobile_position_min_expires'] ?? 60; // 最小订阅时间（秒）
-        $maxExpires = $this->config['mobile_position_max_expires'] ?? 3600; // 最大订阅时间（秒）
-
-        $this->log("位置订阅请求: {$deviceId}, Expires: {$expires}");
-
-        // 取消订阅（Expires = 0）
-        if ($expires === 0) {
-            $this->log("取消位置订阅: {$deviceId}");
-
-            // 删除订阅记录
-            $this->deviceManager->removeSubscription($deviceId, 'mobile_position');
-
-            // 通知业务系统
-            $this->postTask('mobile_position_unsubscribe', [
-                'device_id' => $deviceId,
-                'call_id' => $callId,
-                'timestamp' => time(),
-            ]);
-
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => 0
-            ]);
-            return;
-        }
-
-        // 检查订阅时间是否太小
-        if ($expires > 0 && $expires < $minExpires) {
-            $this->log("订阅时间太短: {$expires}s < {$minExpires}s (最小值)", 'WARNING');
-
-            $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires
-            ]);
-            return;
-        }
-
-        // 限制最大订阅时间
-        if ($expires > $maxExpires) {
-            $expires = $maxExpires;
-            $this->log("订阅时间超过最大值，限制为: {$maxExpires}s", 'WARNING');
-        }
-
-        // 解析订阅参数（如果有 XML Body）
-        $interval = null; // 位置上报间隔
-        if (!empty($body)) {
-            $body = $this->normalizeXmlEncoding($body, $device->charset);
-            $xml = @simplexml_load_string($body);
-            if ($xml) {
-                $interval = isset($xml->Interval) ? (int)$xml->Interval : null;
-            }
-        }
-
-        // 保存订阅信息
-        $subscription = [
-            'device_id' => $deviceId,
-            'type' => 'mobile_position',
-            'event' => 'presence',
-            'call_id' => $callId,
-            'expires' => $expires,
-            'expire_time' => time() + $expires,
-            'interval' => $interval,
-            'created_at' => time(),
-        ];
-
-        $this->deviceManager->addSubscription($deviceId, 'mobile_position', $subscription);
-
-        // 通知业务系统
-        $this->postTask('mobile_position_subscribe', [
-            'device_id' => $deviceId,
-            'expires' => $expires,
-            'interval' => $interval,
-            'call_id' => $callId,
-            'timestamp' => time(),
-        ]);
-
-        // 返回 200 OK
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires
-        ]);
-
-        $this->log("位置订阅成功: {$deviceId}, 有效期: {$expires}s" . ($interval ? ", 上报间隔: {$interval}s" : ""));
-    }
-
-    /**
-     * 处理移动设备位置通知（NOTIFY with Event: presence）
-     *
-     * 通知流程：
-     * 1. 设备发送 NOTIFY（Event: presence, Subscription-State: active）
-     * 2. 检查 Subscription-State（active/pending/terminated）
-     * 3. 解析 XML Body 获取位置信息
-     * 4. 返回 200 OK
-     * 5. 如果 State = terminated，删除订阅记录
-     *
-     * @param \SipEvent $event NOTIFY 事件
-     * @param string $deviceId 设备ID
-     * @param string $subscriptionState 订阅状态（active/pending/terminated）
-     * @param string $body XML 消息体（位置信息）
-     */
-    private function handleMobilePositionNotify(\SipEvent $event, string $deviceId, string $subscriptionState, string $body): void
-    {
-        $this->log("位置通知: {$deviceId}, State: {$subscriptionState}");
-        $device = $this->deviceManager->getDeviceObject($deviceId);
-        if (!$device) {
-            $this->log("设备未注册: {$deviceId}", 'WARNING');
-            return;
-        }
-        // 检查订阅状态
-        $isTerminated = stripos($subscriptionState, 'terminated') !== false;
-
-        if ($isTerminated) {
-            $this->log("位置订阅已终止: {$deviceId}");
-            $this->deviceManager->removeSubscription($deviceId, 'mobile_position');
-        }
-
-        // 解析位置信息
-        if (empty($body)) {
-            $this->log("位置通知消息体为空", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
-            return;
-        }
-
-        $body = $this->normalizeXmlEncoding($body, $device->charset);
-        $xml = @simplexml_load_string($body);
-
-        if (!$xml) {
-            $this->log("位置通知 XML 解析失败", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
-            return;
-        }
-
-        try {
-            // 使用 MobilePositionCommand 解析位置信息
-            $result = $this->messageHandler->handle($xml, $deviceId, [
-                'event' => $event,
-                'device_manager' => $this->deviceManager,
-            ]);
-
-            // 提取位置数据
-            $longitude = $result['longitude'] ?? 0;
-            $latitude = $result['latitude'] ?? 0;
-            $speed = $result['speed'] ?? 0;
-            $direction = $result['direction'] ?? 0;
-            $altitude = $result['altitude'] ?? 0;
-            $time = $result['time'] ?? '';
-
-            $this->log("  坐标: ({$longitude}, {$latitude}), 速度: {$speed} km/h");
-
-            // 推送位置信息到业务系统
-            $this->postTask('mobile_position', [
-                'device_id' => $deviceId,
-                'longitude' => $longitude,
-                'latitude' => $latitude,
-                'speed' => $speed,
-                'direction' => $direction,
-                'altitude' => $altitude,
-                'time' => $time,
-                'subscription_state' => $subscriptionState,
-                'is_terminated' => $isTerminated,
-                'timestamp' => time(),
-            ]);
-
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
-
-        } catch (\InvalidArgumentException $e) {
-            $this->log("未知的位置通知格式: " . $e->getMessage(), 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
-        }
-    }
-
-    /**
-     * 处理位置信息上报（MESSAGE）
-     *
-     * 注意：MESSAGE 方式已过时，推荐使用 SUBSCRIBE/NOTIFY 订阅机制
-     * 保留此方法是为了兼容旧版本设备
-     */
-    private function handleMobilePositionReport(\SipEvent $event, string $deviceId, array $result): void
-    {
-        $this->log("位置信息上报: $deviceId");
-
-        $longitude = $result['longitude'] ?? 0;
-        $latitude = $result['latitude'] ?? 0;
-        $speed = $result['speed'] ?? 0;
-        $direction = $result['direction'] ?? 0;
-        $altitude = $result['altitude'] ?? 0;
-        $time = $result['time'] ?? '';
-
-        $this->log("  坐标: ({$longitude}, {$latitude})");
-        $this->log("  速度: {$speed} km/h, 方向: {$direction}°");
-
-        // 异步推送位置信息
-        $this->postTask('mobile_position', [
-            'device_id' => $deviceId,
-            'longitude' => $longitude,
-            'latitude' => $latitude,
-            'speed' => $speed,
-            'direction' => $direction,
-            'altitude' => $altitude,
-            'time' => $time,
-            'timestamp' => time(),
-        ]);
-
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
-    }
-
 
     /**
      *  关键：处理设备对 INVITE 的 200 OK 响应（含 SDP）
@@ -1193,15 +1186,18 @@ class GB28181Handler
      * - 提取设备媒体接收地址（c= 字段）
      * - 通知业务系统媒体流已就绪
      * - 通知 ZLM 更新 SSRC（用于流关联）
+     * - 对于语音对讲：更新 Redis 会话状态并发送 voice_established 通知
      */
     private function handleInviteResponse(\SipEvent $event): void
     {
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
         $fromUri = $event->getFromUri();
+        $toUri = $event->getToUri();
         $deviceId = $this->extractDeviceId($fromUri);
+        $channelId = $this->extractDeviceId($toUri);
 
-        $this->log("收到 INVITE 200 OK: 设备 {$deviceId}, Call-ID: {$callId}, Dialog-ID: {$dialogId}");
+        $this->log("收到 INVITE 200 OK: 设备 {$deviceId}, 通道 {$channelId}, Call-ID: {$callId}, Dialog-ID: {$dialogId}");
 
         // 关键修复：更新会话的 dialog_id（修复 BYE 时 dialog_id=-1 的问题）
         // 背景：sendInvite() 返回时 dialog_id=-1（对话尚未建立）
@@ -1235,22 +1231,31 @@ class GB28181Handler
             $this->log('sdp:' . json_encode($sdp, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), 'DEBUG');
         }
 
-        // 发送 ACK（必须）
-        $this->sipServer->sendAck($dialogId);
+        // 检查是否为语音对讲会话（从Redis查找）
+        $voiceSession = $this->getVoiceSession($deviceId, $channelId);
 
-        // 通知业务系统：媒体流已就绪
-        $this->postTask('media_ready', [
-            'device_id' => $deviceId,
-            'call_id' => $callId,
-            'dialog_id' => $dialogId,
-            'device_ssrc' => $deviceSsrc,
-            'device_ip' => $deviceIp,
-            'device_port' => $devicePort,
-            'sdp' => $sdp,
-            'timestamp' => time(),
-        ]);
+        if ($voiceSession) {
+            // 语音对讲会话处理
+            $this->handleVoiceTalkEstablished($voiceSession, $dialogId, $deviceIp, $devicePort);
+        } else {
+            // 视频流会话处理（原有逻辑）
+            // 发送 ACK（必须）
+            $this->sipServer->sendAck($dialogId);
 
-        $this->log("✓ 媒体流就绪通知已发送: {$deviceId} SSRC={$deviceSsrc}");
+            // 通知业务系统：媒体流已就绪
+            $this->postTask('media_ready', [
+                'device_id' => $deviceId,
+                'call_id' => $callId,
+                'dialog_id' => $dialogId,
+                'device_ssrc' => $deviceSsrc,
+                'device_ip' => $deviceIp,
+                'device_port' => $devicePort,
+                'sdp' => $sdp,
+                'timestamp' => time(),
+            ]);
+
+            $this->log("✓ 媒体流就绪通知已发送: {$deviceId} SSRC={$deviceSsrc}");
+        }
     }
 
     /**
@@ -1501,6 +1506,21 @@ class GB28181Handler
             'device_id' => $deviceId,
             'priority' => $alarmPriority,
             'method' => $alarmMethod,
+            'data' => $data,
+            'timestamp' => time(),
+        ]);
+
+        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+    }
+
+    // handleMobilePositionReport
+    private function handleMobilePositionReport(\SipEvent $event, string $deviceId, array $data): void
+    {
+        $this->log("【移动位置通知】设备ID=$deviceId,数据=" . json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+
+        $this->postTask('mobile_position_report', [
+            'event' => 'mobile_position_report',
+            'device_id' => $deviceId,
             'data' => $data,
             'timestamp' => time(),
         ]);
@@ -2062,6 +2082,115 @@ class GB28181Handler
     {
         // 返回统一的接入密码
         return $this->config['device_password'] ?? '12345678';
+    }
+
+
+    /**
+     * 获取语音对讲会话信息（从Redis）
+     *
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @return array|null 会话信息，如果不存在返回null
+     */
+    private function getVoiceSession(string $deviceId, string $channelId): ?array
+    {
+        try {
+            $redis = $this->getRedisConnection();
+            $sessionKey = "voice_session:{$deviceId}:{$channelId}";
+            $sessionData = $redis->get($sessionKey);
+
+            if ($sessionData) {
+                return json_decode($sessionData, true);
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            $this->log("获取语音会话失败: {$e->getMessage()}", 'ERROR');
+            return null;
+        }
+    }
+
+    /**
+     * 处理语音对讲会话已建立
+     *
+     * 当收到语音对讲 INVITE 的 200 OK 响应时调用
+     *
+     * @param array $voiceSession Redis中存储的会话信息
+     * @param int $dialogId SIP Dialog ID
+     * @param string $deviceIp 设备音频接收IP
+     * @param int $devicePort 设备音频接收端口
+     * @return void
+     */
+    private function handleVoiceTalkEstablished(array $voiceSession, int $dialogId, string $deviceIp, int $devicePort): void
+    {
+        $deviceId = $voiceSession['device_id'];
+        $channelId = $voiceSession['channel_id'];
+        $mode = $voiceSession['mode'] ?? 'talk';
+        $ssrc = $voiceSession['ssrc'] ?? '';
+
+        // 更新 Redis 会话信息
+        try {
+            $redis = $this->getRedisConnection();
+            $sessionKey = "voice_session:{$deviceId}:{$channelId}";
+
+            $voiceSession['dialog_id'] = $dialogId;
+            $voiceSession['device_ip'] = $deviceIp;
+            $voiceSession['device_port'] = $devicePort;
+            $voiceSession['status'] = 'established';
+            $voiceSession['updated_at'] = time();
+
+            $redis->setex($sessionKey, 300, json_encode($voiceSession));
+        } catch (\Throwable $e) {
+            $this->log("更新语音会话失败: {$e->getMessage()}", 'ERROR');
+        }
+
+        // 发送 ACK
+        if ($dialogId > 0) {
+            $this->sipServer->sendAck($dialogId);
+        }
+
+        // 通知 API 会话已建立
+        $this->postTask('voice_established', [
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'dialog_id' => $dialogId,
+            'call_id' => $voiceSession['call_id'] ?? 0,
+            'device_ip' => $deviceIp,
+            'device_port' => $devicePort,
+            'mode' => $mode,
+            'ssrc' => $ssrc,
+            'session_id' => $voiceSession['session_id'] ?? null,
+            'timestamp' => time(),
+        ]);
+
+        $this->log("✓ 语音对讲会话已建立: {$deviceId}/{$channelId}, Dialog-ID: {$dialogId}");
+    }
+
+    /**
+     * 获取 Redis 连接
+     *
+     * @return \Redis
+     */
+    private function getRedisConnection(): \Redis
+    {
+        static $redis = null;
+
+        if ($redis === null) {
+            $redis = new \Redis();
+            $redisConfig = $this->config['redis'] ?? [];
+            $host = $redisConfig['host'] ?? '127.0.0.1';
+            $port = $redisConfig['port'] ?? 6379;
+            $password = $redisConfig['password'] ?? '';
+            $database = $redisConfig['database'] ?? 0;
+
+            $redis->connect($host, $port);
+            if (!empty($password)) {
+                $redis->auth($password);
+            }
+            $redis->select($database);
+        }
+
+        return $redis;
     }
 
     /**

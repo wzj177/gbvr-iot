@@ -6,6 +6,8 @@ namespace CoreW\Provider;
 
 use CoreW\Bfw;
 use CoreW\Business\GB\Gb28181Service;
+use CoreW\Business\GB\Gb28181SendRtpPortService;
+use CoreW\Business\GB\SSRCFactory;
 use CoreW\Business\Ip2Region\Ip2Region;
 use CoreW\Business\Auth\AuthFactory;
 use CoreW\Sdk\AMapSdk\AMapClient;
@@ -92,6 +94,14 @@ class ExtensionsProvider implements ServiceProviderInterface
             return new Gb28181Client(Redis::connection('gb_gateway'), config('gb28181'));
         };
 
+        $biz['gb28181_send_rtp_port_service'] = function ($app) {
+            return new Gb28181SendRtpPortService(Redis::connection('gb_gateway'), config('app.app_id'));
+        };
+
+        $biz['SSRCFactory'] = function ($app) {
+            return new SSRCFactory(Redis::connection('gb_gateway'), config('gb28181'), config('app.app_id'));
+        };
+
         $biz['redis.api.cache'] = function ($biz) {
             return Redis::connection('api_cache');
         };
@@ -123,6 +133,7 @@ class ExtensionsProvider implements ServiceProviderInterface
                 return new ZLMClient([
                     'host' => $params['host'],
                     'port' => $params['port'],
+                    'https_port' => $params['https_port'],
                     'secret' => $params['secret'],
                     'debug' => $params['debug'] ?? config('app.debug'),
                 ]);

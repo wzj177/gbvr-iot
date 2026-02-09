@@ -421,24 +421,6 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     }
 
-    /**
-     * 对 SSRC ID 进行 CRC32 哈希，并返回 8 位小写十六进制字符串
-     *
-     * @param string $ssrcId 输入的 SSRC 标识（建议为字符串）
-     * @return string 8 位十六进制字符串（如 'a1b2c3d4'）
-     */
-    public function ssrcIdToCrc32Hex(string $ssrcId): string
-    {
-        // 转为字符串（兼容数字输入）
-        $input = (string)$ssrcId;
-
-        // 计算 CRC32 并转换为无符号 32 位整数
-        $hash = crc32($input);
-        $unsigned = sprintf('%u', $hash);
-
-        // 转为十六进制，小写，不足 8 位左补零
-        return str_pad(dechex($unsigned), 8, '0', STR_PAD_LEFT);
-    }
 
     /**
      * 解析设备类型
@@ -661,6 +643,14 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return (bool)$this->deleteSession($session['id']);
     }
 
+    public function deleteSessionByStreamIdAndMediaServerId(string $streamId, string $mediaServerId)
+    {
+        return $this->getStreamSessionsDao()->batchDelete([
+            'stream_id' => $streamId,
+            'media_server_id' => $mediaServerId
+        ]);
+    }
+
     public function cleanupExpiredSessions(int $ttl = 300): int
     {
         $expireTime = date('Y-m-d H:i:s', time() - $ttl);
@@ -698,6 +688,18 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         }
 
         return $this->getDeviceChannelTree();
+    }
+
+    /**
+     * 获取推送设备列表（包含订阅配置）
+     * 用于 Gateway 启动时恢复设备状态
+     *
+     * @param array $deviceIds 设备ID列表
+     * @return array 设备列表，每个设备包含 subscription_status 字段
+     */
+    public function getDevicesForPush(array $deviceIds): array
+    {
+        return $this->getDeviceDao()->getDevicesForPush($deviceIds);
     }
 
     /**
@@ -869,12 +871,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
         do {
             $ssrc = str_pad((string)rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
-
-//            $exists = Db::table('gv_device_channels')
-//                ->where('ssrc', $ssrc)
-//                ->exists();
             $exists = $this->getDeviceChannelsDao()->existBySsrc($ssrc);
-
             if (!$exists) {
                 return $ssrc;
             }

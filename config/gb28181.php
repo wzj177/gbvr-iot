@@ -141,7 +141,7 @@ return [
      * 设备检查间隔（秒）
      * 定时检查设备心跳超时
      */
-    'timer_interval' => 30,
+    'timer_interval' => 60, // 30
 
 
     /**

@@ -83,7 +83,7 @@ class BaseService
     /**
      * @return SystemLogService
      */
-    protected function getSystemLogService()
+    protected function getLogService()
     {
         return $this->createService('SystemLog:SystemLogService');
     }

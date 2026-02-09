@@ -117,7 +117,7 @@ class UserController extends BaseController
         // 移除敏感信息
         unset($user['password'], $user['salt']);
 
-        $this->getLogService()->info('user', 'create', '创建用户', ['id' => $user['id']]);
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_CREATE_USER, '创建用户', ['id' => $user['id']]);
 
         return $this->createSuccessJsonResponse($user);
     }
@@ -153,7 +153,7 @@ class UserController extends BaseController
         // 移除敏感信息
         unset($user['password'], $user['salt']);
 
-        $this->getLogService()->info('user', 'update', '更新用户', ['id' => $id, 'fields' => $fields]);
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_UPDATE_USER, '更新用户', ['id' => $id, 'fields' => $fields]);
 
         return $this->createSuccessJsonResponse($user);
     }
@@ -172,7 +172,7 @@ class UserController extends BaseController
 
         $this->getUserService()->deleteUserById($id);
 
-        $this->getLogService()->info('user', 'delete', '删除用户', ['id' => $id]);
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_DELETE_USER, '删除用户', ['id' => $id]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }
@@ -218,7 +218,7 @@ class UserController extends BaseController
         $currentIp = $request->getRealIp();
         $this->getUserService()->initPassword((int) $id, $newPassword, $currentIp);
 
-        $this->getLogService()->info('user', 'reset_password', '重置用户密码', ['id' => $id]);
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_RESET_PASSWORD, '重置用户密码', ['id' => $id]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }
@@ -232,7 +232,7 @@ class UserController extends BaseController
 
         $user = $this->getUserService()->updateUser((int) $id, ['locked' => $locked ? 1 : 0]);
 
-        $this->getLogService()->info('user', 'toggle_lock', $locked ? '锁定用户' : '解锁用户', ['id' => $id]);
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_TOGGLE_LOCK, $locked ? '锁定用户' : '解锁用户', ['id' => $id]);
 
         return $this->createSuccessJsonResponse($user);
     }
@@ -256,7 +256,7 @@ class UserController extends BaseController
             $this->getUserService()->deleteUserById((int) $id);
         }
 
-        $this->getLogService()->info('user', 'batch_delete', '批量删除用户', ['ids' => $ids]);
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_BATCH_DELETE_USER, '批量删除用户', ['ids' => $ids]);
 
         return $this->createSuccessJsonResponse(['success' => true]);
     }

@@ -12,6 +12,7 @@ use CoreW\Business\Attachment\Service\AttachmentService;
 use CoreW\Business\Attachment\Dao\AttachmentDao;
 use CoreW\Business\BizEnum;
 use CoreW\Business\Setting\Service\SettingService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Exception\NotFoundException;
 use Imagine\Image\Box;
@@ -398,7 +399,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
                 $finalFilepath = $ossFields['filepath'];
             }
 
-            $this->getLogService()->info('attachment', 'upload', '分片上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '分片上传成功', $fields);
             $this->clearChunkFiles($chunkPath, $chunkFiles);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
@@ -406,7 +407,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             return $this->responseFormat($row['id'], $finalFilepath, $type);
 
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', '分片上传失败:' . $e->getMessage(), $fields);
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '分片上传失败:' . $e->getMessage(), $fields);
             $this->clearChunkFiles($chunkPath, $chunkFiles);
             throw $e;
         }
@@ -548,11 +549,11 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             $fields['createClient'] = $dto->client;
 
             $row = $this->getAttachmentDao()->create($fields);
-            $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
 
             return $this->responseFormat($row['id'], $fields['filepath'], $fields['type']);
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', 'base64上传失败:' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, 'base64上传失败:' . $e->getMessage());
             throw $e;
         }
     }
@@ -576,12 +577,12 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             $fields['createClient'] = $dto->client;
 
             $row = $this->getAttachmentDao()->create($fields);
-            $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
             return $this->responseFormat($row['id'], $fields['filepath'], $fields['type']);
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', '上传失败:' . $e->getMessage(), ['url' => $dto->url]);
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传失败:' . $e->getMessage(), ['url' => $dto->url]);
             throw $e;
         }
     }
@@ -600,7 +601,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             if(isset($fields['firstStorage']) && $fields['firstStorage']) {
                 unset($fields['firstStorage']);
                 $attachment = $this->getAttachmentDao()->create($fields);
-                $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+                $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
             } else {
                 $attachment = $this->getAttachmentDao()->getByHashId($fields['hashId']);
             }
@@ -613,7 +614,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
 
             return $file;
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', '上传失败:' . $e->getMessage(), ['fileName' => $dto->file->getUploadName()]);
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传失败:' . $e->getMessage(), ['fileName' => $dto->file->getUploadName()]);
             throw $e;
         }
     }
@@ -636,7 +637,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             $dto->file = $file;
             $fields = $this->storeFile($dto);
             $row = $this->getAttachmentDao()->create($fields);
-            $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
             $items[] = $this->responseFormat($row['id'], $fields['filepath'], $fields['type'], $assetUri);
@@ -822,7 +823,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             $file = ['filepath' => $path];
             return $implementor->deleteFile($file);
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'delete', "云存储文件删除失败: " . $e->getMessage(), [
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_DELETE_ATTACHMENT, "云存储文件删除失败: " . $e->getMessage(), [
                 'storage' => $storage,
                 'path' => $path
             ]);
@@ -915,13 +916,6 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         return $this->createService('Setting:SettingService');
     }
 
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
-    }
 
     /**
      * @return AttachmentGroupService

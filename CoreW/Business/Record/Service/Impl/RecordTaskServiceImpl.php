@@ -10,6 +10,7 @@ use CoreW\Business\Record\Dao\RecordTaskDao;
 use CoreW\Business\Record\Enums\RecordTaskStatusEnum;
 use CoreW\Business\Record\Enums\RecordTaskTypeEnum;
 use CoreW\Business\Record\Service\RecordTaskService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Dao\DaoProxy;
 use CoreW\Exception\ZlmException;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
@@ -87,12 +88,12 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     {
         $task = $this->getRecordTaskDao()->get($taskId);
         if (!$task) {
-            $this->getSystemLogService()->warning('Record', 'execute_task', 'Record task not found', ['task_id' => $taskId]);
+            $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_EXECUTE_TASK, '录像任务未找到', ['task_id' => $taskId]);
             return false;
         }
 
         if ($task['status'] !== RecordTaskStatusEnum::PENDING->value) {
-            $this->getSystemLogService()->warning('Record', 'execute_task', 'Record task not in pending status', [
+            $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_EXECUTE_TASK, '录像任务状态非待执行', [
                 'task_id' => $taskId,
                 'status' => $task['status'],
             ]);
@@ -134,7 +135,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 'stream_id' => $result['stream_id'] ?? null,
             ]);
 
-            $this->getSystemLogService()->info('Record', 'invite_sent', 'Record task INVITE sent', [
+            $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_INVITE_SENT, '录像任务邀请已发送', [
                 'task_id' => $taskId,
                 'device_id' => $task['device_id'],
                 'channel_id' => $task['channel_id'],
@@ -149,7 +150,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 'fail_reason' => $e->getMessage(),
             ]);
 
-            $this->getSystemLogService()->error('Record', 'execute_task', 'Execute record task failed', [
+            $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_EXECUTE_TASK, '执行录像任务失败', [
                 'task_id' => $taskId,
                 'error' => $e->getMessage(),
             ]);
@@ -284,7 +285,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             // 获取配置失败，保守处理：直接设置时间
             $shouldSetTimeDirectly = true;
 
-            $this->getSystemLogService()->warning('Record', 'media_ready', 'Failed to get ZLM config, setting time directly', [
+            $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_MEDIA_READY, '获取ZLM配置失败，直接设置时间', [
                 'task_id' => $task['id'],
                 'error' => $e->getMessage(),
             ]);
@@ -304,7 +305,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
         $this->getRecordTaskDao()->update($task['id'], $updateData);
 
-        $this->getSystemLogService()->info('Record', 'media_ready', 'Download task media ready', [
+        $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_MEDIA_READY, '下载任务媒体就绪', [
             'task_id' => $task['id'],
             'ssrc' => $ssrc,
             'set_time_directly' => $shouldSetTimeDirectly,
@@ -374,7 +375,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             // 从 task 中获取 media_server 信息（通过 JOIN 查询获取）
             $mediaServer = $this->extractMediaServerFromTask($task);
             if (!$mediaServer) {
-                $this->getSystemLogService()->warning('Record', 'start_recording', 'Media server not found for task', [
+                $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '任务找不到媒体服务器', [
                     'task_id' => $task['id'],
                     'media_server_id' => $task['media_server_id'] ?? '',
                 ]);
@@ -424,7 +425,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             );
 
             if (!$result) {
-                $this->getSystemLogService()->warning('Record', 'start_recording', 'start record failed', [
+                $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '开始录像失败', [
                     'task_id' => $task['id'],
                     'stream_id' => $streamId,
                 ]);
@@ -439,7 +440,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             ]);
 
 
-            $this->getSystemLogService()->info('Record', 'start_recording', 'Recording started', [
+            $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '录像已开始', [
                 'task_id' => $task['id'],
                 'stream_id' => $streamId,
                 'path' => $recordPath,
@@ -448,7 +449,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             return true;
 
         } catch (\Exception $e) {
-            $this->getSystemLogService()->error('Record', 'start_recording', 'Check and start recording failed', [
+            $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '检查和开始录像失败', [
                 'task_id' => $task['id'],
                 'error' => $e->getTraceAsString(),
             ]);
@@ -476,7 +477,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             // 从 task 中获取 media_server 信息（通过 JOIN 查询获取）
             $mediaServer = $this->extractMediaServerFromTask($task);
             if (!$mediaServer) {
-                $this->getSystemLogService()->warning('Record', 'stop_recording', 'Media server not found for task', [
+                $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_STOP_RECORDING, '任务找不到媒体服务器', [
                     'task_id' => $task['id'],
                     'media_server_id' => $task['media_server_id'] ?? '',
                 ]);
@@ -513,7 +514,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 'status' => RecordTaskStatusEnum::FINALIZING->value,
             ]);
 
-            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording finalizing, waiting for mp4 hook', [
+            $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_STOP_RECORDING, '录像正在完成，等待mp4钩子', [
                 'task_id' => $task['id'],
                 'stream_id' => $streamId,
             ]);
@@ -521,7 +522,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             return true;
 
         } catch (\Exception $e) {
-            $this->getSystemLogService()->error('Record', 'stop_recording', 'Check and stop recording failed', [
+            $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_STOP_RECORDING, '检查和停止录像失败', [
                 'task_id' => $task['id'],
                 'error' => $e->getTraceAsString(),
             ]);
@@ -544,7 +545,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             $recordEndTime = $task['record_end_time'] ?? time();
 
             if ($recordStartTime <= 0) {
-                $this->getSystemLogService()->warning('Record', 'complete_recording', 'No record_start_time found', [
+                $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '未找到录像开始时间', [
                     'task_id' => $task['id'],
                 ]);
                 return false;
@@ -564,7 +565,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             if ($streamId) {
                 $deletedCount = $this->getRecordTaskDao()->deleteOtherTasksByStreamId($streamId, $task['id']);
                 if ($deletedCount > 0) {
-                    $this->getSystemLogService()->info('Record', 'complete_recording', 'Deleted other tasks with same stream_id', [
+                    $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '已删除相同stream_id的其他任务', [
                         'task_id' => $task['id'],
                         'stream_id' => $streamId,
                         'deleted_count' => $deletedCount,
@@ -572,7 +573,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 }
             }
 
-            $this->getSystemLogService()->info('Record', 'complete_recording', 'Recording completed', [
+            $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '录像已完成', [
                 'task_id' => $task['id'],
                 'stream_id' => $task['stream_id'] ?? '',
                 'duration' => $actualDuration,
@@ -581,7 +582,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             return true;
 
         } catch (\Exception $e) {
-            $this->getSystemLogService()->error('Record', 'complete_recording', 'Complete recording failed', [
+            $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '完成录像失败', [
                 'task_id' => $task['id'],
                 'error' => $e->getMessage(),
             ]);
@@ -679,7 +680,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                         $zlmClient->closeStream('rtp', $streamId);
                     }
                 } catch (\Throwable $e) {
-                    $this->getSystemLogService()->warning('Record', 'cancel_task', 'Cancel record task stop record failed', [
+                    $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_CANCEL_TASK, '取消录像任务停止录像失败', [
                         'task_id' => $taskId,
                         'error' => $e->getMessage(),
                     ]);
@@ -746,7 +747,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
         // 只处理 FINALIZING 状态的任务
         if ($task['status'] !== RecordTaskStatusEnum::FINALIZING->value) {
-            $this->getSystemLogService()->warning('Record', 'complete_from_hook', 'Task not in FINALIZING status', [
+            $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_FROM_HOOK, '任务状态非完成中', [
                 'task_id' => $taskId,
                 'status' => $task['status'],
             ]);
@@ -766,7 +767,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         if ($streamId) {
             $deletedCount = $this->getRecordTaskDao()->deleteOtherTasksByStreamId($streamId, $taskId);
             if ($deletedCount > 0) {
-                $this->getSystemLogService()->info('Record', 'complete_from_hook', 'Deleted other tasks with same stream_id', [
+                $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_FROM_HOOK, '已删除相同stream_id的其他任务', [
                     'task_id' => $taskId,
                     'stream_id' => $streamId,
                     'deleted_count' => $deletedCount,
@@ -774,7 +775,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             }
         }
 
-        $this->getSystemLogService()->info('Record', 'complete_from_hook', 'Task completed from hook', [
+        $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_FROM_HOOK, '任务从钩子完成', [
             'task_id' => $taskId,
             'stream_id' => $streamId,
             'end_time' => $endTime,

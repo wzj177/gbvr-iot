@@ -8,6 +8,7 @@ use CoreW\Business\BaseService;
 use CoreW\Business\BizEnum;
 use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Product\Dao\ProductHotPointDao;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\Product\Dao\ProductPlaneGraphDao;
 use CoreW\Business\Product\Dao\ProductSceneDao;
 use CoreW\Business\Product\Dao\ProductSettingDao;
@@ -131,7 +132,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             $usedSpaceSize = $panoramaFileSize + $panoramaFileSize;
             $this->getVIPService()->addUsedSpaceSize($fields['userId'], $usedSpaceSize);
             $this->commit();
-            $this->getLogService()->info('product', 'add_scene', '作品添加场景成功,user_id=' . $fields['userId'] . ', id=' . $product['id'], [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_ADD_SCENE, '添加场景成功', [
                 'userId' => $fields['userId'],
                 'currentIp' => $fields['currentIp'] ?? ''
             ]);
@@ -141,7 +142,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->rollback();
             is_file($panoramaFile) && @unlink($panoramaFile);
             ($panoramaThumbFile && is_file($panoramaThumbFile)) && @unlink($panoramaThumbFile);
-            $this->getLogService()->info('product', 'add_scene', '作品添加场景失败,user_id=' . $fields['userId'] . ', id=' . $product['id'], [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_ADD_SCENE, '添加场景失败', [
                 'userId' => $fields['userId'],
                 'currentIp' => $fields['currentIp'] ?? ''
             ]);
@@ -402,7 +403,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->generateUserProductTags($fields['userId'], $product['id'], $recommendTagIds, $customTags);
             $this->getVIPService()->addUsedSpaceSize($fields['userId'], $usedSpaceSize);
             $this->commit();
-            $this->getLogService()->info('product', 'add', '创建作品成功,user_id=' . $fields['userId'] . ', id=' . $product['id'], [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, 'add', '创建作品成功', [
                 'userId' => $fields['userId'],
                 'currentIp' => $currentIp
             ]);
@@ -414,8 +415,9 @@ class ProductServiceImpl extends BaseService implements ProductService
             return $product['id'];
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getLogService()->error('product', 'add', '创建作品失败,user_id=' . $fields['userId'] . '，' . $e->getMessage(), [
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT, 'add', '创建作品失败', [
                 'userId' => $fields['userId'],
+                'error' => $e->getMessage(),
                 'currentIp' => $currentIp
             ]);
             throw $e;
@@ -462,14 +464,15 @@ class ProductServiceImpl extends BaseService implements ProductService
                 $this->getHotPointDao()->batchUpdate($updateHotpointIds, $updateHotPoints);
             }
             $this->commit();
-            $this->getLogService()->info('product', 'update', '更新作品成功,user_id=' . $fields['userId'] . ', id=' . $product['id'], [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, 'update', '更新作品成功', [
                 'userId' => $fields['userId'],
                 'currentIp' => $currentIp
             ]);
             return $product['id'];
         } catch (\Throwable $e) {
-            $this->getLogService()->error('product', 'update', '更新作品失败,user_id=' . $fields['userId'] . '，' . $e->getMessage(), [
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT, 'update', '更新作品失败', [
                 'userId' => $fields['userId'],
+                'error' => $e->getMessage(),
                 'currentIp' => $currentIp
             ]);
             throw $e;
@@ -502,7 +505,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $this->getProductDao()->update($id, [
             'status' => BizEnum::PRODUCT_STATUS_CLOSED
         ]);
-        $this->getLogService()->info('product', 'close', "关闭作品《{$product['title']}》,作品ID:{$id}", [
+        $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_CLOSE, "关闭作品《{$product['title']}》,作品ID:{$id}", [
             'userId' => $fields['userId'],
             'productId' => $id,
             'currentIp' => $fields['currentIp'] ?? '127.0.0.1'
@@ -530,7 +533,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $this->getProductDao()->update($id, [
             'status' => BizEnum::PRODUCT_STATUS_PUBLISHED
         ]);
-        $this->getLogService()->info('product', 'publish', "发布作品《{$product['title']}》,作品ID:{$id}", [
+        $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_PUBLISH, "发布作品《{$product['title']}》,作品ID:{$id}", [
             'userId' => $fields['userId'],
             'productId' => $id,
             'currentIp' => $fields['currentIp'] ?? '127.0.0.1'
@@ -805,7 +808,7 @@ class ProductServiceImpl extends BaseService implements ProductService
 
             $this->commit();
             $count = count($nodes);
-            $this->getLogService()->info('product', 'set-product-tour-nodes', "作品(ID={$product['id']})成功登记{$count}个导游节点", [
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_SET_PRODUCT_TOUR_NODES, "作品(ID={$product['id']})成功登记{$count}个导游节点", [
                 'nodes' => $nodes,
                 'userId' => $fields['userId'] ?? 1,
                 'currentIp' => $fields['currentIp'] ?? '',
@@ -813,7 +816,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             return true;
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getLogService()->info('product', 'set-product-tour-nodes', "作品(ID={$product['id']}),导游节点登记失败,{$e->getMessage()}");
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_SET_PRODUCT_TOUR_NODES, "作品(ID={$product['id']}),导游节点登记失败,{$e->getMessage()}");
             throw $e;
         }
     }
@@ -947,7 +950,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             return true;
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getLogService()->info('product', 'create-plane-graph-markers', "作品(ID={$product['id']}),电子地图场景点位保存失败,{$e->getMessage()}");
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_CREATE_PLANE_GRAPH_MARKERS, "作品(ID={$product['id']}),电子地图场景点位保存失败,{$e->getMessage()}");
             throw $e;
         }
 
@@ -1170,14 +1173,17 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->getSceneDao()->batchDelete(['productId' => $id]);
             $this->getProductTagDao()->batchDelete(['productId' => $id]);
             $this->commit();
-            $this->getLogService()->info('product', 'delete', '成功删除作品', $product);
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_DELETE_PRODUCT, '删除作品成功', $product);
             foreach ($product['scenes'] as $scene) {
                 Client::send('delete-scene', ['product' => $product, 'scene' => $scene, 'delProduct' => true]);
             }
             return true;
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getLogService()->info('product', 'delete', '删除作品失败,' . $e->getMessage(), $product);
+            $this->getLogService()->info(LogEnum::MODULE_PRODUCT, 'delete', '删除作品失败', [
+                'error' => $e->getMessage(),
+                'product' => $product
+            ]);
             return false;
         }
     }
@@ -1511,14 +1517,6 @@ class ProductServiceImpl extends BaseService implements ProductService
     protected function getCatalogService()
     {
         return $this->createService('Product:ProductCatalogService');
-    }
-
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
     }
 
     /**
