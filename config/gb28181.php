@@ -236,26 +236,6 @@ return [
         'prefix' => 'gbvr_iot_gb_gateway_',
         'queue_name' => 'gb28181:commands'
     ],
-
-
-    // ========== ZLMediaKit 流媒体服务器配置 ==========
-
-    /**
-     * 关键配置: ZLM流媒体服务器
-     *
-     * media_server_ip: ZLM服务器的IP地址
-     *   - 设备会向这个IP推送RTP流!
-     *   - INVITE SDP中的 c=IN IP4 将使用此IP
-     *   - 如果ZLM和GB28181在同一台机器,设置为 public_ip 的值
-     *   - 如果ZLM在另一台机器,设置为ZLM服务器的实际IP
-     *
-     * 示例:
-     *   'media_server_ip' => '192.168.31.119',  // 同机器部署
-     *   'media_server_ip' => '192.168.1.200',  // ZLM在另一台机器
-     */
-//    'zlm' => [
-//        'media_server_ip' => env('ZLM_SERVER_IP', '127.0.0.1'),  // ← 设备会向这个IP推流!
-//    ],
     'api' => [
         'hock_url' => 'http://127.0.0.1:8886/api/v2/gb/server/hook',
         'pull_url' => 'http://127.0.0.1:8886/api/v2/gb/devices/pull',

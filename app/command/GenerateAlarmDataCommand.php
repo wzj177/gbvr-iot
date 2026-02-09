@@ -27,12 +27,13 @@ class GenerateAlarmDataCommand extends Command
     protected function configure()
     {
         $this
-            ->addOption('device_id', null, InputOption::VALUE_OPTIONAL, '设备ID，默认使用第一个在线设备')
-            ->addOption('channel_id', null, InputOption::VALUE_OPTIONAL, '通道ID，默认使用设备的第一个通道')
-            ->addOption('count', null, InputOption::VALUE_OPTIONAL, '生成数量，默认20条', 20)
+            ->addOption('device_id', null, InputOption::VALUE_OPTIONAL, '设备ID，默认51010700001320000002')
+            ->addOption('channel_id', null, InputOption::VALUE_OPTIONAL, '通道ID，默认等于设备ID')
+            ->addOption('count', null, InputOption::VALUE_OPTIONAL, '每种类型生成数量，默认20条', 20)
             ->addOption('type', null, InputOption::VALUE_OPTIONAL, '报警类型: all/device/video/storage，默认all', 'all')
             ->addOption('days', null, InputOption::VALUE_OPTIONAL, '生成最近N天的数据，默认7天', 7)
-            ->addOption('plan_id', null, InputOption::VALUE_OPTIONAL, '关联的报警计划ID，可选');
+            ->addOption('no_plan', null, InputOption::VALUE_NONE, '不关联报警计划')
+            ->addOption('create_plan', null, InputOption::VALUE_NONE, '自动创建默认报警计划（如果不存在）');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -41,42 +42,43 @@ class GenerateAlarmDataCommand extends Command
         $db = $biz['db'];
 
         // 获取选项参数
-        $deviceId = $input->getOption('device_id');
-        $channelId = $input->getOption('channel_id');
+        $deviceId = $input->getOption('device_id') ?? '51010700001320000002';
+        $channelId = $input->getOption('channel_id') ?? $deviceId; // 默认通道ID等于设备ID
         $count = (int)$input->getOption('count');
         $typeFilter = $input->getOption('type');
         $days = (int)$input->getOption('days');
-        $planId = $input->getOption('plan_id');
+        $noPlan = $input->getOption('no_plan');
+        $createPlan = $input->getOption('create_plan');
 
-        // 如果没有指定设备，获取第一个在线设备
-        if (!$deviceId) {
-            $device = $db->fetchAssoc(
-                "SELECT device_id FROM gv_devices WHERE status = 'online' LIMIT 1"
-            );
-            if (!$device) {
-                $output->writeln('<error>未找到在线设备，请先注册设备或手动指定 device_id</error>');
-                return self::FAILURE;
+        // 获取或创建报警计划ID
+        $planId = null;
+        if (!$noPlan) {
+            if ($createPlan) {
+                $planId = $this->getOrCreateDefaultPlan($db, $output, $deviceId, $channelId);
+            } else {
+                // 尝试查找现有计划
+                $planId = $this->findExistingPlan($db, $deviceId, $channelId);
+                if ($planId) {
+                    $output->writeln("<info>使用现有报警计划 ID: {$planId}</info>");
+                } else {
+                    $output->writeln("<comment>未找到报警计划，自动创建新计划</comment>");
+                    $planId = $this->getOrCreateDefaultPlan($db, $output, $deviceId, $channelId);
+                }
             }
-            $deviceId = $device['device_id'];
         }
 
-        // 如果没有指定通道，获取设备的第一个通道
-        if (!$channelId) {
-            $channel = $db->fetchAssoc(
-                "SELECT channel_id FROM gv_channels WHERE device_id = ? LIMIT 1",
-                [$deviceId]
-            );
-            if (!$channel) {
-                $output->writeln('<error>未找到通道，请先创建通道或手动指定 channel_id</error>');
-                return self::FAILURE;
-            }
-            $channelId = $channel['channel_id'];
+        // 显示将要使用的 planId
+        if ($planId) {
+            $output->writeln("<info>报警事件将绑定到计划 ID: {$planId}</info>");
+        } else {
+            $output->writeln("<comment>报警事件不绑定计划</comment>");
         }
+        $output->writeln('');
 
         $output->writeln("<info>开始生成报警测试数据...</info>");
         $output->writeln("设备ID: {$deviceId}");
         $output->writeln("通道ID: {$channelId}");
-        $output->writeln("数量: {$count} 条");
+        $output->writeln("每种类型数量: {$count} 条");
         $output->writeln("时间范围: 最近 {$days} 天");
         $output->writeln("类型过滤: {$typeFilter}");
         $output->writeln('');
@@ -91,53 +93,56 @@ class GenerateAlarmDataCommand extends Command
 
         $created = 0;
         $now = time();
+        $totalToCreate = count($alarmTemplates) * $count;
 
-        for ($i = 0; $i < $count; $i++) {
-            // 随机选择报警模板
-            $template = $alarmTemplates[array_rand($alarmTemplates)];
+        // 遍历每个报警模板，每个模板生成 count 条
+        foreach ($alarmTemplates as $template) {
+            $output->writeln("<comment>生成: {$template['name']}</comment>");
 
-            // 随机生成报警时间（最近N天内）
-            $randomSeconds = rand(0, $days * 86400);
-            $alarmTime = date('Y-m-d H:i:s.v', $now - $randomSeconds);
-            $recvTime = date('Y-m-d H:i:s.v', $now - $randomSeconds + rand(0, 5));
+            for ($i = 0; $i < $count; $i++) {
+                // 随机生成报警时间（最近N天内）
+                $randomSeconds = rand(0, $days * 86400);
+                $alarmTime = date('Y-m-d H:i:s.v', $now - $randomSeconds);
+                $recvTime = date('Y-m-d H:i:s.v', $now - $randomSeconds + rand(0, 5));
 
-            // 随机位置（中国境内）
-            $longitude = 100 + rand(0, 200) / 10 + rand(0, 100000) / 100000;
-            $latitude = 25 + rand(0, 150) / 10 + rand(0, 100000) / 100000;
+                // 随机位置（中国境内）
+                $longitude = 100 + rand(0, 200) / 10 + rand(0, 100000) / 100000;
+                $latitude = 25 + rand(0, 150) / 10 + rand(0, 100000) / 100000;
 
-            $data = [
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'level' => $template['level'],
-                'method' => $template['method'],
-                'type' => $template['type'],
-                'eventtype' => $template['eventtype'] ?? null,
-                'description' => $this->generateDescription($template),
-                'longitude' => $longitude,
-                'latitude' => $latitude,
-                'alarm_time' => $alarmTime,
-                'recv_time' => $recvTime,
-                'alarm_plan_id' => $planId ?: ($template['method'] == 5 ? rand(1, 3) : null), // 视频报警随机关联计划
-                'raw_payload' => $this->generateRawPayload($template),
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ];
+                $data = [
+                    'device_id' => $deviceId,
+                    'channel_id' => $channelId,
+                    'level' => $template['level'],
+                    'method' => $template['method'],
+                    'type' => $template['type'],
+                    'eventtype' => $template['eventtype'] ?? null,
+                    'description' => $this->generateDescription($template),
+                    'longitude' => $longitude,
+                    'latitude' => $latitude,
+                    'alarm_time' => $alarmTime,
+                    'recv_time' => $recvTime,
+                    'alarm_plan_id' => $planId,
+                    'raw_payload' => $this->generateRawPayload($template),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
 
-            try {
-                $db->insert('gv_alarm_event', $data);
-                $created++;
+                try {
+                    $db->insert('gv_alarm_event', $data);
+                    $created++;
 
-                // 显示进度
-                if ($created % 10 === 0) {
-                    $output->write(".");
+                    // 显示进度
+                    if ($created % 10 === 0) {
+                        $output->write(".");
+                    }
+                } catch (\Exception $e) {
+                    $output->writeln("<error>插入失败: {$e->getMessage()}</error>");
                 }
-            } catch (\Exception $e) {
-                $output->writeln("<error>插入失败: {$e->getMessage()}</error>");
             }
+            $output->writeln('');
         }
 
-        $output->writeln('');
-        $output->writeln("<info>成功生成 {$created} 条报警测试数据</info>");
+        $output->writeln("<info>成功生成 {$created} 条报警测试数据（共 " . count($alarmTemplates) . " 种类型，每种 {$count} 条）</info>");
 
         // 显示统计信息
         $this->showStatistics($db, $output, $deviceId, $channelId);
@@ -307,5 +312,73 @@ class GenerateAlarmDataCommand extends Command
         }
 
         $output->writeln('');
+    }
+
+    /**
+     * 查找现有的报警计划
+     */
+    private function findExistingPlan($db, string $deviceId, string $channelId): ?int
+    {
+        $plan = $db->fetchAssoc(
+            "SELECT ap.id FROM gv_alarm_plan ap
+             INNER JOIN gv_alarm_plan_channel apc ON apc.alarm_plan_id = ap.id
+             WHERE apc.device_id = ? AND apc.channel_id = ? AND ap.status = 1
+             LIMIT 1",
+            [$deviceId, $channelId]
+        );
+
+        return $plan ? (int)$plan['id'] : null;
+    }
+
+    /**
+     * 获取或创建默认报警计划
+     */
+    private function getOrCreateDefaultPlan($db, OutputInterface $output, string $deviceId, string $channelId): int
+    {
+        // 先查找现有计划
+        $existingPlanId = $this->findExistingPlan($db, $deviceId, $channelId);
+        if ($existingPlanId) {
+            return $existingPlanId;
+        }
+
+        $output->writeln('<info>创建默认报警计划...</info>');
+
+        $now = date('Y-m-d H:i:s');
+
+        // 创建报警计划
+        $planData = [
+            'name' => '默认报警预案-' . substr($deviceId, -8),
+            'status' => 1,
+            'remark' => '自动生成的默认报警预案，匹配所有视频报警',
+            'snapshot_interval_sec' => 10, // 10秒抓拍一次
+            'record_duration_sec' => 60,   // 录像60秒
+            'alarm_level' => json_encode([1, 2, 3, 4]), // 所有级别
+            'alarm_method' => json_encode([5]), // 仅视频报警
+            'alarm_type' => json_encode([]), // 所有类型
+            'alarm_eventtype' => json_encode([]), // 所有事件类型
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        $db->insert('gv_alarm_plan', $planData);
+        $planId = (int)$db->lastInsertId();
+
+        $output->writeln("<info>创建报警计划 ID: {$planId}</info>");
+
+        // 关联通道
+        $channelData = [
+            'alarm_plan_id' => $planId,
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'enabled' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        $db->insert('gv_alarm_plan_channel', $channelData);
+
+        $output->writeln("<info>关联通道: {$deviceId}/{$channelId}</info>");
+
+        return $planId;
     }
 }

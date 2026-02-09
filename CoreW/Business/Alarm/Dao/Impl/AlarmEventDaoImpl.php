@@ -56,6 +56,8 @@ class AlarmEventDaoImpl extends AdvancedDaoImpl implements AlarmEventDao
                 'alarm_time >= :alarm_time_gte',
                 'alarm_time < :alarm_time_before',
                 'alarm_time <= :alarm_time_lte',
+                'alarm_time >= :start_time',
+                'alarm_time <= :end_time',
                 'recv_time > :recv_time_after',
                 'recv_time >= :recv_time_gte',
                 'recv_time < :recv_time_before',

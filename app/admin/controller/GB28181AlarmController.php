@@ -47,11 +47,15 @@ class GB28181AlarmController extends BaseController
             $conditions['alarm_plan_id'] = $request->get('alarm_plan_id');
         }
 
-        // 时间范围筛选
-        if ($request->get('alarm_time_gte')) {
+        // 时间范围筛选 - 兼容前端 start_time/end_time 参数
+        if ($request->get('start_time')) {
+            $conditions['start_time'] = $request->get('start_time');
+        } elseif ($request->get('alarm_time_gte')) {
             $conditions['alarm_time_gte'] = $request->get('alarm_time_gte');
         }
-        if ($request->get('alarm_time_lte')) {
+        if ($request->get('end_time')) {
+            $conditions['end_time'] = $request->get('end_time');
+        } elseif ($request->get('alarm_time_lte')) {
             $conditions['alarm_time_lte'] = $request->get('alarm_time_lte');
         }
 
@@ -64,14 +68,13 @@ class GB28181AlarmController extends BaseController
         list($offset, $limit) = $this->getOffsetAndLimit($request);
 
         $list = $this->getAlarmEventService()->searchAlarmEvents($conditions, ['alarm_time' => 'DESC'], $offset, $limit);
-        $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
-        // 获取统计信息
+        // 获取统计信息（可选，用于仪表盘展示）
         $summary = $this->getAlarmEventService()->getSummary();
 
         return $this->createSuccessJsonResponse([
             'list' => AlarmEventFilter::publicList($list),
-            'paginator' => Paginator::toArray($paginator),
+            'total' => $total,
             'summary' => $summary,
         ]);
     }
@@ -88,7 +91,17 @@ class GB28181AlarmController extends BaseController
             return $this->createErrorJsonResponse('报警事件不存在', null, 404);
         }
 
-        return $this->createSuccessJsonResponse(AlarmEventFilter::one($event));
+        // 获取关联的快照和录像
+        $snapshots = $this->getAlarmEventService()->getAlarmSnapshots((int) $id);
+        $records = $this->getAlarmEventService()->getAlarmRecords((int) $id);
+
+        $data = AlarmEventFilter::one($event);
+        $data['assets'] = [
+            'snapshots' => $snapshots,
+            'records' => $records,
+        ];
+
+        return $this->createSuccessJsonResponse($data);
     }
 
     /**

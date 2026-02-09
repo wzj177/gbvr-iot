@@ -118,7 +118,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         }
 
         // 先删除关联的通道绑定
-        $this->db()->executeStatement(
+        $this->bfw['db']->executeStatement(
             "DELETE FROM gv_alarm_plan_channel WHERE alarm_plan_id = ?",
             [$id]
         );
@@ -146,20 +146,20 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
 
         foreach ($channelIds as $channelId) {
             // 检查是否已存在
-            $existing = $this->db()->fetchOne(
+            $existing = $this->bfw['db']->fetchOne(
                 "SELECT * FROM gv_alarm_plan_channel WHERE alarm_plan_id = ? AND device_id = ? AND channel_id = ?",
                 [$planId, $deviceId, $channelId]
             );
 
             if ($existing) {
                 // 更新 enabled 状态
-                $this->db()->executeStatement(
+                $this->bfw['db']->executeStatement(
                     "UPDATE gv_alarm_plan_channel SET enabled = 1, updated_at = ? WHERE id = ?",
                     [$now, $existing['id']]
                 );
             } else {
                 // 插入新记录
-                $this->db()->insert('gv_alarm_plan_channel', [
+                $this->bfw['db']->insert('gv_alarm_plan_channel', [
                     'alarm_plan_id' => $planId,
                     'device_id' => $deviceId,
                     'channel_id' => $channelId,
@@ -186,7 +186,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
             return false;
         }
 
-        $result = $this->db()->executeStatement(
+        $result = $this->bfw['db']->executeStatement(
             "DELETE FROM gv_alarm_plan_channel WHERE alarm_plan_id = ? AND channel_id = ?",
             [$planId, $channelId]
         );
@@ -206,11 +206,11 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
     {
         $sql = "SELECT pc.*, c.channel_name
                 FROM gv_alarm_plan_channel pc
-                LEFT JOIN gv_channel c ON c.device_id = pc.device_id AND c.channel_id = pc.channel_id
+                LEFT JOIN gv_device_channels c ON c.device_id = pc.device_id AND c.channel_id = pc.channel_id
                 WHERE pc.alarm_plan_id = ?
                 ORDER BY pc.device_id, pc.channel_id";
 
-        return $this->db()->fetchAll($sql, [$planId]);
+        return $this->bfw['db']->fetchAll($sql, [$planId]);
     }
 
     public function matchPlan(string $deviceId, string $channelId, int $level, int $method, ?int $type = null, ?int $eventtype = null): ?array

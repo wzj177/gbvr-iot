@@ -6,6 +6,8 @@ use CoreW\Business\Alarm\Exception\AlarmException;
 use CoreW\Business\Alarm\Service\AlarmEventService;
 use CoreW\Business\Alarm\Dao\AlarmEventDao;
 use CoreW\Business\Alarm\Dao\AlarmPlanDao;
+use CoreW\Business\Snapshot\Dao\SnapshotFileDao;
+use CoreW\Business\RecordFile\Dao\RecordFileDao;
 use CoreW\Business\BaseService;
 use CoreW\Dao\DaoProxy;
 use support\Log;
@@ -248,7 +250,7 @@ class AlarmEventServiceImpl extends BaseService implements AlarmEventService
 
     public function getSummary(): array
     {
-        $db = $this->db();
+        $db = $this->bfw['db'];
         $table = 'gv_alarm_event';
 
         // 获取今天、本周、本月的开始时间戳
@@ -283,5 +285,31 @@ class AlarmEventServiceImpl extends BaseService implements AlarmEventService
             'week' => $week,
             'month' => $month,
         ];
+    }
+
+    public function getAlarmSnapshots(int $alarmEventId): array
+    {
+        return $this->getSnapshotFileDao()->search([
+            'source_type' => 'alarm',
+            'source_id' => $alarmEventId,
+        ], ['shot_time' => 'DESC'], 0, 100);
+    }
+
+    public function getAlarmRecords(int $alarmEventId): array
+    {
+        return $this->getRecordFileDao()->search([
+            'source_type' => 'alarm',
+            'source_id' => $alarmEventId,
+        ], ['created_at' => 'DESC'], 0, 100);
+    }
+
+    protected function getSnapshotFileDao(): SnapshotFileDao|DaoProxy
+    {
+        return $this->createDao('Snapshot:SnapshotFileDao');
+    }
+
+    protected function getRecordFileDao(): RecordFileDao|DaoProxy
+    {
+        return $this->createDao('RecordFile:RecordFileDao');
     }
 }

@@ -9,6 +9,7 @@ interface DeviceService
     public function getDeviceByDeviceId(string $deviceId);
     public function countDevices(array $conditions);
     public function searchDevices(array $conditions, array $orderBys, $start, $limit, $columns = []);
+    public function findDevicesByDeviceIds(array $deviceIds): array;
 
     public function summaryDevices(array $conditions): array;
     public function createDevice(array $fields);

@@ -71,4 +71,20 @@ interface AlarmEventService
      * @return array 更新后的报警事件
      */
     public function updateAlarmEvent(int $id, array $data): array;
+
+    /**
+     * 获取报警关联的快照
+     *
+     * @param int $alarmEventId 报警事件ID
+     * @return array 快照列表
+     */
+    public function getAlarmSnapshots(int $alarmEventId): array;
+
+    /**
+     * 获取报警关联的录像
+     *
+     * @param int $alarmEventId 报警事件ID
+     * @return array 录像列表
+     */
+    public function getAlarmRecords(int $alarmEventId): array;
 }

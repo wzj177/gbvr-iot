@@ -66,12 +66,30 @@ class GB28181ChannelController extends BaseController
             : [];
         $mediaServerMap = ArrayToolkit::index($mediaServers, 'server_id');
 
-        // 为每个通道附加媒体服务器信息
+        // 关联查询设备信息
+        $deviceIds = array_filter(array_unique(array_column($channels, 'device_id')));
+        $devices = !empty($deviceIds)
+            ? $this->getDeviceService()->findDevicesByDeviceIds($deviceIds)
+            : [];
+        $deviceMap = ArrayToolkit::index($devices, 'device_id');
+
+        // 为每个通道附加媒体服务器和设备信息
         foreach ($channels as &$channel) {
+            // 媒体服务器信息
             if (!empty($channel['media_server_id']) && isset($mediaServerMap[$channel['media_server_id']])) {
                 $channel['media_server'] = $mediaServerMap[$channel['media_server_id']];
             } else {
                 $channel['media_server'] = null;
+            }
+
+            // 设备名称
+            if (!empty($channel['device_id']) && isset($deviceMap[$channel['device_id']])) {
+                $device = $deviceMap[$channel['device_id']];
+                $channel['device_name'] = !empty($device['device_name'])
+                    ? $device['device_name']
+                    : ($device['show_name'] ?? '');
+            } else {
+                $channel['device_name'] = '';
             }
         }
 

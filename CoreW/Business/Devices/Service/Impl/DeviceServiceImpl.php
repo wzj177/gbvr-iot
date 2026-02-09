@@ -41,6 +41,15 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getDeviceDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
 
+    public function findDevicesByDeviceIds(array $deviceIds): array
+    {
+        if (empty($deviceIds)) {
+            return [];
+        }
+
+        return $this->getDeviceDao()->search(['device_ids' => $deviceIds], [], 0, count($deviceIds));
+    }
+
     public function summaryDevices(array $conditions = []): array
     {
         $totalCount = $this->countDevices($conditions);

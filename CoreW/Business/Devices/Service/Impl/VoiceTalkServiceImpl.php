@@ -2,6 +2,7 @@
 
 namespace CoreW\Business\Devices\Service\Impl;
 
+use CoreW\Bfw;
 use CoreW\Business\BaseService;
 use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Devices\Dao\VoiceSessionDao;
@@ -43,6 +44,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      */
     private const SESSION_TIMEOUT = 15;
 
+
     /**
      * 准备语音对讲
      *
@@ -69,7 +71,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         $existingSession = $this->getVoiceSessionDao()->getActiveByDeviceAndChannel(
             $deviceId,
             $channelId,
-            self::SESSION_TIMEOUT + 5 // 稍微放宽检查范围
+            env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::SESSION_TIMEOUT) + 5 // 稍微放宽检查范围
         );
 
         if ($existingSession !== false) {
@@ -107,7 +109,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         $zlmClient = $this->getZlmClientByServerId($channel['media_server_id']);
 
         // 5. 设置过期时间
-        $expiresAt = date('Y-m-d H:i:s', time() + self::SESSION_TIMEOUT);
+        $expiresAt = date('Y-m-d H:i:s', time() + env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::SESSION_TIMEOUT));
 
         // 6. 创建会话记录（状态为 WAITING_STREAM）
         $sessionData = [
@@ -257,7 +259,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             $session['id'],
             VoiceSessionStatusEnum::STREAM_ARRIVED->value,
             VoiceSessionStatusEnum::INVITING->value,
-            ['expires_at' => date('Y-m-d H:i:s', time() + self::SESSION_TIMEOUT)]
+            ['expires_at' => date('Y-m-d H:i:s', time() + env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::SESSION_TIMEOUT))]
         );
     }
 
