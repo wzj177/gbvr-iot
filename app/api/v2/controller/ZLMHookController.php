@@ -3,11 +3,16 @@
 namespace app\api\v2\controller;
 
 use app\api\BaseController;
+use CoreW\Business\Auth\Handler\TokenHandlerInterface;
+use CoreW\Business\Devices\Enums\MediaServerStatus;
 use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\Devices\Service\VoiceTalkService;
 use CoreW\Business\GB\Gb28181Service;
+use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Business\Record\Service\RecordTaskService;
 use CoreW\Business\RecordFile\Service\RecordFileService;
-use support\Log;
+use CoreW\Business\SystemLog\LogEnum;
+use CoreW\Business\User\Service\UserService;
 use support\Request;
 
 /**
@@ -49,7 +54,7 @@ class ZLMHookController extends BaseController
         // - 记录播放器/推流器的流量使用情况
         // - 统计用户观看时长
         // - 生成流量报告
-        Log::channel('zlm_hook')->info('on_flow_report', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_FLOW_REPORT, '流量报告', $request->post());
 
         return json(['code' => 0]);
     }
@@ -68,7 +73,7 @@ class ZLMHookController extends BaseController
         // - 验证用户是否有权限访问该文件
         // - 支持 token 验证
         // - 支持防盗链检查
-        Log::channel('zlm_hook')->info('on_http_access', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_HTTP_ACCESS, 'HTTP访问鉴权', $request->post());
 
         // 返回 code=0 表示允许访问，code=-1 表示拒绝
         return json(['code' => 0, 'path' => $request->post('path', '')]);
@@ -88,57 +93,141 @@ class ZLMHookController extends BaseController
         // - 验证用户是否有权限播放该流
         // - 统计播放次数
         // - 记录观看日志
-        Log::channel('zlm_hook')->info('on_play', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PLAY, '播放事件', $request->post());
 
         return json(['code' => 0]);
     }
 
     /**
      * 推流事件
-     *
-     * 流推送到服务器时触发，可用于鉴权和修改流参数
-     *
-     * Hook 作用：更新 record_start_time（仅作为加速器）
-     * 不改变 status，业务逻辑由 Scheduler 统一处理
-     *
-     * @param Request $request
-     * @return \support\Response
      */
     public function onPublish(Request $request): \support\Response
     {
         $streamId = $request->post('stream') ?? $request->post('stream_id');
-        $vhost = $request->post('vhost', '__defaultVhost__');
         $app = $request->post('app', 'rtp');
-        $schema = $request->post('schema', 'rtsp');
+        $paramsStr = $request->post('params', null);
+        $mediaServerId = $request->mediaServer['server_id'] ?? '';
 
-        Log::channel('zlm_hook')->info('on_publish', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流事件', $request->post());
 
-        // Hook 作用：仅更新 record_start_time（如果为0）
-        // 这里的更新只是"提前填充"，实际业务判断由 Scheduler 基于 last_rtp_time 统一处理
-        if ($streamId) {
+        $result = [
+            'code' => 0,
+            'msg' => '',
+            'enable_audio' => false,
+            'enable_mp4' => false, // TODO:对于云录制的流需开启此功能
+        ];
+
+        try {
+            $result = match (true) {
+                $app === 'rtp' => $this->handleRtpPublish($streamId, $mediaServerId, $result),
+                in_array($app, ['talk', 'broadcast']) => $this->handleVoicePublish($app, $streamId, $paramsStr, $result),
+                default => $result,
+                // TODO: share token 逻辑 — 直播流分享给用户，token 带过期时间
+                // TODO: pushAuthority 配置 — 控制是否允许第三方推流
+                // TODO: 考虑用 user UUID 的 MD5 作为 push_key
+            };
+        } catch (\Throwable $e) {
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流鉴权异常', [
+                'app' => $app, 'stream' => $streamId, 'error' => $e->getMessage(),
+            ]);
+        }
+
+        return json($result);
+    }
+
+    /**
+     * RTP 推流处理：按流会话类型控制 enable_mp4/enable_audio
+     */
+    private function handleRtpPublish(string $streamId, string $mediaServerId, array $result): array
+    {
+        $session = $this->getDeviceService()->getSessionByStreamId($streamId);
+        if (!$session) {
+            return $result;
+        }
+
+        $type = $session['type'] ?? '';
+
+        if ($type === 'download') {
+            $result['enable_mp4'] = true;
             if (str_contains($streamId, 'download_')) {
-                $mediaServerId = $request->mediaServer['server_id'] ?? '';
-                try {
-                    $this->getRecordTaskService()->updateRecordStartTimeByStreamId($streamId, $mediaServerId, time());
-                } catch (\Throwable $e) {
-                    Log::channel('zlm_hook')->error('on_publish update record_start_time failed', [
-                        'stream_id' => $streamId,
-                        'media_server_id' => $mediaServerId,
-                        'error' => $e->getMessage(),
+                $this->getRecordTaskService()->updateRecordStartTimeByStreamId($streamId, $mediaServerId, time());
+            }
+        }
+
+        // TODO: enable_audio 根据通道 has_audio 字段判断（目前通道表无此字段）
+        $result['enable_audio'] = true;
+
+        return $result;
+    }
+
+    /**
+     * 语音对讲/广播推流鉴权：验证 sign token，开启音频
+     */
+    private function handleVoicePublish(string $app, string $streamId, ?string $paramsStr, array $result): array
+    {
+        $params = [];
+        if ($paramsStr) {
+            parse_str($paramsStr, $params);
+        }
+
+        if (!empty($params['sign'])) {
+            $signInfo = explode(':', str_replace('%3A', ':', $params['sign']));
+            $valid = false;
+            if (count($signInfo) >= 2) {
+                if ($signInfo[0] === 'adm') {
+                    // 管理端申请的
+                    $existUser = $this->getUserService()->getUserByUUID($signInfo[1]);
+                    $valid = !empty($existUser);
+                } elseif ($signInfo[0] === 'vip') {
+                    // 会员端申请的
+                } elseif ($signInfo[0] === 'share') {
+                    // 分享的，需要验证过期时间
+                }
+
+                if (!$valid) {
+                    $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流鉴权失败', [
+                        'app' => $app, 'stream' => $streamId, 'params' => $params,
                     ]);
+                    return ['code' => -1, 'msg' => 'token验证失败'];
                 }
             }
         }
 
-        // 可返回以下参数动态修改流的配置：
-        return json([
-            'code' => 0,
-            'enable_hls' => 1,
-            'enable_mp4' => 0,
-            'enable_rtsp' => 1,
-            'enable_rtmp' => 1,
-            'enable_ts' => 1,
+        $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_PUBLISH_AUTH, '语音推流鉴权通过', [
+            'app' => $app, 'stream' => $streamId,
         ]);
+
+        $result['enable_audio'] = true;
+        $result['enable_mp4'] = false;
+        return $result;
+    }
+
+    /**
+     * 处理推流结束（on_unpublish Hook）
+     */
+    public function onUnpublish(Request $request): \support\Response
+    {
+        $streamId = $request->post('stream') ?? $request->post('stream_id');
+        $app = $request->post('app', 'rtp');
+        $vhost = $request->post('vhost', '__defaultVhost__');
+
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_UNPUBLISH, '推流结束', $request->post());
+
+        // 处理语音对讲推流结束
+        if (in_array($app, ['talk', 'broadcast'])) {
+            try {
+                $mediaServerId = $request->mediaServer['server_id'] ?? '';
+                $this->getVoiceTalkService()->handleStreamDeparture($app, $streamId, $mediaServerId);
+            } catch (\Throwable $e) {
+                $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_UNPUBLISH_FAILED, '语音对讲推流结束处理失败', [
+                    'app' => $app,
+                    'stream' => $streamId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return json(['code' => 0]);
     }
 
     /**
@@ -156,12 +245,12 @@ class ZLMHookController extends BaseController
         $hookData = $request->post();
 
         // 记录原始数据
-        Log::channel('zlm_hook')->info('on_record_mp4', $hookData);
+        $this->getLogService()->info(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, 'MP4录像完成', $hookData);
 
         try {
             $this->getRecordFileService()->createFromHook($hookData, $request->mediaServer['server_id']);
         } catch (\Throwable $e) {
-            Log::channel('zlm_hook')->error('on_record_mp4 create failed', [
+            $this->getLogService()->error(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK_FAILED, '创建录像文件失败', [
                 'error' => $e->getMessage(),
                 'stream' => $hookData['stream'] ?? '',
             ]);
@@ -183,7 +272,7 @@ class ZLMHookController extends BaseController
         // TODO: HLS/TS 录像文件处理
         // - 保存录像文件信息到数据库
         // - 触发录像完成回调
-        Log::channel('zlm_hook')->info('on_record_ts', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_ON_RECORD_TS, 'TS录像完成', $request->post());
 
         return json(['code' => 0]);
     }
@@ -201,7 +290,7 @@ class ZLMHookController extends BaseController
         // TODO: RTSP 认证
         // - 验证用户名密码
         // - 支持 token 验证
-        Log::channel('zlm_hook')->info('on_rtsp_auth', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_RTSP_AUTH, 'RTSP认证', $request->post());
 
         // 返回 code=0 表示认证成功，code=-1 表示失败
         return json(['code' => 0]);
@@ -219,7 +308,7 @@ class ZLMHookController extends BaseController
     {
         // TODO: 返回 RTSP realm
         // - 可根据不同的 vhost/app/stream 返回不同的 realm
-        Log::channel('zlm_hook')->info('on_rtsp_realm', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_RTSP_REALM, 'RTSP Realm', $request->post());
 
         return json([
             'code' => 0,
@@ -240,7 +329,7 @@ class ZLMHookController extends BaseController
         // TODO: 服务器启动处理
         // - 更新媒体服务器状态为在线
         // - 保存服务器配置信息
-        Log::channel('zlm_hook')->info('on_server_started', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_SERVER_STARTED, '服务器启动', $request->post());
 
         return json(['code' => 0]);
     }
@@ -258,7 +347,7 @@ class ZLMHookController extends BaseController
         // TODO: Shell 登录鉴权
         // - 验证用户名密码
         // - 限制登录 IP
-        Log::channel('zlm_hook')->info('on_shell_login', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_SHELL_LOGIN, 'Shell登录', $request->post());
 
         // 返回 code=0 表示认证成功，code=-1 表示失败
         return json(['code' => -1, 'msg' => 'Shell login disabled']);
@@ -274,22 +363,45 @@ class ZLMHookController extends BaseController
      */
     public function onStreamChanged(Request $request): \support\Response
     {
+        //{ "app": "talk", "stream": "talk_1920268492", "register": 0, "schema": "rtmp" }
         $schema = $request->post('schema', '');
         $stream = $request->post('stream', '');
         $app = $request->post('app', '');
         $vhost = $request->post('vhost', '__defaultVhost__');
-        $register = $request->post('register', 0); // 1=注册，0=注销
-
-        try {
-            if ($register) {
-                // 流注册上线
-                // TODO: 更新流状态、通知前端
-            } else {
-                // 流注销下线
-                // TODO: 清理会话、更新流状态
+        $register = $request->post('regist', 0); // 1=注册，0=注销
+        $mediaServerId = $request->mediaServer['server_id'] ?? '';
+//        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_CHANGED, $stream  . '流' . ($register ? '上线' : '下线'), $request->post());
+//        if ($register) {
+//            // 流注册上线
+//            // TODO: 更新流状态、通知前端
+//        } else {
+//            // 流注销下线
+//            // TODO: 清理会话、更新流状态
+//        }
+        //  处理语音对讲/喊话流
+        if (in_array($app, ['talk', 'broadcast']) && strtolower($schema) === 'rtsp') {
+            try {
+                if ($register) {
+                    //  流注册（上线）- 触发信令
+                    // 调用 VoiceTalkService 处理
+                    // 这里会：
+                    // 1. 查找对应的 session
+                    // 2. 调用 startSendRtpPassive（此时流已存在，不会报错）
+                    // 3. 发送 SIP INVITE (talk) 或 MESSAGE (broadcast)
+                    $this->getVoiceTalkService()->handleStreamArrival($app, $stream, $mediaServerId);
+                } else {
+                    // 流注销（下线）- 清理资源
+                    $this->getVoiceTalkService()->handleStreamDeparture($app, $stream, $mediaServerId);
+                }
+            } catch (\Throwable $e) {
+                $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_STREAM_CHANGED_FAILED, '语音流变化处理失败', [
+                    'app' => $app,
+                    'stream' => $stream,
+                    'register' => $register,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
             }
-        } catch (\Throwable $e) {
-            Log::channel('zlm_hook')->error('on_stream_changed error: ' . $e->getMessage());
         }
 
         return json(['code' => 0]);
@@ -306,7 +418,14 @@ class ZLMHookController extends BaseController
     public function onStreamNoneReader(Request $request): \support\Response
     {
         $streamId = $request->post('stream');
+        $app = $request->post('app', 'rtp');  //  新增：获取 app 参数
 
+        //  新增：处理语音对讲流
+        if (in_array($app, ['talk', 'broadcast'])) {
+            return json(['code' => 0, 'close' => false]);
+        }
+
+        // 原有逻辑：清理普通流会话
         try {
             $sessions = $this->getDeviceService()->searchSessions([
                 'media_server_id' => $request->mediaServer['server_id'],
@@ -319,7 +438,9 @@ class ZLMHookController extends BaseController
                 $this->getDeviceService()->batchDeleteSessions($ids);
             }
         } catch (\Throwable $e) {
-            Log::channel('zlm_hook')->error("onStreamNoneReader clean session error: " . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_NONE_READER, '清理无人观看的流会话失败', [
+                'error' => $e->getMessage()
+            ]);
         }
 
         // 返回 close=true 关闭流，close=false 保持流
@@ -339,7 +460,7 @@ class ZLMHookController extends BaseController
         // TODO: 流未找到处理
         // - 记录 404 错误日志
         // - 尝试拉流代理
-        Log::channel('zlm_hook')->info('on_stream_not_found', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_NOT_FOUND, '播放不存在的流，设备可能停止推流', $request->post());
 
         return json(['code' => 0]);
     }
@@ -357,7 +478,7 @@ class ZLMHookController extends BaseController
         // TODO: FFmpeg 拉流失败处理
         // - 记录错误日志
         // - 清理失败的拉流任务
-        Log::channel('zlm_hook')->info('on_stream_not_found_ffmpeg', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_NOT_FOUND_FFMPEG, 'FFmpeg拉流失败', $request->post());
 
         return json(['code' => 0]);
     }
@@ -375,17 +496,34 @@ class ZLMHookController extends BaseController
         // TODO: RTP 超时处理
         // - 清理超时的 RTP 会话
         // - 更新通道状态
-        Log::channel('zlm_hook')->info('on_rtp_server_timeout', $request->post());
+        $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_ON_RTP_SERVER_TIMEOUT, 'RTP超时', $request->post());
+        if ($request->post('stream_id')) {
+            $this->getDeviceService()->deleteSessionByStreamIdAndMediaServerId($request->post('stream_id'), $request->mediaServer['server_id']);
+        }
 
         return json(['code' => 0]);
     }
 
-    /**
-     * @return Gb28181Service
-     */
-    protected function getGB28181Service(): Gb28181Service
+    public function onServerKeepalive(Request $request)
     {
-        return $this->getBiz()->offsetGet('gb28181_service');
+        try {
+            $this->getMediaServerService()->updateMediaServer($request->mediaServer['id'], [
+                'last_heartbeat_time' => date('Y-m-d H:i:s'),
+
+                'status' => MediaServerStatus::RUNNING->value
+            ]);
+        } catch (\Throwable $e) {
+            $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_SERVER_KEEPALIVE, '更新媒体服务器信息失败', [
+                'error' => $e->getMessage()
+            ]);
+        }
+        return json(['code' => 0]);
+    }
+
+
+    protected function getUserService(): UserService
+    {
+        return $this->getBiz()->service('User:UserService');
     }
 
     protected function getDeviceService(): DeviceService
@@ -401,5 +539,15 @@ class ZLMHookController extends BaseController
     protected function getRecordFileService(): RecordFileService
     {
         return $this->getBiz()->service('RecordFile:RecordFileService');
+    }
+
+    protected function getVoiceTalkService(): VoiceTalkService
+    {
+        return $this->createService('Devices:VoiceTalkService');
+    }
+
+    protected function getMediaServerService(): MediaServerService
+    {
+        return $this->getBiz()->service('MediaServer:MediaServerService');
     }
 }

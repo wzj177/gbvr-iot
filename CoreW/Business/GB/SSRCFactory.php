@@ -14,6 +14,8 @@ class SSRCFactory
 {
     /**
      * 播流最大并发个数
+     * 注意：不能超过 10000，否则 sprintf('%04d', $i) 会产生 5+ 位数字，
+     * 导致 SSRC 超过 GB28181 规定的 10 位格式（1位类型 + 5位域编码 + 4位序列号）
      */
     private const MAX_STREAM_COUNT = 10000;
 
@@ -87,9 +89,13 @@ class SSRCFactory
     /**
      * 获取对讲流 SSRC（2开头）
      */
-    public function getTalkSsrc(string $mediaServerId): string
+    public function getTalkSsrc(string $mediaServerId): ?string
     {
-        return '2' . $this->getSN($mediaServerId);
+        try {
+            return '2' . $this->getSN($mediaServerId);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -109,7 +115,7 @@ class SSRCFactory
     }
     
     /**
-     * 释放SSRC
+     * 释放SSRC - 重新放回到池中
      */
     public function releaseSsrc(string $mediaServerId, ?string $ssrc): void
     {

@@ -118,7 +118,9 @@ class TokenServiceImpl extends BaseService implements TokenService
 
     protected function _makeTokenValue()
     {
-        $uuid = Uuid::uuid1();
+        do {
+            $uuid = Uuid::uuid4();
+        } while ($this->getTokenStorage()->getByToken($uuid->getHex()));
 
         return $uuid->getHex();
     }

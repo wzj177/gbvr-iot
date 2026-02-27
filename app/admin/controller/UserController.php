@@ -90,6 +90,18 @@ class UserController extends BaseController
         return $this->createSuccessJsonResponse($user);
     }
 
+    public function showUuid(Request $request)
+    {
+        $user = $this->getUserService()->getUser($this->getCurrentUser()->getId());
+        if (!$user) {
+            return $this->createErrorJsonResponse('用户不存在');
+        }
+
+        return $this->createSuccessJsonResponse([
+            'uuid' => $user['uuid'],
+        ]);
+    }
+
     /**
      * 创建用户
      */

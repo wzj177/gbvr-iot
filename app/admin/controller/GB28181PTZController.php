@@ -161,4 +161,66 @@ class GB28181PTZController extends BaseController
     {
         return $this->getBiz()->offsetGet('gb28181_service');
     }
+
+    /**
+     * 自动扫描控制
+     *
+     * POST /api/admin/gb28181/devices/scan
+     * @param string action: scan_start/scan_stop/scan_set_left/scan_set_right/scan_set_speed
+     * @param int group_id: 扫描组号 (0-255)
+     * @param int speed: 扫描速度 (仅 scan_set_speed 需要)
+     */
+    public function scanControl(Request $request)
+    {
+        $deviceId = $request->post('device_id');
+        $channelId = $request->post('channel_id');
+        $action = $request->post('action');
+        $groupId = (int) $request->post('group_id', 0);
+        $speed = (int) $request->post('speed', 0);
+
+        if (!$deviceId || !$channelId || !$action) {
+            return $this->createErrorJsonResponse('缺少必要参数(device_id, channel_id, action)', 400);
+        }
+
+        $validActions = ['scan_start', 'scan_stop', 'scan_set_left', 'scan_set_right', 'scan_set_speed'];
+        if (!in_array($action, $validActions)) {
+            return $this->createErrorJsonResponse('action 必须是: ' . implode(', ', $validActions), 400);
+        }
+
+        try {
+            $result = $this->getGb28181Service()->scanControl($deviceId, $channelId, $action, $groupId, $speed);
+            if (!$result) {
+                return $this->createErrorJsonResponse('发送扫描控制命令失败', 500);
+            }
+            return $this->createSuccessJsonResponse(['message' => "扫描控制命令({$action})已发送"]);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('发送扫描控制命令异常: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * 从设备查询预置位列表
+     *
+     * POST /api/admin/gb28181/presets/query-from-device
+     * 向设备发送 PresetQuery 查询命令，设备异步返回预置位列表
+     */
+    public function queryPresetsFromDevice(Request $request)
+    {
+        $deviceId = $request->post('device_id');
+        $channelId = $request->post('channel_id');
+
+        if (!$deviceId || !$channelId) {
+            return $this->createErrorJsonResponse('缺少必要参数(device_id, channel_id)', 400);
+        }
+
+        try {
+            $result = $this->getGb28181Service()->presetQuery($deviceId, $channelId);
+            if (!$result) {
+                return $this->createErrorJsonResponse('发送预置位查询命令失败', 500);
+            }
+            return $this->createSuccessJsonResponse(['message' => '预置位查询命令已发送，设备将异步返回结果']);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('发送预置位查询命令异常: ' . $e->getMessage(), 500);
+        }
+    }
 }

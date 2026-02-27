@@ -6,8 +6,10 @@ use \ExoSip;
 use Gb28181\GateWay\Device\DeviceManager;
 use Gb28181\GateWay\Handlers\LongTask\RedisSubscriber;
 use Gb28181\GateWay\Message\CommandDispatcher;
+use Gb28181\GateWay\Message\SdpBuilder;
 use Gb28181\GateWay\Message\CommandType\DeviceControlCommand;
 use Gb28181\GateWay\Message\CommandType\RecordInfoCommand;
+use Gb28181\GateWay\Message\CommandType\BroadcastCommand;
 use Gb28181\GateWay\Message\MessageHandler;
 use Gb28181\GateWay\Message\QuerySender;
 use Gb28181\GateWay\Message\CommandType\KeepaliveCommand;
@@ -18,8 +20,9 @@ use Gb28181\GateWay\Message\CommandType\AlarmCommand;
 use Gb28181\GateWay\Message\CommandType\MobilePositionCommand;
 use Gb28181\GateWay\Message\CommandType\MediaStatusCommand;
 use Gb28181\GateWay\Message\CommandType\SubscribeNotifyCommand;
+use Gb28181\GateWay\Message\CommandType\PresetQueryCommand;
+use Gb28181\GateWay\Message\CommandType\ConfigDownloadCommand;
 use Gb28181\GateWay\Traits\CurlTrait;
-use Gb28181\GateWay\Traits\SIPMessageHandleTrait;
 use Gb28181\GateWay\Wrappers\CallbackWrapper;
 use Gb28181\GateWay\Libs\Logger;
 use Gb28181Gateway\src\Message\CommandType\DeviceSubscribeCommand;
@@ -97,7 +100,7 @@ use Gb28181Gateway\src\Message\CommandType\DeviceToServerSubscribeHandler;
  */
 class GB28181Handler
 {
-    use CurlTrait, SIPMessageHandleTrait;
+    use CurlTrait;
 
     private ExoSip $sipServer;
     private array $config;
@@ -106,6 +109,28 @@ class GB28181Handler
     private ?QuerySender $querySender = null;
     private ?CommandDispatcher $commandDispatcher = null;
     private Logger $logger;
+
+    /**
+     * 已处理过 200 OK 的 INVITE call_id 集合
+     * 用于防止设备重传 200 OK 时重复处理（只需重发 ACK，不需要重走整个流程）
+     * @var array<int, int> call_id => dialog_id
+     */
+    private array $processedInviteCallIds = [];
+
+    /**
+     * 等待 API 返回 RTP 设置结果的 INVITE 请求
+     * 用于 broadcast 模式：收到设备 INVITE 后先异步调 API 开 ZLM 端口，
+     * 等 Task 返回后再发 200 OK。
+     * @var array<int, array> taskId => { tid, pendingBroadcast, deviceSdp }
+     */
+    private array $pendingInviteSetup = [];
+
+    /**
+     * 等待设备 ACK 后再触发 startSendRtp 的广播会话
+     * 用于 broadcastPushAfterAck=true 模式（默认）
+     * @var array<int, array> callId => { session_id, ssrc, stream_id, app, media_server_id, ... }
+     */
+    private array $pendingBroadcastAck = [];
 
     /**
      * 构造函数
@@ -126,7 +151,8 @@ class GB28181Handler
         // 初始化日志
         $this->logger = Logger::getInstance([
             'log_file' => $config['log_file'] ?? 'php://stdout',
-            'min_level' => $config['debug'] ? 'DEBUG' : 'INFO',
+            'min_level' => ($config['debug'] ?? false) ? 'DEBUG' : ($config['log_level'] ?? 'INFO'),
+            'max_days' => $config['log_max_days'] ?? 30,
         ]);
 
         // 初始化设备管理器
@@ -150,6 +176,9 @@ class GB28181Handler
         $this->messageHandler->registerCommand(new MediaStatusCommand());
         $this->messageHandler->registerCommand(new DeviceControlCommand());
         $this->messageHandler->registerCommand(new RecordInfoCommand());
+        $this->messageHandler->registerCommand(new BroadcastCommand());
+        $this->messageHandler->registerCommand(new PresetQueryCommand());
+        $this->messageHandler->registerCommand(new ConfigDownloadCommand());
 
         // 初始化查询发送器
         $this->querySender = new QuerySender($sipServer, [
@@ -179,28 +208,28 @@ class GB28181Handler
     {
         // 核心SIP方法事件
 
-        $this->sipServer->onWorkerStart = CallbackWrapper::wrap($this, 'handleWorkerStart');
+        $this->sipServer->onWorkerStart = CallbackWrapper::wrap($this, 'handleWorkerStart', $this->logger);
         // 绑定 onPipeMessage (接收Task的推送)
-        $this->sipServer->onPipeMessage = CallbackWrapper::wrap($this, 'handleOnPipeMessage');
-        $this->sipServer->onRegister = CallbackWrapper::wrap($this, 'handleRegister'); //[$this, 'handleRegister'];
-        $this->sipServer->onMessage = CallbackWrapper::wrap($this, 'handleMessage');//[$this, 'handleMessage'];
-        $this->sipServer->onInvite = CallbackWrapper::wrap($this, 'handleInvite');//[$this, 'handleInvite'];
-        $this->sipServer->onBye = CallbackWrapper::wrap($this, 'handleBye');//[$this, 'handleBye'];
-        $this->sipServer->onAck = CallbackWrapper::wrap($this, 'handleAck');//[$this, 'handleAck'];
+        $this->sipServer->onPipeMessage = CallbackWrapper::wrap($this, 'handleOnPipeMessage', $this->logger);
+        $this->sipServer->onRegister = CallbackWrapper::wrap($this, 'handleRegister', $this->logger); //[$this, 'handleRegister'];
+        $this->sipServer->onMessage = CallbackWrapper::wrap($this, 'handleMessage', $this->logger);//[$this, 'handleMessage'];
+        $this->sipServer->onInvite = CallbackWrapper::wrap($this, 'handleInvite', $this->logger);//[$this, 'handleInvite'];
+        $this->sipServer->onBye = CallbackWrapper::wrap($this, 'handleBye', $this->logger);//[$this, 'handleBye'];
+        $this->sipServer->onAck = CallbackWrapper::wrap($this, 'handleAck', $this->logger);//[$this, 'handleAck'];
 
         // SIP扩展方法
-        $this->sipServer->onInfo = CallbackWrapper::wrap($this, 'handleInfo');//[$this, 'handleInfo'];           // INFO消息（PTZ控制等）
-        $this->sipServer->onUpdate = CallbackWrapper::wrap($this, 'handleUpdate');//[$this, 'handleUpdate'];       // UPDATE请求
-        $this->sipServer->onRefer = CallbackWrapper::wrap($this, 'handleRefer');//[$this, 'handleRefer'];         // REFER转接
+        $this->sipServer->onInfo = CallbackWrapper::wrap($this, 'handleInfo', $this->logger);//[$this, 'handleInfo'];           // INFO消息（PTZ控制等）
+        $this->sipServer->onUpdate = CallbackWrapper::wrap($this, 'handleUpdate', $this->logger);//[$this, 'handleUpdate'];       // UPDATE请求
+        $this->sipServer->onRefer = CallbackWrapper::wrap($this, 'handleRefer', $this->logger);//[$this, 'handleRefer'];         // REFER转接
 
         // Publish-Subscribe（订阅/通知机制）
-        $this->sipServer->onSubscribe = CallbackWrapper::wrap($this, 'handleSubscribe');//[$this, 'handleSubscribe']; // 订阅请求
-        $this->sipServer->onNotify = CallbackWrapper::wrap($this, 'handleNotify');//[$this, 'handleNotify'];       // 通知消息
+        $this->sipServer->onSubscribe = CallbackWrapper::wrap($this, 'handleSubscribe', $this->logger);//[$this, 'handleSubscribe']; // 订阅请求
+        $this->sipServer->onNotify = CallbackWrapper::wrap($this, 'handleNotify', $this->logger);//[$this, 'handleNotify'];       // 通知消息
 
         // 响应和错误处理
-        $this->sipServer->onResponse = CallbackWrapper::wrap($this, 'handleResponse');//[$this, 'handleResponse'];   // 响应事件
-        $this->sipServer->onTimeout = CallbackWrapper::wrap($this, 'handleTimeout');//[$this, 'handleTimeout'];     // 超时事件
-        $this->sipServer->onError = CallbackWrapper::wrap($this, 'handleError');// [$this, 'handleError'];         // 错误事件
+        $this->sipServer->onResponse = CallbackWrapper::wrap($this, 'handleResponse', $this->logger);//[$this, 'handleResponse'];   // 响应事件
+        $this->sipServer->onTimeout = CallbackWrapper::wrap($this, 'handleTimeout', $this->logger);//[$this, 'handleTimeout'];     // 超时事件
+        $this->sipServer->onError = CallbackWrapper::wrap($this, 'handleError', $this->logger);// [$this, 'handleError'];         // 错误事件
 
         // 可选的其他事件
         // $this->sipServer->onCancel = [$this, 'handleCancel'];
@@ -209,11 +238,11 @@ class GB28181Handler
         // $this->sipServer->onPublish = [$this, 'handlePublish'];
         //
 
-        $this->sipServer->onTimer = CallbackWrapper::wrap($this, 'tick');//[$this, 'tick'];                // 底层定时器，主要用于处理设备心跳超时和离线设备清理
+        $this->sipServer->onTimer = CallbackWrapper::wrap($this, 'tick', $this->logger);//[$this, 'tick'];                // 底层定时器，主要用于处理设备心跳超时和离线设备清理
 
-        $this->sipServer->onTask = CallbackWrapper::wrap($this, 'handleTask');//[$this, 'handleTask'];                // task接收
+        $this->sipServer->onTask = CallbackWrapper::wrap($this, 'handleTask', $this->logger);//[$this, 'handleTask'];                // task接收
 
-        $this->sipServer->onTaskFinish = CallbackWrapper::wrap($this, 'handleTaskFinish');//[$this, 'handleTaskFinish'];      // task执行完成
+        $this->sipServer->onTaskFinish = CallbackWrapper::wrap($this, 'handleTaskFinish', $this->logger);//[$this, 'handleTaskFinish'];      // task执行完成
     }
 
     /**
@@ -314,6 +343,9 @@ class GB28181Handler
             $timeoutDevices = $this->deviceManager->checkTimeout();
             $lastCheckTime = $now;
 
+            // 清理超时的待处理广播会话（30秒无设备 INVITE 响应则过期）
+            $this->commandDispatcher->cleanExpiredBroadcasts(30);
+
             // 通知 API 更新超时设备状态为 expired
             if (!empty($timeoutDevices)) {
                 $this->log("Checking device heartbeat timeout:{$lastCheckTime}");
@@ -335,6 +367,19 @@ class GB28181Handler
         $cleanupInterval = $this->config['check_offline_device_interval'] ?? 3600;
         if ($now - $lastCleanupTime >= $cleanupInterval) {
             $this->deviceManager->cleanupOfflineDevices();
+
+            // 清理过期的 processedInviteCallIds（防止内存泄漏）
+            // 通过与 CommandDispatcher 的 activeSessions 对比，移除已不存在的 call_id
+            $activeSessions = $this->commandDispatcher->getActiveSessions();
+            $activeCallIds = [];
+            foreach ($activeSessions as $session) {
+                $activeCallIds[$session['call_id']] = true;
+            }
+            foreach ($this->processedInviteCallIds as $callId => $dialogId) {
+                if (!isset($activeCallIds[$callId])) {
+                    unset($this->processedInviteCallIds[$callId]);
+                }
+            }
 //            $offlineDevices = $this->deviceManager->cleanupOfflineDevices();
 //            $lastCleanupTime = $now;
 
@@ -373,21 +418,83 @@ class GB28181Handler
 
         // 检查 action 类型，区分 CommandDispatcher 的 api_callback 和普通任务
         $action = $taskData['action'] ?? '';
-        
-        if ($action === 'api_callback') {
+
+        if ($action === 'broadcast_setup_rtp') {
+            // === 广播 RTP 设置：需要解析 API 返回值 ===
+            $payload = $taskData['payload'] ?? [];
+            $apiUrl = !empty($taskData['api_hook_url'])
+                ? $taskData['api_hook_url']
+                : $this->config['api_hock_url'];
+
+            $this->log("Task #{$taskId} broadcast_setup_rtp: url={$apiUrl}", 'DEBUG');
+
+            $response = $this->curlPost($apiUrl, [
+                'scene' => 'broadcast_setup_rtp',
+                'body' => $payload,
+            ]);
+
+            // 解析 API JSON 响应
+            $apiResult = null;
+            if ($response && is_string($response)) {
+                $decoded = json_decode($response, true);
+                if ($decoded && isset($decoded['code']) && $decoded['code'] == 0 && isset($decoded['data'])) {
+                    $apiResult = $decoded['data'];
+                } else {
+                    $this->log("Task #{$taskId} broadcast_setup_rtp API 返回异常: " . substr((string)$response, 0, 500), 'ERROR');
+                }
+            }
+
+            return [
+                'success' => $apiResult !== null,
+                'task_id' => $taskId,
+                'action' => 'broadcast_setup_rtp',
+                'api_result' => $apiResult,
+            ];
+        } elseif ($action === 'start_send_rtp') {
+            // === 广播 startSendRtp：ACK 后或立即推流 ===
+            $payload = $taskData['payload'] ?? [];
+            $apiUrl = !empty($taskData['api_hook_url'])
+                ? $taskData['api_hook_url']
+                : $this->config['api_hock_url'];
+
+            $this->log("Task #{$taskId} start_send_rtp: sessionId={$payload['session_id']}, url={$apiUrl}", 'DEBUG');
+
+            $response = $this->curlPost($apiUrl, [
+                'scene' => 'start_send_rtp',
+                'body' => $payload,
+            ]);
+
+            // 解析 API JSON 响应
+            $apiResult = null;
+            if ($response && is_string($response)) {
+                $decoded = json_decode($response, true);
+                if ($decoded && isset($decoded['code']) && $decoded['code'] == 0) {
+                    $apiResult = $decoded['data'] ?? [];
+                } else {
+                    $this->log("Task #{$taskId} start_send_rtp API 返回异常: " . substr((string)$response, 0, 500), 'ERROR');
+                }
+            }
+
+            return [
+                'success' => $apiResult !== null,
+                'task_id' => $taskId,
+                'action' => 'start_send_rtp',
+                'api_result' => $apiResult,
+            ];
+        } elseif ($action === 'api_callback') {
             // 来自 CommandDispatcher 的 API 回调任务
             $type = $taskData['type'] ?? 'unknown';
             $payload = $taskData['payload'] ?? [];
-            
+
             // 使用 payload 中的 api_hook_url 或默认配置
-            $apiUrl = !empty($taskData['api_hook_url']) 
-                ? $taskData['api_hook_url'] 
+            $apiUrl = !empty($taskData['api_hook_url'])
+                ? $taskData['api_hook_url']
                 : $this->config['api_hock_url'];
-            
+
             $this->log("Task #{$taskId} api_callback: type={$type}, url={$apiUrl}", 'DEBUG');
-            
+
             $this->curlPost($apiUrl, [
-                'scene' => $type,  // 如 'subscribe_response', 'subscribe_refresh'
+                'scene' => $type,
                 'body' => $payload,
             ]);
         } else {
@@ -415,9 +522,204 @@ class GB28181Handler
     public function handleTaskFinish($taskId, $result): void
     {
         $this->log("Task #{$taskId} finished", 'DEBUG');
-        if (isset($result['success']) && !$result['success']) {
-            $this->log("Task #{$taskId} failed: {$result['error']}", 'ERROR');
+
+        $action = $result['action'] ?? '';
+
+        // 根据 action 类型分发处理
+        if ($action === 'broadcast_setup_rtp' && isset($this->pendingInviteSetup[$taskId])) {
+            $this->handleBroadcastSetupRtpResult($taskId, $result);
+            return;
         }
+
+        // 兜底：pendingInviteSetup 中有记录但 action 未匹配（兼容旧格式）
+        if (isset($this->pendingInviteSetup[$taskId])) {
+            $this->log("Task #{$taskId} pendingInviteSetup hit without action match, action={$action}", 'WARNING');
+            $this->handleBroadcastSetupRtpResult($taskId, $result);
+            return;
+        }
+
+        if (isset($result['success']) && !$result['success']) {
+            $this->log("Task #{$taskId} failed: " . ($result['error'] ?? 'unknown'), 'ERROR');
+        }
+    }
+
+    /**
+     * 处理 broadcast_setup_rtp Task 返回结果（WVP 对齐）
+     *
+     * 第五步：判断流是否已就绪
+     * - 流存在 -> sendOk（200 OK + SDP）
+     * - 流不存在 -> 410 Gone + stopAudioBroadcast 清理
+     *
+     * 第六步：sendOk - 回复 200 OK
+     * - 构建 SDP 响应（a=sendonly，端口为 ZLM 发流本地端口，y=ssrc）
+     * - 回复 200 OK 给设备
+     * - 更新 pendingBroadcasts -> activeSessions
+     *
+     * 第七步：等待 ACK 判断
+     * - broadcastPushAfterAck=true（默认）: 将会话记入 pendingBroadcastAck，等 ACK 再推流
+     * - broadcastPushAfterAck=false 或 TCP 主动模式: 立即投递 startSendRtp 任务
+     */
+    private function handleBroadcastSetupRtpResult(int $taskId, array $result): void
+    {
+        $setup = $this->pendingInviteSetup[$taskId];
+        unset($this->pendingInviteSetup[$taskId]);
+
+        $tid = $setup['tid'];
+        $callId = $setup['call_id'];
+        $dialogId = $setup['dialog_id'];
+        $pendingBroadcast = $setup['pending_broadcast'];
+        $broadcastKey = $setup['broadcast_key'];
+        $deviceTransport = $setup['device_transport'];
+        $deviceSetup = $setup['device_setup'];
+        $deviceIp = $setup['device_ip'] ?? null;
+        $devicePort = $setup['device_port'] ?? null;
+
+        $channelId = $pendingBroadcast['channel_id'];
+        $deviceId = $pendingBroadcast['device_id'];
+        $ssrc = $pendingBroadcast['ssrc'];
+        $rtpPort = $pendingBroadcast['rtp_port'];
+        $mediaServerIp = $pendingBroadcast['media_server_ip'];
+        $streamId = $pendingBroadcast['stream_id'];
+        $sessionId = $pendingBroadcast['session_id'] ?? null;
+
+        // 检查 API 是否成功
+        $apiResult = $result['api_result'] ?? null;
+        if (!$apiResult || empty($result['success'])) {
+            $this->log("广播 broadcast_setup_rtp 失败，发送 500: taskId={$taskId}", 'ERROR');
+            $this->sipServer->sendResponse($tid, 500, 'Internal Server Error');
+            $this->commandDispatcher->removePendingBroadcast($broadcastKey);
+            return;
+        }
+
+        // === 第五步（WVP 对齐）：判断流是否已就绪 ===
+        $streamReady = $apiResult['stream_ready'] ?? true; // 向后兼容：如果 API 未返回此字段，默认就绪
+        if (!$streamReady) {
+            // 流已不存在（前端停止推流），回复 410 Gone
+            $this->log("广播流已不存在，回复 410 Gone: sessionId={$sessionId}, streamId={$streamId}", 'WARNING');
+            $this->sipServer->sendResponse($tid, 410, 'Gone - Stream not available');
+            $this->commandDispatcher->removePendingBroadcast($broadcastKey);
+
+            // 投递 stopAudioBroadcast 清理任务
+            $this->postTask('broadcast_stop', [
+                'session_id' => $sessionId,
+                'device_id' => $deviceId,
+                'channel_id' => $channelId,
+                'reason' => 'stream_gone_on_invite',
+                'timestamp' => time(),
+            ]);
+            return;
+        }
+
+        // === 第六步（WVP 对齐）：回复 200 OK + SDP ===
+        // 从 API 结果获取实际的 ZLM 端口和 TCP 模式
+        $localPort = $apiResult['local_port'] ?? $rtpPort;
+        $tcpMode = $apiResult['tcp_mode'] ?? 0;
+        $actualMediaServerIp = $apiResult['media_server_ip'] ?? $mediaServerIp;
+        $actualSsrc = $apiResult['ssrc'] ?? $ssrc;
+
+        $this->log("广播 broadcast_setup_rtp 成功: localPort={$localPort}, tcpMode={$tcpMode}, ssrc={$actualSsrc}, streamReady={$streamReady}");
+
+        // 构建服务器 SDP（Broadcast + sendonly，与 WVP 一致）
+        $serverSdp = SdpBuilder::buildBroadcastSdp(
+            serverId: $this->config['server_id'],
+            mediaIp: $actualMediaServerIp,
+            mediaPort: $localPort,
+            ssrc: $actualSsrc,
+            tcpMode: $tcpMode,
+            mode: 'sendonly',
+        );
+
+        if ($this->config['debug'] ?? false) {
+            $this->log("广播 200 OK SDP:\n{$serverSdp}");
+        }
+
+        // 发送 200 OK 带 SDP
+        $sendResult = $this->sipServer->sendCallAnswer(
+            $tid,
+            200,
+            $serverSdp,
+            'OK'
+        );
+
+        if ($sendResult === false) {
+            $this->log("广播 200 OK 发送失败", 'ERROR');
+            $this->commandDispatcher->removePendingBroadcast($broadcastKey);
+            return;
+        }
+
+        $this->log("广播 200 OK 已发送: channelId={$channelId}, Call-ID={$callId}, Dialog-ID={$dialogId}");
+
+        // 从 pendingBroadcasts 移除，添加到 activeSessions
+        $this->commandDispatcher->removePendingBroadcast($broadcastKey);
+        $this->commandDispatcher->addActiveSession($streamId, [
+            'request_id' => $pendingBroadcast['request_id'] ?? uniqid(),
+            'call_id' => $callId,
+            'dialog_id' => $dialogId,
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'type' => 'broadcast',
+            'ssrc' => $actualSsrc,
+            'rtp_port' => $localPort,
+            'stream_id' => $streamId,
+            'mode' => 'sendonly',
+            'tcp_mode' => $tcpMode,
+            'session_id' => $sessionId,
+            'started_at' => time(),
+        ]);
+
+        // 通知 API 会话已建立
+        $this->postTask('voice_established', [
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'dialog_id' => $dialogId,
+            'call_id' => $callId,
+            'mode' => 'broadcast',
+            'ssrc' => $actualSsrc,
+            'stream_id' => $streamId,
+            'session_id' => $sessionId,
+            'timestamp' => time(),
+        ]);
+
+        // === 第七步（WVP 对齐）：判断是否等 ACK 再推流 ===
+        // broadcastPushAfterAck: 默认 true，大华等设备需要收到 ACK 后才能接收 RTP
+        $broadcastPushAfterAck = $this->config['broadcast_push_after_ack'] ?? true;
+        $isTcpActive = ($tcpMode == 2); // TCP 主动模式不等 ACK
+
+        if ($broadcastPushAfterAck && !$isTcpActive) {
+            // 等待设备 ACK 再推流，存入 pendingBroadcastAck
+            $this->pendingBroadcastAck[$callId] = [
+                'session_id' => $sessionId,
+                'device_id' => $deviceId,
+                'channel_id' => $channelId,
+                'ssrc' => $actualSsrc,
+                'stream_id' => $streamId,
+                'app' => $pendingBroadcast['app'] ?? 'broadcast',
+                'media_server_id' => $pendingBroadcast['media_server_id'] ?? '',
+                'local_port' => $localPort,
+                'tcp_mode' => $tcpMode,
+                'device_ip' => $deviceIp,
+                'device_port' => $devicePort,
+            ];
+            $this->log("广播: 等待设备 ACK 后再推流 (broadcastPushAfterAck=true), callId={$callId}");
+        } else {
+            // 立即推流（broadcastPushAfterAck=false 或 TCP 主动模式）
+            $this->log("广播: 立即投递 startSendRtp 任务 (broadcastPushAfterAck=false 或 TCP主动), callId={$callId}");
+            $this->dispatchStartSendRtp([
+                'session_id' => $sessionId,
+                'device_id' => $deviceId,
+                'channel_id' => $channelId,
+                'ssrc' => $actualSsrc,
+                'stream_id' => $streamId,
+                'app' => $pendingBroadcast['app'] ?? 'broadcast',
+                'media_server_id' => $pendingBroadcast['media_server_id'] ?? '',
+                'local_port' => $localPort,
+                'tcp_mode' => $tcpMode,
+                'device_ip' => $deviceIp,
+                'device_port' => $devicePort,
+            ]);
+        }
+
+        $this->log("广播会话已建立: {$deviceId}/{$channelId}, Stream: {$streamId}");
     }
 
     /**
@@ -669,9 +971,12 @@ class GB28181Handler
     /**
      * 处理INVITE请求
      *
-     * 区分两种场景:
-     * 1. 语音对讲(Broadcast/Talk): 设备主动发起INVITE,Subject包含broadcast或talk
-     * 2. 视频点播: 服务器主动发起INVITE(由CommandDispatcher处理)
+     * 区分三种场景:
+     * 1. 广播模式(Broadcast): 设备在收到 Broadcast MESSAGE 后主动发送 INVITE
+     *    - 通过 pendingBroadcasts 匹配（最可靠）
+     *    - 通过 Subject 头包含 broadcast 关键字（兜底）
+     * 2. 语音对讲(Talk): 设备主动发起INVITE, Subject包含talk (已弃用, GB28181-2022 移除)
+     * 3. 视频点播: 服务器主动发起INVITE(由CommandDispatcher处理)
      */
     public function handleInvite(\SipEvent $event): void
     {
@@ -682,27 +987,61 @@ class GB28181Handler
         $subject = $event->getHeader('Subject') ?? '';
         $body = $event->getBody();
 
-        $this->log("收到INVITE: 设备{$deviceId} 通道{$channelId}");
+        $bodyLen = $body ? strlen($body) : 0;
+        $contentType = $event->getContentType();
+        $callId = $event->getCallId();
+        $dialogId = $event->getDialogId();
+        $tid = $event->getTid();
+        $this->log("收到INVITE: 设备{$deviceId} 通道{$channelId} bodyLen={$bodyLen} contentType={$contentType} callId={$callId} dialogId={$dialogId} tid={$tid}");
+
+        // 诊断：检查 body 详情
+        if ($bodyLen === 0) {
+            $this->log("DIAG: INVITE body is empty/null, body type=" . gettype($body));
+        } else {
+            $this->log("DIAG: INVITE body first 200 chars: " . substr($body, 0, 200));
+        }
+
+        // === 第一步：校验广播会话合法性（WVP 对齐） ===
+        // 优先检查是否有待处理的广播会话（设备 INVITE 的 From 是 channelId）
+        // 广播模式下：设备收到 Broadcast MESSAGE 后，由通道发送 INVITE
+        // fromUri 的 deviceId 实际上就是 channelId
+        $pendingBroadcast = $this->commandDispatcher->findPendingBroadcast($deviceId);
+
+        if ($pendingBroadcast) {
+            // 广播模式：通过 pendingBroadcasts 匹配到
+            // NVR 代替通道发送 INVITE，fromUri 是 NVR device_id，实际 channel_id 在 pendingBroadcast 中
+            $this->log("广播 INVITE 匹配: fromDevice={$deviceId}, channelId={$pendingBroadcast['channel_id']}");
+            $this->handleBroadcastInvite($event, $deviceId, $pendingBroadcast, $body);
+            return;
+        }
 
         // 检查设备是否在线
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device || !$device['registered']) {
             $this->log("设备未注册: {$deviceId}", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            $this->sipServer->sendResponse($tid, 404, 'Not Found');
             return;
         }
 
-        // 判断是否为语音对讲请求
+        // 判断是否为语音对讲请求（通过 Subject 头）
         $isBroadcast = stripos($subject, 'broadcast') !== false;
         $isTalk = stripos($subject, 'talk') !== false;
 
-        if ($isBroadcast || $isTalk) {
-            $this->handleVoiceInvite($event, $deviceId, $channelId, $body, $isBroadcast ? 'broadcast' : 'talk');
+        if ($isBroadcast) {
+            // Subject 含 broadcast 但没有 pendingBroadcast，说明没有等待中的广播
+            // WVP 对齐：回复 403 Forbidden
+            $this->log("广播 INVITE 但无待处理广播: deviceId={$deviceId}, 回复 403", 'WARNING');
+            $this->sipServer->sendResponse($tid, 403, 'Forbidden - No pending broadcast');
+            return;
+        }
+
+        if ($isTalk) {
+            $this->handleVoiceInvite($event, $deviceId, $channelId, $body, 'talk');
         } else {
             // 常规视频INVITE(目前简化处理)
             $this->log("视频INVITE: {$deviceId} -> {$channelId}");
-            $this->sipServer->sendResponse($event->getTid(), 180, 'Ringing');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            $this->sipServer->sendResponse($tid, 180, 'Ringing');
+            $this->sipServer->sendResponse($tid, 200, 'OK');
             $this->log("视频会话已建立");
         }
     }
@@ -717,6 +1056,9 @@ class GB28181Handler
 
         $this->log("收到 BYE: $deviceId (Call-ID: $callId)");
 
+        // 清理已处理的 INVITE 200 OK 记录（防止内存泄漏）
+        unset($this->processedInviteCallIds[$callId]);
+
         // 通知外部系统会话结束
         $this->postTask('session_bye', [
             'device_id' => $deviceId,
@@ -729,11 +1071,25 @@ class GB28181Handler
 
     /**
      * 处理ACK
+     *
+     * 广播模式（WVP 对齐）：
+     * 当 broadcastPushAfterAck=true 时，收到设备 ACK 后才触发 startSendRtp
+     * 让 ZLM 向设备发送音频 RTP 流。
      */
     public function handleAck(\SipEvent $event): void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
-        $this->log("ACK确认: {$deviceId}", 'DEBUG');
+        $callId = $event->getCallId();
+        $this->log("ACK确认: {$deviceId}, callId={$callId}", 'DEBUG');
+
+        // === 广播模式：ACK 触发推流 ===
+        if (isset($this->pendingBroadcastAck[$callId])) {
+            $ackInfo = $this->pendingBroadcastAck[$callId];
+            unset($this->pendingBroadcastAck[$callId]);
+
+            $this->log("广播 ACK 收到，触发 startSendRtp: sessionId={$ackInfo['session_id']}, callId={$callId}");
+            $this->dispatchStartSendRtp($ackInfo);
+        }
     }
 
     /**
@@ -1152,8 +1508,10 @@ class GB28181Handler
         if ($code >= 200 && $code < 300) {
             //  成功响应
             if ($code == 200) {
-                // INVITE 的 200 OK（含 SDP）- type=7 是 EXOSIP_CALL_ANSWERED
-                if ($type == EXOSIP_CALL_RINGING || $type == EXOSIP_CALL_ANSWERED) {
+                // INVITE 的 200 OK（含 SDP）- EXOSIP_CALL_ANSWERED=8
+                // 注意: EXOSIP_CALL_RINGING=7 是 180 Ringing（临时响应），不应处理
+                // ACK 只应在收到最终响应（200 OK）时发送（RFC 3261 Section 13.2.2.4）
+                if ($type == EXOSIP_CALL_ANSWERED) {
                     $this->handleInviteResponse($event);
                 } // MESSAGE 的 200 OK（查询命令已接收）
                 elseif ($type == EXOSIP_MESSAGE_ANSWERED || $type == EXOSIP_CALL_MESSAGE_ANSWERED) {
@@ -1163,6 +1521,11 @@ class GB28181Handler
                         $this->log("请求成功: Type=$type Code=$code (未处理)", 'DEBUG');
                     }
                 }
+            }
+        } elseif ($code >= 100 && $code < 200) {
+            // 临时响应 (1xx) - 仅记录日志
+            if ($this->config['debug'] ?? false) {
+                $this->log("临时响应: Type=$type Code=$code (如 180 Ringing)", 'DEBUG');
             }
         } elseif ($code >= 400) {
             // 错误响应
@@ -1186,16 +1549,55 @@ class GB28181Handler
      * - 提取设备媒体接收地址（c= 字段）
      * - 通知业务系统媒体流已就绪
      * - 通知 ZLM 更新 SSRC（用于流关联）
-     * - 对于语音对讲：更新 Redis 会话状态并发送 voice_established 通知
+     * - 对于语音对讲：更新会话状态并发送 voice_established 通知
+     *
+     * 重要说明（From/To URI 问题）：
+     * 对于服务器主动发起的 INVITE（视频点播、语音对讲），200 OK 保留原始 INVITE 的 From/To：
+     *   From = 服务器（发起方）
+     *   To   = 设备（被邀请方）
+     * 因此不能简单地从 fromUri 提取 deviceId。
+     * 正确做法是通过 call_id 从 CommandDispatcher 的 activeSessions 中查找会话，
+     * 直接获取 device_id 和 channel_id。
+     *
+     * 重传处理（RFC 3261 Section 13.2.2.4）：
+     * 当 UAS（设备）未收到 ACK 时，会按定时器重传 200 OK。
+     * 对于重传的 200 OK，UAC（服务器）必须重新发送 ACK，但不应重复执行业务逻辑。
+     * 通过 processedInviteCallIds 跟踪已处理的 call_id 来实现去重。
      */
     private function handleInviteResponse(\SipEvent $event): void
     {
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
-        $fromUri = $event->getFromUri();
-        $toUri = $event->getToUri();
-        $deviceId = $this->extractDeviceId($fromUri);
-        $channelId = $this->extractDeviceId($toUri);
+
+        // === 重传检测 ===
+        // 如果此 call_id 的 200 OK 已经处理过，说明这是设备重传的 200 OK
+        // 只需重发 ACK，不再重复执行业务逻辑（避免重复 postTask、重复更新 dialog_id）
+        if (isset($this->processedInviteCallIds[$callId])) {
+            $cachedDialogId = $this->processedInviteCallIds[$callId];
+            $effectiveDialogId = ($dialogId > 0) ? $dialogId : $cachedDialogId;
+            $this->log("200 OK 重传检测: call_id={$callId}, 重发 ACK (dialog_id={$effectiveDialogId})", 'DEBUG');
+            if ($effectiveDialogId > 0) {
+                $this->sipServer->sendAck($effectiveDialogId);
+            }
+            return;
+        }
+
+        // 通过 call_id 从 CommandDispatcher 查找活跃会话
+        // 这避免了 From/To URI 反转问题（server-initiated INVITE: From=server, To=device）
+        $activeSession = $this->commandDispatcher->findActiveSessionByCallId($callId);
+
+        // 从 activeSession 获取正确的 device_id 和 channel_id
+        if ($activeSession) {
+            $deviceId = $activeSession['device_id'];
+            $channelId = $activeSession['channel_id'];
+        } else {
+            // 兜底：如果 activeSession 找不到（可能是设备主动发起的 INVITE），
+            // 从 To URI 提取（设备主动 INVITE 时 From=device, To=server，但我们不太需要处理这种情况）
+            $fromUri = $event->getFromUri();
+            $toUri = $event->getToUri();
+            $deviceId = $this->extractDeviceId($fromUri);
+            $channelId = $this->extractDeviceId($toUri);
+        }
 
         $this->log("收到 INVITE 200 OK: 设备 {$deviceId}, 通道 {$channelId}, Call-ID: {$callId}, Dialog-ID: {$dialogId}");
 
@@ -1205,15 +1607,25 @@ class GB28181Handler
         //       必须在此更新 activeSessions，否则后续 BYE 会失败
         if ($dialogId > 0) {
             $this->commandDispatcher->updateSessionDialog($callId, $dialogId);
-            $this->log("✓ 已更新会话 dialog_id: call_id={$callId} -> dialog_id={$dialogId}");
+            $this->log("已更新会话 dialog_id: call_id={$callId} -> dialog_id={$dialogId}");
         }
+
+        // === 关键：立即发送 ACK（RFC 3261 要求尽快发送）===
+        // ACK 必须在收到 200 OK 后立即发送，不能被任何其他操作延迟。
+        // 否则设备会因为超时而重传 200 OK，导致会话建立失败。
+        if ($dialogId > 0) {
+            $this->sipServer->sendAck($dialogId);
+            $this->log("ACK 已发送: dialog_id={$dialogId}");
+        }
+
+        // 记录此 call_id 已处理，用于后续重传检测
+        $this->processedInviteCallIds[$callId] = $dialogId;
 
         // 解析设备返回的 SDP
         $sdp = $event->getSdp();
         if (!$sdp) {
             $this->log("INVITE 200 OK 缺少 SDP", 'WARNING');
-            // 仍然发送 ACK（协议要求）
-            $this->sipServer->sendAck($dialogId);
+            // ACK 已在上面发送，此处直接返回
             return;
         }
 
@@ -1221,7 +1633,9 @@ class GB28181Handler
         $deviceSsrc = $sdp['gb28181']['ssrc'] ?? null;
 
         // 提取设备媒体接收地址
-        $deviceIp = $sdp['connection']['addr'] ?? null;
+        // RFC 4566: c= line (connection info) is authoritative for media connection address.
+        // Fall back to o= line (origin) if c= is absent.
+        $deviceIp = $sdp['connection']['addr'] ?? $sdp['origin']['addr'] ?? null;
         $devicePort = $sdp['medias'][0]['port'] ?? null;
 
         if ($this->config['debug']) {
@@ -1231,17 +1645,14 @@ class GB28181Handler
             $this->log('sdp:' . json_encode($sdp, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), 'DEBUG');
         }
 
-        // 检查是否为语音对讲会话（从Redis查找）
-        $voiceSession = $this->getVoiceSession($deviceId, $channelId);
+        // 检查是否为语音对讲会话（通过 activeSession 的 type 字段判断）
+        $isVoiceTalk = $activeSession && $activeSession['type'] === 'talk';
 
-        if ($voiceSession) {
-            // 语音对讲会话处理
-            $this->handleVoiceTalkEstablished($voiceSession, $dialogId, $deviceIp, $devicePort);
+        if ($isVoiceTalk) {
+            // 语音对讲会话处理（ACK 已在上面发送，此处只做业务逻辑）
+            $this->handleVoiceTalkEstablished($activeSession, $dialogId, $deviceIp, $devicePort);
         } else {
-            // 视频流会话处理（原有逻辑）
-            // 发送 ACK（必须）
-            $this->sipServer->sendAck($dialogId);
-
+            // 视频流会话处理（ACK 已在上面发送，此处只做业务逻辑）
             // 通知业务系统：媒体流已就绪
             $this->postTask('media_ready', [
                 'device_id' => $deviceId,
@@ -1254,7 +1665,7 @@ class GB28181Handler
                 'timestamp' => time(),
             ]);
 
-            $this->log("✓ 媒体流就绪通知已发送: {$deviceId} SSRC={$deviceSsrc}");
+            $this->log("媒体流就绪通知已发送: {$deviceId} SSRC={$deviceSsrc}");
         }
     }
 
@@ -1567,6 +1978,33 @@ class GB28181Handler
             case 'MediaStatus':
                 $this->handleMediaStatusReport($event, $deviceId, $result);
                 break;
+            case 'Broadcast':
+                // 设备确认收到广播通知（Response: OK），后续设备会主动发送 INVITE
+                $broadcastResult = $result['result'] ?? 'unknown';
+                $broadcastChannelId = $result['channel_id'] ?? '';
+                $this->log("广播响应: 设备={$deviceId}, 通道={$broadcastChannelId}, 结果={$broadcastResult}");
+                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                break;
+            case 'PresetQuery':
+                $this->log("预置位查询响应: $deviceId, 数量=" . ($result['num'] ?? 0));
+                $this->postTask('preset_query_result', [
+                    'device_id' => $deviceId,
+                    'preset_list' => $result['preset_list'] ?? [],
+                    'num' => $result['num'] ?? 0,
+                    'timestamp' => time(),
+                ]);
+                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                break;
+            case 'ConfigDownload':
+                $this->log("配置查询响应: $deviceId");
+                $this->postTask('config_download_result', [
+                    'device_id' => $deviceId,
+                    'result' => $result['result'] ?? '',
+                    'basic_param' => $result['basic_param'] ?? [],
+                    'timestamp' => time(),
+                ]);
+                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                break;
             default:
                 $this->log("未处理的命令: $cmdType", 'WARNING');
                 $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
@@ -1574,33 +2012,65 @@ class GB28181Handler
     }
 
     /**
-     * 处理语音对讲INVITE
+     * 处理语音 INVITE（广播模式 + 对讲模式兼容）
      *
-     * 流程:
-     * 1. 设备发送INVITE(包含SDP,说明音频接收能力)
-     * 2. 服务器回复200 OK(包含SDP,说明音频发送参数)
-     * 3. 设备发送ACK确认
-     * 4. 服务器开始推送音频流到设备
+     * 广播模式流程 (GB28181-2016/2022 推荐):
+     * 1. 服务端发送 Broadcast MESSAGE → 设备
+     * 2. 设备处理后发送 INVITE → 服务端 (本方法处理)
+     * 3. 服务端回复 200 OK (带 SDP) → 设备
+     * 4. 设备发送 ACK → 服务端
+     * 5. ZLM 向设备推送音频流
+     *
+     * 对讲模式流程 (GB28181-2022 已移除，保留兼容):
+     * 转发到 API 处理
      */
-    private function handleVoiceInvite(\SipEvent $event, string $deviceId, string $channelId, string $sdpBody, string $mode): void
+    /**
+     * 处理 Talk 模式的设备 INVITE
+     *
+     * Talk 模式流程：设备主动发送 INVITE 给服务端，包含 SDP Offer。
+     * 服务端解析 SDP 后转发到 API 层处理。
+     *
+     * @param \SipEvent $event SIP INVITE 事件
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string|null $sdpBody SDP body
+     * @param string $mode 模式 (此处仅 'talk')
+     */
+    private function handleVoiceInvite(\SipEvent $event, string $deviceId, string $channelId, ?string $sdpBody, string $mode): void
     {
-        $this->log("语音对讲INVITE: {$deviceId} 模式:{$mode}");
+        $bodyLen = $sdpBody ? strlen($sdpBody) : 0;
+        $this->log("语音INVITE(Talk): {$deviceId} 模式:{$mode}, bodyLen={$bodyLen}");
 
-        //  使用原生 SDP 解析器（支持 GB28181 扩展）
-        $deviceSdp = \ExoSip::parseSdp($sdpBody);
-        if (!$deviceSdp) {
-            $this->log("SDP解析失败", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
+        // === Talk 模式：需要解析设备 SDP ===
+        if (!$sdpBody) {
+            $this->log("Talk模式INVITE缺少SDP", 'ERROR');
+            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request - Missing SDP');
             return;
         }
 
-        // 提取标准 SDP 字段
+        // 使用原生 SDP 解析器（支持 GB28181 扩展）
+        $deviceSdp = \ExoSip::parseSdp($sdpBody);
+        if (!$deviceSdp) {
+            $this->log("SDP解析失败", 'ERROR');
+            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request - Invalid SDP');
+            return;
+        }
+
+        // 提取设备 SDP 字段
         $deviceIp = $deviceSdp['connection']['addr'] ?? null;
         $devicePort = isset($deviceSdp['medias'][0]) ? $deviceSdp['medias'][0]['port'] : null;
         $transport = isset($deviceSdp['medias'][0]) ? $deviceSdp['medias'][0]['proto'] : 'RTP/AVP';
 
-        // 提取媒体模式（从 attributes 中查找）
-        $mediaMode = 'sendrecv';  // 默认
+        if (!$deviceIp || !$devicePort) {
+            $this->log("设备SDP缺少IP或端口", 'ERROR');
+            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request - Missing IP/Port');
+            return;
+        }
+
+        $this->log("设备音频: {$deviceIp}:{$devicePort} (传输:{$transport})");
+
+        // === Talk 模式: 转发到 API 处理 ===
+        $mediaMode = 'sendrecv';
         if (isset($deviceSdp['medias'][0]['attributes'])) {
             $attrs = $deviceSdp['medias'][0]['attributes'];
             if (isset($attrs['sendonly'])) $mediaMode = 'sendonly';
@@ -1608,15 +2078,6 @@ class GB28181Handler
             if (isset($attrs['sendrecv'])) $mediaMode = 'sendrecv';
         }
 
-        if (!$deviceIp || !$devicePort) {
-            $this->log("设备SDP缺少IP或端口", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
-            return;
-        }
-
-        $this->log("设备音频接收: {$deviceIp}:{$devicePort} (传输:{$transport}, 模式:{$mediaMode})");
-
-        // 通知API项目处理语音对讲（API项目负责ZLM端口分配、SSRC生成、SDP构建）
         $this->postTask('voice_invite', [
             'device_id' => $deviceId,
             'channel_id' => $channelId,
@@ -1630,6 +2091,124 @@ class GB28181Handler
         ]);
 
         $this->log("语音对讲请求已转发到API项目处理");
+    }
+
+    /**
+     * 处理广播模式的设备 INVITE（WVP 对齐流程）
+     *
+     * 当设备收到 Broadcast MESSAGE 后发送 INVITE 时调用。
+     * 流程（对齐 WVP-PRO processAudioBroadcastInvite）：
+     *
+     * 第二步：回复 100 Trying（防止设备重传）
+     * 第三步：解析设备 SDP（提取 transport、setup、ip、port）
+     * 第四步：投递 broadcast_setup_rtp 任务到 Task 进程
+     *   -> Task 调用 API setupBroadcastRtp（ZLM startSendRtpPassive）
+     *   -> Task 检查 isStreamReady
+     *   -> handleTaskFinish 回调 handleBroadcastSetupRtpResult
+     *     -> 流不存在: 回复 410 Gone
+     *     -> 流存在: 回复 200 OK + SDP
+     *     -> broadcastPushAfterAck: 等 ACK 再推流 / 或立即推流
+     *
+     * 注意：
+     * 1. 设备 INVITE 可能携带也可能不携带 SDP body
+     * 2. INVITE 的 From URI 可能是 NVR device_id（而非 channel_id），
+     *    因此所有业务字段都从 pendingBroadcast 中获取
+     *
+     * @param \SipEvent $event SIP INVITE 事件
+     * @param string $fromDeviceId INVITE From URI 中的设备ID（可能是 NVR ID）
+     * @param array $pendingBroadcast 待处理的广播会话数据
+     */
+    private function handleBroadcastInvite(
+        \SipEvent $event,
+        string    $fromDeviceId,
+        array     $pendingBroadcast,
+        ?string   $sdpBody = null
+    ): void
+    {
+        // 从 pendingBroadcast 获取所有业务字段（不依赖 INVITE 的 From/To URI）
+        $channelId = $pendingBroadcast['channel_id'];
+        $deviceId = $pendingBroadcast['device_id'];
+        $ssrc = $pendingBroadcast['ssrc'];
+        $rtpPort = $pendingBroadcast['rtp_port'];
+        $mediaServerIp = $pendingBroadcast['media_server_ip'];
+        $streamId = $pendingBroadcast['stream_id'];
+        $sessionId = $pendingBroadcast['session_id'] ?? null;
+        $broadcastKey = $pendingBroadcast['_broadcast_key'] ?? $channelId;
+
+        $tid = $event->getTid();
+        $callId = $event->getCallId();
+        $dialogId = $event->getDialogId();
+
+        // === 第二步（WVP 对齐）：回复 100 Trying ===
+        // 告知设备服务端正在处理，防止设备因超时重传 INVITE
+        $this->sipServer->sendResponse($tid, 100, 'Trying');
+        $this->log("广播 INVITE: 已回复 100 Trying, fromDevice={$fromDeviceId}, channelId={$channelId}");
+
+        // === 第三步（WVP 对齐）：解析设备 SDP ===
+        // SDP Offer-Answer: 从设备 INVITE SDP 解析传输协议
+        $deviceTransport = 'RTP/AVP';
+        $deviceSetup = 'active';
+        $deviceIp = null;
+        $devicePort = null;
+
+        if ($sdpBody) {
+            $deviceSdp = \ExoSip::parseSdp($sdpBody);
+            if ($deviceSdp && isset($deviceSdp['medias'][0])) {
+                $deviceTransport = $deviceSdp['medias'][0]['proto'] ?? 'RTP/AVP';
+                $deviceSetup = $deviceSdp['medias'][0]['attributes']['setup'] ?? 'active';
+                $deviceIp = $deviceSdp['connection']['addr'] ?? null;
+                $devicePort = $deviceSdp['medias'][0]['port'] ?? null;
+                $this->log("设备广播SDP: transport={$deviceTransport}, setup={$deviceSetup}, ip={$deviceIp}, port={$devicePort}");
+            }
+        }
+
+        $this->log("处理广播 INVITE(异步): fromDevice={$fromDeviceId}, channelId={$channelId}, deviceId={$deviceId}, sessionId={$sessionId}");
+
+        // === 第四步（WVP 对齐）：异步调 API 开 ZLM 端口 + 检查流就绪 ===
+        // 不立即发 200 OK，而是异步调 API 开 ZLM 端口
+        // API 根据设备 SDP transport 决定 TCP/UDP 模式
+        $taskPayload = [
+            'session_id' => $sessionId,
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpPort,
+            'media_server_id' => $pendingBroadcast['media_server_id'] ?? '',
+            'device_transport' => $deviceTransport,
+            'device_setup' => $deviceSetup,
+            'device_ip' => $deviceIp,
+            'device_port' => $devicePort,
+            // 传入流信息，供 API 检查流是否就绪
+            'stream_id' => $streamId,
+            'app' => $pendingBroadcast['app'] ?? 'broadcast',
+        ];
+
+        try {
+            $taskId = $this->sipServer->addTask([
+                'action' => 'broadcast_setup_rtp',
+                'type' => 'broadcast_setup_rtp',
+                'payload' => $taskPayload,
+                'api_hook_url' => $this->config['api_hock_url'],
+            ]);
+
+            // 存储等待结果的上下文，供 handleTaskFinish 使用
+            $this->pendingInviteSetup[$taskId] = [
+                'tid' => $tid,
+                'call_id' => $callId,
+                'dialog_id' => $dialogId,
+                'pending_broadcast' => $pendingBroadcast,
+                'device_transport' => $deviceTransport,
+                'device_setup' => $deviceSetup,
+                'device_ip' => $deviceIp,
+                'device_port' => $devicePort,
+                'broadcast_key' => $broadcastKey,
+            ];
+
+            $this->log("广播 INVITE: 已投递 broadcast_setup_rtp Task #{$taskId}, 等待 API 返回");
+
+        } catch (\Exception $e) {
+            $this->log("广播 INVITE: 投递 Task 失败: {$e->getMessage()}", 'ERROR');
+            $this->sipServer->sendResponse($tid, 500, 'Internal Server Error');
+            $this->commandDispatcher->removePendingBroadcast($broadcastKey);
+        }
     }
 
 
@@ -1892,6 +2471,32 @@ class GB28181Handler
         }
     }
 
+    /**
+     * 投递 startSendRtp 任务到 Task 进程
+     *
+     * 广播模式下，通知 ZLM 开始向设备推送 RTP 音频流。
+     * 调用时机：
+     * 1. broadcastPushAfterAck=true: 收到设备 ACK 后调用（handleAck 触发）
+     * 2. broadcastPushAfterAck=false 或 TCP 主动模式: 发送 200 OK 后立即调用
+     *
+     * @param array $info 推流信息，包含 session_id, ssrc, stream_id, app, media_server_id 等
+     */
+    private function dispatchStartSendRtp(array $info): void
+    {
+        $this->log("投递 start_send_rtp 任务: sessionId={$info['session_id']}, streamId={$info['stream_id']}");
+
+        try {
+            $this->sipServer->addTask([
+                'action' => 'start_send_rtp',
+                'type' => 'start_send_rtp',
+                'payload' => $info,
+                'api_hook_url' => $this->config['api_hock_url'],
+            ]);
+        } catch (\Exception $e) {
+            $this->log("投递 start_send_rtp 任务失败: {$e->getMessage()}", 'ERROR');
+        }
+    }
+
 
     /**
      * 判断是否为注销请求
@@ -2085,113 +2690,53 @@ class GB28181Handler
     }
 
 
-    /**
-     * 获取语音对讲会话信息（从Redis）
-     *
-     * @param string $deviceId 设备ID
-     * @param string $channelId 通道ID
-     * @return array|null 会话信息，如果不存在返回null
-     */
-    private function getVoiceSession(string $deviceId, string $channelId): ?array
-    {
-        try {
-            $redis = $this->getRedisConnection();
-            $sessionKey = "voice_session:{$deviceId}:{$channelId}";
-            $sessionData = $redis->get($sessionKey);
-
-            if ($sessionData) {
-                return json_decode($sessionData, true);
-            }
-
-            return null;
-        } catch (\Throwable $e) {
-            $this->log("获取语音会话失败: {$e->getMessage()}", 'ERROR');
-            return null;
-        }
-    }
 
     /**
      * 处理语音对讲会话已建立
      *
-     * 当收到语音对讲 INVITE 的 200 OK 响应时调用
+     * 当收到语音对讲 INVITE 的 200 OK 响应时调用。
+     * 注意：ACK 已在 handleInviteResponse() 中发送，此方法只负责业务逻辑处理。
      *
-     * @param array $voiceSession Redis中存储的会话信息
+     * 会话信息来自 CommandDispatcher 的 activeSessions（内存），
+     * 而非 Redis。这解决了之前 Redis voice_session 键从未写入的问题。
+     *
+     * @param array $activeSession CommandDispatcher 中的活跃会话信息
      * @param int $dialogId SIP Dialog ID
-     * @param string $deviceIp 设备音频接收IP
-     * @param int $devicePort 设备音频接收端口
+     * @param string|null $deviceIp 设备音频接收IP（来自 200 OK 的 SDP）
+     * @param int|null $devicePort 设备音频接收端口（来自 200 OK 的 SDP）
      * @return void
      */
-    private function handleVoiceTalkEstablished(array $voiceSession, int $dialogId, string $deviceIp, int $devicePort): void
+    private function handleVoiceTalkEstablished(array $activeSession, int $dialogId, ?string $deviceIp, ?int $devicePort): void
     {
-        $deviceId = $voiceSession['device_id'];
-        $channelId = $voiceSession['channel_id'];
-        $mode = $voiceSession['mode'] ?? 'talk';
-        $ssrc = $voiceSession['ssrc'] ?? '';
+        $deviceId = $activeSession['device_id'];
+        $channelId = $activeSession['channel_id'];
+        $mode = $activeSession['mode'] ?? 'talk';
+        $ssrc = $activeSession['ssrc'] ?? '';
+        $callId = $activeSession['call_id'] ?? 0;
+        $streamId = $activeSession['stream_id'] ?? '';
 
-        // 更新 Redis 会话信息
-        try {
-            $redis = $this->getRedisConnection();
-            $sessionKey = "voice_session:{$deviceId}:{$channelId}";
+        // ACK 已在 handleInviteResponse() 中统一发送，此处不再重复发送
 
-            $voiceSession['dialog_id'] = $dialogId;
-            $voiceSession['device_ip'] = $deviceIp;
-            $voiceSession['device_port'] = $devicePort;
-            $voiceSession['status'] = 'established';
-            $voiceSession['updated_at'] = time();
-
-            $redis->setex($sessionKey, 300, json_encode($voiceSession));
-        } catch (\Throwable $e) {
-            $this->log("更新语音会话失败: {$e->getMessage()}", 'ERROR');
-        }
-
-        // 发送 ACK
-        if ($dialogId > 0) {
-            $this->sipServer->sendAck($dialogId);
-        }
-
-        // 通知 API 会话已建立
+        // 通知 API 会话已建立（voice_established 回调）
+        // API 侧的 GBServerHookController 将调用 VoiceTalkService::onSipResponseOk()
+        // 来更新数据库中的会话状态为 CONNECTED
         $this->postTask('voice_established', [
             'device_id' => $deviceId,
             'channel_id' => $channelId,
             'dialog_id' => $dialogId,
-            'call_id' => $voiceSession['call_id'] ?? 0,
+            'call_id' => $callId,
             'device_ip' => $deviceIp,
             'device_port' => $devicePort,
             'mode' => $mode,
             'ssrc' => $ssrc,
-            'session_id' => $voiceSession['session_id'] ?? null,
+            'stream_id' => $streamId,
+            'session_id' => $activeSession['session_id'] ?? null,
             'timestamp' => time(),
         ]);
 
-        $this->log("✓ 语音对讲会话已建立: {$deviceId}/{$channelId}, Dialog-ID: {$dialogId}");
+        $this->log("语音对讲会话已建立: {$deviceId}/{$channelId}, Dialog-ID: {$dialogId}, Stream: {$streamId}");
     }
 
-    /**
-     * 获取 Redis 连接
-     *
-     * @return \Redis
-     */
-    private function getRedisConnection(): \Redis
-    {
-        static $redis = null;
-
-        if ($redis === null) {
-            $redis = new \Redis();
-            $redisConfig = $this->config['redis'] ?? [];
-            $host = $redisConfig['host'] ?? '127.0.0.1';
-            $port = $redisConfig['port'] ?? 6379;
-            $password = $redisConfig['password'] ?? '';
-            $database = $redisConfig['database'] ?? 0;
-
-            $redis->connect($host, $port);
-            if (!empty($password)) {
-                $redis->auth($password);
-            }
-            $redis->select($database);
-        }
-
-        return $redis;
-    }
 
     /**
      * 日志输出

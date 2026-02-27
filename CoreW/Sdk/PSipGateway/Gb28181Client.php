@@ -374,6 +374,30 @@ class Gb28181Client
     }
 
     /**
+     * 发起语音广播（发送 Broadcast MESSAGE 通知到设备）
+     *
+     * 广播模式流程：
+     * 1. 服务端发送 MESSAGE（CmdType=Broadcast）通知设备
+     * 2. 设备处理后主动发送 INVITE 给服务端
+     * 3. 网关回复 200 OK（携带 SDP，包含 ZLM 端口）
+     *
+     * @param array $session 会话信息（包含 ssrc, rtp_local_port, media_server_ip 等）
+     * @return array
+     */
+    public function startAudioBroadcast(array $session): array
+    {
+        $this->sendCommand($session['device_id'], 'voice_broadcast', $session);
+
+        return [
+            'success' => true,
+            'device_id' => $session['device_id'],
+            'channel_id' => $session['channel_id'],
+            'mode' => $session['mode'] ?? 'broadcast',
+            'pending' => true,
+        ];
+    }
+
+    /**
      * 发起语音对讲（发送 INVITE 到设备）
      *
      * @param array $session 会话信息
@@ -701,6 +725,169 @@ class Gb28181Client
             'expires' => $expires,
             'pending' => true,
         ];
+    }
+
+    /**
+     * 远程重启
+     */
+    public function teleBoot(string $deviceId, string $channelId): bool
+    {
+        return $this->sendCommand($deviceId, 'tele_boot', [
+            'channel_id' => $channelId,
+        ]);
+    }
+
+    /**
+     * 录像控制
+     * @param string $action Record / StopRecord
+     */
+    public function recordControl(string $deviceId, string $channelId, string $action): bool
+    {
+        return $this->sendCommand($deviceId, 'record_cmd', [
+            'channel_id' => $channelId,
+            'action' => $action,
+        ]);
+    }
+
+    /**
+     * 布防/撤防
+     * @param string $action SetGuard / ResetGuard
+     */
+    public function guardControl(string $deviceId, string $channelId, string $action): bool
+    {
+        return $this->sendCommand($deviceId, 'guard_cmd', [
+            'channel_id' => $channelId,
+            'action' => $action,
+        ]);
+    }
+
+    /**
+     * 报警复位
+     */
+    public function alarmReset(string $deviceId, string $channelId, ?int $alarmMethod = null, ?int $alarmType = null): bool
+    {
+        $params = ['channel_id' => $channelId];
+        if ($alarmMethod !== null) {
+            $params['alarm_method'] = $alarmMethod;
+        }
+        if ($alarmType !== null) {
+            $params['alarm_type'] = $alarmType;
+        }
+        return $this->sendCommand($deviceId, 'alarm_reset', $params);
+    }
+
+    /**
+     * 强制关键帧
+     */
+    public function iFrameCmd(string $deviceId, string $channelId): bool
+    {
+        return $this->sendCommand($deviceId, 'iframe_cmd', [
+            'channel_id' => $channelId,
+        ]);
+    }
+
+    /**
+     * 看守位控制
+     */
+    public function homePosition(string $deviceId, string $channelId, bool $enabled, int $resetTime = 0, int $presetIndex = 1): bool
+    {
+        return $this->sendCommand($deviceId, 'home_position', [
+            'channel_id' => $channelId,
+            'enabled' => $enabled ? 1 : 0,
+            'reset_time' => $resetTime,
+            'preset_index' => $presetIndex,
+        ]);
+    }
+
+    /**
+     * 拖拽变倍
+     * @param string $type in / out
+     */
+    public function dragZoom(string $deviceId, string $channelId, string $type, array $params): bool
+    {
+        return $this->sendCommand($deviceId, 'drag_zoom', array_merge([
+            'channel_id' => $channelId,
+            'type' => $type,
+        ], $params));
+    }
+
+    /**
+     * 设备基础配置
+     */
+    public function deviceConfig(string $deviceId, string $channelId, array $params): bool
+    {
+        return $this->sendCommand($deviceId, 'device_config', array_merge([
+            'channel_id' => $channelId,
+        ], $params));
+    }
+
+    /**
+     * 自动扫描控制
+     * @param string $action scan_start/scan_stop/scan_set_left/scan_set_right/scan_set_speed
+     */
+    public function scanControl(string $deviceId, string $channelId, string $action, int $groupId = 0, int $speed = 0): bool
+    {
+        return $this->sendCommand($deviceId, $action, [
+            'channel_id' => $channelId,
+            'group_id' => $groupId,
+            'speed' => $speed,
+        ]);
+    }
+
+    /**
+     * 雨刷控制
+     */
+    public function wiperControl(string $deviceId, string $channelId, bool $on): bool
+    {
+        return $this->sendCommand($deviceId, $on ? 'wiper_on' : 'wiper_off', [
+            'channel_id' => $channelId,
+        ]);
+    }
+
+    /**
+     * 辅助开关控制
+     */
+    public function auxControl(string $deviceId, string $channelId, int $switchId, bool $on): bool
+    {
+        return $this->sendCommand($deviceId, $on ? 'aux_on' : 'aux_off', [
+            'channel_id' => $channelId,
+            'switch_id' => $switchId,
+        ]);
+    }
+
+    /**
+     * 巡航控制
+     */
+    public function cruiseControl(string $deviceId, string $channelId, string $action, int $groupId, int $param = 0): bool
+    {
+        return $this->sendCommand($deviceId, 'cruise_' . $action, [
+            'channel_id' => $channelId,
+            'group_id' => $groupId,
+            'preset_id' => $param,
+            'speed' => $param,
+            'duration' => $param,
+        ]);
+    }
+
+    /**
+     * 设备预置位查询
+     */
+    public function presetQuery(string $deviceId, string $channelId): bool
+    {
+        return $this->sendCommand($deviceId, 'preset_query', [
+            'channel_id' => $channelId,
+        ]);
+    }
+
+    /**
+     * 设备配置查询
+     */
+    public function configDownload(string $deviceId, string $channelId, string $configType = 'BasicParam'): bool
+    {
+        return $this->sendCommand($deviceId, 'config_download', [
+            'channel_id' => $channelId,
+            'config_type' => $configType,
+        ]);
     }
 
     private function checkGatewayIsRunning(): bool

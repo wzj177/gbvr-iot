@@ -796,12 +796,36 @@ public function sendSubscribePtzStatus(Device $device): void
         $options = [
             'range' => "npt={$seconds}-"
         ];
-        
+
         // 如果倍速不是1.0，添加 Scale 头
         if (abs($scale - 1.0) > 0.01) {
             $options['scale'] = $scale;
         }
-        
+
         return $this->playbackControl($dialogId, 'play', $options);
+    }
+
+    /**
+     * 公共方法: 构建控制 XML（供 CommandDispatcher 使用）
+     */
+    public function buildControlXmlPublic(string $cmdType, string $deviceId, array $params, string $charset = 'GB2312'): string
+    {
+        return $this->buildControlXml($cmdType, $deviceId, $params, $charset);
+    }
+
+    /**
+     * 公共方法: 构建查询 XML（供 CommandDispatcher 使用）
+     */
+    public function buildQueryXmlPublic(string $cmdType, string $deviceId, string $charset = 'GB2312'): string
+    {
+        return $this->buildQueryXml($cmdType, $deviceId, $charset);
+    }
+
+    /**
+     * 公共方法: 发送 MESSAGE（供 CommandDispatcher 使用）
+     */
+    public function sendQuery(string $deviceUri, string $xml): bool|int
+    {
+        return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
 }

@@ -402,10 +402,10 @@ class ExoSip {
 
     /**
      * Send SIP ACK request
-     * @param string $dialogId Dialog ID
+     * @param int $dialogId Dialog ID
      * @return bool
      */
-    public function sendAck(string $dialogId): bool {}
+    public function sendAck(int $dialogId): bool {}
     
     /**
      * Send SIP INFO request (Playback Control - GB28181)
@@ -627,6 +627,31 @@ class ExoSip {
      * ```
      */
     public function sendResponse(int $tid, int $code, ?string $reason = null, ?array $headers = null): bool {}
+
+    /**
+     * Send SIP INVITE response (200 OK with SDP body)
+     *
+     * Used to respond to incoming INVITE requests (e.g., device-initiated broadcast INVITE).
+     * Unlike sendResponse() which handles MESSAGE/REGISTER, this method uses the eXosip CALL API
+     * to properly respond to INVITE requests with SDP body.
+     *
+     * @param int $tid Transaction ID from SipEvent::getTid()
+     * @param int $code SIP response code (typically 200)
+     * @param string|null $body SDP body content (required for 200 OK)
+     * @param string|null $reason Reason phrase (default: standard phrase for code, e.g., "OK")
+     * @param string|null $contentType Content-Type header (default: "application/sdp")
+     * @return bool True on success, false on failure
+     *
+     * @example
+     * ```php
+     * // Respond to device broadcast INVITE with SDP
+     * $sip->onInvite = function($event) use ($sip) {
+     *     $sdp = SdpBuilder::buildBroadcastSdp($serverId, $mediaIp, $port, $ssrc);
+     *     $sip->sendCallAnswer($event->getTid(), 200, $sdp, 'OK');
+     * };
+     * ```
+     */
+    public function sendCallAnswer(int $tid, int $code, ?string $body = null, ?string $reason = null, ?string $contentType = null): bool {}
     
     /* ========== SUBSCRIBE/NOTIFY Methods (GB28181订阅功能) ========== */
     

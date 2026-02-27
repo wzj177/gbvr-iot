@@ -165,6 +165,16 @@ class DeviceManager
     }
 
     /**
+     * 获取设备字符集
+     * @return string 设备字符集，默认 'GB2312'
+     */
+    public function getDeviceCharset(string $deviceId): string
+    {
+        $device = $this->getDevice($deviceId);
+        return $device['charset'] ?? 'GB2312';
+    }
+
+    /**
      * 更新设备心跳（由 Device 对象内部调用）
      * 保留此方法用于外部监控
      */
@@ -585,14 +595,7 @@ class DeviceManager
      */
     private function log(string $message, string $level = 'INFO'): void
     {
-        $time = date('Y-m-d H:i:s');
-        $prefix = match ($level) {
-            'ERROR' => '[ERROR]',
-            'WARNING' => '[WARNING]',
-            default => '[INFO]'
-        };
-
-        echo "[{$time}]  [{$level}] {$message}\n";
+        $this->logger->log($message, $level, 'DeviceManager');
     }
 
     // ==================== 订阅管理 ====================

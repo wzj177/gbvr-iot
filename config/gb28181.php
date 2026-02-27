@@ -58,7 +58,7 @@ return [
      * 任务进程数
      * 默认: 4
      */
-    'task_worker_num' => 2,
+    'task_worker_num' => 4,
 
     // ========== GB28181 国标编码 ==========
 
@@ -178,6 +178,23 @@ return [
      */
     'log_level' => 'INFO',
 
+    /**
+     * 日志文件路径
+     *
+     * 支持的格式:
+     * - 'php://stdout': 输出到标准输出
+     * - 文件路径: 自动启用按日期轮转
+     *   例如 'gb28181.log' -> 'gb28181-2026-02-11.log'
+     */
+    'log_file' => runtime_path('logs/gb28181.log'),
+
+    /**
+     * 日志文件最大保留天数
+     * 超过此天数的日志文件将被自动清理
+     * 设置为 0 表示不自动清理
+     */
+    'log_max_days' => 30,
+
     // ========== 高级配置 ==========
 
     /**
@@ -204,6 +221,19 @@ return [
      * 可选值: 'GB-2011', 'GB-2016'
      */
     'gb_version' => 'GB-2016',
+
+    /**
+     * 广播模式是否在收到设备 ACK 后再推流
+     *
+     * true (默认): 收到设备 ACK 后才触发 ZLM startSendRtp
+     *   适用于大华等设备，需要先完成 SIP 信令握手再接收 RTP
+     *
+     * false: 发送 200 OK 后立即推流，不等 ACK
+     *   适用于海康等设备，200 OK 后即可接收 RTP
+     *
+     * 注意: TCP 主动模式 (setup:active) 始终立即推流，不受此配置影响
+     */
+    'broadcast_push_after_ack' => true,
 
     /**
      * SIP User-Agent 标识

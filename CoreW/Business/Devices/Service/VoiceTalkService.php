@@ -95,5 +95,35 @@ interface VoiceTalkService
      */
     public function getSession(string $sessionId): ?array;
 
+    /**
+     * 根据 call_id 获取会话信息
+     *
+     * @param string $callId SIP Call-ID
+     * @return array|null
+     */
+    public function getSessionByCallId(string $callId): ?array;
+
     public function deleteStreamByStreamAndMediaServerId(string $stream, string $mediaServerId);
+
+    /**
+     * 为 Broadcast 设置 RTP（设备 INVITE 到达后调用）
+     *
+     * WVP 对齐时序：收到设备 INVITE 后根据设备 SDP 协商传输协议，
+     * 调用 ZLM startSendRtpPassive 开端口。
+     *
+     * @param string $sessionId 会话ID
+     * @param array $deviceSdpInfo 设备 SDP 信息
+     * @return array 包含 local_port, media_server_ip, ssrc, tcp_mode
+     */
+    public function setupBroadcastRtp(string $sessionId, array $deviceSdpInfo): array;
+
+    /**
+     * 检查流是否在 ZLMediaKit 中存在（就绪状态）
+     *
+     * @param string $mediaServerId 媒体服务器ID
+     * @param string $app 应用名 (talk/broadcast)
+     * @param string $stream 流ID
+     * @return bool 流存在返回 true，不存在返回 false
+     */
+    public function isStreamReady(string $mediaServerId, string $app, string $stream): bool;
 }

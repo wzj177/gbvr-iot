@@ -89,6 +89,7 @@ class Gb28181Server extends Command
             'api_hock_url' => $config['api']['hock_url'],
             'api_pull_url' => $config['api']['pull_url'],
             'api_hock_token' => $config['api']['token'],
+            'log_file' => $config['log_file'],
         ]);
 
         // 绑定GB28181事件处理器

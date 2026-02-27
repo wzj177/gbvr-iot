@@ -38,6 +38,7 @@ class CommandDispatcher
     private array $config;
     private array $activeSessions = [];  // 活跃的会话(INVITE)
     private array $pendingSubscribes = [];  // 等待响应的订阅请求 (subscription_id => context)
+    private array $pendingBroadcasts = [];  // 等待设备 INVITE 的广播会话 (channelId => session data)
     private Logger $logger;
 
     /**
@@ -119,14 +120,37 @@ class CommandDispatcher
                 'subscribe_catalog' => $this->handleSubscribeCatalog($requestId, $deviceId, $params),
                 'subscribe_alarm' => $this->handleSubscribeAlarm($requestId, $deviceId, $params),
                 'subscribe_mobile_position' => $this->handleSubscribeMobilePosition($requestId, $deviceId, $params),
-                // refresh_subscribe 已在前面单独处理，不需要设备检查
                 'unsubscribe_catalog' => $this->handleUnsubscribeCatalog($requestId, $deviceId),
                 'unsubscribe_alarm' => $this->handleUnsubscribeAlarm($requestId, $deviceId),
                 'unsubscribe_mobile_position' => $this->handleUnsubscribeMobilePosition($requestId, $deviceId),
                 'playback_control' => $this->handlePlaybackControl($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'download_record' => $this->handleDownloadRecord($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'voice_invite' => $this->handleVoiceInvite($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'voice_broadcast' => $this->handleVoiceBroadcast($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 'voice_bye' => $this->handleVoiceBye($requestId, $deviceId, $channelId, $params),
+                // Phase 1: 简单设备控制命令
+                'tele_boot' => $this->handleTeleBoot($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'record_cmd' => $this->handleRecordCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'guard_cmd' => $this->handleGuardCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'alarm_reset' => $this->handleAlarmReset($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'iframe_cmd' => $this->handleIFrameCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                // Phase 2: 复合设备控制命令
+                'home_position' => $this->handleHomePosition($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'drag_zoom' => $this->handleDragZoom($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'device_config' => $this->handleDeviceConfig($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                // Phase 3: 前端扩展指令
+                'scan_start' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x15, $params),
+                'scan_stop' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x16, $params),
+                'scan_set_left' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x17, $params),
+                'scan_set_right' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x18, $params),
+                'scan_set_speed' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x19, $params),
+                'wiper_on' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x21, $params),
+                'wiper_off' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x22, $params),
+                'aux_on' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x40, $params),
+                'aux_off' => $this->handleFrontEndCmd($requestId, $deviceId, $channelId, $deviceIp, $devicePort, 0x41, $params),
+                // Phase 4: 设备查询增强
+                'preset_query' => $this->handlePresetQuery($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
+                'config_download' => $this->handleConfigDownload($requestId, $deviceId, $channelId, $deviceIp, $devicePort, $params),
                 default => $this->errorResponse($requestId, "Unknown action: {$action}"),
             };
         } catch (\Exception $e) {
@@ -210,7 +234,7 @@ class CommandDispatcher
             // 会话已存在，直接返回现有信息（viewer_count 由 API 层数据库管理）
             $this->log("INFO: 复用直播流 {$streamId}");
             return [
-                'status' => 'success',
+                'success' => true,
                 'request_id' => $this->activeSessions[$streamId]['request_id'],
                 'call_id' => $this->activeSessions[$streamId]['call_id'],
                 'stream_id' => $streamId,
@@ -328,7 +352,7 @@ class CommandDispatcher
             $this->log("INFO: 复用回放流 {$streamId}");
 
             return [
-                'status' => 'success',
+                'success' => true,
                 'request_id' => $this->activeSessions[$streamId]['request_id'],
                 'call_id' => $this->activeSessions[$streamId]['call_id'],
                 'stream_id' => $streamId,
@@ -497,30 +521,29 @@ class CommandDispatcher
         }
 
         //  3. 验证必需参数：收流IP（由gbvr-iot根据media_server表的stream_ip传入）
-        $mediaServerIp = $session['stream_ip'] ?? null;
+        $mediaServerIp = $session['media_server_ip'] ?? null;
         if (!$mediaServerIp) {
-            return $this->errorResponse($requestId, 'Missing stream_ip in params');
+            return $this->errorResponse($requestId, 'Missing media_server_ip in params');
         }
 
         $this->log("Media server IP: {$mediaServerIp}");
 
         //  4. 可选参数
-        $tcpMode = $session['tcp_mode'] ?? 1;  // 默认TCP被动
-        $mode = $session['mode'] ?? 'sendrecv';  // 默认设备接收音频（平台→设备）
-        $streamId = $session['stream_id'] ?? null;
-
-        //  5. 检查是否已存在对讲会话（同一通道同时只能有一个对讲）
-        if ($streamId && isset($this->activeSessions[$streamId])) {
-            $this->log("WARNING: Talk session already exists for stream {$streamId}, returning existing session");
-            return [
-                'status' => 'success',
-                'request_id' => $this->activeSessions[$streamId]['request_id'],
-                'call_id' => $this->activeSessions[$streamId]['call_id'],
-                'stream_id' => $streamId,
-                'reused' => true,
-                'message' => 'Talk session already in progress'
-            ];
-        }
+        // rtp_tcp 是 ZLM 层面的布尔(0=UDP,1=TCP)，转为 SDP 层面的 tcp_mode
+        $tcpMode = !empty($session['rtp_tcp']) ? 1 : 0;
+        // sdp_direction 由 API 层根据应用 mode(talk/broadcast) 映射而来
+        // talk -> sendrecv (双向对讲), broadcast -> recvonly (设备只接收)
+        // 优先使用 sdp_direction，兼容旧版本回退到 mode（如果 mode 恰好是合法的 SDP direction）
+        $mode = $session['sdp_direction'] ?? $session['mode'] ?? 'sendrecv';
+        // 防御：如果 mode 仍然不是合法的 SDP direction 属性，做最终映射
+        $mode = match ($mode) {
+            'talk' => 'sendrecv',
+            'broadcast' => 'recvonly',
+            'sendrecv', 'sendonly', 'recvonly', 'inactive' => $mode,
+            default => 'sendrecv',
+        };
+        // API 层字段名是 'stream'（不是 'stream_id'），兼容两种写法
+        $streamId = $session['stream'] ?? $session['stream_id'] ?? null;
 
         //  6. 构建 Talk SDP（音频对讲）
         $sdp = SdpBuilder::buildTalkSdp(
@@ -529,7 +552,8 @@ class CommandDispatcher
             mediaPort: $rtpPort,
             ssrc: $ssrc,
             tcpMode: $tcpMode,
-            mode: $mode  // recvonly/sendonly/sendrecv
+            mode: $mode,  // recvonly/sendonly/sendrecv
+            channelId: $channelId  // o= 行使用 channelId (与 WVP 一致)
         );
 
         // 调试：打印生成的SDP
@@ -564,6 +588,7 @@ class CommandDispatcher
             'stream_id' => $streamId,
             'mode' => $mode,  // 保存媒体模式
             'tcp_mode' => $tcpMode,
+            'session_id' => $session['session_id'] ?? null,  // API 层的 DB 会话 ID
             'started_at' => time(),
         ];
 
@@ -620,10 +645,10 @@ class CommandDispatcher
             return $this->errorResponse($requestId, "No active voice talk session for stream_id={$streamId}");
         }
 
-        //  3. 验证会话类型
-        if ($session['type'] !== 'talk') {
-            $this->log("WARNING: Session {$streamId} is not a talk session (type={$session['type']})");
-            return $this->errorResponse($requestId, "Session {$streamId} is not a talk session");
+        //  3. 验证会话类型（talk 或 broadcast）
+        if ($session['type'] !== 'talk' && $session['type'] !== 'broadcast') {
+            $this->log("WARNING: Session {$streamId} is not a voice session (type={$session['type']})");
+            return $this->errorResponse($requestId, "Session {$streamId} is not a voice session");
         }
 
         //  4. 发送 BYE 关闭 SIP 会话
@@ -646,6 +671,193 @@ class CommandDispatcher
             'stream_id' => $streamId,
             'call_id' => $session['call_id'],
         ];
+    }
+
+    /**
+     * 处理语音广播命令（Broadcast 模式）
+     *
+     * 广播模式流程（GB28181-2016/2022）：
+     * 1. 服务端发送 MESSAGE（CmdType=Broadcast）通知设备 ← 本方法完成
+     * 2. 设备处理后主动发送 INVITE 给服务端
+     * 3. 网关回复 200 OK（携带 SDP） ← 由 handleBroadcastInvite() 完成
+     * 4. 设备 ACK
+     * 5. ZLM 向设备推送音频流
+     *
+     * 参考 WVP-PRO: SIPCommanderFroPlatform::audioBroadcastCmd()
+     */
+    private function handleVoiceBroadcast(
+        string $requestId,
+        string $deviceId,
+        string $channelId,
+        string $deviceIp,
+        int    $devicePort,
+        array  $session
+    ): array
+    {
+        $this->log("Start voice broadcast: {$channelId}");
+        $this->log("Received broadcast params: " . json_encode($session, JSON_UNESCAPED_UNICODE));
+
+        // 1. 验证关键参数
+        // 广播 MESSAGE 阶段只需要 ssrc 和 media_server_ip（用于存储到 pendingBroadcasts）
+        // rtp_local_port 此时为 0 是正确的——broadcast 模式不预调 startSendRtpPassive，
+        // 端口在设备 INVITE 到达后由 setupBroadcastRtp 分配
+        $ssrc = $session['ssrc'] ?? null;
+        $mediaServerIp = $session['media_server_ip'] ?? null;
+
+        if (!$ssrc || !$mediaServerIp) {
+            return $this->errorResponse($requestId,
+                "Missing required params: ssrc={$ssrc}, media_server_ip={$mediaServerIp}");
+        }
+
+        // rtp_local_port 此阶段可能为 0，记录但不校验
+        $rtpLocalPort = $session['rtp_local_port'] ?? $session['rtp_port'] ?? 0;
+
+        $this->log("Media server IP: {$mediaServerIp}");
+
+        $streamId = $session['stream'] ?? $session['stream_id'] ?? null;
+        // sdp_direction 用于 SDP 构建（recvonly/sendrecv），app 用于 ZLM 应用名（broadcast/talk）
+        $mode = $session['sdp_direction'] ?? $session['mode'] ?? 'recvonly';
+        $app = $session['mode'] ?? 'broadcast'; // ZLM 应用名，不是 SDP direction
+        // rtp_tcp 是 ZLM 层面的布尔(0=UDP,1=TCP)，转为 SDP 层面的 tcp_mode(0=UDP,1=TCP被动)
+        $tcpMode = !empty($session['rtp_tcp']) ? 1 : 0;
+
+        // 2. 构建 Broadcast MESSAGE XML
+        $sn = rand(100000, 999999);
+        $charset = $session['charset'] ?? 'GB2312';
+        $broadcastXml = "<?xml version=\"1.0\" encoding=\"{$charset}\"?>\r\n";
+        $broadcastXml .= "<Notify>\r\n";
+        $broadcastXml .= "<CmdType>Broadcast</CmdType>\r\n";
+        $broadcastXml .= "<SN>{$sn}</SN>\r\n";
+        $broadcastXml .= "<SourceID>{$this->config['server_id']}</SourceID>\r\n";
+        $broadcastXml .= "<TargetID>{$channelId}</TargetID>\r\n";
+        $broadcastXml .= "</Notify>\r\n";
+
+        if ($this->config['debug'] ?? false) {
+            $this->log("Broadcast MESSAGE XML:\n{$broadcastXml}");
+        }
+
+        // 3. 发送 MESSAGE 到设备
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $result = $this->sipServer->sendMessage($targetUri, $broadcastXml, 'Application/MANSCDP+xml');
+
+        if ($result === false) {
+            return $this->errorResponse($requestId, "Failed to send Broadcast MESSAGE to device");
+        }
+
+        // 4. 存储待处理的广播会话（等待设备发送 INVITE）
+        //    Key 使用 channelId，因为设备 INVITE 的 To URI 包含 channelId
+        $this->pendingBroadcasts[$channelId] = [
+            'request_id' => $requestId,
+            'device_id' => $deviceId,
+            'channel_id' => $channelId,
+            'type' => 'broadcast',
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpLocalPort,
+            'media_server_ip' => $mediaServerIp,
+            'media_server_id' => $session['media_server_id'] ?? '',
+            'stream_id' => $streamId,
+            'app' => $app,       // ZLM 应用名（broadcast/talk）
+            'mode' => $mode,     // SDP direction（recvonly/sendrecv）
+            'tcp_mode' => $tcpMode,
+            'session_id' => $session['session_id'] ?? null,
+            'started_at' => time(),
+        ];
+
+        $this->log("Voice broadcast MESSAGE sent, waiting for device INVITE (Channel: {$channelId}, SSRC: {$ssrc}, Port: {$rtpLocalPort} [will be assigned on device INVITE])");
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'ssrc' => $ssrc,
+            'rtp_port' => $rtpLocalPort,
+            'stream_id' => $streamId,
+            'mode' => $mode,
+            'tcp_mode' => $tcpMode,
+            'pending_invite' => true,  // 标记：等待设备 INVITE
+        ];
+    }
+
+    /**
+     * 查找待处理的广播会话（供 GB28181Handler 在收到设备 INVITE 时调用）
+     *
+     * 查找策略：
+     * 1. 优先按 channelId（pendingBroadcasts 的键）查找
+     * 2. 再按 device_id 字段查找（NVR 代替通道发送 INVITE 时，From URI 是 NVR device_id）
+     *
+     * @param string $identifier channelId 或 device_id
+     * @return array|null 待处理的广播会话（含 _broadcast_key 标识实际键），不存在返回 null
+     */
+    public function findPendingBroadcast(string $identifier): ?array
+    {
+        // 1. 直接按 channelId 查找
+        if (isset($this->pendingBroadcasts[$identifier])) {
+            $result = $this->pendingBroadcasts[$identifier];
+            $result['_broadcast_key'] = $identifier;
+            return $result;
+        }
+
+        // 2. 按 device_id 查找
+        // 广播模式下，NVR 代替通道发送 INVITE，From URI 是 NVR device_id
+        // 而 pendingBroadcasts 的键是 channel_id
+        foreach ($this->pendingBroadcasts as $channelId => $session) {
+            if ($session['device_id'] === $identifier) {
+                $session['_broadcast_key'] = $channelId;
+                return $session;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 移除待处理的广播会话
+     *
+     * 支持按 channelId（键）或 device_id（字段）移除
+     */
+    public function removePendingBroadcast(string $identifier): void
+    {
+        // 直接按键移除
+        if (isset($this->pendingBroadcasts[$identifier])) {
+            unset($this->pendingBroadcasts[$identifier]);
+            return;
+        }
+
+        // 按 device_id 字段查找并移除
+        foreach ($this->pendingBroadcasts as $channelId => $session) {
+            if ($session['device_id'] === $identifier) {
+                unset($this->pendingBroadcasts[$channelId]);
+                return;
+            }
+        }
+    }
+
+    /**
+     * 添加活跃会话（供 GB28181Handler 在处理设备发起的 INVITE 时调用）
+     *
+     * 广播模式下，设备发送 INVITE 给服务端，由 GB28181Handler 直接回复 200 OK。
+     * 此时需要将会话注册到 activeSessions，以便后续 voice_bye 命令能找到并发送 BYE。
+     *
+     * @param string $streamId 流ID（会话键）
+     * @param array $session 会话数据
+     */
+    public function addActiveSession(string $streamId, array $session): void
+    {
+        $this->activeSessions[$streamId] = $session;
+        $this->log("Active session added: {$streamId} (type: {$session['type']}, call_id: {$session['call_id']})");
+    }
+
+    /**
+     * 清理超时的待处理广播会话（定时器调用）
+     */
+    public function cleanExpiredBroadcasts(int $timeoutSeconds = 30): void
+    {
+        $now = time();
+        foreach ($this->pendingBroadcasts as $channelId => $session) {
+            if ($now - $session['started_at'] > $timeoutSeconds) {
+                $this->log("Broadcast session expired: {$channelId}");
+                unset($this->pendingBroadcasts[$channelId]);
+            }
+        }
     }
 
 
@@ -1442,6 +1654,339 @@ class CommandDispatcher
         ];
     }
 
+    // ========== Phase 1: 简单设备控制命令 ==========
+
+    /**
+     * 远程重启
+     */
+    private function handleTeleBoot(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("TeleBoot: {$channelId}");
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $xml = $this->querySender->buildControlXmlPublic('DeviceControl', $channelId, ['TeleBoot' => 'Boot'], $charset);
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'TeleBoot command sent' : 'Failed to send TeleBoot command',
+        ];
+    }
+
+    /**
+     * 录像控制
+     */
+    private function handleRecordCmd(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $action = $params['action'] ?? 'Record'; // Record / StopRecord
+        $this->log("RecordCmd: {$channelId}, action={$action}");
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $xml = $this->querySender->buildControlXmlPublic('DeviceControl', $channelId, ['RecordCmd' => $action], $charset);
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? "RecordCmd({$action}) sent" : "Failed to send RecordCmd",
+        ];
+    }
+
+    /**
+     * 布防/撤防
+     */
+    private function handleGuardCmd(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $action = $params['action'] ?? 'SetGuard'; // SetGuard / ResetGuard
+        $this->log("GuardCmd: {$channelId}, action={$action}");
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $xml = $this->querySender->buildControlXmlPublic('DeviceControl', $channelId, ['GuardCmd' => $action], $charset);
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? "GuardCmd({$action}) sent" : "Failed to send GuardCmd",
+        ];
+    }
+
+    /**
+     * 报警复位
+     */
+    private function handleAlarmReset(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("AlarmReset: {$channelId}");
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+
+        // 构建 AlarmCmd XML（可能包含 Info 子元素）
+        $sn = rand(1, 99999999);
+        $encoding = $charset ?: 'GB2312';
+        $xml = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
+        $xml .= "<Control>\r\n";
+        $xml .= "<CmdType>DeviceControl</CmdType>\r\n";
+        $xml .= "<SN>{$sn}</SN>\r\n";
+        $xml .= "<DeviceID>{$channelId}</DeviceID>\r\n";
+        $xml .= "<AlarmCmd>ResetAlarm</AlarmCmd>\r\n";
+
+        // 可选的 Info 子元素
+        $alarmMethod = $params['alarm_method'] ?? null;
+        $alarmType = $params['alarm_type'] ?? null;
+        if ($alarmMethod !== null || $alarmType !== null) {
+            $xml .= "<Info>\r\n";
+            if ($alarmMethod !== null) {
+                $xml .= "<AlarmMethod>{$alarmMethod}</AlarmMethod>\r\n";
+            }
+            if ($alarmType !== null) {
+                $xml .= "<AlarmType>{$alarmType}</AlarmType>\r\n";
+            }
+            $xml .= "</Info>\r\n";
+        }
+
+        $xml .= "</Control>";
+
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'AlarmReset command sent' : 'Failed to send AlarmReset command',
+        ];
+    }
+
+    /**
+     * 强制关键帧
+     */
+    private function handleIFrameCmd(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("IFrameCmd: {$channelId}");
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $xml = $this->querySender->buildControlXmlPublic('DeviceControl', $channelId, ['IFameCmd' => 'Send'], $charset);
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'IFrameCmd sent' : 'Failed to send IFrameCmd',
+        ];
+    }
+
+    // ========== Phase 2: 复合设备控制命令 ==========
+
+    /**
+     * 看守位控制
+     */
+    private function handleHomePosition(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $enabled = $params['enabled'] ?? 1;
+        $resetTime = $params['reset_time'] ?? 0;
+        $presetIndex = $params['preset_index'] ?? 1;
+        $this->log("HomePosition: {$channelId}, enabled={$enabled}, resetTime={$resetTime}, presetIndex={$presetIndex}");
+
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $encoding = $charset ?: 'GB2312';
+        $sn = rand(1, 99999999);
+
+        $xml = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
+        $xml .= "<Control>\r\n";
+        $xml .= "<CmdType>DeviceControl</CmdType>\r\n";
+        $xml .= "<SN>{$sn}</SN>\r\n";
+        $xml .= "<DeviceID>{$channelId}</DeviceID>\r\n";
+        $xml .= "<HomePosition>\r\n";
+        $xml .= "<Enabled>{$enabled}</Enabled>\r\n";
+        $xml .= "<ResetTime>{$resetTime}</ResetTime>\r\n";
+        $xml .= "<PresetIndex>{$presetIndex}</PresetIndex>\r\n";
+        $xml .= "</HomePosition>\r\n";
+        $xml .= "</Control>";
+
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'HomePosition command sent' : 'Failed to send HomePosition command',
+        ];
+    }
+
+    /**
+     * 拖拽变倍
+     */
+    private function handleDragZoom(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $type = $params['type'] ?? 'in'; // in / out
+        $length = $params['length'] ?? 0;
+        $width = $params['width'] ?? 0;
+        $midPointX = $params['mid_point_x'] ?? 0;
+        $midPointY = $params['mid_point_y'] ?? 0;
+        $lengthX = $params['length_x'] ?? 0;
+        $lengthY = $params['length_y'] ?? 0;
+        $this->log("DragZoom: {$channelId}, type={$type}");
+
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $encoding = $charset ?: 'GB2312';
+        $sn = rand(1, 99999999);
+        $tagName = ($type === 'out') ? 'DragZoomOut' : 'DragZoomIn';
+
+        $xml = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
+        $xml .= "<Control>\r\n";
+        $xml .= "<CmdType>DeviceControl</CmdType>\r\n";
+        $xml .= "<SN>{$sn}</SN>\r\n";
+        $xml .= "<DeviceID>{$channelId}</DeviceID>\r\n";
+        $xml .= "<{$tagName}>\r\n";
+        $xml .= "<Length>{$length}</Length>\r\n";
+        $xml .= "<Width>{$width}</Width>\r\n";
+        $xml .= "<MidPointX>{$midPointX}</MidPointX>\r\n";
+        $xml .= "<MidPointY>{$midPointY}</MidPointY>\r\n";
+        $xml .= "<LengthX>{$lengthX}</LengthX>\r\n";
+        $xml .= "<LengthY>{$lengthY}</LengthY>\r\n";
+        $xml .= "</{$tagName}>\r\n";
+        $xml .= "</Control>";
+
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? "DragZoom({$type}) command sent" : "Failed to send DragZoom command",
+        ];
+    }
+
+    /**
+     * 设备基础配置
+     */
+    private function handleDeviceConfig(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("DeviceConfig: {$channelId}");
+
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $encoding = $charset ?: 'GB2312';
+        $sn = rand(1, 99999999);
+
+        $xml = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
+        $xml .= "<Control>\r\n";
+        $xml .= "<CmdType>DeviceConfig</CmdType>\r\n";
+        $xml .= "<SN>{$sn}</SN>\r\n";
+        $xml .= "<DeviceID>{$channelId}</DeviceID>\r\n";
+        $xml .= "<BasicParam>\r\n";
+        if (isset($params['name'])) {
+            $xml .= "<Name>{$params['name']}</Name>\r\n";
+        }
+        if (isset($params['expiration'])) {
+            $xml .= "<Expiration>{$params['expiration']}</Expiration>\r\n";
+        }
+        if (isset($params['heartbeat_interval'])) {
+            $xml .= "<HeartBeatInterval>{$params['heartbeat_interval']}</HeartBeatInterval>\r\n";
+        }
+        if (isset($params['heartbeat_count'])) {
+            $xml .= "<HeartBeatCount>{$params['heartbeat_count']}</HeartBeatCount>\r\n";
+        }
+        $xml .= "</BasicParam>\r\n";
+        $xml .= "</Control>";
+
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'DeviceConfig command sent' : 'Failed to send DeviceConfig command',
+        ];
+    }
+
+    // ========== Phase 3: 前端扩展指令 (FrontEndCommand) ==========
+
+    /**
+     * 构建前端扩展指令 (FrontEndCommand)
+     *
+     * 协议格式: A5 0F 01 [CmdCode] [Param1] [Param2] [CombineCode2<<4] [Checksum]
+     * 校验码: (0xA5 + 0x0F + 0x01 + CmdCode + Param1 + Param2 + (CombineCode2<<4)) % 0x100
+     */
+    private function buildFrontEndCommand(int $cmdCode, int $param1 = 0, int $param2 = 0, int $combineCode2 = 0): string
+    {
+        $byte7 = ($combineCode2 << 4) & 0xF0;
+        $checksum = (0xA5 + 0x0F + 0x01 + $cmdCode + $param1 + $param2 + $byte7) % 0x100;
+
+        return sprintf("A50F01%02X%02X%02X%02X%02X", $cmdCode, $param1, $param2, $byte7, $checksum);
+    }
+
+    /**
+     * 通用前端扩展指令处理
+     */
+    private function handleFrontEndCmd(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, int $cmdCode, array $params): array
+    {
+        $param1 = $params['group_id'] ?? $params['switch_id'] ?? $params['param1'] ?? 0;
+        $param2 = $params['speed'] ?? $params['param2'] ?? 0;
+        $combineCode2 = $params['combine_code2'] ?? 0;
+
+        $this->log("FrontEndCmd: {$channelId}, cmdCode=0x" . dechex($cmdCode) . ", param1={$param1}, param2={$param2}");
+
+        $ptzCmd = $this->buildFrontEndCommand($cmdCode, $param1, $param2, $combineCode2);
+        $targetUri = "sip:{$channelId}@{$deviceIp}:{$devicePort}";
+        $result = $this->querySender->ptzControl($targetUri, $channelId, $ptzCmd);
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'FrontEndCommand sent' : 'Failed to send FrontEndCommand',
+            'cmd_code' => sprintf('0x%02X', $cmdCode),
+        ];
+    }
+
+    // ========== Phase 4: 设备查询增强 ==========
+
+    /**
+     * 设备预置位查询
+     */
+    private function handlePresetQuery(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $this->log("PresetQuery: {$channelId}");
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $xml = $this->querySender->buildQueryXmlPublic('PresetQuery', $channelId, $charset);
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'PresetQuery sent' : 'Failed to send PresetQuery',
+        ];
+    }
+
+    /**
+     * 设备配置查询
+     */
+    private function handleConfigDownload(string $requestId, string $deviceId, string $channelId, string $deviceIp, int $devicePort, array $params): array
+    {
+        $configType = $params['config_type'] ?? 'BasicParam';
+        $this->log("ConfigDownload: {$channelId}, configType={$configType}");
+
+        $charset = $this->deviceManager->getDeviceCharset($deviceId);
+        $encoding = $charset ?: 'GB2312';
+        $sn = rand(1, 99999999);
+
+        $xml = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
+        $xml .= "<Query>\r\n";
+        $xml .= "<CmdType>ConfigDownload</CmdType>\r\n";
+        $xml .= "<SN>{$sn}</SN>\r\n";
+        $xml .= "<DeviceID>{$channelId}</DeviceID>\r\n";
+        $xml .= "<ConfigType>{$configType}</ConfigType>\r\n";
+        $xml .= "</Query>";
+
+        $targetUri = "sip:{$deviceId}@{$deviceIp}:{$devicePort}";
+        $result = $this->sipServer->sendMessage($targetUri, $xml, 'Application/MANSCDP+xml');
+
+        return [
+            'success' => $result !== false,
+            'request_id' => $requestId,
+            'message' => $result !== false ? 'ConfigDownload query sent' : 'Failed to send ConfigDownload query',
+        ];
+    }
+
     private function successResponse(string $requestId, array $data): array
     {
         return [
@@ -1543,6 +2088,30 @@ class CommandDispatcher
     public function getActiveSessions(): array
     {
         return $this->activeSessions;
+    }
+
+    /**
+     * 根据 call_id 查找活跃会话
+     *
+     * 用于 GB28181Handler::handleInviteResponse() 中，
+     * 当收到 INVITE 的 200 OK 时，通过 call_id 找到对应的会话。
+     * 这解决了两个问题：
+     * 1. 避免依赖 Redis（session 只存在于 activeSessions 内存中）
+     * 2. 避免 From/To URI 反转导致的 deviceId/channelId 错误
+     *    （server-initiated INVITE 的 From 是服务器，To 是设备）
+     *
+     * @param int $callId eXosip call_id
+     * @return array|null 会话信息（包含 device_id, channel_id, type, ssrc 等），不存在返回 null
+     */
+    public function findActiveSessionByCallId(int $callId): ?array
+    {
+        foreach ($this->activeSessions as $key => $session) {
+            if ($session['call_id'] === $callId) {
+                $session['stream_key'] = $key;  // 附加 stream_key 以便后续操作
+                return $session;
+            }
+        }
+        return null;
     }
 
     /**

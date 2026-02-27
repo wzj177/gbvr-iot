@@ -7,7 +7,7 @@ use Gb28181\GateWay\Handlers\GB28181Handler;
 
 $config = require_once __DIR__ . '/config/gb28181.php';
 
-$sipServer = new ExoSip([
+$sipOptions = [
     'ua' => $config['user_agent'],
     'ip' => $config['listen_addr'],
     'port' => $config['sip_port'],
@@ -19,8 +19,18 @@ $sipServer = new ExoSip([
     'sipId' => $config['server_id'],
     'sipRealm' => $config['server_domain'],
     'timer_interval' => $config['timer_interval'],
+];
 
-]);
+// NAT 穿透：当配置了 public_ip 时，设置 eXosip 的 masquerade 地址
+// 这会修正 SIP Contact/Via 头中的 IP 地址，使其使用公网 IP 而非内网 IP
+// 解决场景示例：
+//   修正前: Contact: <sip:34020000002000000001@192.168.31.119:15060>
+//   修正后: Contact: <sip:34020000002000000001@10.20.2.95:15060>
+if (!empty($config['public_ip'])) {
+    $sipOptions['public_ip'] = $config['public_ip'];
+}
+
+$sipServer = new ExoSip($sipOptions);
 
 if (!empty($argv[1]) && filter_var($argv[1], FILTER_VALIDATE_IP)) {
     $config['zlm']['media_server_ip'] = $argv[1];
@@ -41,6 +51,9 @@ $gb28181 = new GB28181Handler($sipServer, [
     'max_devices' => $config['max_devices'],
     'encoding_type' => $config['encoding_type'],
     'debug' => $config['debug'],
+    'log_file' => $config['log_file'] ?? 'php://stdout',
+    'log_level' => $config['log_level'] ?? 'INFO',
+    'log_max_days' => $config['log_max_days'] ?? 30,
     'redis' => $config['redis'],
     'api_hock_url' => $config['api']['hock_url'],
     'api_pull_url' => $config['api']['pull_url'],
@@ -57,6 +70,8 @@ echo "Server ID: {$config['server_id']}\n";
 echo "Domain: {$config['server_domain']}\n";
 echo "Listening on: {$config['listen_addr']}:{$config['sip_port']}\n";
 echo "Transport: {$config['transport']}\n";
+echo "Log file: {$config['log_file']}\n";
+echo "Log level: {$config['log_level']}\n";
 echo "=================================\n\n";
 
 echo "[INFO] 服务器已启动，等待设备接入...\n\n";

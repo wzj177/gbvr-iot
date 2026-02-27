@@ -7,6 +7,7 @@ use app\admin\controller\AuthController;
 use app\admin\controller\GB28181AlarmController;
 use app\admin\controller\GB28181ChannelController;
 use app\admin\controller\GB28181DeviceController;
+use app\admin\controller\GB28181DeviceControlController;
 use app\admin\controller\GB28181MapController;
 use app\admin\controller\GB28181PTZController;
 use app\admin\controller\GB28181RecordTaskController;
@@ -82,6 +83,7 @@ Route::group('/api/admin', function () {
     Route::group('/user', function () {
         Route::get('', [UserController::class, 'index'])->name('admin.user.index');
         Route::get('/{id:\d+}', [UserController::class, 'show'])->name('admin.user.show');
+        Route::get('/uuid', [UserController::class, 'showUuid'])->name('admin.user.show-uuid');
         Route::post('', [UserController::class, 'store'])->name('admin.user.store');
         Route::put('/{id:\d+}', [UserController::class, 'update'])->name('admin.user.update');
         Route::delete('/{id:\d+}', [UserController::class, 'destroy'])->name('admin.user.destroy');
@@ -225,6 +227,25 @@ Route::group('/api/admin', function () {
             Route::post('', [GB28181PTZController::class, 'setPreset'])->name('admin.gb28181.presets.set');
             Route::post('/call', [GB28181PTZController::class, 'callPreset'])->name('admin.gb28181.presets.call');
             Route::post('/delete', [GB28181PTZController::class, 'deletePreset'])->name('admin.gb28181.presets.delete');
+            Route::post('/query-from-device', [GB28181PTZController::class, 'queryPresetsFromDevice'])->name('admin.gb28181.presets.query-from-device');
+        });
+
+        // 自动扫描
+        Route::post('/devices/scan', [GB28181PTZController::class, 'scanControl'])->name('admin.gb28181.ptz.scan');
+
+        // 设备控制命令
+        Route::group('/device-control', function () {
+            Route::post('/reboot', [GB28181DeviceControlController::class, 'reboot'])->name('admin.gb28181.device-control.reboot');
+            Route::post('/record', [GB28181DeviceControlController::class, 'record'])->name('admin.gb28181.device-control.record');
+            Route::post('/guard', [GB28181DeviceControlController::class, 'guard'])->name('admin.gb28181.device-control.guard');
+            Route::post('/alarm-reset', [GB28181DeviceControlController::class, 'alarmReset'])->name('admin.gb28181.device-control.alarm-reset');
+            Route::post('/iframe', [GB28181DeviceControlController::class, 'iFrame'])->name('admin.gb28181.device-control.iframe');
+            Route::post('/home-position', [GB28181DeviceControlController::class, 'homePosition'])->name('admin.gb28181.device-control.home-position');
+            Route::post('/drag-zoom', [GB28181DeviceControlController::class, 'dragZoom'])->name('admin.gb28181.device-control.drag-zoom');
+            Route::post('/config', [GB28181DeviceControlController::class, 'config'])->name('admin.gb28181.device-control.config');
+            Route::post('/wiper', [GB28181DeviceControlController::class, 'wiper'])->name('admin.gb28181.device-control.wiper');
+            Route::post('/aux-switch', [GB28181DeviceControlController::class, 'auxSwitch'])->name('admin.gb28181.device-control.aux-switch');
+            Route::post('/config-query', [GB28181DeviceControlController::class, 'configQuery'])->name('admin.gb28181.device-control.config-query');
         });
 
         // 通道管理

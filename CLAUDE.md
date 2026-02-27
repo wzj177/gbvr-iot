@@ -435,3 +435,258 @@ class CommonBizException extends AbstractBizException
 - `403xxxx` - 权限禁止
 - `404xxxx` - 资源不存在
 - `500xxxx` - 业务逻辑错误
+
+## PHP-ExoSip Extension (Native SIP Server/Client)
+
+**Location**: `exosip.stub.php` (IDE stub file), `/Users/jiechengyang/src/c-app/php-exosip` (C source)
+
+### Overview
+
+PHP-ExoSip is a **C extension** that provides native SIP server/client capabilities for PHP. It wraps the eXosip2 library and provides an event-driven, OOP interface similar to Workerman/Swoole.
+
+**Used by**: `Gb28181Gateway/` - GB28181 SIP server implementation
+
+### Core Classes
+
+#### 1. ExoSip - SIP Server (Event-Driven)
+
+```php
+$sip = new ExoSip([
+    'host' => '0.0.0.0',
+    'port' => 15060,
+    'mode' => 'UDP',           // UDP|TCP|ALL
+    'task_worker_num' => 4,    // Task process count (optional)
+    'timer_interval' => 1000,  // Timer interval in ms (optional)
+]);
+
+// Event handlers (assign closures)
+$sip->onRegister = fn($event) => handleRegister($event);
+$sip->onInvite = fn($event) => handleInvite($event);
+$sip->onMessage = fn($event) => handleMessage($event);
+$sip->onBye = fn($event) => handleBye($event);
+$sip->onResponse = fn($event) => handleResponse($event);
+
+// Master-Worker-Task callbacks
+$sip->onTask = fn($taskId, $data) => processTask($taskId, $data);
+$sip->onTaskFinish = fn($taskId, $result) => handleTaskResult($taskId, $result);
+$sip->onTimer = fn() => processTimeouts();
+
+$sip->run();  // Start event loop (blocks)
+```
+
+**Key Methods:**
+- `sendInvite(string $toUri, string $sdp, ?array $headers): int` - Returns call_id
+- `sendBye(int $callId, int $dialogId): bool`
+- `sendMessage(string $to, string $message, ?string $contentType): int`
+- `sendResponse(int $tid, int $code, ?string $reason, ?array $headers): bool`
+- `sendAck(int $dialogId): bool`
+- `addTask(array $data): int` - Post task to Task process (Worker → Task)
+
+**Master-Worker-Task Architecture:**
+- **Master**: Process manager (monitors Worker/Task)
+- **Worker**: Handles SIP events (non-blocking)
+- **Task**: Handles blocking operations (HTTP, DB, Redis)
+
+#### 2. SipEvent - SIP Event Object
+
+```php
+// Directly from event (recommended)
+$callId = $event->getCallId();        // int: eXosip call_id
+$dialogId = $event->getDialogId();    // int: eXosip dialog_id
+$tid = $event->getTid();              // int: Transaction ID (for sendResponse)
+
+// URIs
+$fromUri = $event->getFromUri();      // string: sip:device@domain
+$toUri = $event->getToUri();
+
+// Body and SDP
+$body = $event->getBody();            // string|null: Current event's body
+$sdp = $event->getSdp();              // array|null: Parsed SDP (auto-validates Content-Type)
+
+// Response info
+$code = $event->getCode();            // int: 0 for requests, 200-699 for responses
+$expires = $event->getExpires();      // int: Expires header value
+
+// Session (optional, use sparingly)
+$session = $event->getSession();      // SipSession|null
+```
+
+**Important**: Always use `$event->getCallId()` / `$event->getDialogId()` directly instead of going through `$session`.
+
+#### 3. SipSession - SIP Session (Lightweight Handle)
+
+```php
+$session = $event->getSession();
+if ($session) {
+    $callId = $session->getCallId();      // int: eXosip call_id
+    $body = $session->getRawBody();       // string|null: Persistent body across events
+    $session->close();                    // Send BYE and cleanup
+}
+```
+
+**When to use SipSession:**
+- ✅ Need to store session for later cleanup (`$session->close()`)
+- ✅ Need cross-event body access (`getRawBody()`)
+- ❌ Just need IDs → Use `$event->getCallId()` directly
+
+#### 4. ExoSipClient - SIP Client (Optional)
+
+```php
+$client = new ExoSipClient([
+    'server_ip' => '127.0.0.1',
+    'server_port' => 5060,
+    'username' => 'device001',
+    'password' => '123456',
+    'realm' => '3402000000',
+    'mode' => 'UDP'
+]);
+
+$client->start();
+$client->sendRegister();
+$client->sendMessage('sip:server@domain', 'Hello!');
+$events = $client->processEvents(100);
+$client->stop();
+```
+
+### GB28181Gateway Integration
+
+**File**: `Gb28181Gateway/gb28181_server.php`
+
+```php
+// Initialize SIP server
+$sip = new ExoSip([
+    'host' => $config['sip_host'],
+    'port' => $config['sip_port'],
+    'mode' => 'UDP',
+    'sipId' => $config['sip_id'],
+    'sipRealm' => $config['sip_realm'],
+    'task_worker_num' => 4,
+]);
+
+// Register handlers
+$gb28181Handler = new GB28181Handler($sip, $config);
+$sip->onRegister = [$gb28181Handler, 'handleRegister'];
+$sip->onMessage = [$gb28181Handler, 'handleMessage'];
+$sip->onInvite = [$gb28181Handler, 'handleInvite'];
+$sip->onBye = [$gb28181Handler, 'handleBye'];
+$sip->onResponse = [$gb28181Handler, 'handleResponse'];
+
+// Task handlers for HTTP/DB operations
+$sip->onTask = function($taskId, $data) {
+    // Post webhook, save to DB, etc.
+    return ['success' => true];
+};
+
+$sip->run();
+```
+
+### Key Conventions
+
+#### Call Flow: INVITE → 200 OK → ACK
+
+```php
+// 1. Send INVITE (Server-initiated)
+$callId = $sip->sendInvite($deviceUri, $sdp, ['Subject' => $subject]);
+// Save $callId for later BYE
+
+// 2. Receive 200 OK (in onResponse)
+$sip->onResponse = function($event) use ($sip) {
+    if ($event->getCode() == 200) {
+        $dialogId = $event->getDialogId();  // Direct access
+        $sdp = $event->getSdp();            // Parse device SDP
+
+        // Extract device info
+        $deviceIp = $sdp['connection']['addr'];
+        $devicePort = $sdp['medias'][0]['port'];
+        $ssrc = $sdp['gb28181']['ssrc'] ?? null;
+
+        // Notify ZLMediaKit
+        notifyMediaServer($deviceIp, $devicePort, $ssrc);
+
+        // Send ACK
+        $sip->sendAck($dialogId);
+    }
+};
+
+// 3. Later: Stop streaming
+$sip->sendBye($callId, 0);  // dialog_id usually 0 for simple sessions
+```
+
+#### SDP Parsing
+
+```php
+// Method 1: From event (recommended)
+$sdp = $event->getSdp();  // Auto-validates Content-Type
+
+// Method 2: Static parser
+$sdp = ExoSip::parseSdp($sdpString);
+
+// Access parsed data
+$deviceIp = $sdp['connection']['addr'];
+$videoPort = $sdp['medias'][0]['port'];
+$protocol = $sdp['medias'][0]['proto'];  // RTP/AVP or TCP/RTP/AVP
+$ssrc = $sdp['gb28181']['ssrc'] ?? null;  // GB28181 extension (y= field)
+```
+
+**Important SDP field names (native osip2 parser):**
+- `connection['addr']` (NOT `address`)
+- `medias[0]['proto']` (NOT `transport`)
+- `gb28181['ssrc']` (y= field in GB28181)
+
+#### Master-Worker-Task Pattern
+
+```php
+// In Worker process (SIP event handler)
+$sip->onRegister = function($event) use ($sip) {
+    $deviceId = extractDeviceId($event->getFromUri());
+
+    // Post HTTP webhook task (non-blocking)
+    $taskId = $sip->addTask([
+        'type' => 'webhook',
+        'url' => 'http://api.example.com/device/register',
+        'data' => ['device_id' => $deviceId]
+    ]);
+
+    // Continue handling (don't wait for task)
+    $sip->sendResponse($event->getTid(), 200, 'OK');
+};
+
+// In Task process
+$sip->onTask = function($taskId, $data) {
+    if ($data['type'] === 'webhook') {
+        $result = file_get_contents($data['url'], false, stream_context_create([
+            'http' => ['method' => 'POST', 'content' => json_encode($data['data'])]
+        ]));
+        return ['success' => true, 'response' => $result];
+    }
+};
+
+// Back in Worker process (auto-triggered)
+$sip->onTaskFinish = function($taskId, $result) {
+    if ($result['success']) {
+        echo "Task #{$taskId} completed\n";
+    }
+};
+```
+
+### Common Pitfalls
+
+1. **❌ Wrong**: `$event->getBody()` in 200 OK handler to get INVITE SDP
+   - **✅ Right**: Use `$event->getSdp()` which gets the current message's SDP (200 OK's SDP)
+   - **✅ Alternative**: Parse SDP in INVITE handler and store it
+
+2. **❌ Wrong**: Going through session for IDs: `$event->getSession()->getCallId()`
+   - **✅ Right**: Direct access: `$event->getCallId()`
+
+3. **❌ Wrong**: Manually building SDP without `\r\n` line endings
+   - **✅ Right**: Use `\r\n` (required by RFC 4566)
+
+4. **❌ Wrong**: Calling blocking operations (HTTP, DB) in event handlers
+   - **✅ Right**: Use `addTask()` to offload to Task process
+
+### Documentation
+
+- **Full API Reference**: `exosip.stub.php` (2077 lines, IDE autocomplete)
+- **Detailed Guide**: `docs/php-exosip-extension.md`
+- **C Source Code**: `/Users/jiechengyang/src/c-app/php-exosip`
+- **GB28181 Implementation**: `Gb28181Gateway/src/Handlers/GB28181Handler.php`

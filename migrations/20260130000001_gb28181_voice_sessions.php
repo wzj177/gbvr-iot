@@ -16,8 +16,8 @@ class Gb28181VoiceSessions extends Migration
                 `stream` varchar(100) DEFAULT NULL COMMENT 'ZLM流ID (app/stream)',
                 `receive_stream` varchar(100) DEFAULT NULL COMMENT '接收ZLM流ID (app/stream)',
                 `ssrc` varchar(20) DEFAULT NULL COMMENT 'SSRC',
-                `rtp_port` int(11) NOT NULL DEFAULT '0' COMMENT '流媒体 RTP端口',
-                `rtp_local_port` int(11) NOT NULL DEFAULT '0' COMMENT 'rtp被动推流端口号'
+                `rtp_port` int(11) NOT NULL DEFAULT '0' COMMENT '前端推流到 ZLM 的 RTP 收流端口',
+                `rtp_local_port` int(11) NOT NULL DEFAULT '0' COMMENT 'ZLM 向设备转发 RTP 的发流端口'
                 `media_server_ip` varchar(50) DEFAULT NULL COMMENT '流媒体 IP',
                 `media_server_id` varchar(50) DEFAULT NULL COMMENT '流媒体 ID',
                 `device_ip` varchar(50) DEFAULT NULL COMMENT '设备音频接收IP',

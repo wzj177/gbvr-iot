@@ -39,6 +39,24 @@ interface VoiceSessionDao extends AdvancedDaoInterface
     ): array|false;
 
     /**
+     * 查找同设备同通道、指定模式的活跃会话（带时间范围，排除指定 session）
+     *
+     * @param string $deviceId 设备ID
+     * @param string $channelId 通道ID
+     * @param string $mode 模式（talk/broadcast）
+     * @param int $timeoutSeconds 有效时间窗口（秒）
+     * @param string|null $excludeSessionId 要排除的 session_id
+     * @return array 匹配的会话列表
+     */
+    public function findActiveByDeviceChannelAndMode(
+        string $deviceId,
+        string $channelId,
+        string $mode,
+        int $timeoutSeconds = 30,
+        ?string $excludeSessionId = null
+    ): array;
+
+    /**
      * 根据 SSRC 获取会话
      *
      * @param string $ssrc
@@ -57,7 +75,7 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param array $extraFields 额外要更新的字段（如 ended_reason）
      * @return bool 更新成功返回 true，状态不匹配返回 false
      */
-    public function updateStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []): bool;
+    public function updStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []): bool;
 
     /**
      * 查找超时的会话
@@ -76,5 +94,14 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @return bool
      */
     public function markAsEnded(int $id, string $endedReason = 'manual'): bool;
+
+    /**
+     * 结束会话（任意非 ENDED 状态 -> ENDED）
+     *
+     * @param int $id 会话ID
+     * @param string $endedReason 结束原因
+     * @return bool 更新成功返回 true，已是 ENDED 返回 false
+     */
+    public function endSession(int $id, string $endedReason = 'manual'): bool;
 
 }

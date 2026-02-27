@@ -34,6 +34,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
                 'status = :status',
                 'status IN (:statuses)',
                 'mode = :mode',
+                'rtp_tcp = :rtp_tcp',
                 'ssrc = :ssrc',
                 'expires_at < :expires_before',
                 'status != :status_not',
@@ -68,7 +69,31 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
         return $this->db()->fetchAssoc($sql, [$deviceId, $channelId, $timeoutAt]);
     }
 
+    public function findActiveByDeviceChannelAndMode(
+        string $deviceId,
+        string $channelId,
+        string $mode,
+        int $timeoutSeconds = 30,
+        ?string $excludeSessionId = null
+    ): array {
+        $timeoutAt = date('Y-m-d H:i:s', time() - $timeoutSeconds);
+        $sql = "SELECT * FROM {$this->table()}
+            WHERE device_id = ?
+            AND channel_id = ?
+            AND mode = ?
+            AND status IN ('waiting_stream', 'stream_arrived', 'inviting', 'connected')
+            AND created_at >= ?";
+        $params = [$deviceId, $channelId, $mode, $timeoutAt];
 
+        if ($excludeSessionId) {
+            $sql .= " AND session_id != ?";
+            $params[] = $excludeSessionId;
+        }
+
+        $sql .= " ORDER BY id DESC LIMIT 10";
+
+        return $this->db()->fetchAll($sql, $params);
+    }
 
     /**
      * 根据 stream 获取会话
@@ -85,16 +110,26 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
 
     public function getByStreamAndMediaServerId(string $stream, string $mediaServerId): array|false
     {
-        $sql = "SELECT * FROM {$this->table()} WHERE stream = ? AND media_server_id = ? LIMIT 1";
+        $sql = "SELECT * FROM {$this->table()}
+                WHERE stream = ?
+                AND media_server_id = ?
+                AND `status` NOT IN ('ended', 'failed')
+                ORDER BY id DESC
+                LIMIT 1";
 
         return $this->db()->fetchAssoc($sql, [$stream, $mediaServerId]);
     }
 
     public function getByNoEndedStreamAndMediaServerId(string $stream, string $mediaServerId): array|false
     {
-        $sql = "SELECT * FROM {$this->table()} WHERE stream = ? AND media_server_id = ? AND `status` <> ? IS NULL LIMIT 1";
+        $sql = "SELECT * FROM {$this->table()}
+                WHERE stream = ?
+                AND media_server_id = ?
+                AND `status` NOT IN ('ended', 'failed')
+                ORDER BY id DESC
+                LIMIT 1";
 
-        return $this->db()->fetchAssoc($sql, [$stream, $mediaServerId, 'ended']);
+        return $this->db()->fetchAssoc($sql, [$stream, $mediaServerId]);
     }
 
     /**
@@ -197,7 +232,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param array $extraFields 额外要更新的字段
      * @return bool 更新成功返回 true
      */
-    public function updateStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []): bool
+    public function updStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []): bool
     {
         $sql = "UPDATE {$this->table()}
                 SET status = :new_status,
@@ -249,7 +284,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      */
     public function markAsEnded(int $id, string $endedReason = 'manual'): bool
     {
-        return $this->updateStatusIf(
+        return $this->updStatusIf(
             $id,
             'failed', // 只能从 FAILED 状态转换到 ENDED
             'ended',
@@ -258,5 +293,40 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
                 'ended_at' => date('Y-m-d H:i:s'),
             ]
         );
+    }
+
+    /**
+     * 结束会话（任意非 ENDED 状态 -> ENDED）
+     *
+     * 与 markAsEnded 不同，此方法不限制来源状态，
+     * 只要当前状态不是 ENDED 就可以更新为 ENDED。
+     * 用于 stopVoiceTalkBySession 的统一资源清理。
+     *
+     * @param int $id 会话ID
+     * @param string $endedReason 结束原因
+     * @return bool 更新成功返回 true，已是 ENDED 返回 false
+     */
+    public function endSession(int $id, string $endedReason = 'manual'): bool
+    {
+        $now = date('Y-m-d H:i:s');
+        $sql = "UPDATE {$this->table()}
+                SET status = :new_status,
+                    version = version + 1,
+                    ended_at = :ended_at,
+                    ended_reason = :ended_reason,
+                    updated_at = :updated_at
+                WHERE id = :id
+                AND status != :ended_status";
+
+        $affectedRows = $this->db()->executeStatement($sql, [
+            'id' => $id,
+            'new_status' => 'ended',
+            'ended_status' => 'ended',
+            'ended_at' => $now,
+            'ended_reason' => $endedReason,
+            'updated_at' => $now,
+        ]);
+
+        return $affectedRows > 0;
     }
 }

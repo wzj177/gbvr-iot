@@ -8,9 +8,14 @@ use CoreW\Business\Devices\Enums\DeviceStatusEnum;
 use CoreW\Business\Devices\Enums\MediaServerType;
 use CoreW\Business\Devices\Enums\StreamSessionStatus;
 use CoreW\Business\Devices\Enums\StreamSessionType;
+use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\GB\Dtos\VoiceTalkStreamArrivalDto;
 use CoreW\Business\MediaServer\Service\MediaServerService;
+use CoreW\Business\SystemLog\LogEnum;
+use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Exception\ZlmException;
 use CoreW\Sdk\PSipGateway\Gb28181Client;
+use CoreW\Sdk\ZLMediaKit\Dos\SendRtpDo;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use CoreW\Utils\CRC32Helper;
 use Ramsey\Uuid\Uuid;
@@ -238,6 +243,28 @@ class Gb28181Service
 
 
     /**
+     * 启动语音广播（发送 Broadcast MESSAGE 通知）
+     *
+     * 广播模式流程（与 talk 模式不同）：
+     * 1. 服务端发送 Broadcast MESSAGE 通知给设备
+     * 2. 设备处理后主动发送 INVITE 给服务端
+     * 3. 服务端回复 200 OK（携带 SDP）
+     * 4. 设备发送 ACK
+     * 5. ZLM 开始向设备推送音频流
+     *
+     * @param array $session 会话信息（包含 SSRC、端口等，由 handleStreamArrival 中 startSendRtpPassive 后传入）
+     * @return bool
+     * @throws ZlmException
+     */
+    public function startAudioBroadcast(array $session): bool
+    {
+        $this->checkZlmState($session['media_server_id']);
+        $result = $this->getGb28181Client()->startAudioBroadcast($session);
+
+        return $result['success'] ?? false;
+    }
+
+    /**
      * 启动语音对讲（发送 INVITE）
      * @param array $session
      * @return bool
@@ -247,11 +274,7 @@ class Gb28181Service
     {
         $this->checkZlmState($session['media_server_id']);
         // 调用 GB28181Client 的 startVoiceTalk 方法
-        $result = $this->getGb28181Client()->startVoiceTalk(
-            $session['device_id'],
-            $session['channel_id'],
-            $session
-        );
+        $result = $this->getGb28181Client()->startVoiceTalk($session);
 
         return $result['success'] ?? false;
     }
@@ -271,11 +294,11 @@ class Gb28181Service
             return false;
         }
 
-        $this->getZlmClientByServerId($session['media_server_id'])->stopSendRtp('__defaultVhost__', $session['app'], $session['stream'], $session['ssrc']);
+        $this->getZlmClientByServerId($session['media_server_id'])->stopSendRtp('__defaultVhost__', $session['app'] ?? $session['mode'], $session['stream'], $session['ssrc']);
 
         // 调用 GB28181Client 的 stopVoiceTalk 方法
         $result = $this->getGb28181Client()->stopVoiceTalk(
-            $session['device_ id'],
+            $session['device_id'],
             $session['channel_id'],
             $dialogId  // 传递 dialog_id
         );
@@ -1121,6 +1144,120 @@ class Gb28181Service
         }
     }
 
+    // ========== 简单设备控制命令 ==========
+
+    /**
+     * 远程重启
+     */
+    public function teleBoot(string $deviceId, string $channelId): bool
+    {
+        return $this->getGb28181Client()->teleBoot($deviceId, $channelId);
+    }
+
+    /**
+     * 录像控制
+     * @param string $action Record / StopRecord
+     */
+    public function recordControl(string $deviceId, string $channelId, string $action): bool
+    {
+        return $this->getGb28181Client()->recordControl($deviceId, $channelId, $action);
+    }
+
+    /**
+     * 布防/撤防
+     * @param string $action SetGuard / ResetGuard
+     */
+    public function guardControl(string $deviceId, string $channelId, string $action): bool
+    {
+        return $this->getGb28181Client()->guardControl($deviceId, $channelId, $action);
+    }
+
+    /**
+     * 报警复位
+     */
+    public function alarmReset(string $deviceId, string $channelId, ?int $alarmMethod = null, ?int $alarmType = null): bool
+    {
+        return $this->getGb28181Client()->alarmReset($deviceId, $channelId, $alarmMethod, $alarmType);
+    }
+
+    /**
+     * 强制关键帧请求
+     */
+    public function requestIFrame(string $deviceId, string $channelId): bool
+    {
+        return $this->getGb28181Client()->iFrameCmd($deviceId, $channelId);
+    }
+
+    // ========== 复合设备控制命令 ==========
+
+    /**
+     * 看守位控制
+     */
+    public function homePosition(string $deviceId, string $channelId, bool $enabled, int $resetTime = 0, int $presetIndex = 1): bool
+    {
+        return $this->getGb28181Client()->homePosition($deviceId, $channelId, $enabled, $resetTime, $presetIndex);
+    }
+
+    /**
+     * 拖拽变倍
+     */
+    public function dragZoom(string $deviceId, string $channelId, string $type, array $params): bool
+    {
+        return $this->getGb28181Client()->dragZoom($deviceId, $channelId, $type, $params);
+    }
+
+    /**
+     * 设备基础配置
+     */
+    public function deviceConfig(string $deviceId, string $channelId, array $params): bool
+    {
+        return $this->getGb28181Client()->deviceConfig($deviceId, $channelId, $params);
+    }
+
+    // ========== 前端扩展指令 ==========
+
+    /**
+     * 自动扫描控制
+     */
+    public function scanControl(string $deviceId, string $channelId, string $action, int $groupId = 0, int $speed = 0): bool
+    {
+        return $this->getGb28181Client()->scanControl($deviceId, $channelId, $action, $groupId, $speed);
+    }
+
+    /**
+     * 雨刷控制
+     */
+    public function wiperControl(string $deviceId, string $channelId, bool $on): bool
+    {
+        return $this->getGb28181Client()->wiperControl($deviceId, $channelId, $on);
+    }
+
+    /**
+     * 辅助开关控制
+     */
+    public function auxControl(string $deviceId, string $channelId, int $switchId, bool $on): bool
+    {
+        return $this->getGb28181Client()->auxControl($deviceId, $channelId, $switchId, $on);
+    }
+
+    // ========== 设备查询增强 ==========
+
+    /**
+     * 设备预置位查询（从设备获取）
+     */
+    public function presetQuery(string $deviceId, string $channelId): bool
+    {
+        return $this->getGb28181Client()->presetQuery($deviceId, $channelId);
+    }
+
+    /**
+     * 设备配置查询
+     */
+    public function configDownload(string $deviceId, string $channelId, string $configType = 'BasicParam'): bool
+    {
+        return $this->getGb28181Client()->configDownload($deviceId, $channelId, $configType);
+    }
+
     private function generateStreamId(string $deviceId, string $channelId, ?string $suffix = null): string
     {
         $streamId = "{$deviceId}_{$channelId}";
@@ -1186,15 +1323,7 @@ class Gb28181Service
         }
     }
 
-    /**
-     * 获取设备服务
-     *
-     * @return \CoreW\Business\Devices\Service\DeviceService
-     */
-    protected function getDeviceService()
-    {
-        return $this->bfw->service('Devices:DeviceService');
-    }
+
 
     /**
      * 获取媒体服务
@@ -1264,6 +1393,83 @@ class Gb28181Service
     public function decrementViewerCount(string $streamId): int|bool
     {
         return $this->getDeviceService()->decrementSessionViewerCount($streamId);
+    }
+
+
+
+    /**
+     * 处理语音对讲流到达事件
+     * 使用 DTO 模式封装参数
+     *
+     * @param VoiceTalkStreamArrivalDto $dto
+     * @return array|null 返回 RTP 端口信息，失败返回 null
+     */
+    public function handleVoiceTalkStreamArrival(VoiceTalkStreamArrivalDto $dto): ?array
+    {
+        $zlmClient = $this->getZlmClientByServerId($dto->getMediaServerId());
+
+        // 创建 SendRtpDo - 被动推流模式（语音对讲）
+        // RTP 参数从 DTO 获取，由上层 VoiceTalkServiceImpl 根据 mode 设置
+        // stream = 用户推流的源流（ZLM 从此流读取音频发送给设备）
+        // recv_stream_id = 设备推流的目标流名（ZLM 用此名注册从设备接收的音频）
+        $sendRtpDo = SendRtpDo::createPassive($dto->getApp(), $dto->getStream(), $dto->getSsrc())
+            ->setSrcPort($dto->getRtpPort())
+            ->setPt($dto->getPt())
+            ->setUsePs($dto->isUsePs())
+            ->setOnlyAudio($dto->isOnlyAudio())
+            ->setIsTcp($dto->isTcp())
+            ->setRecvStreamId($dto->getReceiveStreamId());
+
+        // 调用 ZLM API
+        $result = $zlmClient->startSendRtpPassiveWithDo($sendRtpDo);
+
+        if ($result && $result['code'] == 0) {
+            $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
+                '语音对讲 RTP 推流启动成功',
+                [
+                    'app' => $dto->getApp(),
+                    'stream' => $dto->getStream(),
+                    'receive_stream_id' =>  $dto->getReceiveStreamId(),
+                    'local_port' => $result['local_port'] ?? null,
+                ]
+            );
+        } else {
+            $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
+                '语音对讲 RTP 推流启动失败',
+                [
+                    'error' => $result['msg'] ?? 'unknown',
+                    'dto' => $dto->toArray(),
+                ]
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * 生成接收流ID
+     */
+    private function generateReceiveStreamId(string $originalStream): string
+    {
+        // 原始流: rtp/34020000001320000009/talk
+        // 接收流: rtp/34020000001320000009/talk_recv
+        return $originalStream . '_recv';
+    }
+
+
+    protected function getLogService(): SystemLogService
+    {
+        return $this->bfw->service('SystemLog:SystemLogService');
+    }
+
+    /**
+     * 获取设备服务
+     *
+     * @return DeviceService
+     */
+    protected function getDeviceService(): DeviceService
+    {
+        return $this->bfw->service('Devices:DeviceService');
     }
 
     protected function getSSRCFactory():SSRCFactory

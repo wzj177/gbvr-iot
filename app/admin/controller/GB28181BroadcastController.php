@@ -39,8 +39,7 @@ class GB28181BroadcastController extends BaseController
         try {
             $deviceId = $request->post('device_id');
             $channelId = $request->post('channel_id');
-            $mode = $request->post('mode', 'talk');
-
+            $mode = $request->post('mode', 'broadcast'); // talk
             if (empty($deviceId)) {
                 return $this->createErrorJsonResponse('设备ID不能为空');
             }

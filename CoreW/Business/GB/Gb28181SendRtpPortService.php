@@ -181,6 +181,10 @@ class Gb28181SendRtpPortService
             $channelKey = $this->buildChannelKey($deviceId, $channelId);
             $this->redis->hDel(self::SEND_RTP_INFO_CHANNEL_KEY . $channelKey, $deviceId);
         }
+
+
+        $prevSendIndexKey = self::SEND_RTP_PORT_INDEX_KEY . ":{$this->serverId}:{$session['media_server_id']}";
+        $this->redis->del($prevSendIndexKey);
     }
 
     /**

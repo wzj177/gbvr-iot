@@ -2,6 +2,7 @@
 
 namespace CoreW\Sdk\ZLMediaKit;
 
+use CoreW\Sdk\ZLMediaKit\Dos\SendRtpDo;
 use support\Log;
 
 /**
@@ -604,107 +605,186 @@ class ZLMClient
     }
 
     /**
-     * 启动发送RTP
-     * @param string $vhost
-     * @param string $app
-     * @param string $stream
-     * @param string $ssrc
-     * @param string $dst_url
-     * @param string $dst_port
-     * @param int $is_udp
-     * @param int $src_port
-     * @param int|null $pt
-     * @param int $use_ps
-     * @param int $only_audio
-     * @return int|null
+     * 启动发送RTP（主动推流到指定目标）
+     * 参考 WVP-PRO 实现
+     *
+     * @param string $vhost 虚拟主机
+     * @param string $app 应用名
+     * @param string $stream 流ID
+     * @param string $ssrc RTP SSRC
+     * @param string $dst_url 目标IP
+     * @param string $dst_port 目标端口
+     * @param bool $is_udp 是否为UDP模式（默认false=TCP）
+     * @param int|null $src_port 本地端口（null=随机）
+     * @param int|null $pt RTP PT（默认96）
+     * @param bool $use_ps 是否使用PS封装（默认true）
+     * @param bool $only_audio 仅音频（默认false）
+     * @param bool $rtcp 是否启用RTCP保活（仅UDP，默认false）
+     * @param int|null $close_delay_ms 关闭延迟毫秒（可选）
+     * @return array|null
      */
-    public function startSendRtp(string $vhost, string $app, string $stream, string $ssrc, string $dst_url, string $dst_port, int $is_udp = 0, ?int $src_port = null, ?int $pt = null, int $use_ps = 0, int $only_audio = 0): ?array
+    public function startSendRtp(string $vhost, string $app, string $stream, string $ssrc, string $dst_url, string $dst_port, bool $is_udp = false, ?int $src_port = null, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, bool $rtcp = false, ?int $close_delay_ms = null): ?array
     {
-//        | vhost |    Y     | 虚拟主机，例如__defaultVhost__ |
-//    | app |    Y     | 应用名，例如 live |
-//    | stream |    Y     | 流id，例如 test |
-//    | ssrc |    Y     | 推流的rtp的ssrc,指定不同的ssrc可以同时推流到多个服务器 |
-//    | dst_url |    Y     | 目标ip或域名 |
-//    | dst_port |    Y     | 目标端口 |
-//    | is_udp |    Y     | 是否为udp模式,否则为tcp模式 |
-//    | src_port |    N     | 使用的本机端口，为0或不传时默认为随机端口 |
-//    | pt |    N     | 发送时，rtp的pt（uint8_t）,不传时默认为96 |
-//    | use_ps |    N     | 发送时，rtp的负载类型。为1时，负载为ps；为0时，为es；不传时默认为1 |
-//    | only_audio |    N     | 当use_ps 为0时，有效。为1时，发送音频；为0时，发送视频；不传时默认为0 |
         $params = [
-            'vhost' => $vhost,
+            'vhost' => '__defaultVhost__',
             'app' => $app,
             'stream' => $stream,
             'ssrc' => $ssrc,
             'dst_url' => $dst_url,
             'dst_port' => $dst_port,
-            'is_udp' => $is_udp,
+            'is_udp' => $is_udp ? '1' : '0',
+            'use_ps' => $use_ps ? '1' : '0',
+            'only_audio' => $only_audio ? '1' : '0',
+            'enable_origin_recv_limit' => '1',
         ];
-        if ($src_port) {
+
+        if ($src_port !== null) {
             $params['src_port'] = $src_port;
         }
-        if ($pt) {
+
+        if ($pt !== null) {
             $params['pt'] = $pt;
         }
-        if ($use_ps) {
-            $params['use_ps'] = $use_ps;
+
+        // UDP模式下启用RTCP保活
+        if ($is_udp) {
+            $params['udp_rtcp_timeout'] = $rtcp ? '500' : '0';
         }
-        if ($only_audio) {
-            $params['only_audio'] = $only_audio;
+
+        if ($close_delay_ms !== null) {
+            $params['close_delay_ms'] = $close_delay_ms;
         }
+
         $this->debugLog('ZLM API Request', [
             'api' => 'startSendRtp',
             'params' => $params,
         ]);
+
         $result = $this->request('startSendRtp', $params);
 
         if (!empty($result)) {
-            //&& $result['code'] === 0 && isset($result['local_port']
             return $result;
         }
 
         return null;
     }
 
-    public function startSendRtpPassive(string $vhost, string $app, string $stream, string $ssrc, ?int $src_port = null, ?int $pt = null, int $use_ps = 0, int $only_audio = 0): ?array
+    /**
+     * 启动发送RTP被动模式（监听等待连接）
+     * 用于TCP被动推流场景
+     * 参考 WVP-PRO 实现
+     *
+     * @param string $vhost 虚拟主机
+     * @param string $app 应用名
+     * @param string $stream 流ID
+     * @param string $ssrc RTP SSRC
+     * @param int|null $src_port 本地端口（null=随机）
+     * @param int|null $pt RTP PT（默认96）
+     * @param bool $use_ps 是否使用PS封装（默认true）
+     * @param bool $only_audio 仅音频（默认false）
+     * @param bool $is_tcp 是否为TCP模式（默认true）
+     * @param bool $rtcp 是否启用RTCP保活（仅UDP，默认false）
+     * @param string|null $recv_stream_id 接收流ID（可选）
+     * @param int|null $close_delay_ms 关闭延迟毫秒（可选）
+     * @return array|null ['code' => 0, 'local_port' => 端口号]
+     */
+    public function startSendRtpPassive(string $vhost, string $app, string $stream, string $ssrc, ?int $src_port = null, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, bool $is_tcp = true, bool $rtcp = false, ?string $recv_stream_id = null, ?int $close_delay_ms = null): ?array
     {
-//    | vhost |    Y     | 虚拟主机，例如__defaultVhost__ |
-//    | app |    Y     | 应用名，例如 live |
-//    | stream |    Y     | 流id，例如 test |
-//    | ssrc |    Y     | 推流的rtp的ssrc,指定不同的ssrc可以同时推流到多个服务器 |
-//    | src_port |    N     | 使用的本机端口，为0或不传时默认为随机端口 |
-//    | pt |    N     | 发送时，rtp的pt（uint8_t）,不传时默认为96 |
-//    | use_ps |    N     | 发送时，rtp的负载类型。为1时，负载为ps；为0时，为es；不传时默认为1 |
-//    | only_audio |    N     | 当use_ps 为0时，有效。为1时，发送音频；为0时，发送视频；不传时默认为0 |
         $params = [
-            'vhost' => $vhost,
+            'vhost' => $vhost ? $vhost : '__defaultVhost__',
             'app' => $app,
             'stream' => $stream,
             'ssrc' => $ssrc,
+            'use_ps' => $use_ps ? '1' : '0',
+            'only_audio' => $only_audio ? '1' : '0',
+            'is_udp' => $is_tcp ? '0' : '1',
+            'enable_origin_recv_limit' => '1',
         ];
-        if ($src_port) {
+
+        if ($src_port !== null) {
             $params['src_port'] = $src_port;
         }
-        if ($pt) {
+
+        if ($pt !== null) {
             $params['pt'] = $pt;
         }
-        if ($use_ps) {
-            $params['use_ps'] = $use_ps;
+
+        if (!$is_tcp) {
+            // UDP模式下开启RTCP保活
+            $params['udp_rtcp_timeout'] = $rtcp ? '1' : '0';
         }
-        if ($only_audio) {
-            $params['only_audio'] = $only_audio;
+
+        if ($recv_stream_id !== null) {
+            $params['recv_stream_id'] = $recv_stream_id;
         }
+
+        if ($close_delay_ms !== null) {
+            $params['close_delay_ms'] = $close_delay_ms;
+        }
+
         $this->debugLog('ZLM API Request', [
-            'api' => 'startSendRtp',
+            'api' => 'startSendRtpPassive',
             'params' => $params,
         ]);
+
         $result = $this->request('startSendRtpPassive', $params);
 
         if (!empty($result)) {
-            //&& $result['code'] === 0 && isset($result['local_port']
             return $result;
         }
 
+        return null;
+    }
+
+    /**
+     * 启动发送RTP Talk（语音对讲）
+     * 参考 WVP-PRO 实现
+     *
+     * @param string $vhost 虚拟主机
+     * @param string $app 应用名
+     * @param string $stream 流ID
+     * @param string $ssrc RTP SSRC
+     * @param int|null $pt RTP PT（默认96）
+     * @param bool $use_ps 是否使用PS封装（默认true），对应ZLM的type参数
+     * @param bool $only_audio 仅音频（默认false）
+     * @param string|null $recv_stream_id 接收流ID（可选）
+     * @param int|null $close_delay_ms 关闭延迟毫秒（可选）
+     * @return array|null ['code' => 0, 'local_port' => 端口号]
+     */
+    public function startSendRtpTalk(string $vhost, string $app, string $stream, string $ssrc, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, ?string $recv_stream_id = null, ?int $close_delay_ms = null): ?array
+    {
+        $params = [
+            'vhost' => '__defaultVhost__',
+            'app' => $app,
+            'stream' => $stream,
+            'ssrc' => $ssrc,
+            'type' => $use_ps ? '1' : '0',  // 注意：talk接口使用type而不是use_ps
+            'only_audio' => $only_audio ? '1' : '0',
+            'enable_origin_recv_limit' => '1',
+        ];
+
+        if ($pt !== null) {
+            $params['pt'] = $pt;
+        }
+
+        if ($recv_stream_id !== null) {
+            $params['recv_stream_id'] = $recv_stream_id;
+        }
+
+        if ($close_delay_ms !== null) {
+            $params['close_delay_ms'] = $close_delay_ms;
+        }
+
+        $this->debugLog('ZLM API Request', [
+            'api' => 'startSendRtpTalk',
+            'params' => $params,
+        ]);
+
+        $result = $this->request('startSendRtpTalk', $params);
+
+        if (!empty($result)) {
+            return $result;
+        }
 
         return null;
     }
@@ -731,6 +811,76 @@ class ZLMClient
         $result = $this->request('stopSendRtp', $params);
 
         return $result && $result['code'] === 0;
+    }
+
+    /**
+     * 使用 SendRtpDo 启动主动推流
+     *
+     * @param SendRtpDo $do
+     * @return array|null
+     */
+    public function startSendRtpWithDo(SendRtpDo $do): ?array
+    {
+        return $this->startSendRtp(
+            $do->getVhost(),
+            $do->getApp(),
+            $do->getStream(),
+            $do->getSsrc(),
+            $do->getDstUrl() ?? '',
+            $do->getDstPort() ?? '',
+            $do->isUdp(),
+            $do->getSrcPort(),
+            $do->getPt(),
+            $do->isUsePs(),
+            $do->isOnlyAudio(),
+            $do->isRtcp(),
+            $do->getCloseDelayMs()
+        );
+    }
+
+    /**
+     * 使用 SendRtpDo 启动被动推流
+     *
+     * @param SendRtpDo $do
+     * @return array|null
+     */
+    public function startSendRtpPassiveWithDo(SendRtpDo $do): ?array
+    {
+        return $this->startSendRtpPassive(
+            $do->getVhost(),
+            $do->getApp(),
+            $do->getStream(),
+            $do->getSsrc(),
+            $do->getSrcPort(),
+            $do->getPt(),
+            $do->isUsePs(),
+            $do->isOnlyAudio(),
+            $do->isTcp(),
+            $do->isRtcp(),
+            $do->getRecvStreamId(),
+            $do->getCloseDelayMs()
+        );
+    }
+
+    /**
+     * 使用 SendRtpDo 启动语音对讲推流
+     *
+     * @param SendRtpDo $do
+     * @return array|null
+     */
+    public function startSendRtpTalkWithDo(SendRtpDo $do): ?array
+    {
+        return $this->startSendRtpTalk(
+            $do->getVhost(),
+            $do->getApp(),
+            $do->getStream(),
+            $do->getSsrc(),
+            $do->getPt(),
+            $do->isUsePs(),
+            $do->isOnlyAudio(),
+            $do->getRecvStreamId(),
+            $do->getCloseDelayMs()
+        );
     }
 
     /**

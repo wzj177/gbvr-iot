@@ -43,32 +43,39 @@ class GBServerHookController extends BaseController
         }
 
         try {
-            match ($scene) {
+            // 需要返回数据的 scene 返回 array，其他返回 null
+            $result = match ($scene) {
                 'sip_xml' => $this->handleSipXml($body),
                 'register' => $this->handleRegister($body),
                 'device_unregister' => $this->handleUnRegister($body),
                 'device_expired' => $this->handleExpired($body),
-//                'device_offline' => $this->handleOffline($body),
                 'update_heartbeat' => $this->handleHeartbeat($body),
                 'device_catalog' => $this->handleCatalog($body),
                 'device_info' => $this->handleDeviceInfo($body),
                 'media_ready' => $this->handleMediaReady($body),
-                'voice_invite' => $this->handleVoiceInvite($body),
+                'voice_established' => $this->handleVoiceEstablished($body),
                 'session_bye' => $this->handleSessionBye($body),
                 'device_status' => $this->handleDeviceStatus($body),
                 'record_info' => $this->handleRecordInfo($body),
                 'alarm' => $this->handleAlarm($body),
-                'command_confirmed' => $this->handleCommandConfirmed($body),  // 设备确认收到指令
-                'catalog_update' => $this->handleCatalogUpdate($body), // 目录变更通知
-                'alarm_event' => $this->handleAlarmEvent($body), // 报警事件通知
-                'position_update' => $this->handlePositionUpdate($body), // 位置更新通知
-                'mobile_position_subscribe' => $this->handleMobilePositionSubscribe($body), // 移动位置订阅确认
-                'mobile_position_unsubscribe' => $this->handleMobilePositionUnsubscribe($body), // 移动位置取消订阅
+                'command_confirmed' => $this->handleCommandConfirmed($body),
+                'catalog_update' => $this->handleCatalogUpdate($body),
+                'alarm_event' => $this->handleAlarmEvent($body),
+                'position_update' => $this->handlePositionUpdate($body),
+                'mobile_position_subscribe' => $this->handleMobilePositionSubscribe($body),
+                'mobile_position_unsubscribe' => $this->handleMobilePositionUnsubscribe($body),
                 'gateway_cmd_after' => $this->handleGatewayCmdAfter($body),
+                'broadcast_setup_rtp' => $this->handleBroadcastSetupRtp($body),
+                'start_send_rtp' => $this->handleStartSendRtp($body),
+                'broadcast_stop' => $this->handleBroadcastStop($body),
+                'preset_query_result' => $this->handlePresetQueryResult($body),
+                'config_download_result' => $this->handleConfigDownloadResult($body),
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
 
-            return $this->createSuccessJsonResponse();
+            return is_array($result)
+                ? $this->createSuccessJsonResponse($result)
+                : $this->createSuccessJsonResponse();
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Hook handler exception', [
@@ -110,6 +117,82 @@ class GBServerHookController extends BaseController
     private function handleGatewayCmdAfter(array $body): void
     {
         Log::channel('sip')->info('Gateway command after', $body);
+    }
+
+    /**
+     * 处理设备返回的预置位查询结果
+     *
+     * 设备返回 XML:
+     * <Response><CmdType>PresetQuery</CmdType><PresetList>...</PresetList></Response>
+     */
+    private function handlePresetQueryResult(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $presetList = $body['preset_list'] ?? [];
+        $num = $body['num'] ?? count($presetList);
+
+        Log::channel('sip')->info('Preset query result', [
+            'device_id' => $deviceId,
+            'num' => $num,
+            'presets' => $presetList,
+        ]);
+
+        if ($deviceId && !empty($presetList)) {
+            try {
+                $this->getDeviceService()->syncPresetsFromDevice($deviceId, $presetList);
+            } catch (\Exception $e) {
+                Log::channel('sip')->error('Failed to sync presets from device', [
+                    'device_id' => $deviceId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * 处理设备返回的配置查询结果
+     *
+     * 设备返回 XML:
+     * <Response><CmdType>ConfigDownload</CmdType><BasicParam>...</BasicParam></Response>
+     */
+    private function handleConfigDownloadResult(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $basicParam = $body['basic_param'] ?? [];
+        $result = $body['result'] ?? '';
+
+        Log::channel('sip')->info('Config download result', [
+            'device_id' => $deviceId,
+            'result' => $result,
+            'basic_param' => $basicParam,
+        ]);
+
+        // 将配置信息更新到数据库（如设备名称、心跳参数等）
+        if ($deviceId && !empty($basicParam) && $result === 'OK') {
+            try {
+                $updateFields = [];
+                if (!empty($basicParam['Name'])) {
+                    $updateFields['name'] = $basicParam['Name'];
+                }
+                if (!empty($basicParam['HeartBeatInterval'])) {
+                    $updateFields['heartbeat_interval'] = (int) $basicParam['HeartBeatInterval'];
+                }
+                if (!empty($basicParam['HeartBeatCount'])) {
+                    $updateFields['heartbeat_count'] = (int) $basicParam['HeartBeatCount'];
+                }
+                if (!empty($basicParam['Expiration'])) {
+                    $updateFields['expiration'] = (int) $basicParam['Expiration'];
+                }
+                if (!empty($updateFields)) {
+                    $this->getDeviceService()->updateDeviceConfig($deviceId, $updateFields);
+                }
+            } catch (\Exception $e) {
+                Log::channel('sip')->error('Failed to update device config', [
+                    'device_id' => $deviceId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -324,29 +407,73 @@ class GBServerHookController extends BaseController
         }
     }
 
+
     /**
-     * 处理语音对讲 INVITE
+     * 处理语音对讲会话已建立（INVITE 200 OK 回调）
+     *
+     * 触发时机：
+     * 当信令网关收到设备对 voice talk INVITE 的 200 OK 响应时，
+     * GB28181Handler::handleVoiceTalkEstablished() 通过 postTask('voice_established', ...)
+     * 将回调数据推送到此处。
+     *
+     * 数据来源：
+     * - session_id: 来自 CommandDispatcher::activeSessions（在 handleVoiceInvite 时由 API 层传入）
+     * - call_id/dialog_id: 来自 eXosip 的 200 OK 事件
+     * - device_ip/device_port: 来自设备 200 OK 的 SDP
+     *
+     * 处理流程：
+     * 1. 验证必需参数
+     * 2. 调用 VoiceTalkService::onSipResponseOk() 更新会话状态为 CONNECTED
+     * 3. VoiceTalkService 内部保存 sendRtpInfo 并更新数据库
      */
-    private function handleVoiceInvite(array $body): void
+    private function handleVoiceEstablished(array $body): void
     {
+        $sessionId = $body['session_id'] ?? '';
         $deviceId = $body['device_id'] ?? '';
         $channelId = $body['channel_id'] ?? '';
-        $mode = $body['mode'] ?? 'talk';
+        $callId = $body['call_id'] ?? 0;
+        $dialogId = $body['dialog_id'] ?? -1;
 
-        Log::channel('sip')->info('Voice invite', [
+        if (!$sessionId) {
+            Log::channel('sip')->warning('Voice established without session_id', ['body' => $body]);
+            return;
+        }
+
+        Log::channel('sip')->info('Voice talk established', [
+            'session_id' => $sessionId,
             'device_id' => $deviceId,
             'channel_id' => $channelId,
-            'mode' => $mode,
+            'call_id' => $callId,
+            'dialog_id' => $dialogId,
+            'device_ip' => $body['device_ip'] ?? null,
+            'device_port' => $body['device_port'] ?? null,
         ]);
 
-        // TODO: 实现语音对讲业务逻辑
-        // 1. 分配 ZLM 端口接收音频
-        // 2. 生成 SDP 响应
-        // 3. 返回音频推流地址给前端
+        try {
+            // 调用 VoiceTalkService::onSipResponseOk() 更新会话状态
+            $sipResponse = [
+                'call_id' => $callId,
+                'dialog_id' => $dialogId,
+                'device_ip' => $body['device_ip'] ?? null,
+                'device_port' => $body['device_port'] ?? null,
+                'ssrc' => $body['ssrc'] ?? null,
+                'stream_id' => $body['stream_id'] ?? null,
+                'mode' => $body['mode'] ?? 'talk',
+            ];
 
-        Log::channel('sip')->warning('Voice invite not implemented yet', [
-            'device_id' => $deviceId,
-        ]);
+            $this->getVoiceTalkService()->onSipResponseOk($sessionId, $sipResponse);
+
+            Log::channel('sip')->info('Voice talk session updated to CONNECTED', [
+                'session_id' => $sessionId,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Voice established handler failed', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     /**
@@ -367,46 +494,68 @@ class GBServerHookController extends BaseController
         }
 
         try {
-            // 查找会话
+            // 1. 先查找普通视频会话
             $session = $this->getDeviceService()->getSessionByCallId((int)$callId);
-            if (!$session) {
-                Log::channel('sip')->warning('Session not found for BYE', ['call_id' => $callId]);
+            if ($session) {
+                // 处理普通视频会话的 BYE
+                $streamId = $session['stream_id'] ?? '';
+                $port = $session['rtp_port'] ?? 0;
+
+                // 关闭 ZLM 流
+                if ($streamId) {
+                    try {
+                        $this->getGb28181Service()->closeStream('rtp', $streamId);
+                        Log::channel('sip')->info('Stream closed', ['stream_id' => $streamId]);
+                    } catch (\Exception $e) {
+                        Log::channel('sip')->warning('Close stream failed', [
+                            'stream_id' => $streamId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                // 关闭 RTP 端口
+                if ($port > 0) {
+                    try {
+                        $this->getGb28181Service()->closeRtpServer($streamId);
+                        Log::channel('sip')->info('RTP port closed', ['port' => $port]);
+                    } catch (\Exception $e) {
+                        Log::channel('sip')->warning('Close RTP port failed', [
+                            'port' => $port,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                // 删除会话记录
+                $this->getDeviceService()->deleteSessionByCallId((int)$callId);
+
+                Log::channel('sip')->info('Video session cleaned up', ['call_id' => $callId]);
                 return;
             }
 
-            $streamId = $session['stream_id'] ?? '';
-            $port = $session['rtp_port'] ?? 0;
+            // 2. 再查找语音对讲会话（设备主动 BYE 结束对讲）
+            $voiceSession = $this->getVoiceTalkService()->getSessionByCallId((string)$callId);
+            if ($voiceSession) {
+                Log::channel('sip')->info('Voice talk session bye from device', [
+                    'call_id' => $callId,
+                    'session_id' => $voiceSession['session_id'] ?? null,
+                ]);
 
-            // 关闭 ZLM 流
-            if ($streamId) {
-                try {
-                    $this->getGb28181Service()->closeStream('rtp', $streamId);
-                    Log::channel('sip')->info('Stream closed', ['stream_id' => $streamId]);
-                } catch (\Exception $e) {
-                    Log::channel('sip')->warning('Close stream failed', [
-                        'stream_id' => $streamId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                // 调用 VoiceTalkService 的统一清理方法
+                $this->getVoiceTalkService()->stopVoiceTalkBySession($voiceSession, 'device_bye');
+
+                Log::channel('sip')->info('Voice talk session cleaned up', [
+                    'call_id' => $callId,
+                    'session_id' => $voiceSession['session_id'] ?? null,
+                ]);
+                return;
             }
 
-            // 关闭 RTP 端口
-            if ($port > 0) {
-                try {
-                    $this->getGb28181Service()->closeRtpServer($streamId);
-                    Log::channel('sip')->info('RTP port closed', ['port' => $port]);
-                } catch (\Exception $e) {
-                    Log::channel('sip')->warning('Close RTP port failed', [
-                        'port' => $port,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // 删除会话记录
-            $this->getDeviceService()->deleteSessionByCallId((int)$callId);
-
-            Log::channel('sip')->info('Session cleaned up', ['call_id' => $callId]);
+            // 3. 未找到任何会话
+            Log::channel('sip')->warning('Session not found for BYE (neither video nor voice)', [
+                'call_id' => $callId
+            ]);
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Session bye handler failed', [
@@ -617,6 +766,231 @@ class GBServerHookController extends BaseController
     }
 
     /**
+     * 处理广播 RTP 设置（设备 INVITE 到达后由网关回调）
+     *
+     * WVP 对齐时序：设备收到 Broadcast MESSAGE 后发送 INVITE，
+     * 网关解析设备 SDP 后回调此接口，开设 ZLM 端口并返回参数给网关构建 200 OK SDP。
+     *
+     * 同时检查流是否就绪（isStreamReady），如果流已不存在，
+     * 返回 stream_ready=false，网关层将回复 410 Gone。
+     *
+     * @param array $body 请求体
+     * @return array 返回 local_port, media_server_ip, ssrc, tcp_mode, stream_ready
+     */
+    private function handleBroadcastSetupRtp(array $body): array
+    {
+        $sessionId = $body['session_id'] ?? '';
+        if (!$sessionId) {
+            throw new \InvalidArgumentException('session_id is required');
+        }
+
+        Log::channel('sip')->info('Broadcast setup RTP', [
+            'session_id' => $sessionId,
+            'device_transport' => $body['device_transport'] ?? null,
+            'device_setup' => $body['device_setup'] ?? null,
+        ]);
+
+        $deviceSdpInfo = [
+            'device_transport' => $body['device_transport'] ?? 'RTP/AVP',
+            'device_setup' => $body['device_setup'] ?? 'active',
+            'device_ip' => $body['device_ip'] ?? null,
+            'device_port' => $body['device_port'] ?? null,
+        ];
+
+        $result = $this->getVoiceTalkService()->setupBroadcastRtp($sessionId, $deviceSdpInfo);
+
+        // === WVP 对齐：检查流是否就绪 ===
+        // 在 ZLM 端口开设成功后，检查推流是否仍然存在
+        // 如果前端已经停止推流，ZLM 上的流不存在，网关应回复 410 Gone
+        $app = $body['app'] ?? 'broadcast';
+        $streamId = $body['stream_id'] ?? '';
+        $mediaServerId = $body['media_server_id'] ?? '';
+
+        $streamReady = false;
+        if ($streamId && $mediaServerId) {
+            $streamReady = $this->getVoiceTalkService()->isStreamReady($mediaServerId, $app, $streamId);
+        }
+
+        $result['stream_ready'] = $streamReady;
+
+        Log::channel('sip')->info('Broadcast setup RTP result', [
+            'session_id' => $sessionId,
+            'local_port' => $result['local_port'] ?? null,
+            'tcp_mode' => $result['tcp_mode'] ?? null,
+            'stream_ready' => $streamReady,
+        ]);
+
+        return $result;
+    }
+
+    /**
+     * 处理开始推流（广播模式 ACK 后或立即推流）
+     *
+     * WVP 对齐：收到设备 ACK 后（或 broadcastPushAfterAck=false 时立即），
+     * 根据传输模式决定推流方式：
+     * - TCP 被动模式 (tcpMode=1): startSendRtpPassive 已在 setupBroadcastRtp 完成，
+     *   设备 ACK 后会主动连接 ZLM，无需额外操作，仅记录日志
+     * - TCP 主动模式 (tcpMode=2): 调用 startSendRtp 让 ZLM 主动连接设备
+     * - UDP 模式 (tcpMode=0): 调用 startSendRtp 让 ZLM 向设备 IP:Port 推送 RTP
+     *
+     * @param array $body 请求体
+     * @return array|null
+     */
+    private function handleStartSendRtp(array $body): ?array
+    {
+        $sessionId = $body['session_id'] ?? '';
+        $ssrc = $body['ssrc'] ?? '';
+        $streamId = $body['stream_id'] ?? '';
+        $app = $body['app'] ?? 'broadcast';
+        $mediaServerId = $body['media_server_id'] ?? '';
+        $tcpMode = (int)($body['tcp_mode'] ?? 0);
+
+        if (!$sessionId || !$streamId || !$mediaServerId) {
+            Log::channel('sip')->warning('start_send_rtp missing required fields', ['body' => $body]);
+            return null;
+        }
+
+        Log::channel('sip')->info('Start send RTP for broadcast', [
+            'session_id' => $sessionId,
+            'stream_id' => $streamId,
+            'ssrc' => $ssrc,
+            'app' => $app,
+            'tcp_mode' => $tcpMode,
+        ]);
+
+        try {
+            // 先检查流是否仍然存在
+            $streamReady = $this->getVoiceTalkService()->isStreamReady($mediaServerId, $app, $streamId);
+            if (!$streamReady) {
+                Log::channel('sip')->warning('Stream not ready when starting send RTP', [
+                    'session_id' => $sessionId,
+                    'stream_id' => $streamId,
+                ]);
+
+                // 流已不存在，触发清理
+                $session = $this->getVoiceTalkService()->getSession($sessionId);
+                if ($session) {
+                    $this->getVoiceTalkService()->stopVoiceTalkBySession($session, 'stream_gone_on_start_rtp');
+                }
+
+                return ['success' => false, 'reason' => 'stream_not_ready'];
+            }
+
+            // TCP 被动模式 (tcpMode=1): startSendRtpPassive 已在 setupBroadcastRtp 完成
+            // 设备收到 200 OK 后主动连接 ZLM 监听端口，无需额外推流调用
+            if ($tcpMode === 1) {
+                Log::channel('sip')->info('TCP passive mode: no startSendRtp needed, device will connect to ZLM', [
+                    'session_id' => $sessionId,
+                ]);
+                return ['success' => true, 'reason' => 'tcp_passive_no_action_needed'];
+            }
+
+            // UDP 或 TCP 主动模式：需要主动推流到设备
+            $session = $this->getVoiceTalkService()->getSession($sessionId);
+            if (!$session) {
+                Log::channel('sip')->warning('Session not found for start_send_rtp', [
+                    'session_id' => $sessionId,
+                ]);
+                return ['success' => false, 'reason' => 'session_not_found'];
+            }
+
+            $deviceIp = $body['device_ip'] ?? null;
+            $devicePort = $body['device_port'] ?? null;
+
+            if (!$deviceIp || !$devicePort) {
+                Log::channel('sip')->warning('Missing device IP/Port for active push', [
+                    'session_id' => $sessionId,
+                    'device_ip' => $deviceIp,
+                    'device_port' => $devicePort,
+                ]);
+                return ['success' => false, 'reason' => 'missing_device_address'];
+            }
+
+            // 获取 ZLM 客户端并调用 startSendRtp
+            $gb28181Service = $this->getGb28181Service();
+            $zlmClient = $gb28181Service->getZlmClientByServerId($mediaServerId);
+
+            $isUdp = ($tcpMode === 0);
+            $localPort = (int)($body['local_port'] ?? 0);
+
+            $result = $zlmClient->startSendRtp(
+                '__defaultVhost__',
+                $app,
+                $streamId,
+                $ssrc,
+                $deviceIp,
+                (string)$devicePort,
+                $isUdp,
+                $localPort > 0 ? $localPort : null,
+                8,       // pt=8 (G.711A / PCMA)
+                false,   // use_ps=false (纯音频不需要 PS 封装)
+                true,    // only_audio=true
+            );
+
+            Log::channel('sip')->info('startSendRtp result', [
+                'session_id' => $sessionId,
+                'tcp_mode' => $tcpMode,
+                'is_udp' => $isUdp,
+                'device_target' => "{$deviceIp}:{$devicePort}",
+                'result' => $result,
+            ]);
+
+            return ['success' => true, 'result' => $result];
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('start_send_rtp failed', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return ['success' => false, 'reason' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * 处理广播停止（流不存在时的清理）
+     *
+     * 当网关发现流已不存在时（410 Gone），回调此接口进行清理。
+     *
+     * @param array $body 请求体
+     */
+    private function handleBroadcastStop(array $body): void
+    {
+        $sessionId = $body['session_id'] ?? '';
+        $reason = $body['reason'] ?? 'unknown';
+
+        if (!$sessionId) {
+            Log::channel('sip')->warning('broadcast_stop without session_id', ['body' => $body]);
+            return;
+        }
+
+        Log::channel('sip')->info('Broadcast stop requested', [
+            'session_id' => $sessionId,
+            'reason' => $reason,
+        ]);
+
+        try {
+            $session = $this->getVoiceTalkService()->getSession($sessionId);
+            if ($session) {
+                $this->getVoiceTalkService()->stopVoiceTalkBySession($session, $reason);
+                Log::channel('sip')->info('Broadcast session stopped', [
+                    'session_id' => $sessionId,
+                ]);
+            } else {
+                Log::channel('sip')->warning('Broadcast session not found for stop', [
+                    'session_id' => $sessionId,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('broadcast_stop failed', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * @return DeviceService
      */
     private function getDeviceService(): DeviceService
@@ -655,6 +1029,14 @@ class GBServerHookController extends BaseController
     private function getRecordTaskService(): \CoreW\Business\Record\Service\RecordTaskService
     {
         return $this->createService('Record:RecordTaskService');
+    }
+
+    /**
+     * @return \CoreW\Business\Devices\Service\VoiceTalkService
+     */
+    private function getVoiceTalkService(): \CoreW\Business\Devices\Service\VoiceTalkService
+    {
+        return $this->createService('Devices:VoiceTalkService');
     }
 
     /**

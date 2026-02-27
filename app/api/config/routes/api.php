@@ -171,6 +171,9 @@ Route::group('/api', function () {
             // 服务器启动事件
             Route::post('/on_server_started', [\app\api\v2\controller\ZLMHookController::class, 'onServerStarted'])->name('api.zlm_hook.on_server_started');
 
+            // on_server_keepalive
+            Route::post('/on_server_keepalive', [\app\api\v2\controller\ZLMHookController::class, 'onServerKeepalive'])->name('api.zlm_hook.on_server_keepalive');
+
             // Shell 登录事件
             Route::post('/on_shell_login', [\app\api\v2\controller\ZLMHookController::class, 'onShellLogin'])->name('api.zlm_hook.on_shell_login');
 
