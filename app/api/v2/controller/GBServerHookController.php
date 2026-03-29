@@ -70,6 +70,7 @@ class GBServerHookController extends BaseController
                 'broadcast_stop' => $this->handleBroadcastStop($body),
                 'preset_query_result' => $this->handlePresetQueryResult($body),
                 'config_download_result' => $this->handleConfigDownloadResult($body),
+                'mobile_position_report' => $this->handleMobilePositionReport($body),
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
 
@@ -209,12 +210,19 @@ class GBServerHookController extends BaseController
         try {
             $device = $this->getDeviceService()->handleDeviceRegister($deviceId, $body);
 
+            // Bind device to gateway if gateway_id is present in the hook body
+            $gatewayId = $body['gateway_id'] ?? null;
+            if ($gatewayId) {
+                $this->getDeviceService()->bindDeviceToGateway($deviceId, $gatewayId);
+            }
+
             // 发送设备信息查询请求，在handleDeviceInfo收到设备信息后，处理
             $this->getGb28181Service()->queryDeviceInfo($deviceId);
 
             Log::channel('sip')->info('Device registered', [
                 'device_id' => $deviceId,
                 'status' => $device['status'] ?? 'unknown',
+                'gateway_id' => $gatewayId,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Register failed', [
@@ -1199,5 +1207,70 @@ class GBServerHookController extends BaseController
 
         // TODO: 更新订阅配置状态
         // $this->getSubscribeService()->markSubscriptionCancelled($deviceId, 'mobile_position');
+    }
+
+    /**
+     * 处理移动位置上报（mobile_position_report）
+     * Gateway收到设备的MobilePosition NOTIFY后投递的任务
+     */
+    private function handleMobilePositionReport(array $body): void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $data = $body['data'] ?? [];
+
+        if (!$deviceId || empty($data)) {
+            Log::channel('sip')->warning('Mobile position report missing data', [
+                'device_id' => $deviceId,
+            ]);
+            return;
+        }
+
+        try {
+            // 构建位置数据
+            $positionData = [
+                'device_id' => $deviceId,
+                'cmd_type' => $data['cmd_type'] ?? 'MobilePosition',
+                'time' => $data['time'] ?? date('Y-m-d H:i:s'),
+                'longitude' => $data['longitude'] ?? 0,
+                'latitude' => $data['latitude'] ?? 0,
+                'speed' => $data['speed'] ?? 0,
+                'direction' => $data['direction'] ?? 0,
+                'altitude' => $data['altitude'] ?? 0,
+                'recv_time' => date('Y-m-d H:i:s'),
+                'raw_data' => json_encode($data, JSON_UNESCAPED_UNICODE),
+            ];
+
+            // 保存位置信息到历史表
+            $this->getDevicePositionService()->savePosition($positionData);
+
+            // 同时更新设备表的lat/lng字段（移动设备的当前位置）
+            $this->getDeviceService()->updateDevicePosition(
+                $deviceId,
+                (float)$positionData['longitude'],
+                (float)$positionData['latitude']
+            );
+
+            Log::channel('sip')->debug('Mobile position saved', [
+                'device_id' => $deviceId,
+                'longitude' => $positionData['longitude'],
+                'latitude' => $positionData['latitude'],
+                'time' => $positionData['time'],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('Mobile position report handler failed', [
+                'device_id' => $deviceId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * @return \CoreW\Business\Devices\Service\DevicePositionService
+     */
+    private function getDevicePositionService(): \CoreW\Business\Devices\Service\DevicePositionService
+    {
+        return $this->createService('Devices:DevicePositionService');
     }
 }

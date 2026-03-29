@@ -74,6 +74,37 @@ trait GB28181StreamTrait
      */
     protected function startLiveVideoCore(array $device, array $channel): array
     {
+        // 检查通道是否关闭直播
+        if (!empty($channel['close_live'])) {
+            throw new \InvalidArgumentException('该通道已关闭直播功能', 403);
+        }
+
+        // 检查是否已有活跃的直播会话（避免重复拉流）
+        $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
+            $channel['stream_id'],
+            StreamSessionType::LIVE->value
+        );
+
+        if ($activeSession) {
+            // 通道已在推流中（可能被 auto_live 拉起），增加观看者计数并返回会话信息
+            $this->getGb28181Service()->incrementViewerCount($channel['stream_id']);
+
+            Log::channel('gb_stream')->info('Channel already streaming, reuse session', [
+                'stream_id' => $channel['stream_id'],
+                'session_id' => $activeSession['id'],
+                'ssrc' => $activeSession['ssrc'],
+            ]);
+
+            return [
+                'stream_id' => $channel['stream_id'],
+                'ssrc' => $activeSession['ssrc'],
+                'rtp_port' => $activeSession['rtp_port'],
+                'tcp_mode' => $activeSession['tcp_mode'],
+                'session_id' => $activeSession['id'],
+                'already_streaming' => true,
+            ];
+        }
+
         // 检查媒体服务器
         if ($channel['media_server_id'] === MediaServerType::NONE->value) {
             throw new \InvalidArgumentException('通道未关联媒体服务器', 400);

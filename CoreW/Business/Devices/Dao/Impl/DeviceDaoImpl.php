@@ -128,11 +128,22 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
                 'device_id IN (:device_ids)',
                 'device_id NOT IN (:noDevice_ids)',
                 'status = :status',
+                'device_category = :device_category',
+                'device_category IN (:device_categories)',
+                'device_category IS NULL' => 'device_category_null',
                 'subscribe_catalog = :subscribe_catalog',
                 'subscribe_alarm = :subscribe_alarm',
                 'subscribe_position = :subscribe_position',
                 'subscribe_ptz = :subscribe_ptz',
+                'sum_num > :sum_num_GT',
+                'gateway_id = :gateway_id',
             ],
         ];
+    }
+
+    public function updatePositionByDeviceId(string $deviceId, float $longitude, float $latitude): int
+    {
+        $sql = "UPDATE {$this->table()} SET lat = ?, lng = ?, updated_at = NOW() WHERE device_id = ?";
+        return $this->db()->executeStatement($sql, [$latitude, $longitude, $deviceId]);
     }
 }

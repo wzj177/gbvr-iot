@@ -29,7 +29,10 @@ class GB28181DeviceController extends BaseController
      */
     public function index(Request $request)
     {
-        $conditions = [];
+        $conditions = [
+            'sum_num_GT' => 0
+        ];
+
         if ($request->get('status')) {
             $conditions['status'] = $request->get('status');
         }
@@ -159,6 +162,7 @@ class GB28181DeviceController extends BaseController
         $allowedFields = [
             // 基础配置
             'show_name',       // 自定义名称
+            'device_category', // 设备分类编码（可覆盖自动解析值）
             'rtp_trans_mode',  // RTP传输模式：0=UDP，1=TCP被动，2=TCP主动
             'enabled',
 

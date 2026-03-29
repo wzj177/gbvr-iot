@@ -140,6 +140,10 @@ Route::group('/api', function () {
                 \app\middleware\GBHook::class
             ]);
             Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pushOnLineList']);
+
+            // Gateway config pull + heartbeat
+            Route::get('/gateway/config', [\app\api\v2\controller\GBGatewayConfigController::class, 'getConfig']);
+            Route::post('/gateway/heartbeat', [\app\api\v2\controller\GBGatewayConfigController::class, 'heartbeat']);
         });
 
         Route::group('/zlm_hook', function () {

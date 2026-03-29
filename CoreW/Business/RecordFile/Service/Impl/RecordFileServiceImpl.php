@@ -164,6 +164,26 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
         return $this->getRecordFileDao()->count($conditions);
     }
 
+    public function getRecordFileDateListByPlanId(int $planId): array
+    {
+        return $this->getRecordFileDao()->getRecordFileDateListByPlanId($planId);
+    }
+
+    public function getRecordFileSizeByPlanId(int $planId): int
+    {
+        return $this->getRecordFileDao()->getRecordFileSizeByPlanId($planId);
+    }
+
+    public function softDeleteByPlanIdAndDate(int $planId, string $recordDate): int
+    {
+        return $this->getRecordFileDao()->softDeleteByPlanIdAndDate($planId, $recordDate);
+    }
+
+    public function searchRecordFilesWithDeviceInfo(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    {
+        return $this->getRecordFileDao()->searchWithDeviceInfo($conditions, $orderBys, $start, $limit);
+    }
+
     /**
      * @return RecordFileDao|DaoProxy
      */

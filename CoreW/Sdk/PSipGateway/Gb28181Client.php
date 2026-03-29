@@ -42,8 +42,14 @@ class Gb28181Client
         ];
 
         try {
+            // Gateway-aware queue routing: use gateway_id to determine queue name
+            $gatewayId = $params['gateway_id'] ?? null;
+            $queueName = $gatewayId
+                ? "gb28181:commands:{$gatewayId}"
+                : $this->queueName;
+
             // 推送到 Redis 队列
-            $result = $this->redis->lPush($this->queueName, json_encode($command, JSON_UNESCAPED_UNICODE));
+            $result = $this->redis->lPush($queueName, json_encode($command, JSON_UNESCAPED_UNICODE));
             return $result !== false;
         } catch (\Exception $e) {
             throw new \RuntimeException("Failed to send command: " . $e->getMessage());

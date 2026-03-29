@@ -7,10 +7,14 @@ use app\admin\controller\AuthController;
 use app\admin\controller\GB28181AlarmController;
 use app\admin\controller\GB28181ChannelController;
 use app\admin\controller\GB28181DeviceController;
+use app\admin\controller\GB28181DeviceCategoryController;
 use app\admin\controller\GB28181DeviceControlController;
+use app\admin\controller\GB28181DevicePositionController;
 use app\admin\controller\GB28181MapController;
 use app\admin\controller\GB28181PTZController;
+use app\admin\controller\GB28181RecordPlanController;
 use app\admin\controller\GB28181RecordTaskController;
+use app\admin\controller\GB28181RecordingController;
 use app\admin\controller\GB28181StreamController;
 use app\admin\controller\GB28181SystemMonitoringController;
 use app\admin\controller\MediaServerController;
@@ -19,6 +23,8 @@ use app\admin\controller\ProductCatalogController;
 use app\admin\controller\ProductTagController;
 use app\admin\controller\RoleController;
 use app\admin\controller\SettingController;
+use app\admin\controller\StreamProxyController;
+use app\admin\controller\SipGatewayController;
 use app\admin\controller\SystemController;
 use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
@@ -286,8 +292,42 @@ Route::group('/api/admin', function () {
             Route::post('/stop', [\app\admin\controller\GB28181BroadcastController::class, 'stop']);
         });
 
-        // 云端录像管理
-//        Route::group('/recordings', function () { });
+        // 录像计划管理
+        Route::group('/record-plans', function () {
+            Route::get('', [GB28181RecordPlanController::class, 'index'])->name('admin.gb28181.record-plans.index');
+            Route::get('/{id:\d+}', [GB28181RecordPlanController::class, 'show'])->name('admin.gb28181.record-plans.show');
+            Route::post('', [GB28181RecordPlanController::class, 'store'])->name('admin.gb28181.record-plans.store');
+            Route::put('/{id:\d+}', [GB28181RecordPlanController::class, 'update'])->name('admin.gb28181.record-plans.update');
+            Route::delete('/{id:\d+}', [GB28181RecordPlanController::class, 'destroy'])->name('admin.gb28181.record-plans.destroy');
+            Route::post('/{id:\d+}/toggle', [GB28181RecordPlanController::class, 'toggle'])->name('admin.gb28181.record-plans.toggle');
+            Route::post('/{id:\d+}/ranges', [GB28181RecordPlanController::class, 'setRanges'])->name('admin.gb28181.record-plans.ranges');
+            Route::get('/{id:\d+}/channels', [GB28181RecordPlanController::class, 'boundChannels'])->name('admin.gb28181.record-plans.bound-channels');
+            Route::post('/{id:\d+}/channels', [GB28181RecordPlanController::class, 'bindChannels'])->name('admin.gb28181.record-plans.bind-channels');
+            Route::post('/channels/unbind', [GB28181RecordPlanController::class, 'unbindChannels'])->name('admin.gb28181.record-plans.unbind-channels');
+            Route::delete('/channels/{channelId:\d+}', [GB28181RecordPlanController::class, 'unbindChannel'])->name('admin.gb28181.record-plans.unbind-channel');
+        });
+
+        // 云端录像文件
+        Route::group('/recordings', function () {
+            Route::get('', [GB28181RecordingController::class, 'index'])->name('admin.gb28181.recordings.index');
+            Route::get('/{id:\d+}', [GB28181RecordingController::class, 'show'])->name('admin.gb28181.recordings.show');
+        });
+
+        // 设备位置管理
+        Route::group('/device-positions', function () {
+            Route::get('', [GB28181DevicePositionController::class, 'index'])->name('admin.gb28181.device-positions.index');
+            Route::get('/latest/{deviceId}', [GB28181DevicePositionController::class, 'latest'])->name('admin.gb28181.device-positions.latest');
+            Route::get('/track/{deviceId}', [GB28181DevicePositionController::class, 'track'])->name('admin.gb28181.device-positions.track');
+            Route::get('/map/points', [GB28181DevicePositionController::class, 'mapPoints'])->name('admin.gb28181.device-positions.map-points');
+            Route::get('/map/tracks', [GB28181DevicePositionController::class, 'mapTracks'])->name('admin.gb28181.device-positions.map-tracks');
+        });
+
+        // 设备分类管理
+        Route::group('/device-categories', function () {
+            Route::get('/options', [GB28181DeviceCategoryController::class, 'options'])->name('admin.gb28181.device-categories.options');
+            Route::get('/statistics', [GB28181DeviceCategoryController::class, 'statistics'])->name('admin.gb28181.device-categories.statistics');
+        });
+        Route::put('/devices/{deviceId}/category', [GB28181DeviceCategoryController::class, 'update'])->name('admin.gb28181.devices.update-category');
 
         // 报警管理
         Route::group('/alarms', function () {
@@ -320,6 +360,60 @@ Route::group('/api/admin', function () {
         Route::put('/{id}', [MediaServerController::class, 'update'])->name('media-server.update');
         Route::delete('/{id}', [MediaServerController::class, 'delete'])->name('media-server.delete');
         Route::get('/{id}', [MediaServerController::class, 'show'])->name('media-server.show');
+    })->middleware([
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
+    ]);
+
+    // 流代理管理
+    Route::group('/stream-proxies', function () {
+        Route::get('', [StreamProxyController::class, 'index'])->name('admin.stream-proxies.index');
+        Route::post('', [StreamProxyController::class, 'create'])->name('admin.stream-proxies.create');
+        Route::get('/summary', [StreamProxyController::class, 'summary'])->name('admin.stream-proxies.summary');
+        Route::get('/{id:\d+}', [StreamProxyController::class, 'show'])->name('admin.stream-proxies.show');
+        Route::put('/{id:\d+}', [StreamProxyController::class, 'update'])->name('admin.stream-proxies.update');
+        Route::delete('/{id:\d+}', [StreamProxyController::class, 'destroy'])->name('admin.stream-proxies.destroy');
+
+        // Stream control
+        Route::post('/{id:\d+}/start', [StreamProxyController::class, 'start'])->name('admin.stream-proxies.start');
+        Route::post('/{id:\d+}/stop', [StreamProxyController::class, 'stop'])->name('admin.stream-proxies.stop');
+        Route::post('/{id:\d+}/restart', [StreamProxyController::class, 'restart'])->name('admin.stream-proxies.restart');
+
+        // Play URLs
+        Route::get('/{id:\d+}/play-urls', [StreamProxyController::class, 'playUrls'])->name('admin.stream-proxies.play-urls');
+        Route::get('/{id:\d+}/push-url', [StreamProxyController::class, 'pushUrl'])->name('admin.stream-proxies.push-url');
+
+        // Record plan
+        Route::post('/{id:\d+}/bind-plan', [StreamProxyController::class, 'bindPlan'])->name('admin.stream-proxies.bind-plan');
+        Route::post('/{id:\d+}/unbind-plan', [StreamProxyController::class, 'unbindPlan'])->name('admin.stream-proxies.unbind-plan');
+
+        // Health check
+        Route::post('/health-check', [StreamProxyController::class, 'healthCheck'])->name('admin.stream-proxies.health-check');
+
+        // Logs
+        Route::get('/{id:\d+}/logs', [StreamProxyController::class, 'logs'])->name('admin.stream-proxies.logs');
+    })->middleware([
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
+    ]);
+
+    // Stream Proxy Logs (standalone routes)
+    Route::group('/stream-proxy-logs', function () {
+        Route::get('', [StreamProxyController::class, 'allLogs'])->name('admin.stream-proxy-logs.index');
+        Route::post('/cleanup', [StreamProxyController::class, 'cleanupLogs'])->name('admin.stream-proxy-logs.cleanup');
+    })->middleware([
+        AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class
+    ]);
+
+    // SIP Gateway management
+    Route::group('/sip-gateways', function () {
+        Route::get('', [SipGatewayController::class, 'index'])->name('admin.sip-gateways.index');
+        Route::get('/{id:\d+}', [SipGatewayController::class, 'show'])->name('admin.sip-gateways.show');
+        Route::post('', [SipGatewayController::class, 'store'])->name('admin.sip-gateways.store');
+        Route::put('/{id:\d+}', [SipGatewayController::class, 'update'])->name('admin.sip-gateways.update');
+        Route::delete('/{id:\d+}', [SipGatewayController::class, 'destroy'])->name('admin.sip-gateways.destroy');
+        Route::post('/{id:\d+}/toggle', [SipGatewayController::class, 'toggle'])->name('admin.sip-gateways.toggle');
     })->middleware([
         AuthIdentityMiddleware::class,
         PermissionCheckMiddleware::class

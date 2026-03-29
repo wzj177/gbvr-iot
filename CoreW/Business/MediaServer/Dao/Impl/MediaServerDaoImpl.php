@@ -43,11 +43,12 @@ class MediaServerDaoImpl extends AdvancedDaoImpl implements MediaServerDao
                 'server_id IN (:serverIds)',
                 'server_id NOT IN (:noServerIds)',
                 'status = :status',
+                'type = :type',
+                'support_gb28181 = :support_gb28181',
                 'created_time > :createdTime_GT',
                 'created_time < :createdTime_LT',
                 'created_time >= :createdTime_GTE',
                 'created_time <= :createdTime_LTE',
-                'type = :type',
                 '(name LIKE :keywords OR host LIKE :keywords OR secret LIKE :keywords)',
             ],
         ];

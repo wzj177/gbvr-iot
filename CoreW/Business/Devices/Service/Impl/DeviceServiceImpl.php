@@ -132,10 +132,15 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         $device = $this->getDeviceByDeviceId($deviceId);
 
         $now = date('Y-m-d H:i:s');
+
+        // 自动解析设备分类（从设备ID第10-13位）
+        $category = \CoreW\Business\Devices\Enums\DeviceCategoryEnum::parseFromDeviceId($deviceId);
+
         $deviceData = [
             'status' => DeviceStatusEnum::ONLINE->value,
             'device_id' => $deviceId,
             'device_type' => $this->parseDeviceTypeByDeviceId($deviceId),
+            'device_category' => $category?->value,
             'registered_at' => isset($data['registered_at']) ? date('Y-m-d H:i:s', $data['registered_at']) : $now,
 //            'last_heartbeat_at' => isset($data['timestamp']) ? date('Y-m-d H:i:s', $data['timestamp']) : $now,
             'last_heartbeat_at' => $data['timestamp'] ?? time(),
@@ -717,7 +722,9 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      */
     private function getDeviceChannelTree(): array
     {
-        $devices = $this->searchDevices([], [
+        $devices = $this->searchDevices([
+            'sum_num_GT' => 0
+        ], [
             'status' => 'ASC',
             'id' => 'DESC'
         ], 0, PHP_INT_MAX);
@@ -891,6 +898,45 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return substr((string)(time() * 1000 + rand(0, 999)), -10);
     }
 
+    // ==================== 自动直播 ====================
+
+    public function getAutoLiveChannels(): array
+    {
+        return $this->getDeviceChannelsDao()->search(
+            [
+                'auto_live' => 1,
+                'close_live' => 0,
+                'channel_types' => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value],
+                'media_server_id_NE' => 'none',
+                'status' => DeviceStatusEnum::ONLINE->value
+            ],
+            [],
+            0,
+            PHP_INT_MAX
+        );
+    }
+
+    public function clearChannelRecordPlan(int $planId): int
+    {
+        $channels = $this->getDeviceChannelsDao()->search(
+            ['record_plan_id' => $planId],
+            [],
+            0,
+            PHP_INT_MAX
+        );
+
+        $count = 0;
+        foreach ($channels as $channel) {
+            $this->getDeviceChannelsDao()->update($channel['id'], [
+                'record_plan_id' => 0,
+                'record_status' => 0,
+            ]);
+            $count++;
+        }
+
+        return $count;
+    }
+
     // ==================== 预置位管理 ====================
 
     public function getPresetList(string $deviceId, string $channelId): array
@@ -1008,5 +1054,72 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     protected function getGb28181Service(): Gb28181Service
     {
         return $this->bfw->offsetGet('gb28181_service');
+    }
+
+    public function updateDeviceChannelsPosition(string $deviceId, float $longitude, float $latitude): int
+    {
+        return $this->getDeviceChannelsDao()->updatePositionByDeviceId($deviceId, $longitude, $latitude);
+    }
+
+    public function updateDevicePosition(string $deviceId, float $longitude, float $latitude): int
+    {
+        return $this->getDeviceDao()->updatePositionByDeviceId($deviceId, $longitude, $latitude);
+    }
+
+    public function updateDeviceCategory(string $deviceId, ?int $categoryCode = null): bool
+    {
+        $device = $this->getDeviceByDeviceId($deviceId);
+        if (!$device) {
+            return false;
+        }
+
+        // 如果未指定分类，从device_id自动解析
+        if ($categoryCode === null) {
+            $category = \CoreW\Business\Devices\Enums\DeviceCategoryEnum::parseFromDeviceId($deviceId);
+            $categoryCode = $category?->value;
+        }
+
+        $this->updateDevice($device['id'], [
+            'device_category' => $categoryCode,
+        ]);
+
+        return true;
+    }
+
+    public function batchUpdateDeviceCategories(array $deviceIds = []): int
+    {
+        $conditions = [];
+        if (!empty($deviceIds)) {
+            $conditions['device_ids'] = $deviceIds;
+        }
+
+        $devices = $this->searchDevices($conditions, [], 0, PHP_INT_MAX, ['id', 'device_id']);
+
+        $updatedCount = 0;
+        foreach ($devices as $device) {
+            $category = \CoreW\Business\Devices\Enums\DeviceCategoryEnum::parseFromDeviceId($device['device_id']);
+            if ($category) {
+                $this->updateDevice($device['id'], [
+                    'device_category' => $category->value,
+                ]);
+                $updatedCount++;
+            }
+        }
+
+        return $updatedCount;
+    }
+
+    public function bindDeviceToGateway(string $deviceId, string $gatewayId): bool
+    {
+        $device = $this->getDeviceDao()->getByDeviceId($deviceId);
+        if (empty($device)) {
+            return false;
+        }
+
+        $this->updateDevice($device['id'], [
+            'gateway_id' => $gatewayId,
+        ]);
+
+        return true;
     }
 }

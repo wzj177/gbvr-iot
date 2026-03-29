@@ -143,6 +143,7 @@ ALTER TABLE `device_channels` ADD INDEX `idx_device_id` (`device_id`);
 ALTER TABLE `stream_sessions` ADD INDEX `idx_started_at` (`started_at`);
 
 CREATE TABLE `gv_record_plan` (
+      `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `partner_id` int(10) NOT NULL DEFAULT '0' COMMENT '所属合作方',
   `name` varchar(255) NOT NULL DEFAULT '' COMMENT '录制计划名称',
   `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否启用该录制计划(1=启用；0=禁用)',

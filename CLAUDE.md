@@ -117,6 +117,22 @@ $zlmClient = $this->getBiz()->offsetGet('zlm_sdk');
 - `{Prefix}` → Looks up in `$this->aliases`
 - Final class: `{Namespace}\{Middle}\Service\Impl\{Name}Impl`
 
+**IMPORTANT - Workerman Process Container Access**:
+```php
+// In Workerman processes (app/process/*), use Core::instance() instead of $this->getBiz()
+protected function getBfw(): \CoreW\Bfw
+{
+    return Core::instance();
+}
+
+protected function getStreamProxyService(): StreamProxyService
+{
+    return $this->getBfw()->service('StreamProxy:StreamProxyService');
+}
+// ❌ WRONG: Core::$container['service'] (undefined static property)
+// ✅ CORRECT: Core::instance()->service('service')
+```
+
 ### Layered Architecture
 
 1. **Controllers** (`app/*/controller/`): Handle HTTP, call services
@@ -173,6 +189,31 @@ Multi-context authentication via `AuthIdentityMiddleware`:
 
 **Device flow**: Device → SIP Server → ZLMediaKit → RTSP/HLS/FLV streams
 
+### StreamProxy Module (Non-GB28181 Stream Management)
+
+**Purpose**: Independent module for non-GB28181 cameras (Hikvision/Dahua RTSP) and third-party push streams (OBS/FFmpeg)
+
+**Architecture**: Complete isolation from GB28181 code with:
+- Pull mode: Actively fetch RTSP/RTMP streams from cameras
+- Push mode: Receive push streams from OBS/FFmpeg via custom stream IDs
+- Health check: 30s interval to verify stream online status
+- Auto-reconnect: 60s interval to restore offline streams
+- Recording integration: Binds with existing `gv_record_plan` table
+- Comprehensive logging: All operations logged to `gv_stream_proxy_logs`
+
+**Key files**:
+- `CoreW/Business/StreamProxy/` - Complete module (DAO/Service/Exception)
+- `app/admin/controller/StreamProxyController.php` - 18 REST API endpoints
+- `app/process/StreamProxyHealthCheckProcess.php` - 30s health checks
+- `app/process/StreamProxyAutoReconnectProcess.php` - 60s auto-reconnect
+- `migrations/20260306000001_create_stream_proxies_table.php` - Main table
+- `migrations/20260306000002_create_stream_proxy_logs_table.php` - Log table
+- `docs/StreamProxy-API.md` - Complete API documentation
+
+**API Base**: `/api/admin/stream-proxies` (18 endpoints including CRUD, stream control, logging, push/pull URLs)
+
+**Stream ID Customization**: For push-type proxies, users can specify custom `stream` field (alphanumeric/dash/underscore) for OBS configuration. If not provided, auto-generates UUID.
+
 ### DAO Caching
 
 When Redis `dao-cache` is enabled, DAO methods starting with these names are cached:
@@ -191,6 +232,8 @@ When Redis `dao-cache` is enabled, DAO methods starting with these names are cac
 | `config/gb28181.php` | SIP server config (20-digit server ID, domain, media server IP) |
 | `config/iot.php` | IoT platform drivers (BytV3, BytV4) |
 | `config/route.php` | Route loading (includes admin/api route folders) |
+| `config/log.php` | Log channel configuration - custom channels must be added here before use |
+| `config/process.php` | Background process registration (health checks, auto-reconnect, etc.) |
 
 ## Key Constraints & Notes
 
@@ -275,6 +318,7 @@ protected function getRoleService(): RoleService
     return $this->createService('Role:RoleService');
 }
 ```
+**CRITICAL**: DAO getter methods MUST return `DaoInterface|DaoProxy` union type because `createDao()` returns a `DaoProxy` wrapper (for caching). Without the union type, PHP will throw a TypeError.
 
 **数据验证：**
 ```php
@@ -684,6 +728,7 @@ $sip->onTaskFinish = function($taskId, $result) {
 4. **❌ Wrong**: Calling blocking operations (HTTP, DB) in event handlers
    - **✅ Right**: Use `addTask()` to offload to Task process
 
+5. **❌ 拒绝过度防御性编程
 ### Documentation
 
 - **Full API Reference**: `exosip.stub.php` (2077 lines, IDE autocomplete)

@@ -5,6 +5,8 @@ namespace Gb28181\GateWay\Handlers;
 use \ExoSip;
 use Gb28181\GateWay\Device\DeviceManager;
 use Gb28181\GateWay\Handlers\LongTask\RedisSubscriber;
+use Gb28181\GateWay\Handlers\LongTask\CommandSubscriber;
+use Gb28181\GateWay\Transport\TransportFactory;
 use Gb28181\GateWay\Message\CommandDispatcher;
 use Gb28181\GateWay\Message\SdpBuilder;
 use Gb28181\GateWay\Message\CommandType\DeviceControlCommand;
@@ -131,6 +133,12 @@ class GB28181Handler
      * @var array<int, array> callId => { session_id, ssrc, stream_id, app, media_server_id, ... }
      */
     private array $pendingBroadcastAck = [];
+
+    /**
+     * 上次心跳上报时间戳
+     * @var int
+     */
+    private int $lastHeartbeatSent = 0;
 
     /**
      * 构造函数
@@ -273,17 +281,26 @@ class GB28181Handler
 
         //  捕获需要的变量到闭包
         $config = $this->config;
-        // 启动 Redis 订阅器 Long Task
-        $server->startLongTask(function () use ($server, $config) {
-            $this->log("[LongTask] Redis Subscriber started (PID: " . getmypid() . ")");
+        $debug = $config['debug'] ?? false;
 
-            // 使用封装的 RedisSubscriber 类 - 主要对接的是api和网关的通信
-            $subscriber = new RedisSubscriber(
-                $config['redis'],
-                $config['debug'] ?? false
-            );
+        // 启动命令订阅器 Long Task
+        $server->startLongTask(function () use ($server, $config, $debug) {
+            $transportType = $config['mq_type'] ?? 'redis';
+            $this->log("[LongTask] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}");
 
-            $subscriber->run($server, $config['redis']['queue_name'], 0);
+            // 根据 mq_type 创建 Transport
+            if ($transportType === 'redis') {
+                $transportConfig = $config['redis'] ?? [];
+            } else {
+                $transportConfig = $config['mq_config'] ?? [];
+            }
+
+            $transport = TransportFactory::create($transportType, $transportConfig);
+
+            $queueKey = $config['redis']['queue_name'] ?? 'gb28181:commands';
+
+            $subscriber = new CommandSubscriber($transport, $debug);
+            $subscriber->run($server, $queueKey, 0);
         });
     }
 
@@ -2456,6 +2473,12 @@ class GB28181Handler
         }
 
         !isset($payload['timestamp']) && $payload['timestamp'] = time();
+
+        // 注入 gateway_id 到 payload（集群模式）
+        $gatewayId = $this->config['gateway_id'] ?? null;
+        if ($gatewayId && !isset($payload['gateway_id'])) {
+            $payload['gateway_id'] = $gatewayId;
+        }
 
         try {
             $taskId = $this->sipServer->addTask([
