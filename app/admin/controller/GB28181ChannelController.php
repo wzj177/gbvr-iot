@@ -139,6 +139,8 @@ class GB28181ChannelController extends BaseController
             'origin_code',  // 级联编号
             'custom_lat',   // 自填纬度
             'custom_lng',   // 自填经度
+            'close_live',   // 是否关闭直播
+            'auto_live',    // 是否自动直播
         ];
 
         // 过滤只允许更新的字段
@@ -161,6 +163,14 @@ class GB28181ChannelController extends BaseController
             if ($lng < -180 || $lng > 180) {
                 return $this->createErrorJsonResponse('经度必须在 -180 到 180 之间', 400);
             }
+        }
+
+        if (isset($updateData['close_live'])) {
+            $updateData['close_live'] = (int)(bool)$updateData['close_live'];
+        }
+
+        if (isset($updateData['auto_live'])) {
+            $updateData['auto_live'] = (int)(bool)$updateData['auto_live'];
         }
 
         try {

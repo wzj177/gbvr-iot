@@ -14,6 +14,18 @@ class MediaServerStrategyFactory
     private static array $strategies = [];
 
     /**
+     * 获取媒体服务器策略实例（别名）
+     *
+     * @param string $type 媒体服务器类型 (zlm, srs, other)
+     * @return MediaServerStrategyInterface
+     * @throws \InvalidArgumentException
+     */
+    public static function create(string $type): MediaServerStrategyInterface
+    {
+        return self::getStrategy($type);
+    }
+
+    /**
      * 获取媒体服务器策略实例
      *
      * @param string $type 媒体服务器类型 (zlm, srs, other)
@@ -32,7 +44,7 @@ class MediaServerStrategyFactory
 
         return match ($type) {
             MediaServerType::ZLM->value => self::$strategies[$type] = new ZLMediaKitStrategy(),
-            MediaServerType::SRS->value => self::$strategies[$type] = new SRSMediaServerStrategy(),
+            MediaServerType::SRS->value => self::$strategies[$type] = new SRSStrategy(),
             default => throw new \InvalidArgumentException("Unsupported media server type: {$type}"),
         };
     }

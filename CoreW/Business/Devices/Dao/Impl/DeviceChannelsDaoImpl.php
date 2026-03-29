@@ -71,7 +71,19 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
                 'channel_type IN (:channel_types)',
                 'channel_id = :channel_id',
                 '(channel_name LIKE :keywords OR show_name LIKE :keywords OR channel_id LIKE :keywords)',
+                'close_live = :close_live',
+                'auto_live = :auto_live',
+                'media_server_id != :media_server_id_NE',
+                'record_plan_id = :record_plan_id',
+                'record_plan_id IN (:record_plan_ids)',
+                'record_status = :record_status',
             ],
         ];
+    }
+
+    public function updatePositionByDeviceId(string $deviceId, float $longitude, float $latitude): int
+    {
+        $sql = "UPDATE {$this->table()} SET lat = ?, lng = ?, updated_at = NOW() WHERE device_id = ?";
+        return $this->db()->executeStatement($sql, [$latitude, $longitude, $deviceId]);
     }
 }

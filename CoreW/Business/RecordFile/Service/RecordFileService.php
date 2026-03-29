@@ -31,4 +31,30 @@ interface RecordFileService
      * @return int
      */
     public function countRecordFiles(array $conditions): int;
+
+    /**
+     * 获取指定计划的录像日期列表
+     */
+    public function getRecordFileDateListByPlanId(int $planId): array;
+
+    /**
+     * 获取指定计划的录像文件总大小（Byte）
+     */
+    public function getRecordFileSizeByPlanId(int $planId): int;
+
+    /**
+     * 软删除指定计划+日期的录像文件
+     */
+    public function softDeleteByPlanIdAndDate(int $planId, string $recordDate): int;
+
+    /**
+     * 查询录像文件（带设备和通道信息）
+     *
+     * @param array $conditions 查询条件
+     * @param array $orderBys 排序
+     * @param int $start 起始位置
+     * @param int $limit 每页数量
+     * @return array
+     */
+    public function searchRecordFilesWithDeviceInfo(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array;
 }

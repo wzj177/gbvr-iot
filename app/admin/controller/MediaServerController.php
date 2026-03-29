@@ -28,6 +28,9 @@ class MediaServerController extends BaseController
             $conditions['status'] = $fields['status'];
         }
 
+        if (isset($fields['support_gb28181'])) {
+            $conditions['support_gb28181'] = (int)$fields['support_gb28181'];
+        }
 
         $total = $this->getMediaServerService()->countMediaServers($conditions);
         list($offset, $limit) = $this->getOffsetAndLimit($request);
@@ -94,6 +97,7 @@ class MediaServerController extends BaseController
         $allowedFields = [
             'name',           // 服务器名称
             'type',           // 服务器类型
+            'support_gb28181', // 是否支持GB28181协议
             'host',           // 服务器地址
             'port',           // 服务器端口
             'https_port',     // https端口
@@ -192,6 +196,7 @@ class MediaServerController extends BaseController
         $allowedFields = [
             'name',           // 服务器名称
             'type',           // 服务器类型
+            'support_gb28181', // 是否支持GB28181协议
             'host',           // 服务器地址
             'port',           // 服务器端口
             'stream_ip',      // 收流IP（用于SDP，为空则使用host）

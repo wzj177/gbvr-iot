@@ -884,6 +884,102 @@ class ZLMClient
     }
 
     /**
+     * 添加流代理（拉流）
+     *
+     * @param string $vhost 虚拟主机 (如: __defaultVhost__)
+     * @param string $app 应用名 (如: proxy)
+     * @param string $stream 流ID
+     * @param string $url 拉流地址 (rtsp://... 或 rtmp://...)
+     * @param int $retryCount 重试次数 (-1表示无限重试，默认-1)
+     * @param int $rtpType RTSP拉流时的RTP传输方式 (0:TCP, 1:UDP, 2:组播)
+     * @param int $timeoutSec 拉流超时时间（秒）
+     * @param bool $enableHls 是否转换为HLS
+     * @param bool $enableMp4 是否录制MP4
+     * @return array|null ['code' => 0, 'data' => ['key' => '流代理唯一标识']]
+     */
+    public function addStreamProxy(
+        string $vhost,
+        string $app,
+        string $stream,
+        string $url,
+        int $retryCount = -1,
+        int $rtpType = 0,
+        int $timeoutSec = 10,
+        bool $enableHls = true,
+        bool $enableMp4 = false
+    ): ?array {
+        $params = [
+            'vhost' => $vhost,
+            'app' => $app,
+            'stream' => $stream,
+            'url' => $url,
+            'retry_count' => $retryCount,
+            'rtp_type' => $rtpType,
+            'timeout_sec' => $timeoutSec,
+            'enable_hls' => $enableHls ? 1 : 0,
+            'enable_mp4' => $enableMp4 ? 1 : 0,
+        ];
+
+        $result = $this->request('addStreamProxy', $params);
+
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('Add stream proxy', [
+                'vhost' => $vhost,
+                'app' => $app,
+                'stream' => $stream,
+                'url' => $url,
+                'code' => $result['code'] ?? null,
+                'key' => $result['data']['key'] ?? null,
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * 删除流代理
+     *
+     * @param string $key 流代理的唯一标识（addStreamProxy返回的key）
+     * @return array|null ['code' => 0, 'data' => ['flag' => true]]
+     */
+    public function delStreamProxy(string $key): ?array
+    {
+        $params = ['key' => $key];
+        $result = $this->request('delStreamProxy', $params);
+
+        if ($this->debug && $result) {
+            Log::channel('zlm')->info('Delete stream proxy', [
+                'key' => $key,
+                'code' => $result['code'] ?? null,
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * 获取流代理列表
+     *
+     * @return array|null ['code' => 0, 'data' => [['key' => '', 'url' => '', ...]]]
+     */
+    public function getProxyList(): ?array
+    {
+        $result = $this->request('getProxyList', []);
+
+        if ($result && $result['code'] === 0) {
+            if ($this->debug) {
+                Log::channel('zlm')->info('Get proxy list success', [
+                    'count' => count($result['data'] ?? []),
+                ]);
+            }
+
+            return $result['data'] ?? [];
+        }
+
+        return [];
+    }
+
+    /**
      * HTTP请求封装
      *
      * @param string $api API名称

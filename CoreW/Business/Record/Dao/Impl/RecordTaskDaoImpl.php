@@ -7,7 +7,7 @@ use CoreW\Dao\AdvancedDaoImpl;
 
 class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 {
-    protected $table = 'gv_record_task';
+    protected $table = 'gv_local_record_task';
 
     public function declares(): array
     {

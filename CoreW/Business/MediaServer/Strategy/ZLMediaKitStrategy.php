@@ -255,6 +255,105 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function addStreamProxy(array $serverConfig, array $proxyConfig): array
+    {
+        $client = $this->getClient($serverConfig);
+
+        try {
+            $result = $client->addStreamProxy(
+                $proxyConfig['vhost'] ?? '__defaultVhost__',
+                $proxyConfig['app'] ?? 'proxy',
+                $proxyConfig['stream'],
+                $proxyConfig['url'],
+                $proxyConfig['retry_count'] ?? -1,
+                $proxyConfig['rtp_type'] ?? 0,
+                $proxyConfig['timeout_sec'] ?? 10,
+                $proxyConfig['enable_hls'] ?? true,
+                $proxyConfig['enable_mp4'] ?? false
+            );
+
+            if ($result && ($result['code'] ?? -1) === 0) {
+                return [
+                    'success' => true,
+                    'key' => $result['data']['key'] ?? '',
+                    'message' => 'Stream proxy added successfully',
+                ];
+            }
+
+            return [
+                'success' => false,
+                'key' => '',
+                'message' => $result['msg'] ?? 'Failed to add stream proxy',
+            ];
+        } catch (\Exception $e) {
+            Log::channel('zlm')->error('Failed to add stream proxy', [
+                'host' => $serverConfig['host'] ?? '',
+                'url' => $proxyConfig['url'] ?? '',
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'key' => '',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function delStreamProxy(array $serverConfig, string $key): bool
+    {
+        $client = $this->getClient($serverConfig);
+
+        try {
+            $result = $client->delStreamProxy($key);
+
+            return $result && ($result['code'] ?? -1) === 0;
+        } catch (\Exception $e) {
+            Log::channel('zlm')->error('Failed to delete stream proxy', [
+                'host' => $serverConfig['host'] ?? '',
+                'key' => $key,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__'): bool
+    {
+        $client = $this->getClient($serverConfig);
+
+        try {
+            $mediaList = $client->getMediaList($vhost, $app, $stream);
+
+            foreach ($mediaList as $media) {
+                if (($media['app'] ?? '') === $app && ($media['stream'] ?? '') === $stream) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            Log::channel('zlm')->error('Failed to check stream status', [
+                'host' => $serverConfig['host'] ?? '',
+                'app' => $app,
+                'stream' => $stream,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
      * 获取或创建 ZLM 客户端
      *
      * @param array $serverConfig

@@ -86,6 +86,19 @@ interface DeviceService
      */
     public function getDevicesForPush(array $deviceIds): array;
 
+    // ==================== 自动直播 ====================
+
+    /**
+     * 获取所有配置了自动直播的视频通道
+     * @return array
+     */
+    public function getAutoLiveChannels(): array;
+
+    /**
+     * 清除指定录像计划绑定的所有通道
+     */
+    public function clearChannelRecordPlan(int $planId): int;
+
     // ==================== 预置位管理 ====================
 
     /**
@@ -123,4 +136,39 @@ interface DeviceService
      * @return bool
      */
     public function deletePreset(string $deviceId, string $channelId, int $value): bool;
+
+    /**
+     * 更新设备下所有通道的位置信息（设备同步的经纬度）
+     * @param string $deviceId 设备ID
+     * @param float $longitude 经度
+     * @param float $latitude 纬度
+     * @return int 更新的通道数量
+     */
+    public function updateDeviceChannelsPosition(string $deviceId, float $longitude, float $latitude): int;
+
+    /**
+     * 更新移动设备的位置信息（MobilePosition订阅）
+     * @param string $deviceId 设备ID
+     * @param float $longitude 经度
+     * @param float $latitude 纬度
+     * @return int 更新的设备数量（0或1）
+     */
+    public function updateDevicePosition(string $deviceId, float $longitude, float $latitude): int;
+
+    /**
+     * 更新设备分类
+     *
+     * @param string $deviceId 设备ID
+     * @param int|null $categoryCode 设备分类编码（传null则自动从device_id解析）
+     * @return bool
+     */
+    public function updateDeviceCategory(string $deviceId, ?int $categoryCode = null): bool;
+
+    /**
+     * 批量更新设备分类（从device_id自动解析）
+     *
+     * @param array $deviceIds 设备ID列表（为空则更新所有设备）
+     * @return int 更新的设备数量
+     */
+    public function batchUpdateDeviceCategories(array $deviceIds = []): int;
 }

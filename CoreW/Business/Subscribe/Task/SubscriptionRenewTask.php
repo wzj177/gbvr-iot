@@ -22,7 +22,7 @@ class SubscriptionRenewTask extends BaseCrontabTask
             $expireTime = date('Y-m-d H:i:s', time() + 300);
 
             /** @var SubscribeService $subscribeService */
-            $subscribeService = $this->getBfw()->offsetGet('Subscribe:SubscribeService');
+            $subscribeService = $this->getBfw()->service('Subscribe:SubscribeService');
 
             // 续订即将过期的订阅
             $count = $subscribeService->renewExpiringSubscriptions($expireTime);
