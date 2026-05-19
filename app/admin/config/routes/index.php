@@ -23,8 +23,6 @@ use app\admin\controller\ProductCatalogController;
 use app\admin\controller\ProductTagController;
 use app\admin\controller\RoleController;
 use app\admin\controller\SettingController;
-use app\admin\controller\StreamProxyController;
-use app\admin\controller\SipGatewayController;
 use app\admin\controller\SystemController;
 use app\admin\controller\SystemMonitoringController;
 use app\admin\controller\UserController;
