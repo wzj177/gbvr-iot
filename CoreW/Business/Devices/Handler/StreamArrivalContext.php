@@ -42,27 +42,27 @@ class StreamArrivalContext
         $this->session = $session;
     }
 
-    public function getApp(): string
+    public function getApp() : string
     {
         return $this->app;
     }
 
-    public function getStream(): string
+    public function getStream() : string
     {
         return $this->stream;
     }
 
-    public function getMediaServerId(): string
+    public function getMediaServerId() : string
     {
         return $this->mediaServerId;
     }
 
-    public function getSession(): array
+    public function getSession() : array
     {
         return $this->session;
     }
 
-    public function setSession(array $session): self
+    public function setSession(array $session) : self
     {
         $this->session = $session;
         return $this;
@@ -71,60 +71,60 @@ class StreamArrivalContext
     /**
      * 更新 session 中的某些字段（合并到现有 session 数组中）
      */
-    public function mergeSession(array $fields): self
+    public function mergeSession(array $fields) : self
     {
         $this->session = array_merge($this->session, $fields);
         return $this;
     }
 
-    public function getSessionId(): string
+    public function getSessionId() : string
     {
         return $this->session['session_id'];
     }
 
-    public function getDeviceId(): string
+    public function getDeviceId() : string
     {
         return $this->session['device_id'];
     }
 
-    public function getChannelId(): string
+    public function getChannelId() : string
     {
         return $this->session['channel_id'];
     }
 
-    public function getMode(): string
+    public function getMode() : string
     {
         return $this->session['mode'] ?? 'talk';
     }
 
-    public function getSsrc(): ?string
+    public function getSsrc() : ?string
     {
         return $this->ssrc;
     }
 
-    public function setSsrc(?string $ssrc): self
+    public function setSsrc(?string $ssrc) : self
     {
         $this->ssrc = $ssrc;
         return $this;
     }
 
-    public function getReceiveStreamId(): ?string
+    public function getReceiveStreamId() : ?string
     {
         return $this->receiveStreamId;
     }
 
-    public function setReceiveStreamId(?string $receiveStreamId): self
+    public function setReceiveStreamId(?string $receiveStreamId) : self
     {
         $this->receiveStreamId = $receiveStreamId;
         return $this;
     }
 
-    public function getMediaServer(): ?array
+    public function getMediaServer() : ?array
     {
         return $this->mediaServer;
     }
 
-    public function setMediaServer(?array $mediaServer): self
+    public function setMediaServer(?array $mediaServer) : self
     {
         $this->mediaServer = $mediaServer;
         return $this;

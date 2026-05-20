@@ -77,12 +77,12 @@ class TableStrategy implements CacheStrategy
                     goto end;
                 } else {
                     foreach ($arguments[0] as $id) {
-                        $cacheKey = $this->key($dao, 'get', array($id));
+                        $cacheKey = $this->key($dao, 'get', [$id]);
                         $row = $this->redis->get($cacheKey);
                         if ($row) {
                             foreach ($arguments[1] as $key => $value) {
                                 $row[$key] += $value;
-                                $row[$key] = (string) $row[$key];
+                                $row[$key] = (string)$row[$key];
                             }
                             $this->redis->set($cacheKey, $row, self::LIFE_TIME);
                         }

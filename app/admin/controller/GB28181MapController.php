@@ -59,9 +59,9 @@ class GB28181MapController extends BaseController
         try {
             // 更新设备位置信息
             $result = $this->getDeviceService()->updateDeviceLocation($id, [
-                'latitude' => $latitude,
+                'latitude'  => $latitude,
                 'longitude' => $longitude,
-                'address' => $address
+                'address'   => $address,
             ]);
 
             if (!$result) {
@@ -78,54 +78,54 @@ class GB28181MapController extends BaseController
 
     /**
      * 模拟获取带位置信息的设备列表
-     * 
+     *
      * @param array $conditions
      * @return array
      */
-    private function getDevicesWithLocation(array $conditions): array
+    private function getDevicesWithLocation(array $conditions) : array
     {
         // 模拟设备数据，实际项目中应从数据库获取
         $mockDevices = [
             [
-                'id' => '34020000001320000001',
-                'name' => '主入口摄像头',
-                'lng' => 116.397428,
-                'lat' => 39.90923,
-                'online' => true,
-                'status' => 'normal',
-                'address' => '北京市东城区天安门广场'
+                'id'      => '34020000001320000001',
+                'name'    => '主入口摄像头',
+                'lng'     => 116.397428,
+                'lat'     => 39.90923,
+                'online'  => true,
+                'status'  => 'normal',
+                'address' => '北京市东城区天安门广场',
             ],
             [
-                'id' => '34020000001320000002',
-                'name' => '后门摄像头',
-                'lng' => 116.407428,
-                'lat' => 39.91923,
-                'online' => true,
-                'status' => 'motion_detect',
-                'address' => '北京市东城区故宫博物院'
+                'id'      => '34020000001320000002',
+                'name'    => '后门摄像头',
+                'lng'     => 116.407428,
+                'lat'     => 39.91923,
+                'online'  => true,
+                'status'  => 'motion_detect',
+                'address' => '北京市东城区故宫博物院',
             ],
             [
-                'id' => '34020000001320000003',
-                'name' => '停车场摄像头',
-                'lng' => 116.417428,
-                'lat' => 39.92923,
-                'online' => false,
-                'status' => 'alarm',
-                'address' => '北京市东城区王府井大街'
-            ]
+                'id'      => '34020000001320000003',
+                'name'    => '停车场摄像头',
+                'lng'     => 116.417428,
+                'lat'     => 39.92923,
+                'online'  => false,
+                'status'  => 'alarm',
+                'address' => '北京市东城区王府井大街',
+            ],
         ];
 
         // 根据条件过滤数据
         $filtered = $mockDevices;
-        
+
         if (isset($conditions['status'])) {
-            $filtered = array_filter($filtered, function($device) use ($conditions) {
+            $filtered = array_filter($filtered, function ($device) use ($conditions) {
                 return $device['status'] === $conditions['status'];
             });
         }
-        
+
         if (isset($conditions['device_ids']) && is_array($conditions['device_ids'])) {
-            $filtered = array_filter($filtered, function($device) use ($conditions) {
+            $filtered = array_filter($filtered, function ($device) use ($conditions) {
                 return in_array($device['id'], $conditions['device_ids']);
             });
         }
@@ -136,7 +136,7 @@ class GB28181MapController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }

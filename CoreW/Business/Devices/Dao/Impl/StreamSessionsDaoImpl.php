@@ -10,7 +10,7 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
 
     protected $table = 'gv_stream_sessions';
 
-    public function deleteAllByExpireTime(int $expireTime): int|string
+    public function deleteAllByExpireTime(int $expireTime) : int|string
     {
         $builder = $this->getQueryBuilder([
             'updated_at' => $expireTime,
@@ -23,28 +23,28 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
     public function getByCallId(int $callId)
     {
         return $this->getByFields([
-            'call_id' => $callId
+            'call_id' => $callId,
         ]);
     }
 
     public function getByStreamId(string $streamId)
     {
         return $this->getByFields([
-            'stream_id' => $streamId
+            'stream_id' => $streamId,
         ]);
     }
 
-        public function getActiveByStreamIdAndType(string $streamId, string $type): array|false
-        {
-            $sql = "SELECT * FROM {$this->table()} WHERE stream_id=? AND `type` =? AND `viewer_count` >= 1 AND `status` IN ('inviting', 'active') order by id desc limit 1;";
+    public function getActiveByStreamIdAndType(string $streamId, string $type) : array|false
+    {
+        $sql = "SELECT * FROM {$this->table()} WHERE stream_id=? AND `type` =? AND `viewer_count` >= 1 AND `status` IN ('inviting', 'active') order by id desc limit 1;";
 
-            return $this->db()->fetchAssoc($sql, [$streamId, $type]);
-        }
+        return $this->db()->fetchAssoc($sql, [$streamId, $type]);
+    }
 
     public function getBySsrc(string $ssrc)
     {
         return $this->getByFields([
-            'ssrc' => $ssrc
+            'ssrc' => $ssrc,
         ]);
     }
 
@@ -55,9 +55,9 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
      * @return int|string
      * @throws \Doctrine\DBAL\Exception
      */
-    public function deleteByDeviceId(string $deviceId): int|string
+    public function deleteByDeviceId(string $deviceId) : int|string
     {
-        return  $this->db()->delete($this->table(), ['device_id' => $deviceId]);
+        return $this->db()->delete($this->table(), ['device_id' => $deviceId]);
     }
 
     /**
@@ -66,38 +66,38 @@ class StreamSessionsDaoImpl extends AdvancedDaoImpl implements StreamSessionsDao
      * @return int|string
      * @throws \Doctrine\DBAL\Exception
      */
-    public function deleteByStreamId(string $streamId): int|string
+    public function deleteByStreamId(string $streamId) : int|string
     {
-        return  $this->db()->delete($this->table(), ['stream_id' => $streamId]);
+        return $this->db()->delete($this->table(), ['stream_id' => $streamId]);
     }
 
     /**
      * 获取冷却中的端口
-     * 
+     *
      * @param int $coolingTime 冷却时间（秒），默认20秒
      * @return array 端口列表
      */
-    public function getCoolingPorts(int $coolingTime = 20): array
+    public function getCoolingPorts(int $coolingTime = 20) : array
     {
         $coolingTimeAgo = date('Y-m-d H:i:s', time() - $coolingTime);
-        
+
         $sql = "SELECT DISTINCT rtp_port FROM {$this->table()} 
                 WHERE rtp_port IS NOT NULL 
                 AND updated_at > ? 
                 AND status IN ('stopped', 'error')";
-                
+
         $stmt = $this->db()->prepare($sql);
         $result = $stmt->executeQuery([$coolingTimeAgo]);
-        
+
         return $result->fetchAllAssociative();
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
             ],
             'conditions' => [

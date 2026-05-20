@@ -12,7 +12,7 @@ class ExceptionTemplate extends BaseTemplate implements TemplateInterface
     {
         $exception = $args['bizId'];
         $className = "{$exception}Exception";
-        
+
         // For make-exception scene, we need to adjust the namespace
         $namespace = $this->prefix;
         if (!empty($args['scene']) && $args['scene'] === 'make-exception' && substr_count($this->prefix, '\\') > 2) {
@@ -21,7 +21,7 @@ class ExceptionTemplate extends BaseTemplate implements TemplateInterface
             array_pop($parts); // Remove the last part (business entity name)
             $namespace = implode('\\', $parts);
         }
-        
+
         $phpCode = "<?php\n"
             . "\n"
             . "namespace {$namespace}\\Exception;\n"

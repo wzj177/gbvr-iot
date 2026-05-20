@@ -18,7 +18,7 @@ class SyncMediaServerStatusJob implements Consumer
     public $connection = 'default';
 
     // 消费
-    public function consume($data): bool
+    public function consume($data) : bool
     {
         if (empty($data['mediaServerId'])) {
             $this->getLogService()->warning(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_SYNC_MEDIA_SERVER_STATUS, '缺少媒体服务器ID', ['data' => $data]);
@@ -41,39 +41,39 @@ class SyncMediaServerStatusJob implements Consumer
             $isOnline = $strategy->isOnline($server);
 
             $service->updateMediaServer($mediaServerId, [
-                'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
+                'status'       => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
                 'last_sync_at' => date('Y-m-d H:i:s'),
             ]);
 
             if ($isOnline) {
                 $strategy->setConfig($server, [
                     'general' => ['mediaServerId' => $server['server_id']],
-                    'http' => ['sslport' => $server['https_port']]
+                    'http'    => ['sslport' => $server['https_port']],
                 ]);
             }
 
             $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_SYNC_MEDIA_SERVER_STATUS, '同步媒体服务器状态完成', [
-                'id' => $mediaServerId,
-                'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value
+                'id'     => $mediaServerId,
+                'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
             ]);
 
             return true;
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_SYNC_MEDIA_SERVER_STATUS, '同步媒体服务器状态失败', [
-                'id' => $mediaServerId,
+                'id'    => $mediaServerId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
     }
 
-    protected function getBiz(): Bfw
+    protected function getBiz() : Bfw
     {
         return Core::instance();
     }
 
-    protected function getLogService(): \CoreW\Business\SystemLog\Service\SystemLogService
+    protected function getLogService() : \CoreW\Business\SystemLog\Service\SystemLogService
     {
         return $this->getBiz()->service('SystemLog:SystemLogService');
     }

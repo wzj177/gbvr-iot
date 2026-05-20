@@ -17,9 +17,9 @@ enum RecordTaskStatusEnum: string
 
     case CANCELLED = 'cancelled';
 
-    public function label(): string
+    public function label() : string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => '待执行',
             self::INVITING => 'INVITE中',
             self::WAIT_STREAM => '等待流',
@@ -31,25 +31,25 @@ enum RecordTaskStatusEnum: string
         };
     }
 
-    public static function getItems(): array
+    public static function getItems() : array
     {
         return array_map(fn($item) => [
-            'key' => $item->value,
+            'key'   => $item->value,
             'value' => $item->label(),
         ], self::cases());
     }
 
-    public function isFinal(): bool
+    public function isFinal() : bool
     {
-        return match($this) {
+        return match ($this) {
             self::DONE, self::FAILED, self::CANCELLED => true,
             default => false,
         };
     }
 
-    public function isProcessing(): bool
+    public function isProcessing() : bool
     {
-        return match($this) {
+        return match ($this) {
             self::INVITING, self::WAIT_STREAM, self::RECORDING, self::FINALIZING => true,
             default => false,
         };

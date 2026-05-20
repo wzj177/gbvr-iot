@@ -9,18 +9,18 @@ class DeviceSubscribeConfigDaoImpl extends AdvancedDaoImpl implements DeviceSubs
 {
     protected $table = 'gv_device_subscribe_config';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
                 'last_subscribed_at',
                 'subscription_expires_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],
@@ -45,7 +45,7 @@ class DeviceSubscribeConfigDaoImpl extends AdvancedDaoImpl implements DeviceSubs
         ];
     }
 
-    public function getByDeviceAndChannel(string $deviceId, ?string $channelId = null): ?array
+    public function getByDeviceAndChannel(string $deviceId, ?string $channelId = null) : ?array
     {
         $conditions = ['device_id' => $deviceId];
         if ($channelId === null) {
@@ -54,7 +54,7 @@ class DeviceSubscribeConfigDaoImpl extends AdvancedDaoImpl implements DeviceSubs
                     WHERE device_id = ?
                     AND channel_id IS NULL
                     LIMIT 1";
-            return $this->db()->fetchAssoc($sql, [$deviceId]) ?: null;
+            return $this->db()->fetchAssoc($sql, [$deviceId]) ? : null;
         } else {
             $conditions['channel_id'] = $channelId;
         }
@@ -62,12 +62,12 @@ class DeviceSubscribeConfigDaoImpl extends AdvancedDaoImpl implements DeviceSubs
         return $this->getByFields($conditions);
     }
 
-    public function findExpiringConfigs(string $expireTime): array
+    public function findExpiringConfigs(string $expireTime) : array
     {
         return $this->search(
             [
-                'status' => 1,
-                'auto_renew' => 1,
+                'status'                    => 1,
+                'auto_renew'                => 1,
                 'subscription_expires_at <' => $expireTime,
             ],
             ['subscription_expires_at' => 'ASC'],

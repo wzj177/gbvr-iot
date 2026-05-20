@@ -115,7 +115,7 @@ class XdbSearcher
         if ($this->vectorIndex != null) {
             $sPtr = self::getLong($this->vectorIndex, $idx);
             $ePtr = self::getLong($this->vectorIndex, $idx + 4);
-        } elseif ($this->contentBuff != null) {
+        } else if ($this->contentBuff != null) {
             $sPtr = self::getLong($this->contentBuff, self::HeaderInfoLength + $idx);
             $ePtr = self::getLong($this->contentBuff, self::HeaderInfoLength + $idx + 4);
         } else {
@@ -261,11 +261,11 @@ class XdbSearcher
 
         // return the decoded header info
         return [
-            'version' => self::getShort($buff, 0),
-            'indexPolicy' => self::getShort($buff, 2),
-            'createdAt' => self::getLong($buff, 4),
+            'version'       => self::getShort($buff, 0),
+            'indexPolicy'   => self::getShort($buff, 2),
+            'createdAt'     => self::getLong($buff, 4),
             'startIndexPtr' => self::getLong($buff, 8),
-            'endIndexPtr' => self::getLong($buff, 12),
+            'endIndexPtr'   => self::getLong($buff, 12),
         ];
     }
 

@@ -34,7 +34,7 @@ class PlaybackRecordServiceImpl extends BaseService implements PlaybackRecordSer
         return $this->getPlaybackRecordDao()->create($record);
     }
 
-    public function batchCreatePlaybackRecords(array $records): int
+    public function batchCreatePlaybackRecords(array $records) : int
     {
         if (empty($records)) {
             return 0;
@@ -49,7 +49,7 @@ class PlaybackRecordServiceImpl extends BaseService implements PlaybackRecordSer
         return $this->getPlaybackRecordDao()->batchCreate($records);
     }
 
-    public function savePlaybackRecords(array $records): int
+    public function savePlaybackRecords(array $records) : int
     {
         if (empty($records)) {
             return 0;
@@ -63,10 +63,10 @@ class PlaybackRecordServiceImpl extends BaseService implements PlaybackRecordSer
                 $key = $record['device_id'] . '_' . $record['channel_id'];
                 if (!isset($grouped[$key])) {
                     $grouped[$key] = [
-                        'device_id' => $record['device_id'],
+                        'device_id'  => $record['device_id'],
                         'channel_id' => $record['channel_id'],
-                        'min_start' => PHP_INT_MAX,
-                        'max_end' => 0,
+                        'min_start'  => PHP_INT_MAX,
+                        'max_end'    => 0,
                     ];
                 }
                 $grouped[$key]['min_start'] = min($grouped[$key]['min_start'], $record['start_time']);
@@ -108,13 +108,13 @@ class PlaybackRecordServiceImpl extends BaseService implements PlaybackRecordSer
     /**
      * 检查指定时间范围内是否有录像
      */
-    public function hasRecordInTimeRange(string $deviceId, string $channelId, int $startTime, int $endTime): bool
+    public function hasRecordInTimeRange(string $deviceId, string $channelId, int $startTime, int $endTime) : bool
     {
         $count = $this->countPlaybackRecords([
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
+            'device_id'      => $deviceId,
+            'channel_id'     => $channelId,
             'start_time_LTE' => $endTime,
-            'end_time_GTE' => $startTime,
+            'end_time_GTE'   => $startTime,
         ]);
 
         return $count > 0;
@@ -123,20 +123,20 @@ class PlaybackRecordServiceImpl extends BaseService implements PlaybackRecordSer
     /**
      * 获取指定时间范围内的录像数量
      */
-    public function countRecordsByTimeRange(string $deviceId, string $channelId, int $startTime, int $endTime): int
+    public function countRecordsByTimeRange(string $deviceId, string $channelId, int $startTime, int $endTime) : int
     {
         return $this->countPlaybackRecords([
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
+            'device_id'      => $deviceId,
+            'channel_id'     => $channelId,
             'start_time_LTE' => $endTime,
-            'end_time_GTE' => $startTime,
+            'end_time_GTE'   => $startTime,
         ]);
     }
 
     /**
      * 删除指定时间范围内的所有录像记录（用于全量同步）
      */
-    public function deleteRecordsInTimeRange(string $deviceId, int $startTime, int $endTime, ?string $channelId = null): int
+    public function deleteRecordsInTimeRange(string $deviceId, int $startTime, int $endTime, ?string $channelId = null) : int
     {
         return $this->getPlaybackRecordDao()->deleteRecordsInTimeRange($deviceId, $channelId, $startTime, $endTime);
     }

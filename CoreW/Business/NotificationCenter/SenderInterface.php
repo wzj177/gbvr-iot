@@ -1,7 +1,7 @@
 <?php
 
 
-namespace  CoreW\NotificationCenter;
+namespace CoreW\NotificationCenter;
 
 
 interface SenderInterface

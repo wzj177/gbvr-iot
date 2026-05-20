@@ -148,18 +148,18 @@ class AliFileImplementor extends AbstractFileImplementor implements FileImplemen
         $existFile = $this->getFileByHashId($hashId);
         if (!empty($existFile)) {
             return [
-                'storage' => 'aliyun',
-                'filename' => $filename,
-                'newFilename' => $existFile['newFilename'],
-                'ext' => $existFile['ext'],
-                'metas' => $existFile['metas'],
-                'fileSize' => $existFile['fileSize'],
-                'type' => $existFile['type'],
-                'filepath' => $existFile['filepath'],
-                'hashId' => $hashId,
-                'groupCode' => $existFile['groupCode'],
-                'globalId' => $existFile['globalId'],
-                'firstStorage' => false
+                'storage'      => 'aliyun',
+                'filename'     => $filename,
+                'newFilename'  => $existFile['newFilename'],
+                'ext'          => $existFile['ext'],
+                'metas'        => $existFile['metas'],
+                'fileSize'     => $existFile['fileSize'],
+                'type'         => $existFile['type'],
+                'filepath'     => $existFile['filepath'],
+                'hashId'       => $hashId,
+                'groupCode'    => $existFile['groupCode'],
+                'globalId'     => $existFile['globalId'],
+                'firstStorage' => false,
             ];
         }
 
@@ -174,19 +174,19 @@ class AliFileImplementor extends AbstractFileImplementor implements FileImplemen
             );
 
             return [
-                'storage' => 'aliyun',
-                'filename' => $filename,
-                'newFilename' => $name . '.' . $ext,
-                'ext' => $ext,
-                'metas' => $metas,
-                'fileSize' => $fileSize,
-                'type' => $type,
-                'filepath' => $object,
-                'hashId' => $hashId,
-                'groupCode' => $group,
-                'globalId' => $object,
-                'etag' => $result['etag'] ?? '',
-                'firstStorage' => true
+                'storage'      => 'aliyun',
+                'filename'     => $filename,
+                'newFilename'  => $name . '.' . $ext,
+                'ext'          => $ext,
+                'metas'        => $metas,
+                'fileSize'     => $fileSize,
+                'type'         => $type,
+                'filepath'     => $object,
+                'hashId'       => $hashId,
+                'groupCode'    => $group,
+                'globalId'     => $object,
+                'etag'         => $result['etag'] ?? '',
+                'firstStorage' => true,
             ];
         } catch (OssException $e) {
             throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '阿里云OSS上传失败: ' . $e->getMessage());
@@ -238,18 +238,18 @@ class AliFileImplementor extends AbstractFileImplementor implements FileImplemen
             );
 
             return [
-                'storage' => 'aliyun',
-                'filename' => $name . '.' . $ext,
+                'storage'     => 'aliyun',
+                'filename'    => $name . '.' . $ext,
                 'newFilename' => $name . '.' . $ext,
-                'ext' => $ext,
-                'metas' => 'image/' . $ext,
-                'fileSize' => $fileSize,
-                'type' => 'image',
-                'filepath' => $object,
-                'hashId' => $hashId,
-                'groupCode' => $group,
-                'globalId' => $object,
-                'etag' => $ossResult['etag'] ?? '',
+                'ext'         => $ext,
+                'metas'       => 'image/' . $ext,
+                'fileSize'    => $fileSize,
+                'type'        => 'image',
+                'filepath'    => $object,
+                'hashId'      => $hashId,
+                'groupCode'   => $group,
+                'globalId'    => $object,
+                'etag'        => $ossResult['etag'] ?? '',
             ];
         } catch (OssException $e) {
             throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '阿里云OSS上传失败: ' . $e->getMessage());
@@ -281,7 +281,7 @@ class AliFileImplementor extends AbstractFileImplementor implements FileImplemen
         try {
             ob_start();
             $context = stream_context_create([
-                'http' => ['follow_location' => false]
+                'http' => ['follow_location' => false],
             ]);
             readfile($url, false, $context);
             $content = ob_get_contents();
@@ -315,18 +315,18 @@ class AliFileImplementor extends AbstractFileImplementor implements FileImplemen
                 );
 
                 return [
-                    'storage' => 'aliyun',
-                    'filename' => $name . '.' . $ext,
+                    'storage'     => 'aliyun',
+                    'filename'    => $name . '.' . $ext,
                     'newFilename' => $name . '.' . $ext,
-                    'ext' => $ext,
-                    'metas' => $heads['Content-Type'] ?? 'application/octet-stream',
-                    'fileSize' => $fileSize,
-                    'type' => $type,
-                    'filepath' => $object,
-                    'hashId' => $hashId,
-                    'groupCode' => $group,
-                    'globalId' => $object,
-                    'etag' => $ossResult['etag'] ?? '',
+                    'ext'         => $ext,
+                    'metas'       => $heads['Content-Type'] ?? 'application/octet-stream',
+                    'fileSize'    => $fileSize,
+                    'type'        => $type,
+                    'filepath'    => $object,
+                    'hashId'      => $hashId,
+                    'groupCode'   => $group,
+                    'globalId'    => $object,
+                    'etag'        => $ossResult['etag'] ?? '',
                 ];
             }
         } catch (\Throwable $e) {

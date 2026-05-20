@@ -21,7 +21,7 @@ class SportsLotteryCommand extends Command
      */
     protected function configure()
     {
-        $this->addOption('gameNo', '-g',InputOption::VALUE_REQUIRED, '--gameNo:排列三=35；排列五=350133；七星彩=04');
+        $this->addOption('gameNo', '-g', InputOption::VALUE_REQUIRED, '--gameNo:排列三=35；排列五=350133；七星彩=04');
     }
 
     /**
@@ -39,12 +39,12 @@ class SportsLotteryCommand extends Command
         $termLimits = 10 * 10000 * 10000;
         $pageSize = $termLimits;
         $rawResult = $this->getHttpClient()->get($this->getBaseUri(), [
-            'gameNo' => $gameNo,
+            'gameNo'     => $gameNo,
             'provinceId' => 0,
-            'pageNo' => 1,
-            'pageSize' => $pageSize,
-            'isVerify' => 1,
-            'termLimits' => $termLimits
+            'pageNo'     => 1,
+            'pageSize'   => $pageSize,
+            'isVerify'   => 1,
+            'termLimits' => $termLimits,
         ]);
         $response = json_decode($rawResult['response']['body'], true);
         if ($response['errorCode'] != 0) {
@@ -84,9 +84,9 @@ class SportsLotteryCommand extends Command
     protected function lotteryTypeDicts($key)
     {
         $items = [
-            '35' => '排列三',
+            '35'     => '排列三',
             '350133' => '排列五',
-            '04' => '七星彩',
+            '04'     => '七星彩',
         ];
 
         return $items[$key] ?? '';
@@ -95,12 +95,12 @@ class SportsLotteryCommand extends Command
     protected function getHttpClient()
     {
         $client = new CURLHttpClient([
-            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63'
+            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63',
         ]);
         $client->setConfig([
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_SSL_VERIFYPEER => 0,
-            CURLOPT_HEADER => true
+            CURLOPT_HEADER         => true,
         ]);
         $client->setConnectionTimeoutInMillis(60 * 1000);
         $client->setSocketTimeoutInMillis(60 * 1000);

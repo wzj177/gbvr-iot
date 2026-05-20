@@ -41,7 +41,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getDeviceDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
 
-    public function findDevicesByDeviceIds(array $deviceIds): array
+    public function findDevicesByDeviceIds(array $deviceIds) : array
     {
         if (empty($deviceIds)) {
             return [];
@@ -50,7 +50,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getDeviceDao()->search(['device_ids' => $deviceIds], [], 0, count($deviceIds));
     }
 
-    public function summaryDevices(array $conditions = []): array
+    public function summaryDevices(array $conditions = []) : array
     {
         $totalCount = $this->countDevices($conditions);
         $onlineCount = $this->countDevices(array_merge(['status' => DeviceStatusEnum::ONLINE->value], $conditions)); // 注册在线
@@ -58,9 +58,9 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         $unregisterCount = $this->countDevices(array_merge(['status' => DeviceStatusEnum::UNREGISTERED->value], $conditions));
 
         return [
-            'total_count' => $totalCount,
-            'online_count' => $onlineCount,
-            'expired_count' => $expiredCount,
+            'total_count'      => $totalCount,
+            'online_count'     => $onlineCount,
+            'expired_count'    => $expiredCount,
             'unregister_count' => $unregisterCount,
         ];
     }
@@ -68,11 +68,11 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function createDevice(array $fields)
     {
         $device = array_merge([
-            'status' => DeviceStatusEnum::UNREGISTERED->value,
-            'enabled' => true,
+            'status'      => DeviceStatusEnum::UNREGISTERED->value,
+            'enabled'     => true,
             'device_name' => $fields['device_name'] ?? $fields['device_id'],
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'created_at'  => date('Y-m-d H:i:s'),
+            'updated_at'  => date('Y-m-d H:i:s'),
         ], $fields);
 
         return $this->getDeviceDao()->create($device);
@@ -97,7 +97,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $resp;
     }
 
-    public function syncDeviceConfig(array $device): bool
+    public function syncDeviceConfig(array $device) : bool
     {
         if ($device['status'] !== DeviceStatusEnum::ONLINE->value) {
             return false;
@@ -110,9 +110,10 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     {
         $this->beginTransaction();
         try {
+            $device = $this->getDevicesById($id);
             $this->getDeviceDao()->delete($id);
-            $this->getDeviceChannelsDao()->deleteByDeviceId($id);
-            $this->getStreamSessionsDao()->deleteByDeviceId($id);
+            $this->getDeviceChannelsDao()->deleteByDeviceId($device['device_id']);
+            $this->getStreamSessionsDao()->deleteByDeviceId($device['device_id']);
             $this->commit();
 
             return true;
@@ -127,7 +128,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     /**
      * 处理设备注册
      */
-    public function handleDeviceRegister(string $deviceId, array $data): array
+    public function handleDeviceRegister(string $deviceId, array $data) : array
     {
         $device = $this->getDeviceByDeviceId($deviceId);
 
@@ -137,12 +138,12 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         $category = \CoreW\Business\Devices\Enums\DeviceCategoryEnum::parseFromDeviceId($deviceId);
 
         $deviceData = [
-            'status' => DeviceStatusEnum::ONLINE->value,
-            'device_id' => $deviceId,
-            'device_type' => $this->parseDeviceTypeByDeviceId($deviceId),
-            'device_category' => $category?->value,
-            'registered_at' => isset($data['registered_at']) ? date('Y-m-d H:i:s', $data['registered_at']) : $now,
-//            'last_heartbeat_at' => isset($data['timestamp']) ? date('Y-m-d H:i:s', $data['timestamp']) : $now,
+            'status'            => DeviceStatusEnum::ONLINE->value,
+            'device_id'         => $deviceId,
+            'device_type'       => $this->parseDeviceTypeByDeviceId($deviceId),
+            'device_category'   => $category?->value,
+            'registered_at'     => isset($data['registered_at']) ? date('Y-m-d H:i:s', $data['registered_at']) : $now,
+            //            'last_heartbeat_at' => isset($data['timestamp']) ? date('Y-m-d H:i:s', $data['timestamp']) : $now,
             'last_heartbeat_at' => $data['timestamp'] ?? time(),
         ];
 
@@ -179,7 +180,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         }
     }
 
-    public function updateDeviceHeartbeat(string $deviceId): bool
+    public function updateDeviceHeartbeat(string $deviceId) : bool
     {
         $device = $this->getDeviceByDeviceId($deviceId);
         if (!$device) {
@@ -191,7 +192,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         ]);
     }
 
-    public function updateDeviceStatus(string $deviceId, string $status): bool
+    public function updateDeviceStatus(string $deviceId, string $status) : bool
     {
         $device = $this->getDeviceByDeviceId($deviceId);
         if (!$device) {
@@ -204,7 +205,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             return true;
         }
 
-        if ($device['status'] === DeviceStatusEnum::UNREGISTERED->value && in_array($status, [DeviceStatusEnum::EXPIRED->value])) {
+        if ($device['status'] === DeviceStatusEnum::UNREGISTERED->value && $status === DeviceStatusEnum::EXPIRED->value) {
             // 已注销状态，不能修改为心跳超时 或者离线
             return true;
         }
@@ -212,8 +213,8 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         $this->beginTransaction();
         try {
             $this->updateDevice($device['id'], [
-                'status' => $status,
-                'expires' => $status === DeviceStatusEnum::UNREGISTERED->value ? 0 : $device['expires']
+                'status'  => $status,
+                'expires' => $status === DeviceStatusEnum::UNREGISTERED->value ? 0 : $device['expires'],
             ]);
             $this->updateChannelsStatusByDeviceId($deviceId, $status);
             $this->commit();
@@ -273,12 +274,12 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function createChannel(array $fields)
     {
         $channel = array_merge([
-            'status' => DeviceStatusEnum::UNREGISTERED->value,
-            'enabled' => false,
+            'status'          => DeviceStatusEnum::UNREGISTERED->value,
+            'enabled'         => false,
             'media_server_id' => 'default',
-            'channel_type' => $this->parseDeviceChanelTypeByDeviceId($fields['channel_id']),
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'channel_type'    => $this->parseDeviceChanelTypeByDeviceId($fields['channel_id']),
+            'created_at'      => date('Y-m-d H:i:s'),
+            'updated_at'      => date('Y-m-d H:i:s'),
         ], $fields);
         // 获取到音视频通道时会自动向数据库VideoChannel表写入此通道的数据，同时确定了此通道的SSRC值和ZLMediaKit的StreamId值，数据库中这条记录的MainId则是SSRC的crc32后的16进制字符串，也同时是ZLMediaKit的StreamId
         [$ssrc, $streamId] = $this->getGb28181Service()->getSSRCInfo($channel['device_id'], $channel['channel_id']);
@@ -286,14 +287,14 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         $channel['main_id'] = $streamId; // 保持和akstream一致，效果和stream_id一样
         $channel['stream_id'] = $streamId; // ZLM 流ID
 
-//        if (empty($channel['ssrc'])) {
-//            $channel['ssrc'] = $this->generateUniqueSsrc();
-//            $channel['main_id'] = $this->ssrcIdToCrc32Hex($channel['ssrc']);
-//        }
-//
-//        if (empty($channel['stream_id']) && !empty($channel['device_id']) && !empty($channel['channel_id'])) {
-//            $channel['stream_id'] = "{$channel['device_id']}_{$channel['channel_id']}";
-//        }
+        //        if (empty($channel['ssrc'])) {
+        //            $channel['ssrc'] = $this->generateUniqueSsrc();
+        //            $channel['main_id'] = $this->ssrcIdToCrc32Hex($channel['ssrc']);
+        //        }
+        //
+        //        if (empty($channel['stream_id']) && !empty($channel['device_id']) && !empty($channel['channel_id'])) {
+        //            $channel['stream_id'] = "{$channel['device_id']}_{$channel['channel_id']}";
+        //        }
 
         return $this->getDeviceChannelsDao()->create($channel);
     }
@@ -313,7 +314,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->updateChannel($channel['id'], $fields);
     }
 
-    public function batchUpdateChannels(array $ids, array $fields): int
+    public function batchUpdateChannels(array $ids, array $fields) : int
     {
         if (empty($ids)) {
             return 0;
@@ -323,7 +324,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getDeviceChannelsDao()->update(['ids' => $ids], $fields);
     }
 
-    public function deleteChannel($id): bool
+    public function deleteChannel($id) : bool
     {
         $channel = $this->getChannelById($id);
         if (!$channel) {
@@ -353,7 +354,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * @return int
      * @throws \CoreW\Dao\DaoException
      */
-    public function batchUpdateOrCreateChannels(string $deviceId, array $devices): int
+    public function batchUpdateOrCreateChannels(string $deviceId, array $devices) : int
     {
         $device = $this->getDeviceByDeviceId($deviceId);
         if (!$device) {
@@ -375,26 +376,26 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                 $channelData = [
                     'channel_name' => $item['Name'] ?? '',
                     'manufacturer' => $item['Manufacturer'] ?? '',
-                    'model' => $item['Model'] ?? '',
-                    'owner' => $item['Owner'] ?? '',
-                    'civil_code' => $item['CivilCode'] ?? '',
-                    'block' => $item['Block'] ?? '',
-                    'address' => $item['Address'] ?? '',
-                    'parental' => $item['Parental'] ?? 0,
-                    'parent_id' => $item['ParentID'] ?? '',
-                    'safety_way' => $item['SafetyWay'] ?? 0,
+                    'model'        => $item['Model'] ?? '',
+                    'owner'        => $item['Owner'] ?? '',
+                    'civil_code'   => $item['CivilCode'] ?? '',
+                    'block'        => $item['Block'] ?? '',
+                    'address'      => $item['Address'] ?? '',
+                    'parental'     => $item['Parental'] ?? 0,
+                    'parent_id'    => $item['ParentID'] ?? '',
+                    'safety_way'   => $item['SafetyWay'] ?? 0,
                     'register_way' => $item['RegisterWay'] ?? 1,
-                    'cert_num' => $item['CertNum'] ?? '',
-                    'certifiable' => $item['Certifiable'] ?? 0,
-                    'ip_address' => $item['IpAddress'] ?? '',
-                    'err_code' => $item['ErrCode'] ?? 0,
-                    'end_time' => $item['EndTime'] ?? '',
-                    'secrecy' => $item['Secrecy'] ?? 0,
-                    'port' => $item['Port'] ?? 0,
-                    'password' => $item['Password'] ?? '',
-                    'status' => ($item['Status'] ?? 'OFF') === 'ON' ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::UNREGISTERED->value,
-                    'lng' => $item['Longitude'] ?? 0.0,
-                    'lat' => $item['Latitude'] ?? 0.0,
+                    'cert_num'     => $item['CertNum'] ?? '',
+                    'certifiable'  => $item['Certifiable'] ?? 0,
+                    'ip_address'   => $item['IpAddress'] ?? '',
+                    'err_code'     => $item['ErrCode'] ?? 0,
+                    'end_time'     => $item['EndTime'] ?? '',
+                    'secrecy'      => $item['Secrecy'] ?? 0,
+                    'port'         => $item['Port'] ?? 0,
+                    'password'     => $item['Password'] ?? '',
+                    'status'       => ($item['Status'] ?? 'OFF') === 'ON' ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::UNREGISTERED->value,
+                    'lng'          => $item['Longitude'] ?? 0.0,
+                    'lat'          => $item['Latitude'] ?? 0.0,
                     'channel_type' => $this->parseDeviceChanelTypeByDeviceId($channelId),
                 ];
                 $channelData['ssrc'] = $ssrc;
@@ -409,7 +410,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     $channelData['updated_at'] = date('Y-m-d H:i:s');
                     $channels[] = $channelData;
                     $count++;
-//                $this->createChannel($channelData);
+                    //                $this->createChannel($channelData);
                 }
 
             }
@@ -420,8 +421,8 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
             if ($count > 0) {
                 $this->updateDevice($device['id'], [
-                    'sum_num' => $count,
-                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name']
+                    'sum_num'     => $count,
+                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name'],
                 ]);
             }
 
@@ -441,7 +442,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * @param string $channelId
      * @return string
      */
-    public function parseDeviceTypeByDeviceId(string $channelId): string
+    public function parseDeviceTypeByDeviceId(string $channelId) : string
     {
         // 验证长度
         if (strlen($channelId) < 20 || !ctype_digit($channelId)) {
@@ -486,7 +487,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * @param string $channelId
      * @return string
      */
-    public function parseDeviceChanelTypeByDeviceId(string $channelId): string
+    public function parseDeviceChanelTypeByDeviceId(string $channelId) : string
     {
         // 验证 DeviceID 格式
         if (strlen($channelId) < 20 || !ctype_digit($channelId)) {
@@ -507,7 +508,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     // ==================== 流会话操作 ====================
 
-    public function getSessionById($id): ?array
+    public function getSessionById($id) : ?array
     {
         return $this->getStreamSessionsDao()->get($id);
     }
@@ -542,14 +543,22 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
         try {
             $result = $this->getStreamSessionsDao()->increment($stream['id'], 'viewer_count', 1);
+            $viewerId = 1;
             if ($result) {
-                $currentAuthUser = $this->bfw->offsetGet('user');
-                $viewerId = '';
-                if ($currentAuthUser instanceof CurrentUserInterface) {
-                    $viewerId = $currentAuthUser->getId();
+                if ($this->bfw->offsetExists('user')) {
+                    $currentAuthUser = $this->bfw->offsetGet('user');
+                    $viewerId = '';
+                    if ($currentAuthUser instanceof CurrentUserInterface) {
+                        $viewerId = $currentAuthUser->getId();
+                    }
                 }
 
-                $viewerIp = \request()->getRealIp();
+                $request = \request();
+                $viewerIp = '127.0.0.1';
+                if ($request instanceof \Webman\Http\Request && method_exists($request, 'getRealIp')) {
+                    $viewerIp = \request()->getRealIp();
+                }
+
                 $this->getStreamSessionViewerDao()->create([
                     'stream_id' => $streamId,
                     'viewer_id' => $viewerId,
@@ -580,18 +589,18 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->decrement($stream['id'], 'viewer_count', 1);
     }
 
-    public function getSessionBySsrc(string $ssrc): array
+    public function getSessionBySsrc(string $ssrc) : array
     {
         return $this->getStreamSessionsDao()->getBySsrc($ssrc);
     }
 
 
-    public function countSessions(array $conditions): int
+    public function countSessions(array $conditions) : int
     {
         return $this->getStreamSessionsDao()->count($conditions);
     }
 
-    public function searchSessions(array $conditions, array $orderBys, $start, $limit, $columns = []): array
+    public function searchSessions(array $conditions, array $orderBys, $start, $limit, $columns = []) : array
     {
         return $this->getStreamSessionsDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
@@ -608,7 +617,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function createSession(array $fields)
     {
         $session = array_merge([
-            'status' => 'inviting',
+            'status'     => 'inviting',
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ], $fields);
@@ -622,7 +631,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->update($id, $fields);
     }
 
-    public function updateSessionByCallId(int $callId, array $fields): bool
+    public function updateSessionByCallId(int $callId, array $fields) : bool
     {
         $session = $this->getSessionByCallId($callId);
         if (!$session) {
@@ -647,7 +656,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->delete($id);
     }
 
-    public function deleteSessionByCallId(int $callId): bool
+    public function deleteSessionByCallId(int $callId) : bool
     {
         $session = $this->getSessionByCallId($callId);
         if (!$session) {
@@ -660,30 +669,30 @@ class DeviceServiceImpl extends BaseService implements DeviceService
     public function deleteSessionByStreamIdAndMediaServerId(string $streamId, string $mediaServerId)
     {
         return $this->getStreamSessionsDao()->batchDelete([
-            'stream_id' => $streamId,
-            'media_server_id' => $mediaServerId
+            'stream_id'       => $streamId,
+            'media_server_id' => $mediaServerId,
         ]);
     }
 
-    public function cleanupExpiredSessions(int $ttl = 300): int
+    public function cleanupExpiredSessions(int $ttl = 300) : int
     {
         $expireTime = date('Y-m-d H:i:s', time() - $ttl);
 
         return $this->getStreamSessionsDao()->deleteAllByExpireTime($expireTime);
 
-//        return Db::table('gv_stream_sessions')
-//            ->where('updated_at', '<', $expireTime)
-//            ->whereIn('status', ['inviting', 'ringing'])
-//            ->delete();
+        //        return Db::table('gv_stream_sessions')
+        //            ->where('updated_at', '<', $expireTime)
+        //            ->whereIn('status', ['inviting', 'ringing'])
+        //            ->delete();
     }
-    
+
     /**
      * 获取冷却中的端口
-     * 
+     *
      * @param int $coolingTime 冷却时间（秒），默认20秒
      * @return array 端口列表
      */
-    public function getCoolingPorts(int $coolingTime = 20): array
+    public function getCoolingPorts(int $coolingTime = 20) : array
     {
         return $this->getStreamSessionsDao()->getCoolingPorts($coolingTime);
     }
@@ -695,7 +704,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * @param string $treeType 树类型: dc=设备-通道树, area=行政区域-设备-通道树
      * @return array
      */
-    public function getDeviceTree(string $treeType = 'dc'): array
+    public function getDeviceTree(string $treeType = 'dc') : array
     {
         if ($treeType === 'area') {
             return $this->getAreaDeviceTree();
@@ -711,7 +720,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * @param array $deviceIds 设备ID列表
      * @return array 设备列表，每个设备包含 subscription_status 字段
      */
-    public function getDevicesForPush(array $deviceIds): array
+    public function getDevicesForPush(array $deviceIds) : array
     {
         return $this->getDeviceDao()->getDevicesForPush($deviceIds);
     }
@@ -720,34 +729,34 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * 获取设备-通道树
      * @return array
      */
-    private function getDeviceChannelTree(): array
+    private function getDeviceChannelTree() : array
     {
         $devices = $this->searchDevices([
-            'sum_num_GT' => 0
+            'sum_num_GT' => 0,
         ], [
             'status' => 'ASC',
-            'id' => 'DESC'
+            'id'     => 'DESC',
         ], 0, PHP_INT_MAX);
         $tree = [];
 
         foreach ($devices as $device) {
             $node = [
-                'id' => 'd_' . $device['id'],
-                'key' => $device['device_id'],
-                'label' => $device['show_name'] ?: $device['device_name'] ?: $device['device_id'],
-                'type' => 'device',
-                'device_id' => $device['device_id'],
-                'device_type' => $device['device_type'],
-                'status' => $device['status'],
-                'enabled' => $device['enabled'],
-                'ip' => $device['ip'],
-                'port' => $device['port'],
+                'id'           => 'd_' . $device['id'],
+                'key'          => $device['device_id'],
+                'label'        => $device['show_name'] ? : $device['device_name'] ? : $device['device_id'],
+                'type'         => 'device',
+                'device_id'    => $device['device_id'],
+                'device_type'  => $device['device_type'],
+                'status'       => $device['status'],
+                'enabled'      => $device['enabled'],
+                'ip'           => $device['ip'],
+                'port'         => $device['port'],
                 'manufacturer' => $device['manufacturer'],
-                'model' => $device['model'],
-                'province_id' => $device['province_id'],
-                'city_id' => $device['city_id'],
-                'county_id' => $device['county_id'],
-                'children' => [],
+                'model'        => $device['model'],
+                'province_id'  => $device['province_id'],
+                'city_id'      => $device['city_id'],
+                'county_id'    => $device['county_id'],
+                'children'     => [],
             ];
 
             $channels = $this->getChannelsByDeviceId($device['device_id']);
@@ -757,18 +766,18 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     continue;
                 }
                 $node['children'][] = [
-                    'id' => 'c_' . $channel['id'],
-                    'key' => $channel['channel_id'],
-                    'label' => $channel['show_name'] ?: $channel['channel_name'] ?: $channel['channel_id'],
-                    'type' => 'channel',
-                    'device_id' => $channel['device_id'],
-                    'channel_id' => $channel['channel_id'],
-                    'channel_type' => $channel['channel_type'],
-                    'status' => $channel['status'],
-                    'enabled' => $channel['enabled'],
-                    'parental' => $channel['parental'],
-                    'parent_id' => $channel['parent_id'],
-                    'civil_code' => $channel['civil_code'],
+                    'id'            => 'c_' . $channel['id'],
+                    'key'           => $channel['channel_id'],
+                    'label'         => $channel['show_name'] ? : $channel['channel_name'] ? : $channel['channel_id'],
+                    'type'          => 'channel',
+                    'device_id'     => $channel['device_id'],
+                    'channel_id'    => $channel['channel_id'],
+                    'channel_type'  => $channel['channel_type'],
+                    'status'        => $channel['status'],
+                    'enabled'       => $channel['enabled'],
+                    'parental'      => $channel['parental'],
+                    'parent_id'     => $channel['parent_id'],
+                    'civil_code'    => $channel['civil_code'],
                     'stream_status' => $channel['stream_status'],
                 ];
             }
@@ -783,46 +792,46 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * 获取行政区域-设备-通道树
      * @return array
      */
-    private function getAreaDeviceTree(): array
+    private function getAreaDeviceTree() : array
     {
         $devices = $this->searchDevices([], ['id' => 'ASC'], 0, 10000);
         $areaMap = [];
 
         foreach ($devices as $device) {
-            $provinceId = $device['province_id'] ?: '000000';
-            $cityId = $device['city_id'] ?: '000000';
-            $countyId = $device['county_id'] ?: '000000';
+            $provinceId = $device['province_id'] ? : '000000';
+            $cityId = $device['city_id'] ? : '000000';
+            $countyId = $device['county_id'] ? : '000000';
 
             // 构建区域路径
             $areaKey = $provinceId . '-' . $cityId . '-' . $countyId;
 
             if (!isset($areaMap[$areaKey])) {
                 $areaMap[$areaKey] = [
-                    'id' => 'a_' . $areaKey,
-                    'key' => $areaKey,
-                    'label' => $this->getAreaName($provinceId, $cityId, $countyId),
-                    'type' => 'area',
+                    'id'          => 'a_' . $areaKey,
+                    'key'         => $areaKey,
+                    'label'       => $this->getAreaName($provinceId, $cityId, $countyId),
+                    'type'        => 'area',
                     'province_id' => $provinceId,
-                    'city_id' => $cityId,
-                    'county_id' => $countyId,
-                    'children' => [],
+                    'city_id'     => $cityId,
+                    'county_id'   => $countyId,
+                    'children'    => [],
                 ];
             }
 
             $deviceNode = [
-                'id' => 'd_' . $device['id'],
-                'key' => $device['device_id'],
-                'label' => $device['show_name'] ?: $device['device_name'] ?: $device['device_id'],
-                'type' => 'device',
-                'device_id' => $device['device_id'],
-                'device_type' => $device['device_type'],
-                'status' => $device['status'],
-                'enabled' => $device['enabled'],
-                'ip' => $device['ip'],
-                'port' => $device['port'],
+                'id'           => 'd_' . $device['id'],
+                'key'          => $device['device_id'],
+                'label'        => $device['show_name'] ? : $device['device_name'] ? : $device['device_id'],
+                'type'         => 'device',
+                'device_id'    => $device['device_id'],
+                'device_type'  => $device['device_type'],
+                'status'       => $device['status'],
+                'enabled'      => $device['enabled'],
+                'ip'           => $device['ip'],
+                'port'         => $device['port'],
                 'manufacturer' => $device['manufacturer'],
-                'model' => $device['model'],
-                'children' => [],
+                'model'        => $device['model'],
+                'children'     => [],
             ];
 
             $channels = $this->getChannelsByDeviceId($device['device_id']);
@@ -832,18 +841,18 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     continue;
                 }
                 $deviceNode['children'][] = [
-                    'id' => 'c_' . $channel['id'],
-                    'key' => $channel['channel_id'],
-                    'label' => $channel['show_name'] ?: $channel['channel_name'] ?: $channel['channel_id'],
-                    'type' => 'channel',
-                    'device_id' => $channel['device_id'],
-                    'channel_id' => $channel['channel_id'],
-                    'channel_type' => $channel['channel_type'],
-                    'status' => $channel['status'],
-                    'enabled' => $channel['enabled'],
-                    'parental' => $channel['parental'],
-                    'parent_id' => $channel['parent_id'],
-                    'civil_code' => $channel['civil_code'],
+                    'id'            => 'c_' . $channel['id'],
+                    'key'           => $channel['channel_id'],
+                    'label'         => $channel['show_name'] ? : $channel['channel_name'] ? : $channel['channel_id'],
+                    'type'          => 'channel',
+                    'device_id'     => $channel['device_id'],
+                    'channel_id'    => $channel['channel_id'],
+                    'channel_type'  => $channel['channel_type'],
+                    'status'        => $channel['status'],
+                    'enabled'       => $channel['enabled'],
+                    'parental'      => $channel['parental'],
+                    'parent_id'     => $channel['parent_id'],
+                    'civil_code'    => $channel['civil_code'],
                     'stream_status' => $channel['stream_status'],
                 ];
             }
@@ -861,7 +870,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
      * @param string $countyId
      * @return string
      */
-    private function getAreaName(string $provinceId, string $cityId, string $countyId): string
+    private function getAreaName(string $provinceId, string $cityId, string $countyId) : string
     {
         // 这里可以调用区域服务获取真实名称，暂时返回代码组合
         $parts = [];
@@ -880,7 +889,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     // ==================== SSRC 管理 ====================
 
-    public function generateUniqueSsrc(): string
+    public function generateUniqueSsrc() : string
     {
         $maxAttempts = 100;
         $attempt = 0;
@@ -900,15 +909,15 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     // ==================== 自动直播 ====================
 
-    public function getAutoLiveChannels(): array
+    public function getAutoLiveChannels() : array
     {
         return $this->getDeviceChannelsDao()->search(
             [
-                'auto_live' => 1,
-                'close_live' => 0,
-                'channel_types' => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value],
+                'auto_live'          => 1,
+                'close_live'         => 0,
+                'channel_types'      => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value],
                 'media_server_id_NE' => 'none',
-                'status' => DeviceStatusEnum::ONLINE->value
+                'status'             => DeviceStatusEnum::ONLINE->value,
             ],
             [],
             0,
@@ -916,7 +925,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         );
     }
 
-    public function clearChannelRecordPlan(int $planId): int
+    public function clearChannelRecordPlan(int $planId) : int
     {
         $channels = $this->getDeviceChannelsDao()->search(
             ['record_plan_id' => $planId],
@@ -929,7 +938,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         foreach ($channels as $channel) {
             $this->getDeviceChannelsDao()->update($channel['id'], [
                 'record_plan_id' => 0,
-                'record_status' => 0,
+                'record_status'  => 0,
             ]);
             $count++;
         }
@@ -939,12 +948,12 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     // ==================== 预置位管理 ====================
 
-    public function getPresetList(string $deviceId, string $channelId): array
+    public function getPresetList(string $deviceId, string $channelId) : array
     {
         return $this->getPresetDao()->findByDeviceAndChannel($deviceId, $channelId);
     }
 
-    public function setPreset(string $deviceId, string $channelId, int $value, string $name = ''): array
+    public function setPreset(string $deviceId, string $channelId, int $value, string $name = '') : array
     {
         // 验证预置位编号范围
         if ($value < 1 || $value > 255) {
@@ -965,16 +974,16 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         if ($existing) {
             // 更新现有预置位
             $this->getPresetDao()->update($existing['id'], [
-                'name' => $name ?: "预置位{$value}",
+                'name'       => $name ? : "预置位{$value}",
                 'updated_at' => $now,
             ]);
         } else {
             // 创建新预置位
             $this->getPresetDao()->create([
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
-                'value' => $value,
-                'name' => $name ?: "预置位{$value}",
+                'value'      => $value,
+                'name'       => $name ? : "预置位{$value}",
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
@@ -983,7 +992,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getPresetDao()->getByDeviceAndChannelAndValue($deviceId, $channelId, $value);
     }
 
-    public function callPreset(string $deviceId, string $channelId, int $value): bool
+    public function callPreset(string $deviceId, string $channelId, int $value) : bool
     {
         // 验证预置位编号范围
         if ($value < 1 || $value > 255) {
@@ -1000,7 +1009,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getGb28181Service()->presetCall($deviceId, $channelId, $value);
     }
 
-    public function deletePreset(string $deviceId, string $channelId, int $value): bool
+    public function deletePreset(string $deviceId, string $channelId, int $value) : bool
     {
         // 验证预置位编号范围
         if ($value < 1 || $value > 255) {
@@ -1026,47 +1035,47 @@ class DeviceServiceImpl extends BaseService implements DeviceService
 
     // ==================== DAO 获取器 ====================
 
-    protected function getDeviceDao(): DeviceDao|DaoProxy
+    protected function getDeviceDao() : DeviceDao|DaoProxy
     {
         return $this->createDao('Devices:DeviceDao');
     }
 
-    protected function getDeviceChannelsDao(): DeviceChannelsDao|DaoProxy
+    protected function getDeviceChannelsDao() : DeviceChannelsDao|DaoProxy
     {
         return $this->createDao('Devices:DeviceChannelsDao');
     }
 
-    protected function getStreamSessionsDao(): StreamSessionsDao|DaoProxy
+    protected function getStreamSessionsDao() : StreamSessionsDao|DaoProxy
     {
         return $this->createDao('Devices:StreamSessionsDao');
     }
 
-    protected function getStreamSessionViewerDao(): StreamSessionViewerDao|DaoProxy
+    protected function getStreamSessionViewerDao() : StreamSessionViewerDao|DaoProxy
     {
         return $this->createDao('Devices:StreamSessionViewerDao');
     }
 
-    protected function getPresetDao(): PresetDao|DaoProxy
+    protected function getPresetDao() : PresetDao|DaoProxy
     {
         return $this->createDao('Devices:PresetDao');
     }
 
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->bfw->offsetGet('gb28181_service');
     }
 
-    public function updateDeviceChannelsPosition(string $deviceId, float $longitude, float $latitude): int
+    public function updateDeviceChannelsPosition(string $deviceId, float $longitude, float $latitude) : int
     {
         return $this->getDeviceChannelsDao()->updatePositionByDeviceId($deviceId, $longitude, $latitude);
     }
 
-    public function updateDevicePosition(string $deviceId, float $longitude, float $latitude): int
+    public function updateDevicePosition(string $deviceId, float $longitude, float $latitude) : int
     {
         return $this->getDeviceDao()->updatePositionByDeviceId($deviceId, $longitude, $latitude);
     }
 
-    public function updateDeviceCategory(string $deviceId, ?int $categoryCode = null): bool
+    public function updateDeviceCategory(string $deviceId, ?int $categoryCode = null) : bool
     {
         $device = $this->getDeviceByDeviceId($deviceId);
         if (!$device) {
@@ -1086,7 +1095,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return true;
     }
 
-    public function batchUpdateDeviceCategories(array $deviceIds = []): int
+    public function batchUpdateDeviceCategories(array $deviceIds = []) : int
     {
         $conditions = [];
         if (!empty($deviceIds)) {
@@ -1109,7 +1118,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $updatedCount;
     }
 
-    public function bindDeviceToGateway(string $deviceId, string $gatewayId): bool
+    public function bindDeviceToGateway(string $deviceId, string $gatewayId) : bool
     {
         $device = $this->getDeviceDao()->getByDeviceId($deviceId);
         if (empty($device)) {

@@ -9,7 +9,7 @@ use Symfony\Component\PasswordHasher\Hasher\MessageDigestPasswordHasher;
 class StringToolkit
 {
 
-    public static  function parseBasicAuthData(string $authorization): array
+    public static function parseBasicAuthData(string $authorization) : array
     {
         return explode(':', base64_decode($authorization));
     }
@@ -67,7 +67,7 @@ class StringToolkit
 
         $search = array_keys($variables);
         array_walk($search, function (&$item) {
-            $item = '{{'.$item.'}}';
+            $item = '{{' . $item . '}}';
         });
 
         $replace = array_values($variables);
@@ -78,11 +78,11 @@ class StringToolkit
     public static function sign($data, $key)
     {
         if (!is_array($data)) {
-            $data = (array) $data;
+            $data = (array)$data;
         }
         ksort($data);
 
-        return md5(json_encode($data).$key);
+        return md5(json_encode($data) . $key);
     }
 
     public static function secondsToText($value)
@@ -90,7 +90,7 @@ class StringToolkit
         $minutes = intval($value / 60);
         $seconds = $value - $minutes * 60;
 
-        return sprintf('%02d', $minutes).':'.sprintf('%02d', $seconds);
+        return sprintf('%02d', $minutes) . ':' . sprintf('%02d', $seconds);
     }
 
     public static function textToSeconds($text)
@@ -98,7 +98,7 @@ class StringToolkit
         if (false === strpos($text, ':')) {
             return 0;
         }
-        list($minutes, $seconds) = explode(':', $text, 2);
+        [$minutes, $seconds] = explode(':', $text, 2);
 
         return intval($minutes) * 60 + intval($seconds);
     }
@@ -107,11 +107,11 @@ class StringToolkit
     {
         $text = strip_tags($text);
 
-        $text = str_replace(array("\n", "\r", "\t"), '', $text);
+        $text = str_replace(["\n", "\r", "\t"], '', $text);
         $text = str_replace('&nbsp;', ' ', $text);
         $text = trim($text);
 
-        $length = (int) $length;
+        $length = (int)$length;
         if (($length > 0) && (mb_strlen($text) > $length)) {
             $text = mb_substr($text, 0, $length, 'UTF-8');
             $text .= '...';
@@ -122,7 +122,7 @@ class StringToolkit
 
     public static function specialCharsFilter($text)
     {
-        return str_replace(array(' ', '&nbsp;', '&amp;', '&quot;', '&#039;', '&ldquo;', '&rdquo;', '&mdash;', '&lt;', '&gt;', '&middot;', '&hellip;', '&lsquo;', '&rsquo;'), array(' ', ' ', '&', '"', "'", '“', '”', '—', '<', '>', '·', '…', '‘', '’'), $text);
+        return str_replace([' ', '&nbsp;', '&amp;', '&quot;', '&#039;', '&ldquo;', '&rdquo;', '&mdash;', '&lt;', '&gt;', '&middot;', '&hellip;', '&lsquo;', '&rsquo;'], [' ', ' ', '&', '"', "'", '“', '”', '—', '<', '>', '·', '…', '‘', '’'], $text);
     }
 
     public static function createRandomString($length)
@@ -131,7 +131,7 @@ class StringToolkit
         $code = null;
         for ($i = 0; $i < $length; ++$i) {
             $rand = rand(0, 61);
-            $code = $code.$start[$rand];
+            $code = $code . $start[$rand];
         }
 
         return $code;
@@ -156,9 +156,9 @@ class StringToolkit
             }
             if ($in_escape) {
                 $in_escape = false;
-            } elseif ('"' === $char) {
+            } else if ('"' === $char) {
                 $in_quotes = !$in_quotes;
-            } elseif (!$in_quotes) {
+            } else if (!$in_quotes) {
                 switch ($char) {
                     case '}':
                     case ']':
@@ -188,13 +188,13 @@ class StringToolkit
                         $new_line_level = null;
                         break;
                 }
-            } elseif ('\\' === $char) {
+            } else if ('\\' === $char) {
                 $in_escape = true;
             }
             if (null !== $new_line_level) {
-                $result .= "\n".str_repeat("\t", $new_line_level);
+                $result .= "\n" . str_repeat("\t", $new_line_level);
             }
-            $result .= $char.$post;
+            $result .= $char . $post;
         }
 
         return $result;
@@ -205,7 +205,7 @@ class StringToolkit
         $afterCutName = $name;
         $length = mb_strlen($name, 'UTF-8');
         if ($length > $leastLength) {
-            $afterCutName = mb_substr($name, 0, $prefixLength, 'utf-8').'…';
+            $afterCutName = mb_substr($name, 0, $prefixLength, 'utf-8') . '…';
             $afterCutName .= mb_substr($name, $length - $suffixLength, $length, 'utf-8');
         }
 
@@ -229,9 +229,9 @@ class StringToolkit
             return number_format($number, 2);
         };
         if ($bytes < 1024 * 1024 * 1024) {
-            return call_user_func($format, $bytes / 1024 / 1024).'M';
+            return call_user_func($format, $bytes / 1024 / 1024) . 'M';
         } else {
-            return call_user_func($format, $bytes / 1024 / 1024 / 1024).'G';
+            return call_user_func($format, $bytes / 1024 / 1024 / 1024) . 'G';
         }
     }
 
@@ -266,7 +266,7 @@ class StringToolkit
         return $content;
     }
 
-    public static function appendGzipResponseHeader($header = array())
+    public static function appendGzipResponseHeader($header = [])
     {
         if (self::isCompressable()) {
             $header['Content-Encoding'] = 'gzip';

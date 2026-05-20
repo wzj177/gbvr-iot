@@ -27,15 +27,15 @@ class SipGatewayDaoImpl extends AdvancedDaoImpl implements SipGatewayDao
         ]);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'mq_config' => 'json',
+                'mq_config'    => 'json',
                 'redis_config' => 'json',
-                'api_config' => 'json',
+                'api_config'   => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
                 'last_seen_at',

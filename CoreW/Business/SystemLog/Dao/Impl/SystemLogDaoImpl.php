@@ -10,7 +10,7 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
 
     protected $table = 'gv_log';
 
-    protected function createUserJoinQueryBuilder($conditions): \CoreW\Dao\DynamicQueryBuilder
+    protected function createUserJoinQueryBuilder($conditions) : \CoreW\Dao\DynamicQueryBuilder
     {
         $builder = $this->createQueryBuilder($conditions);
         $builder->leftJoin($this->table, 'gv_user', 'u', 'u.id = ' . $this->table . '.userID');
@@ -19,31 +19,31 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
     }
 
 
-    public function search($conditions, $orderBys, $start, $limit = null, $columns = array())
+    public function search($conditions, $orderBys, $start, $limit = null, $columns = [])
     {
         return parent::search($conditions, $orderBys, $start, $limit, $columns);
-//        if (empty($columns)) {
-//            $columns = "gv_log.*,u.nickname as userName";
-//        }
-//
-//        $builder = $this->createUserJoinQueryBuilder($conditions)
-//            ->setFirstResult($start)
-//            ->setMaxResults($limit)
-//            ->addSelect($columns);
-//        foreach ($orderBys as $sort => $by) {
-//            $builder->addOrderBy($sort, $by);
-//        }
-//
-//        return $builder->execute()->fetchAll();
+        //        if (empty($columns)) {
+        //            $columns = "gv_log.*,u.nickname as userName";
+        //        }
+        //
+        //        $builder = $this->createUserJoinQueryBuilder($conditions)
+        //            ->setFirstResult($start)
+        //            ->setMaxResults($limit)
+        //            ->addSelect($columns);
+        //        foreach ($orderBys as $sort => $by) {
+        //            $builder->addOrderBy($sort, $by);
+        //        }
+        //
+        //        return $builder->execute()->fetchAll();
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'data' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
             ],
@@ -63,7 +63,7 @@ class SystemLogDaoImpl extends AdvancedDaoImpl implements SystemLogDao
                 'gv_log.createdTime <= :startDateTime_LE',
                 'gv_log.userId IN ( :userIds )',
                 'gv_log.action IN ( :actions )',
-                '(gv_log.action LIKE :keywordsLike OR gv_log.message LIKE :keywordsLike OR gv_log.ip LIKE :keywordsLike OR ipArea LIKE :keywordsLike)'
+                '(gv_log.action LIKE :keywordsLike OR gv_log.message LIKE :keywordsLike OR gv_log.ip LIKE :keywordsLike OR ipArea LIKE :keywordsLike)',
             ],
             'timestamps' => [
                 'createdTime',

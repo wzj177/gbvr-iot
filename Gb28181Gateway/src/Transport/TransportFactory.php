@@ -15,7 +15,7 @@ class TransportFactory
      * @return TransportInterface
      * @throws \InvalidArgumentException
      */
-    public static function create(string $type, array $config): TransportInterface
+    public static function create(string $type, array $config) : TransportInterface
     {
         return match ($type) {
             'redis' => new RedisTransport($config),

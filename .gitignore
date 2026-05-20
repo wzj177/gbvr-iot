@@ -12,3 +12,5 @@
 /public/.user.ini
 /public/.htaccess
 .claude/
+
+php-exosip

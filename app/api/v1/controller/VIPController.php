@@ -35,7 +35,7 @@ class VIPController extends BaseController
         return $this->createSuccessJsonResponse($vip);
     }
 
-    public function edit(Request $request, $id): \support\Response
+    public function edit(Request $request, $id) : \support\Response
     {
         if ($this->getVIPInfo()->getUUID() !== $id) {
             return $this->createErrorJsonResponse('非法访问', null, -1, 403);
@@ -88,7 +88,7 @@ class VIPController extends BaseController
         return $this->eamilVerifyResponse($request, $result);
     }
 
-    public function getCompany(Request $request, $uid): Response
+    public function getCompany(Request $request, $uid) : Response
     {
         $companyInfo = $this->getVIPService()->getVIPCompanyByUserId(intval($uid));
         if (!$companyInfo) {
@@ -97,7 +97,8 @@ class VIPController extends BaseController
 
         return $this->createSuccessJsonResponse(VIPCompanyFilter::simpleData($companyInfo));
     }
-    public function applyCompany(Request $request): Response
+
+    public function applyCompany(Request $request) : Response
     {
         $userId = (int)$this->getVIPInfo()->getId();
         $result = $this->getVIPService()->applyCompany($userId, $request->post());
@@ -115,7 +116,8 @@ class VIPController extends BaseController
         return $this->createSuccessJsonResponse(CompanyIotConfigFilter::publicData($iotConfig));
 
     }
-    public function companyIotConfig(Request $request, $id): Response
+
+    public function companyIotConfig(Request $request, $id) : Response
     {
         $userId = (int)$this->getVIPInfo()->getId();
         $result = $this->getVIPService()->setCompanyIotConfig((int)$id, $userId, $request->post());
@@ -126,21 +128,21 @@ class VIPController extends BaseController
         return $this->createErrorJsonResponse('设置失败');
     }
 
-    public function companyIotApiList(Request $request): Response
+    public function companyIotApiList(Request $request) : Response
     {
         $list = ArrayToolkit::enumToList(BizEnum::getCompanyIotApiItems());
 
         return $this->createSuccessJsonResponse($list);
     }
 
-    public function companyIotServiceList(Request $request): Response
+    public function companyIotServiceList(Request $request) : Response
     {
         $serviceList = config('iot');
         $items = [];
         foreach ($serviceList as $key => $service) {
             $items[] = [
-                'key' => $key,
-                'title' => $service['name'],
+                'key'     => $key,
+                'title'   => $service['name'],
                 'api_map' => $service['apiMap'],
             ];
         }
@@ -163,7 +165,7 @@ class VIPController extends BaseController
             }
 
             return view('404', [
-                'error' => '<a href="/" style="text-decoration:none;line-height:100%;background:#5865f2;color:white;font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:15px;font-weight:normal;text-transform:none;margin:0px;" >返回首页</a>'
+                'error' => '<a href="/" style="text-decoration:none;line-height:100%;background:#5865f2;color:white;font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:15px;font-weight:normal;text-transform:none;margin:0px;" >返回首页</a>',
             ]);
         }
 

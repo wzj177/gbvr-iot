@@ -377,7 +377,7 @@ class DaoProxy
 
     protected function callRealDao($method, $arguments)
     {
-        return call_user_func_array(array($this->dao, $method), $arguments);
+        return call_user_func_array([$this->dao, $method], $arguments);
     }
 
     protected function unserialize(&$row)
@@ -387,7 +387,7 @@ class DaoProxy
         }
 
         $declares = $this->dao->declares();
-        $serializes = empty($declares['serializes']) ? array() : $declares['serializes'];
+        $serializes = empty($declares['serializes']) ? [] : $declares['serializes'];
 
         foreach ($serializes as $key => $method) {
             if (!array_key_exists($key, $row)) {
@@ -408,7 +408,7 @@ class DaoProxy
     protected function serialize(&$row)
     {
         $declares = $this->dao->declares();
-        $serializes = empty($declares['serializes']) ? array() : $declares['serializes'];
+        $serializes = empty($declares['serializes']) ? [] : $declares['serializes'];
 
         foreach ($serializes as $key => $method) {
             if (!array_key_exists($key, $row)) {

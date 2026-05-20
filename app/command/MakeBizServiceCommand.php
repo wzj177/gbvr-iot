@@ -51,12 +51,12 @@ class MakeBizServiceCommand extends Command
         try {
             $gii = GiiFactory::create('easy', $namespace, $this->getBiz());
             $path = $gii->render([
-                'bizId' => $bizId,
-                'scene' => 'make-service',
+                'bizId'     => $bizId,
+                'scene'     => 'make-service',
                 'templates' => [
                     'serviceInterface' => ServiceInterfaceTemplate::class,
-                    'serviceImpl' => ServiceImplTemplate::class,
-                ]
+                    'serviceImpl'      => ServiceImplTemplate::class,
+                ],
             ]);
             $output->writeln(ShellColor::showInfo("{$path}已创建"));
             return self::SUCCESS;

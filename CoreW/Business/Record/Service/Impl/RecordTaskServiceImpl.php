@@ -18,7 +18,7 @@ use support\Redis;
 
 class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 {
-    public function createAlarmRecordTask(string $deviceId, string $channelId, int $durationSec, string $customizedPath = ''): array
+    public function createAlarmRecordTask(string $deviceId, string $channelId, int $durationSec, string $customizedPath = '') : array
     {
         // 验证设备和通道
         $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
@@ -31,22 +31,22 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         $endTimestamp = $now + $durationSec;
 
         $task = [
-            'task_type' => RecordTaskTypeEnum::ALARM->value,
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
+            'task_type'       => RecordTaskTypeEnum::ALARM->value,
+            'device_id'       => $deviceId,
+            'channel_id'      => $channelId,
             'media_server_id' => $this->getGb28181Service()->getMediaServerId(),
-            'vhost' => '__defaultVhost__',
-            'app' => 'rtp',
-            'start_time' => $startTimestamp,
-            'end_time' => $endTimestamp,
-            'customized_path' => $customizedPath ?: null,
-            'status' => RecordTaskStatusEnum::PENDING->value,
+            'vhost'           => '__defaultVhost__',
+            'app'             => 'rtp',
+            'start_time'      => $startTimestamp,
+            'end_time'        => $endTimestamp,
+            'customized_path' => $customizedPath ? : null,
+            'status'          => RecordTaskStatusEnum::PENDING->value,
         ];
 
         return $this->getRecordTaskDao()->create($task);
     }
 
-    public function createDownloadRecordTask(string $deviceId, string $channelId, string $startTime, string $endTime, string $streamId, string $ssrc, int $downloadSpeed = 1): array
+    public function createDownloadRecordTask(string $deviceId, string $channelId, string $startTime, string $endTime, string $streamId, string $ssrc, int $downloadSpeed = 1) : array
     {
         // 转换为时间戳存储
         $startTimestamp = strtotime($startTime);
@@ -60,19 +60,19 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         }
 
         $task = [
-            'task_type' => RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value,
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
+            'task_type'       => RecordTaskTypeEnum::PLAYBACK_DOWNLOAD->value,
+            'device_id'       => $deviceId,
+            'channel_id'      => $channelId,
             'media_server_id' => $channel['media_server_id'],
-            'vhost' => '__defaultVhost__',
-            'app' => 'rtp',
-            'stream_id' => $streamId,
-            'ssrc' => $ssrc,
-            'start_time' => $startTimestamp,
-            'end_time' => $endTimestamp,
+            'vhost'           => '__defaultVhost__',
+            'app'             => 'rtp',
+            'stream_id'       => $streamId,
+            'ssrc'            => $ssrc,
+            'start_time'      => $startTimestamp,
+            'end_time'        => $endTimestamp,
             'record_duration' => $duration,  // 预计录制时长
-            'download_speed' => $downloadSpeed,
-            'status' => RecordTaskStatusEnum::INVITING->value,
+            'download_speed'  => $downloadSpeed,
+            'status'          => RecordTaskStatusEnum::INVITING->value,
         ];
 
         return $this->getRecordTaskDao()->create($task);
@@ -84,7 +84,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      * @return bool
      * @throws \CoreW\Dao\DaoException
      */
-    public function executeRecordTask(int $taskId): bool
+    public function executeRecordTask(int $taskId) : bool
     {
         $task = $this->getRecordTaskDao()->get($taskId);
         if (!$task) {
@@ -95,7 +95,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         if ($task['status'] !== RecordTaskStatusEnum::PENDING->value) {
             $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_EXECUTE_TASK, '录像任务状态非待执行', [
                 'task_id' => $taskId,
-                'status' => $task['status'],
+                'status'  => $task['status'],
             ]);
             return false;
         }
@@ -123,7 +123,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
             if (!$result) {
                 $this->getRecordTaskDao()->update($taskId, [
-                    'status' => RecordTaskStatusEnum::FAILED->value,
+                    'status'      => RecordTaskStatusEnum::FAILED->value,
                     'fail_reason' => 'INVITE failed',
                 ]);
                 return false;
@@ -131,28 +131,28 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
             // 更新任务状态，记录 stream_id
             $this->getRecordTaskDao()->update($taskId, [
-                'status' => RecordTaskStatusEnum::WAIT_STREAM->value,
+                'status'    => RecordTaskStatusEnum::WAIT_STREAM->value,
                 'stream_id' => $result['stream_id'] ?? null,
             ]);
 
             $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_INVITE_SENT, '录像任务邀请已发送', [
-                'task_id' => $taskId,
-                'device_id' => $task['device_id'],
+                'task_id'    => $taskId,
+                'device_id'  => $task['device_id'],
                 'channel_id' => $task['channel_id'],
-                'stream_id' => $result['stream_id'] ?? null,
+                'stream_id'  => $result['stream_id'] ?? null,
             ]);
 
             return true;
 
         } catch (\Exception $e) {
             $this->getRecordTaskDao()->update($taskId, [
-                'status' => RecordTaskStatusEnum::FAILED->value,
+                'status'      => RecordTaskStatusEnum::FAILED->value,
                 'fail_reason' => $e->getMessage(),
             ]);
 
             $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_EXECUTE_TASK, '执行录像任务失败', [
                 'task_id' => $taskId,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
 
             return false;
@@ -164,64 +164,64 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      * @param int $taskId
      * @return bool
      */
-    public function stopRecording(int $taskId): bool
+    public function stopRecording(int $taskId) : bool
     {
         return false;
-//        $task = $this->getRecordTaskDao()->get($taskId);
-//        if (!$task) {
-//            return false;
-//        }
-//
-//        if ($task['status'] !== RecordTaskStatusEnum::RECORDING->value) {
-//            return false;
-//        }
-//
-//        try {
-//            $streamId = $task['stream_id'] ?? null;
-//            if ($streamId) {
-//                // 关闭 ZLM 流
-//                $this->getGb28181Service()->closeStream('rtp', $streamId);
-//            }
-//
-//            // 发送 BYE
-//            $this->getGb28181Service()->stopPlayback(
-//                $task['device_id'],
-//                $task['channel_id'],
-//                $streamId ?? ''
-//            );
-//
-//            // 更新任务状态
-//            $this->getRecordTaskDao()->update($taskId, [
-//                'status' => RecordTaskStatusEnum::DONE->value,
-//            ]);
-//
-//            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording stopped', [
-//                'task_id' => $taskId,
-//                'stream_id' => $streamId,
-//            ]);
-//
-//            return true;
-//
-//        } catch (\Exception $e) {
-//            $this->getSystemLogService()->error('Record', 'stop_recording', 'Stop recording failed', [
-//                'task_id' => $taskId,
-//                'error' => $e->getMessage(),
-//            ]);
-//            return false;
-//        }
+        //        $task = $this->getRecordTaskDao()->get($taskId);
+        //        if (!$task) {
+        //            return false;
+        //        }
+        //
+        //        if ($task['status'] !== RecordTaskStatusEnum::RECORDING->value) {
+        //            return false;
+        //        }
+        //
+        //        try {
+        //            $streamId = $task['stream_id'] ?? null;
+        //            if ($streamId) {
+        //                // 关闭 ZLM 流
+        //                $this->getGb28181Service()->closeStream('rtp', $streamId);
+        //            }
+        //
+        //            // 发送 BYE
+        //            $this->getGb28181Service()->stopPlayback(
+        //                $task['device_id'],
+        //                $task['channel_id'],
+        //                $streamId ?? ''
+        //            );
+        //
+        //            // 更新任务状态
+        //            $this->getRecordTaskDao()->update($taskId, [
+        //                'status' => RecordTaskStatusEnum::DONE->value,
+        //            ]);
+        //
+        //            $this->getSystemLogService()->info('Record', 'stop_recording', 'Recording stopped', [
+        //                'task_id' => $taskId,
+        //                'stream_id' => $streamId,
+        //            ]);
+        //
+        //            return true;
+        //
+        //        } catch (\Exception $e) {
+        //            $this->getSystemLogService()->error('Record', 'stop_recording', 'Stop recording failed', [
+        //                'task_id' => $taskId,
+        //                'error' => $e->getMessage(),
+        //            ]);
+        //            return false;
+        //        }
     }
 
-    public function searchRecordTasks(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    public function searchRecordTasks(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
         return $this->getRecordTaskDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countRecordTasks(array $conditions): int
+    public function countRecordTasks(array $conditions) : int
     {
         return $this->getRecordTaskDao()->count($conditions);
     }
 
-    public function processPendingTasks(): int
+    public function processPendingTasks() : int
     {
         $tasks = $this->getRecordTaskDao()->findPendingTasks();
         $count = 0;
@@ -235,7 +235,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $count;
     }
 
-    public function stopExpiredRecordings(): int
+    public function stopExpiredRecordings() : int
     {
         $tasks = $this->getRecordTaskDao()->findRecordingTasksToStop();
         $count = 0;
@@ -249,7 +249,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $count;
     }
 
-    public function updateTaskStatusWhenMediaReady(string $ssrc, int $inviteOkTime): bool
+    public function updateTaskStatusWhenMediaReady(string $ssrc, int $inviteOkTime) : bool
     {
         $task = $this->getRecordTaskDao()->getBySsrc($ssrc);
         if (!$task) {
@@ -274,11 +274,11 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 // 检查 hook 是否开启，且回调地址包含 /zlm_hook/on_publish
                 if ($hookEnabled != 1 || !str_contains($onPublishHook, '/zlm_hook/on_publish')) {
                     $shouldSetTimeDirectly = true;
-//                    $this->getSystemLogService()->warning('Record', 'media_ready', 'ZLM hook not properly configured, setting time directly', [
-//                        'task_id' => $task['id'],
-//                        'hook_enabled' => $hookEnabled,
-//                        'on_publish' => $onPublishHook,
-//                    ]);
+                    //                    $this->getSystemLogService()->warning('Record', 'media_ready', 'ZLM hook not properly configured, setting time directly', [
+                    //                        'task_id' => $task['id'],
+                    //                        'hook_enabled' => $hookEnabled,
+                    //                        'on_publish' => $onPublishHook,
+                    //                    ]);
                 }
             }
         } catch (\Throwable $e) {
@@ -287,13 +287,13 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
             $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_MEDIA_READY, '获取ZLM配置失败，直接设置时间', [
                 'task_id' => $task['id'],
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
         }
 
         // 更新状态和 invite_ok_time
         $updateData = [
-            'status' => RecordTaskStatusEnum::WAIT_STREAM->value,
+            'status'         => RecordTaskStatusEnum::WAIT_STREAM->value,
             'invite_ok_time' => $inviteOkTime,
         ];
 
@@ -306,18 +306,18 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         $this->getRecordTaskDao()->update($task['id'], $updateData);
 
         $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_MEDIA_READY, '下载任务媒体就绪', [
-            'task_id' => $task['id'],
-            'ssrc' => $ssrc,
+            'task_id'           => $task['id'],
+            'ssrc'              => $ssrc,
             'set_time_directly' => $shouldSetTimeDirectly,
         ]);
 
         return true;
     }
 
-    public function startRecordingForStableRtp(): int
+    public function startRecordingForStableRtp() : int
     {
         $tasks = $this->getRecordTaskDao()->findWaitStreamTasksWithMediaServer();
-//        var_dump($tasks);
+        //        var_dump($tasks);
         $count = 0;
 
         foreach ($tasks as $task) {
@@ -329,7 +329,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $count;
     }
 
-    public function stopCompletedRecordings(): int
+    public function stopCompletedRecordings() : int
     {
         $tasks = $this->getRecordTaskDao()->findRecordingTasksWithMediaServer();
         $count = 0;
@@ -343,7 +343,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $count;
     }
 
-    public function completeFinalizingTasks(): int
+    public function completeFinalizingTasks() : int
     {
         $tasks = $this->getRecordTaskDao()->findFinalizingTasks();
         $count = 0;
@@ -364,7 +364,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      * - last_rtp_time > 0（RTP 存在）
      * - time() - last_rtp_time >= 3（RTP 稳定至少 3 秒）
      */
-    private function checkAndStartRecording(array $task): bool
+    private function checkAndStartRecording(array $task) : bool
     {
         $streamId = $task['stream_id'] ?? '';
         if (!$streamId) {
@@ -376,7 +376,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             $mediaServer = $this->extractMediaServerFromTask($task);
             if (!$mediaServer) {
                 $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '任务找不到媒体服务器', [
-                    'task_id' => $task['id'],
+                    'task_id'         => $task['id'],
                     'media_server_id' => $task['media_server_id'] ?? '',
                 ]);
                 return false;
@@ -426,7 +426,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
             if (!$result) {
                 $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '开始录像失败', [
-                    'task_id' => $task['id'],
+                    'task_id'   => $task['id'],
                     'stream_id' => $streamId,
                 ]);
 
@@ -434,16 +434,16 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             }
 
             $this->getRecordTaskDao()->update($task['id'], [
-                'status' => RecordTaskStatusEnum::RECORDING->value,
+                'status'            => RecordTaskStatusEnum::RECORDING->value,
                 'record_start_time' => $task['record_start_time'] > 0 ? $task['record_start_time'] : time(),
-                'customized_path' => $recordPath,
+                'customized_path'   => $recordPath,
             ]);
 
 
             $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '录像已开始', [
-                'task_id' => $task['id'],
+                'task_id'   => $task['id'],
                 'stream_id' => $streamId,
-                'path' => $recordPath,
+                'path'      => $recordPath,
             ]);
 
             return true;
@@ -451,7 +451,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_START_RECORDING, '检查和开始录像失败', [
                 'task_id' => $task['id'],
-                'error' => $e->getTraceAsString(),
+                'error'   => $e->getTraceAsString(),
             ]);
             return false;
         }
@@ -466,7 +466,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      * 注意：不设置 record_end_time 和 record_duration
      * 这些字段由 onRecordMp4 hook 根据实际文件信息填充
      */
-    private function checkAndStopRecording(array $task): bool
+    private function checkAndStopRecording(array $task) : bool
     {
         $streamId = $task['stream_id'] ?? '';
         if (!$streamId) {
@@ -478,7 +478,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             $mediaServer = $this->extractMediaServerFromTask($task);
             if (!$mediaServer) {
                 $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_STOP_RECORDING, '任务找不到媒体服务器', [
-                    'task_id' => $task['id'],
+                    'task_id'         => $task['id'],
                     'media_server_id' => $task['media_server_id'] ?? '',
                 ]);
                 return false;
@@ -515,7 +515,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             ]);
 
             $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_STOP_RECORDING, '录像正在完成，等待mp4钩子', [
-                'task_id' => $task['id'],
+                'task_id'   => $task['id'],
                 'stream_id' => $streamId,
             ]);
 
@@ -524,7 +524,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_STOP_RECORDING, '检查和停止录像失败', [
                 'task_id' => $task['id'],
-                'error' => $e->getTraceAsString(),
+                'error'   => $e->getTraceAsString(),
             ]);
             return false;
         }
@@ -537,7 +537,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      * - 计算最终录制时长
      * - 更新任务状态为 DONE
      */
-    private function checkAndCompleteRecording(array $task): bool
+    private function checkAndCompleteRecording(array $task) : bool
     {
         try {
             // 计算实际录制时长
@@ -555,7 +555,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
             // 更新任务状态为 DONE
             $this->getRecordTaskDao()->update($task['id'], [
-                'status' => RecordTaskStatusEnum::DONE->value,
+                'status'          => RecordTaskStatusEnum::DONE->value,
                 'record_end_time' => $recordEndTime,
                 'record_duration' => $actualDuration,
             ]);
@@ -566,17 +566,17 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 $deletedCount = $this->getRecordTaskDao()->deleteOtherTasksByStreamId($streamId, $task['id']);
                 if ($deletedCount > 0) {
                     $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '已删除相同stream_id的其他任务', [
-                        'task_id' => $task['id'],
-                        'stream_id' => $streamId,
+                        'task_id'       => $task['id'],
+                        'stream_id'     => $streamId,
                         'deleted_count' => $deletedCount,
                     ]);
                 }
             }
 
             $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '录像已完成', [
-                'task_id' => $task['id'],
+                'task_id'   => $task['id'],
                 'stream_id' => $task['stream_id'] ?? '',
-                'duration' => $actualDuration,
+                'duration'  => $actualDuration,
             ]);
 
             return true;
@@ -584,7 +584,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_RECORDING, '完成录像失败', [
                 'task_id' => $task['id'],
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
             return false;
         }
@@ -593,17 +593,17 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     /**
      * 构建录制文件路径
      */
-    private function buildRecordPath(array $task, array $mediaServer): string
+    private function buildRecordPath(array $task, array $mediaServer) : string
     {
         if (empty($mediaServer['record_path'])) {
             return '';
         }
 
         $relativePath = '/playback';
-//        sprintf(
-//            '/playback/%d',
-//            $task['id']
-//        );
+        //        sprintf(
+        //            '/playback/%d',
+        //            $task['id']
+        //        );
 
         return rtrim($mediaServer['record_path'], '/') . $relativePath;
     }
@@ -611,47 +611,47 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     /**
      * 从 task 数组中提取 media_server 信息（JOIN 查询后的数据）
      */
-    private function extractMediaServerFromTask(array $task): ?array
+    private function extractMediaServerFromTask(array $task) : ?array
     {
         // 检查是否包含 JOIN 查询的 media_server 字段
         if (isset($task['server_id']) && isset($task['type'])) {
             return [
-                'id' => $task['media_server_db_id'] ?? null,
-                'server_id' => $task['server_id'],
-                'type' => $task['type'],
-                'host' => $task['host'] ?? '',
-                'port' => $task['port'] ?? '',
-                'secret' => $task['secret'] ?? '',
+                'id'          => $task['media_server_db_id'] ?? null,
+                'server_id'   => $task['server_id'],
+                'type'        => $task['type'],
+                'host'        => $task['host'] ?? '',
+                'port'        => $task['port'] ?? '',
+                'secret'      => $task['secret'] ?? '',
                 'record_path' => $task['record_path'] ?? '',
-                'stream_ip' => $task['stream_ip'] ?? '',
-                'status' => $task['media_server_status'] ?? '',
+                'stream_ip'   => $task['stream_ip'] ?? '',
+                'status'      => $task['media_server_status'] ?? '',
             ];
         }
 
         return null;
     }
 
-    public function getValidityDownloadTaskByStreamId(string $streamId): ?array
+    public function getValidityDownloadTaskByStreamId(string $streamId) : ?array
     {
         return $this->getRecordTaskDao()->getValidityTaskByStreamId($streamId);
     }
 
-    public function getDoneRecordTaskByStreamId(string $streamId): ?array
+    public function getDoneRecordTaskByStreamId(string $streamId) : ?array
     {
-        return  $this->getRecordTaskDao()->getDoneByStreamId($streamId);
+        return $this->getRecordTaskDao()->getDoneByStreamId($streamId);
     }
 
-    public function getByStreamId(string $streamId): ?array
+    public function getByStreamId(string $streamId) : ?array
     {
         return $this->getRecordTaskDao()->getByStreamId($streamId);
     }
 
-    public function deleteRecordTask(int $taskId): bool
+    public function deleteRecordTask(int $taskId) : bool
     {
         return $this->getRecordTaskDao()->delete($taskId) > 0;
     }
 
-    public function cancelRecordTask(int $taskId): bool
+    public function cancelRecordTask(int $taskId) : bool
     {
         $task = $this->getRecordTaskDao()->get($taskId);
         if (!$task) {
@@ -682,7 +682,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
                 } catch (\Throwable $e) {
                     $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_CANCEL_TASK, '取消录像任务停止录像失败', [
                         'task_id' => $taskId,
-                        'error' => $e->getMessage(),
+                        'error'   => $e->getMessage(),
                     ]);
                 }
             }
@@ -693,7 +693,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     }
 
 
-    public function getZlmClientByServerId(string $serverId): ZLMClient
+    public function getZlmClientByServerId(string $serverId) : ZLMClient
     {
         $mediaServer = $this->getMediaService()->getMediaServerByServerId($serverId);
         if (!$mediaServer || $mediaServer['type'] !== MediaServerType::ZLM->value) {
@@ -706,7 +706,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     /**
      * @return ZLMClient
      */
-    private function getZlmClient(array $config): ZLMClient
+    private function getZlmClient(array $config) : ZLMClient
     {
         return $this->bfw['zlm_sdk']($config);
     }
@@ -716,29 +716,29 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
      *
      * @return MediaServerService
      */
-    protected function getMediaService(): MediaServerService
+    protected function getMediaService() : MediaServerService
     {
         return $this->bfw->service('MediaServer:MediaServerService');
     }
 
-    public function updateRecordStartTimeByStreamId(string $streamId, string $mediaServerId, int $time): void
+    public function updateRecordStartTimeByStreamId(string $streamId, string $mediaServerId, int $time) : void
     {
         $this->getRecordTaskDao()->updateRecordStartTimeByStreamId($streamId, $mediaServerId, $time);
     }
 
-    public function updateRecordEndTimeByStreamId(string $streamId, string $mediaServerId, int $time): void
+    public function updateRecordEndTimeByStreamId(string $streamId, string $mediaServerId, int $time) : void
     {
         $this->getRecordTaskDao()->updateRecordEndTimeByStreamId($streamId, $mediaServerId, $time);
     }
 
-    public function updateLastRtpTime(int $taskId, int $time): void
+    public function updateLastRtpTime(int $taskId, int $time) : void
     {
         $this->getRecordTaskDao()->update($taskId, [
             'last_rtp_time' => $time,
         ]);
     }
 
-    public function completeTaskFromHook(int $taskId, int $endTime, int $duration): void
+    public function completeTaskFromHook(int $taskId, int $endTime, int $duration) : void
     {
         $task = $this->getRecordTaskDao()->get($taskId);
         if (!$task) {
@@ -749,7 +749,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         if ($task['status'] !== RecordTaskStatusEnum::FINALIZING->value) {
             $this->getLogService()->warning(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_FROM_HOOK, '任务状态非完成中', [
                 'task_id' => $taskId,
-                'status' => $task['status'],
+                'status'  => $task['status'],
             ]);
             return;
         }
@@ -758,7 +758,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 
         // 更新任务状态为 DONE，设置 record_end_time 和 record_duration
         $this->getRecordTaskDao()->update($taskId, [
-            'status' => RecordTaskStatusEnum::DONE->value,
+            'status'          => RecordTaskStatusEnum::DONE->value,
             'record_end_time' => $endTime,
             'record_duration' => $duration,
         ]);
@@ -768,22 +768,22 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             $deletedCount = $this->getRecordTaskDao()->deleteOtherTasksByStreamId($streamId, $taskId);
             if ($deletedCount > 0) {
                 $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_FROM_HOOK, '已删除相同stream_id的其他任务', [
-                    'task_id' => $taskId,
-                    'stream_id' => $streamId,
+                    'task_id'       => $taskId,
+                    'stream_id'     => $streamId,
                     'deleted_count' => $deletedCount,
                 ]);
             }
         }
 
         $this->getLogService()->info(LogEnum::MODULE_RECORD, LogEnum::ACTION_COMPLETE_FROM_HOOK, '任务从钩子完成', [
-            'task_id' => $taskId,
+            'task_id'   => $taskId,
             'stream_id' => $streamId,
-            'end_time' => $endTime,
-            'duration' => $duration,
+            'end_time'  => $endTime,
+            'duration'  => $duration,
         ]);
     }
 
-    protected function getRecordTaskDao(): RecordTaskDao|DaoProxy
+    protected function getRecordTaskDao() : RecordTaskDao|DaoProxy
     {
         return $this->createDao('Record:RecordTaskDao');
     }

@@ -30,7 +30,7 @@ interface VoiceTalkService
      * ]
      * @throws \CoreW\Business\Common\CommonBizException 当设备不存在、未在线或通道不存在时
      */
-    public function prepareTalk(string $deviceId, string $channelId, string $mode = 'talk'): array;
+    public function prepareTalk(string $deviceId, string $channelId, string $mode = 'talk') : array;
 
     /**
      * 停止语音对讲（通过 session_id）
@@ -38,7 +38,7 @@ interface VoiceTalkService
      * @param string $sessionId 会话ID
      * @return array
      */
-    public function stopVoiceTalk(string $sessionId): array;
+    public function stopVoiceTalk(string $sessionId) : array;
 
     /**
      * 停止语音对讲（通过内部调用）
@@ -48,7 +48,7 @@ interface VoiceTalkService
      * @param string $reason 结束原因: manual/timeout/stream_departure/rtp_error/sip_error
      * @return array
      */
-    public function stopVoiceTalkBySession(array $session, string $reason = 'manual'): array;
+    public function stopVoiceTalkBySession(array $session, string $reason = 'manual') : array;
 
     /**
      * 处理流到达事件（ZLM hook on_publish）
@@ -58,7 +58,7 @@ interface VoiceTalkService
      * @param string $mediaServerId 媒体服务器ID
      * @return void
      */
-    public function handleStreamArrival(string $app, string $stream, string $mediaServerId): void;
+    public function handleStreamArrival(string $app, string $stream, string $mediaServerId) : void;
 
     /**
      * 处理流离开事件（ZLM hook on_unpublish）
@@ -68,7 +68,7 @@ interface VoiceTalkService
      * @param string $mediaServerId 媒体服务器ID
      * @return void
      */
-    public function handleStreamDeparture(string $app, string $stream, string $mediaServerId): void;
+    public function handleStreamDeparture(string $app, string $stream, string $mediaServerId) : void;
 
     /**
      * SIP 200 OK 回调处理
@@ -77,7 +77,7 @@ interface VoiceTalkService
      * @param array $sipResponse SIP响应数据
      * @return void
      */
-    public function onSipResponseOk(string $sessionId, array $sipResponse): void;
+    public function onSipResponseOk(string $sessionId, array $sipResponse) : void;
 
     /**
      * 处理超时会话（定时任务调用）
@@ -85,7 +85,7 @@ interface VoiceTalkService
      *
      * @return int 处理的会话数量
      */
-    public function processTimeouts(): int;
+    public function processTimeouts() : int;
 
     /**
      * 根据会话ID获取会话信息
@@ -93,7 +93,7 @@ interface VoiceTalkService
      * @param string $sessionId
      * @return array|null
      */
-    public function getSession(string $sessionId): ?array;
+    public function getSession(string $sessionId) : ?array;
 
     /**
      * 根据 call_id 获取会话信息
@@ -101,7 +101,7 @@ interface VoiceTalkService
      * @param string $callId SIP Call-ID
      * @return array|null
      */
-    public function getSessionByCallId(string $callId): ?array;
+    public function getSessionByCallId(string $callId) : ?array;
 
     public function deleteStreamByStreamAndMediaServerId(string $stream, string $mediaServerId);
 
@@ -115,7 +115,7 @@ interface VoiceTalkService
      * @param array $deviceSdpInfo 设备 SDP 信息
      * @return array 包含 local_port, media_server_ip, ssrc, tcp_mode
      */
-    public function setupBroadcastRtp(string $sessionId, array $deviceSdpInfo): array;
+    public function setupBroadcastRtp(string $sessionId, array $deviceSdpInfo) : array;
 
     /**
      * 检查流是否在 ZLMediaKit 中存在（就绪状态）
@@ -125,5 +125,5 @@ interface VoiceTalkService
      * @param string $stream 流ID
      * @return bool 流存在返回 true，不存在返回 false
      */
-    public function isStreamReady(string $mediaServerId, string $app, string $stream): bool;
+    public function isStreamReady(string $mediaServerId, string $app, string $stream) : bool;
 }

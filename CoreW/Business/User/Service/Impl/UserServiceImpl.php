@@ -59,7 +59,7 @@ class UserServiceImpl extends BaseService implements UserService
             throw UserException::EMAIL_EXISTED();
         }
         $user = array_merge($this->getCreatedUserFields(), $fields);
-//        $user['roles'] = empty($user['roles']) ? ['ROLE_SUBPER_ADMIN'] : $user['roles'];
+        //        $user['roles'] = empty($user['roles']) ? ['ROLE_SUBPER_ADMIN'] : $user['roles'];
         $user['type'] = $user['type'] ?? 'default';
         $user['createdTime'] = time();
         $user['salt'] = $this->makeSalt();
@@ -69,7 +69,7 @@ class UserServiceImpl extends BaseService implements UserService
         $this->beginTransaction();
         try {
             $newUser = $this->getUserDao()->create($user);
-//            $this->createUserProfile($newUser);
+            //            $this->createUserProfile($newUser);
             $this->commit();
             return $newUser;
         } catch (\Exception $exception) {
@@ -152,7 +152,7 @@ class UserServiceImpl extends BaseService implements UserService
     {
         $users = [
             [
-                'type' => 'system',
+                'type'  => 'system',
                 'roles' => ['ROLE_SUPER_ADMIN'],
             ],
         ];
@@ -223,7 +223,7 @@ class UserServiceImpl extends BaseService implements UserService
     {
         if (SimpleValidator::email($keyword)) {
             $user = $this->getUserDao()->getByEmail($keyword);
-        } elseif (SimpleValidator::mobile($keyword)) {
+        } else if (SimpleValidator::mobile($keyword)) {
             $user = $this->getUserDao()->getByVerifiedMobile($keyword);
         } else {
             $user = $this->getUserDao()->getByNickname($keyword);
@@ -268,7 +268,6 @@ class UserServiceImpl extends BaseService implements UserService
 
         return ArrayToolkit::index($users, 'id');
     }
-
 
 
     public function setEmailVerified($userId)
@@ -370,7 +369,7 @@ class UserServiceImpl extends BaseService implements UserService
         $salt = $this->makeSalt();
 
         $fields = [
-            'salt' => $salt,
+            'salt'     => $salt,
             'password' => $this->getPasswordEncoder()->hash($password, $salt),
         ];
 
@@ -386,9 +385,9 @@ class UserServiceImpl extends BaseService implements UserService
     public function refreshLoginSecurityFields($userId, $ip)
     {
         $fields = [
-            'lockDeadline' => 0,
+            'lockDeadline'                  => 0,
             'consecutivePasswordErrorTimes' => 0,
-            'lastPasswordFailTime' => 0,
+            'lastPasswordFailTime'          => 0,
         ];
 
         $this->getUserDao()->update($userId, $fields);
@@ -589,9 +588,9 @@ class UserServiceImpl extends BaseService implements UserService
         if ($bind) {
             $convertedType = $this->convertOAuthType($type);
             $this->getUserBindDao()->deleteByTypeAndToId($convertedType, $toId);
-//            $currentUser = $this->getCurrentUser();
+            //            $currentUser = $this->getCurrentUser();
             $this->dispatchEvent('user.unbind', new Event($user, ['bind' => $bind, 'bindType' => $type, 'convertedType' => $convertedType]));
-//            $this->getLogService()->info('user', 'unbind', sprintf('用户名%s解绑成功，操作用户为%s', $user['nickname'], $currentUser['nickname']));
+            //            $this->getLogService()->info('user', 'unbind', sprintf('用户名%s解绑成功，操作用户为%s', $user['nickname'], $currentUser['nickname']));
         }
 
         return $bind;
@@ -668,10 +667,10 @@ class UserServiceImpl extends BaseService implements UserService
         $convertedType = $this->convertOAuthType($type);
 
         $bind = $this->getUserBindDao()->create([
-            'type' => $convertedType,
-            'fromId' => $fromId,
-            'toId' => $toId,
-            'token' => empty($token['token']) ? '' : $token['token'],
+            'type'        => $convertedType,
+            'fromId'      => $fromId,
+            'toId'        => $toId,
+            'token'       => empty($token['token']) ? '' : $token['token'],
             'createdTime' => time(),
             'expiredTime' => empty($token['expiredTime']) ? 0 : $token['expiredTime'],
         ]);
@@ -682,7 +681,7 @@ class UserServiceImpl extends BaseService implements UserService
     public function markLoginInfo($user, $type = null)
     {
         $this->getUserDao()->update($user['id'], [
-            'loginIp' => $user['currentIp'],
+            'loginIp'   => $user['currentIp'],
             'loginTime' => time(),
         ]);
         //if user type is system,we do not record user login log
@@ -693,7 +692,7 @@ class UserServiceImpl extends BaseService implements UserService
         $this->refreshLoginSecurityFields($user['id'], $user['currentIp']);
 
         $this->getLogService()->info(LogEnum::MODULE_ADMIN, 'login_success', BizEnum::getLoginTypeItems($type) . '成功', [
-            'currentIp' => $user['currentIp']
+            'currentIp' => $user['currentIp'],
         ]);
     }
 
@@ -725,18 +724,18 @@ class UserServiceImpl extends BaseService implements UserService
             $locked = 1;
 
             $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_LOCK, '密码错误次数过多，用户被临时锁定', [
-                'userId' => $userId,
-                'errorTimes' => $errorTimes,
+                'userId'       => $userId,
+                'errorTimes'   => $errorTimes,
                 'lockDeadline' => $lockDeadline,
-                'ip' => $ip,
+                'ip'           => $ip,
             ]);
         }
 
         $this->getUserDao()->update($userId, [
             'consecutivePasswordErrorTimes' => $errorTimes,
-            'lastPasswordFailTime' => $currentTime,
-            'lockDeadline' => $lockDeadline,
-            'locked' => $locked,
+            'lastPasswordFailTime'          => $currentTime,
+            'lockDeadline'                  => $lockDeadline,
+            'locked'                        => $locked,
         ]);
     }
 
@@ -793,7 +792,7 @@ class UserServiceImpl extends BaseService implements UserService
         // 重置错误次数
         $this->getUserDao()->update($userId, [
             'consecutivePasswordErrorTimes' => 0,
-            'lastPasswordFailTime' => 0,
+            'lastPasswordFailTime'          => 0,
         ]);
     }
 
@@ -902,7 +901,7 @@ class UserServiceImpl extends BaseService implements UserService
 
     protected function typeInOAuthClient($type)
     {
-//        $types = array_keys(OAuthClientFactory::clients());
+        //        $types = array_keys(OAuthClientFactory::clients());
         $types = ['wechat_app', 'weixin', 'weixinweb', 'weixinmob'];
 
         return in_array($type, $types);
@@ -941,15 +940,14 @@ class UserServiceImpl extends BaseService implements UserService
     {
         return [
             'verifiedMobile' => '',
-            'email' => '',
-            'emailVerified' => 0,
-            'nickname' => '',
-            'createdIp' => '',
-            'registeredWay' => '',
-            'passwordInit' => 1,
+            'email'          => '',
+            'emailVerified'  => 0,
+            'nickname'       => '',
+            'createdIp'      => '',
+            'registeredWay'  => '',
+            'passwordInit'   => 1,
         ];
     }
-
 
 
     /**

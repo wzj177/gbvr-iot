@@ -12,7 +12,7 @@ class VIPCompanyDaoImpl extends AdvancedDaoImpl implements VIPCompanyDao
 
     public function getByUserId(int $userId)
     {
-       return $this->getByFields(['userId' => $userId]);
+        return $this->getByFields(['userId' => $userId]);
     }
 
     public function getByCode(string $code)
@@ -25,17 +25,17 @@ class VIPCompanyDaoImpl extends AdvancedDaoImpl implements VIPCompanyDao
         return $this->getByFields(['name' => $name]);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
-            'serializes' => [ 
-           ], 
-            'orderbys' => [ 
+            'serializes' => [
+            ],
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
-           ], 
-            'conditions' => [ 
+            ],
+            'conditions' => [
                 'id = :id',
                 'id > :id_GT',
                 'id IN (:ids)',
@@ -47,11 +47,11 @@ class VIPCompanyDaoImpl extends AdvancedDaoImpl implements VIPCompanyDao
                 'name = :name',
                 'status = :status',
                 'status <> :noStatus',
-           ],
-            'timestamps' => [ 
+            ],
+            'timestamps' => [
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
         ];
-    } 
+    }
 }

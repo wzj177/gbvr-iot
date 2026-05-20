@@ -13,11 +13,11 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
     public function getByDeviceId(string $deviceId)
     {
         return $this->getByFields([
-            'device_id' => $deviceId
+            'device_id' => $deviceId,
         ]);
     }
 
-    public function getDevicesForPush(array $deviceIds): array
+    public function getDevicesForPush(array $deviceIds) : array
     {
         if (empty($deviceIds)) {
             return [];
@@ -67,33 +67,33 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
     /**
      * 构建订阅状态数据
      */
-    private function buildSubscriptionStatus(array $config): array
+    private function buildSubscriptionStatus(array $config) : array
     {
         $status = [];
 
         if ($config['event_catalog']) {
             $status['catalog'] = [
-                'enabled' => true,
-                'dialog_id' => $config['catalog_dialog_id'],
+                'enabled'    => true,
+                'dialog_id'  => $config['catalog_dialog_id'],
                 'expires_at' => $config['subscription_expires_at'] ? strtotime($config['subscription_expires_at']) : null,
             ];
         }
 
         if ($config['event_alarm']) {
             $status['alarm'] = [
-                'enabled' => true,
-                'dialog_id' => $config['alarm_dialog_id'],
+                'enabled'      => true,
+                'dialog_id'    => $config['alarm_dialog_id'],
                 'priority_min' => $config['alarm_priority_min'],
                 'priority_max' => $config['alarm_priority_max'],
-                'expires_at' => $config['subscription_expires_at'] ? strtotime($config['subscription_expires_at']) : null,
+                'expires_at'   => $config['subscription_expires_at'] ? strtotime($config['subscription_expires_at']) : null,
             ];
         }
 
         if ($config['event_mobile_position']) {
             $status['mobile_position'] = [
-                'enabled' => true,
-                'dialog_id' => $config['position_dialog_id'],
-                'interval' => $config['mobile_interval_sec'],
+                'enabled'    => true,
+                'dialog_id'  => $config['position_dialog_id'],
+                'interval'   => $config['mobile_interval_sec'],
                 'expires_at' => $config['subscription_expires_at'] ? strtotime($config['subscription_expires_at']) : null,
             ];
         }
@@ -101,21 +101,21 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
         return $status;
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'filter_channel_types' => 'json'
+                'filter_channel_types' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
-                'status'
+                'status',
             ],
             'timestamps' => [
                 'last_heartbeat_at',
                 'last_catalog_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],
@@ -141,7 +141,7 @@ class DeviceDaoImpl extends AdvancedDaoImpl implements DeviceDao
         ];
     }
 
-    public function updatePositionByDeviceId(string $deviceId, float $longitude, float $latitude): int
+    public function updatePositionByDeviceId(string $deviceId, float $longitude, float $latitude) : int
     {
         $sql = "UPDATE {$this->table()} SET lat = ?, lng = ?, updated_at = NOW() WHERE device_id = ?";
         return $this->db()->executeStatement($sql, [$latitude, $longitude, $deviceId]);

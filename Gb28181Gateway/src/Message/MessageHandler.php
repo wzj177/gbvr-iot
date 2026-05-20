@@ -19,7 +19,7 @@ class MessageHandler
      * @param CommandInterface $command
      * @return void
      */
-    public function registerCommand(CommandInterface $command): void
+    public function registerCommand(CommandInterface $command) : void
     {
         $this->commands[$command->getCommandType()] = $command;
     }
@@ -32,14 +32,14 @@ class MessageHandler
      * @param array $options
      * @return mixed
      */
-    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []): mixed
+    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []) : mixed
     {
         $cmdType = (string)($xml->CmdType ?? '');
-        
+
         if (isset($this->commands[$cmdType])) {
             return $this->commands[$cmdType]->handle($xml, $deviceId, $options);
         }
-        
+
         throw new \InvalidArgumentException("Unsupported command type: {$cmdType}");
     }
 
@@ -51,12 +51,12 @@ class MessageHandler
      * @param int $sn
      * @return string
      */
-    public function generateResponse(string $cmdType, array $data, int $sn): string
+    public function generateResponse(string $cmdType, array $data, int $sn) : string
     {
         if (isset($this->commands[$cmdType])) {
             return $this->commands[$cmdType]->generateResponse($data, $sn);
         }
-        
+
         throw new \InvalidArgumentException("GenerateResponse Unsupported command type: {$cmdType}");
     }
 
@@ -65,7 +65,7 @@ class MessageHandler
      *
      * @return CommandInterface[]
      */
-    public function getCommands(): array
+    public function getCommands() : array
     {
         return $this->commands;
     }

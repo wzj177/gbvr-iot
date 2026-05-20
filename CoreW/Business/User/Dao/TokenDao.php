@@ -8,7 +8,7 @@ use CoreW\Dao\GeneralDaoInterface;
 
 interface TokenDao extends GeneralDaoInterface
 {
-    public function get($id, array $options = array());
+    public function get($id, array $options = []);
 
     public function getByToken($token);
 

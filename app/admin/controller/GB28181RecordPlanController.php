@@ -29,7 +29,7 @@ class GB28181RecordPlanController extends BaseController
         }
 
         $total = $this->getRecordPlanService()->countPlans($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $plans = $this->getRecordPlanService()->searchPlans($conditions, ['id' => 'DESC'], $offset, $limit);
 
@@ -41,7 +41,7 @@ class GB28181RecordPlanController extends BaseController
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $plans,
+            'list'      => $plans,
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
@@ -215,7 +215,7 @@ class GB28181RecordPlanController extends BaseController
     /**
      * @return RecordPlanService
      */
-    private function getRecordPlanService(): RecordPlanService
+    private function getRecordPlanService() : RecordPlanService
     {
         return $this->createService('Record:RecordPlanService');
     }

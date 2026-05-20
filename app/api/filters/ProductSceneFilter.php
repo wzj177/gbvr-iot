@@ -7,50 +7,52 @@ use support\utils\AssetHelper;
 
 class ProductSceneFilter extends Filter
 {
-    protected $publicFields = [
-        'id',
-        'number',
-        'productId',
-        'title',
-        'panorama',
-        'panoramaSize',
-        'thumbSize',
-        'tileSize',
-        'panoramaWidth',
-        'panoramaHeight',
-        'tileRows',
-        'tileColumns',
-        'panoramaSmall',
-        'thumb',
-        'tilePath',
-        'tileStatus',
-        'longitude',
-        'latitude',
-        'minFov',
-        'maxFov',
-        'desc',
-        'status',
-        'vrOptions',
-        'createdTime',
-        'tileUrl',
-        'panoramaUrl',
-        'thumbUrl',
-        'panoramaSmallUrl'
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'number',
+            'productId',
+            'title',
+            'panorama',
+            'panoramaSize',
+            'thumbSize',
+            'tileSize',
+            'panoramaWidth',
+            'panoramaHeight',
+            'tileRows',
+            'tileColumns',
+            'panoramaSmall',
+            'thumb',
+            'tilePath',
+            'tileStatus',
+            'longitude',
+            'latitude',
+            'minFov',
+            'maxFov',
+            'desc',
+            'status',
+            'vrOptions',
+            'createdTime',
+            'tileUrl',
+            'panoramaUrl',
+            'thumbUrl',
+            'panoramaSmallUrl',
+        ];
 
-    protected $simpleFields = [
-        'name',
-        'number',
-        'thumb',
-        'url',
-        'panorama',
-        'panoramaFull',
-        'panoramaSmall',
-        'panoramaSmallUrl',
-        'id',
-        'uid',
-        'sort'
-    ];
+    protected $simpleFields
+        = [
+            'name',
+            'number',
+            'thumb',
+            'url',
+            'panorama',
+            'panoramaFull',
+            'panoramaSmall',
+            'panoramaSmallUrl',
+            'id',
+            'uid',
+            'sort',
+        ];
 
     protected function publicFields(&$data)
     {

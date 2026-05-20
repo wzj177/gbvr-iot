@@ -40,7 +40,7 @@ class GB28181RecordingController extends BaseController
         }
 
         $total = $this->getRecordFileService()->countRecordFiles($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         // 使用带设备信息的查询方法
         $files = $this->getRecordFileService()->searchRecordFilesWithDeviceInfo($conditions, ['id' => 'DESC'], $offset, $limit);
@@ -48,7 +48,7 @@ class GB28181RecordingController extends BaseController
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $this->formatFiles($files),
+            'list'      => $this->formatFiles($files),
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
@@ -71,7 +71,7 @@ class GB28181RecordingController extends BaseController
     /**
      * 格式化录像文件数据
      */
-    private function formatFiles(array $files): array
+    private function formatFiles(array $files) : array
     {
         return array_map(function ($file) {
             $file['start_time_formatted'] = $file['start_time'] ? date('Y-m-d H:i:s', $file['start_time']) : null;
@@ -90,7 +90,7 @@ class GB28181RecordingController extends BaseController
     /**
      * @return RecordFileService
      */
-    private function getRecordFileService(): RecordFileService
+    private function getRecordFileService() : RecordFileService
     {
         return $this->createService('RecordFile:RecordFileService');
     }

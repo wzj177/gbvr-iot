@@ -16,6 +16,8 @@ use Gb28181\GateWay\Libs\Logger;
  * 使用场景：
  * - GB28181 服务器接收外部命令(通过 Redis)
  * - 异步任务触发(录像查询、回放等)
+ *
+ * @deprecated 已弃用
  */
 class RedisSubscriber
 {
@@ -43,7 +45,7 @@ class RedisSubscriber
      * @param string $queueKey Redis 队列键名
      * @param int $timeout blPop 超时时间(秒)
      */
-    public function run(\ExoSip $server, string $queueKey = 'gb28181:commands', int $timeout = 1): void
+    public function run(\ExoSip $server, string $queueKey = 'gb28181:commands', int $timeout = 1) : void
     {
         // 设置信号处理器
         pcntl_async_signals(true);
@@ -98,7 +100,7 @@ class RedisSubscriber
                 pcntl_signal_dispatch();
 
             } catch (\Exception $e) {
-//                $this->logger->error("Error: {$e->getMessage()}", 'RedisSubscriber');
+                //                $this->logger->error("Error: {$e->getMessage()}", 'RedisSubscriber');
                 $redis = null;
                 sleep(1);
             }
@@ -111,7 +113,7 @@ class RedisSubscriber
      * 连接 Redis
      * @return ClientRedis|null
      */
-    private function connectRedis(): ?ClientRedis
+    private function connectRedis() : ?ClientRedis
     {
         try {
             $redis = new ClientRedis($this->config);
@@ -132,13 +134,13 @@ class RedisSubscriber
      * @param ClientRedis $redis
      * @return bool
      */
-    private function checkRedisHealth(ClientRedis $redis): bool
+    private function checkRedisHealth(ClientRedis $redis) : bool
     {
         try {
             $redis->ping();
-//            if ($this->debug) {
-//                $this->logger->debug("Redis PING OK", 'RedisSubscriber');
-//            }
+            //            if ($this->debug) {
+            //                $this->logger->debug("Redis PING OK", 'RedisSubscriber');
+            //            }
             return true;
         } catch (\Exception $e) {
             $this->logger->error("Heartbeat failed: {$e->getMessage()}", 'RedisSubscriber');
@@ -151,7 +153,7 @@ class RedisSubscriber
      * @param \ExoSip $server
      * @param string $message JSON 格式的消息
      */
-    private function handleMessage(\ExoSip $server, string $message): void
+    private function handleMessage(\ExoSip $server, string $message) : void
     {
         $cmd = @json_decode($message, true);
         if (!$cmd) {

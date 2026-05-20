@@ -29,7 +29,7 @@ class GB28181ChannelController extends BaseController
     {
         // 构建查询条件
         $conditions = [
-            'channel_types' => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value]
+            'channel_types' => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value],
         ];
 
         if ($request->get('status')) {
@@ -54,7 +54,7 @@ class GB28181ChannelController extends BaseController
         }
 
         $total = $this->getDeviceService()->countChannels($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $channels = $this->getDeviceService()->searchChannels($conditions, ['status' => 'ASC', 'id' => 'DESC'], $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
@@ -94,8 +94,8 @@ class GB28181ChannelController extends BaseController
         }
 
         return $this->createSuccessJsonResponse([
-            'list' => DeviceChannelFilter::publicList($channels),
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => DeviceChannelFilter::publicList($channels),
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
@@ -179,7 +179,7 @@ class GB28181ChannelController extends BaseController
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, 'update_channel', '更新通道失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -204,7 +204,7 @@ class GB28181ChannelController extends BaseController
             return $this->createSuccessJsonResponse(null, '删除成功');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, 'delete_channel', '删除通道失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -236,23 +236,23 @@ class GB28181ChannelController extends BaseController
 
         try {
             $affectedRows = $this->getDeviceService()->batchUpdateChannels($ids, [
-                'media_server_id' => $mediaServerId
+                'media_server_id' => $mediaServerId,
             ]);
 
             $this->getLogService()->info('gb28181', 'batch_bind_media_channel', "批量绑定媒体服务器到通道，成功: {$affectedRows}个", [
-                'ids' => $ids,
+                'ids'           => $ids,
                 'mediaServerId' => $mediaServerId,
             ]);
 
             return $this->createSuccessJsonResponse([
                 'successCount' => $affectedRows,
-                'message' => "成功绑定 {$affectedRows} 个通道到媒体服务器",
+                'message'      => "成功绑定 {$affectedRows} 个通道到媒体服务器",
             ]);
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_BATCH_BIND_MEDIA, '批量绑定媒体服务器到通道失败', [
-                'ids' => $ids,
+                'ids'           => $ids,
                 'mediaServerId' => $mediaServerId,
-                'error' => $e->getMessage(),
+                'error'         => $e->getMessage(),
             ]);
 
             return $this->createErrorJsonResponse('批量绑定媒体服务器失败: ' . $e->getMessage(), 500);
@@ -289,7 +289,7 @@ class GB28181ChannelController extends BaseController
             [
                 'code' => ChannelTypeEnum::VIRTUAL_ORG->value,
                 'name' => ChannelTypeEnum::VIRTUAL_ORG->label(),
-            ]
+            ],
         ];
 
         return $this->createSuccessJsonResponse($items);
@@ -338,10 +338,11 @@ class GB28181ChannelController extends BaseController
                 $mediaInfo = $this->getGb28181Service()->queryStreamSchemaMediaInfo($streamId, $schema);
 
                 return $this->createSuccessJsonResponse([
-                    'way' => 'media-api',
-                    'data' => $mediaInfo
+                    'way'  => 'media-api',
+                    'data' => $mediaInfo,
                 ]);
-            } catch (\Exception $e) {};
+            } catch (\Exception $e) {
+            };
         }
 
         try {
@@ -354,7 +355,7 @@ class GB28181ChannelController extends BaseController
                 '-analyzeduration', '800000', // 0.8秒
                 '-timeout', '5000000',
                 '-user_agent', 'Mozilla/5.0 (compatible; FFprobe)',
-                $url
+                $url,
             ];
             $ffprobe = $this->getFFProbe();
             $resultStr = $ffprobe->getFFProbeDriver()->command($command);
@@ -369,13 +370,13 @@ class GB28181ChannelController extends BaseController
             $codecInfo = $this->parseCodecInfo($result);
 
             return $this->createSuccessJsonResponse([
-                'way' => 'ffprobe',
-                'data' => $codecInfo
+                'way'  => 'ffprobe',
+                'data' => $codecInfo,
             ]);
 
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, 'get_url_codec_info', '获取URL编码信息失败', [
-                'url' => $url,
+                'url'   => $url,
                 'error' => $e->getMessage(),
             ]);
 
@@ -400,7 +401,7 @@ class GB28181ChannelController extends BaseController
      * @param string $url 完整的流媒体 URL
      * @return string|null
      */
-    private function getZLMediaKitSchemaFromUrl(string $url): ?string
+    private function getZLMediaKitSchemaFromUrl(string $url) : ?string
     {
         $url = trim($url);
         if (!$url) {
@@ -413,7 +414,7 @@ class GB28181ChannelController extends BaseController
         }
 
         $scheme = strtolower($parsed['scheme']);
-        $path   = $parsed['path'] ?? '';
+        $path = $parsed['path'] ?? '';
 
         // 处理 RTSP / RTMP 协议（直接映射）
         if ($scheme === 'rtsp' || $scheme === 'rtsps') {
@@ -545,10 +546,10 @@ class GB28181ChannelController extends BaseController
 
         // 获取录像列表和总数
         $conditions = [
-            'device_id' => $channel['device_id'],
-            'channel_id' => $channel['channel_id'],
+            'device_id'      => $channel['device_id'],
+            'channel_id'     => $channel['channel_id'],
             'start_time_LTE' => $endTime,
-            'end_time_GTE' => $startTime,
+            'end_time_GTE'   => $startTime,
         ];
 
         $total = $this->getPlaybackRecordService()->countPlaybackRecords($conditions);
@@ -564,46 +565,46 @@ class GB28181ChannelController extends BaseController
         $formattedRecords = [];
         foreach ($records as $record) {
             $formattedRecords[] = [
-                'id' => $record['id'],
-                'name' => $record['name'],
-                'file_path' => $record['file_path'],
-                'start_time' => $record['start_time'],
-                'end_time' => $record['end_time'],
+                'id'                => $record['id'],
+                'name'              => $record['name'],
+                'file_path'         => $record['file_path'],
+                'start_time'        => $record['start_time'],
+                'end_time'          => $record['end_time'],
                 'start_time_format' => date('Y-m-d H:i:s', $record['start_time']),
-                'end_time_format' => date('Y-m-d H:i:s', $record['end_time']),
-                'secrecy' => $record['secrecy'],
-                'type' => $record['type'],
-                'recorder_id' => $record['recorder_id'],
+                'end_time_format'   => date('Y-m-d H:i:s', $record['end_time']),
+                'secrecy'           => $record['secrecy'],
+                'type'              => $record['type'],
+                'recorder_id'       => $record['recorder_id'],
             ];
         }
 
         return $this->createSuccessJsonResponse([
-            'total' => $total,
-            'list' => $formattedRecords,
+            'total'      => $total,
+            'list'       => $formattedRecords,
             'start_time' => $startTime,
-            'end_time' => $endTime,
+            'end_time'   => $endTime,
         ]);
     }
 
     /**
      * 解析 ffprobe 返回的编码信息
      */
-    private function parseCodecInfo(array $ffprobeResult): array
+    private function parseCodecInfo(array $ffprobeResult) : array
     {
         $info = [
-            'video' => null,
-            'audio' => null,
+            'video'  => null,
+            'audio'  => null,
             'format' => null,
         ];
 
         // 解析格式信息
         if (isset($ffprobeResult['format'])) {
             $info['format'] = [
-                'format_name' => $ffprobeResult['format']['format_name'] ?? '',
+                'format_name'      => $ffprobeResult['format']['format_name'] ?? '',
                 'format_long_name' => $ffprobeResult['format']['format_long_name'] ?? '',
-                'duration' => $ffprobeResult['format']['duration'] ?? '',
-                'size' => $ffprobeResult['format']['size'] ?? '',
-                'bit_rate' => $ffprobeResult['format']['bit_rate'] ?? '',
+                'duration'         => $ffprobeResult['format']['duration'] ?? '',
+                'size'             => $ffprobeResult['format']['size'] ?? '',
+                'bit_rate'         => $ffprobeResult['format']['bit_rate'] ?? '',
             ];
         }
 
@@ -619,24 +620,24 @@ class GB28181ChannelController extends BaseController
 
                 if ($codecType === 'video') {
                     $info['video'] = [
-                        'codec_name' => $stream['codec_name'] ?? '',
+                        'codec_name'      => $stream['codec_name'] ?? '',
                         'codec_long_name' => $stream['codec_long_name'] ?? '',
-                        'width' => $stream['width'] ?? 0,
-                        'height' => $stream['height'] ?? 0,
-                        'fps' => $this->parseFps($stream['r_frame_rate'] ?? ''),
-                        'bit_rate' => $stream['bit_rate'] ?? '',
-                        'pix_fmt' => $stream['pix_fmt'] ?? '',
-                        'profile' => $stream['profile'] ?? '',
+                        'width'           => $stream['width'] ?? 0,
+                        'height'          => $stream['height'] ?? 0,
+                        'fps'             => $this->parseFps($stream['r_frame_rate'] ?? ''),
+                        'bit_rate'        => $stream['bit_rate'] ?? '',
+                        'pix_fmt'         => $stream['pix_fmt'] ?? '',
+                        'profile'         => $stream['profile'] ?? '',
                     ];
-                } elseif ($codecType === 'audio') {
+                } else if ($codecType === 'audio') {
                     $info['audio'] = [
-                        'codec_name' => $stream['codec_name'] ?? '',
+                        'codec_name'      => $stream['codec_name'] ?? '',
                         'codec_long_name' => $stream['codec_long_name'] ?? '',
-                        'sample_rate' => $stream['sample_rate'] ?? '',
-                        'channels' => $stream['channels'] ?? 0,
-                        'channel_layout' => $stream['channel_layout'] ?? '',
-                        'bit_rate' => $stream['bit_rate'] ?? '',
-                        'sample_fmt' => $stream['sample_fmt'] ?? '',
+                        'sample_rate'     => $stream['sample_rate'] ?? '',
+                        'channels'        => $stream['channels'] ?? 0,
+                        'channel_layout'  => $stream['channel_layout'] ?? '',
+                        'bit_rate'        => $stream['bit_rate'] ?? '',
+                        'sample_fmt'      => $stream['sample_fmt'] ?? '',
                     ];
                 }
             }
@@ -648,7 +649,7 @@ class GB28181ChannelController extends BaseController
     /**
      * 解析帧率 (如 "25/1" -> 25.0, "30000/1001" -> 29.97)
      */
-    private function parseFps(string $fpsString): float
+    private function parseFps(string $fpsString) : float
     {
         if (empty($fpsString)) {
             return 0.0;
@@ -666,10 +667,10 @@ class GB28181ChannelController extends BaseController
     /**
      * 过滤媒体服务器敏感信息，只保留必要的字段
      */
-    private function filterMediaServerInfo(array $server): array
+    private function filterMediaServerInfo(array $server) : array
     {
         return [
-            'id' => $server['id'],
+            'id'   => $server['id'],
             'name' => $server['name'] ?? '',
             'type' => $server['type'] ?? '',
             'host' => $server['host'] ?? '',
@@ -681,7 +682,7 @@ class GB28181ChannelController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -689,7 +690,7 @@ class GB28181ChannelController extends BaseController
     /**
      * @return MediaServerService
      */
-    private function getMediaServerService(): MediaServerService
+    private function getMediaServerService() : MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
     }
@@ -697,12 +698,12 @@ class GB28181ChannelController extends BaseController
     /**
      * @return PlaybackRecordService
      */
-    private function getPlaybackRecordService(): PlaybackRecordService
+    private function getPlaybackRecordService() : PlaybackRecordService
     {
         return $this->createService('Devices:PlaybackRecordService');
     }
 
-    private function getGb28181Service(): Gb28181Service
+    private function getGb28181Service() : Gb28181Service
     {
         return $this->getBiz()->offsetGet('gb28181_service');
     }

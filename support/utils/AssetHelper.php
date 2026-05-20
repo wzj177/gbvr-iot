@@ -91,7 +91,7 @@ class AssetHelper
      */
     public static function getUploadUrl(string $path, $defaultKey = null, $uri = null)
     {
-        if ( false !== strpos($path, 'http://') || false !== strpos($path, 'https://')) {
+        if (false !== strpos($path, 'http://') || false !== strpos($path, 'https://')) {
             return $path;
         }
 
@@ -134,8 +134,8 @@ class AssetHelper
         return \Request()->host();
     }
 
-    public static function uploadPath(string $path): string
+    public static function uploadPath(string $path) : string
     {
-        return uploads_path() . DIRECTORY_SEPARATOR . str_replace('uploads/', '' , $path);
+        return uploads_path() . DIRECTORY_SEPARATOR . str_replace('uploads/', '', $path);
     }
 }

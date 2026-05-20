@@ -15,10 +15,10 @@ use CoreW\Business\Record\Service\RecordTaskService;
  */
 class PlaybackRecordTask extends BaseCrontabTask
 {
-    public function execute(): void
+    public function execute() : void
     {
-//        $this->log()->info('PlaybackRecordTaskProcess started');
-//        echo 'PlaybackRecordTaskProcess started', PHP_EOL;
+        //        $this->log()->info('PlaybackRecordTaskProcess started');
+        //        echo 'PlaybackRecordTaskProcess started', PHP_EOL;
         /** @var RecordTaskService $recordTaskService */
         $recordTaskService = $this->getBfw()->service('Record:RecordTaskService');
 
@@ -32,10 +32,10 @@ class PlaybackRecordTask extends BaseCrontabTask
         $completedCount = $recordTaskService->completeFinalizingTasks();
 
         $this->log()->info('PlaybackRecordTaskProcess completed', [
-            'started_count' => $startedCount,
-            'stopped_count' => $stoppedCount,
+            'started_count'   => $startedCount,
+            'stopped_count'   => $stoppedCount,
             'completed_count' => $completedCount,
         ]);
-//        echo 'PlaybackRecordTaskProcess completed', ':started_count=', $startedCount, ',stopped_count=', $stoppedCount, ',completed_count=', $completedCount,PHP_EOL;
+        //        echo 'PlaybackRecordTaskProcess completed', ':started_count=', $startedCount, ',stopped_count=', $stoppedCount, ',completed_count=', $completedCount,PHP_EOL;
     }
 }

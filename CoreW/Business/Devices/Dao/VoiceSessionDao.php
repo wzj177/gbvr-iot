@@ -7,22 +7,23 @@ use CoreW\Dao\AdvancedDaoInterface;
 interface VoiceSessionDao extends AdvancedDaoInterface
 {
 
-    public function getBySessionId(string $sessionId): ?array;
+    public function getBySessionId(string $sessionId) : ?array;
 
-    public function getByDeviceAndChannel(string $deviceId, string $channelId): ?array;
+    public function getByDeviceAndChannel(string $deviceId, string $channelId) : ?array;
 
-    public function getByDialogId(string $dialogId): array|false;
+    public function getByDialogId(string $dialogId) : array|false;
 
-    public function getByStream(string $stream): array|false;
+    public function getByStream(string $stream) : array|false;
 
-    public function getByStreamAndMediaServerId(string $stream, string $mediaServerId): array|false;
-    public function getByNoEndedStreamAndMediaServerId(string $stream, string $mediaServerId): array|false;
+    public function getByStreamAndMediaServerId(string $stream, string $mediaServerId) : array|false;
+
+    public function getByNoEndedStreamAndMediaServerId(string $stream, string $mediaServerId) : array|false;
 
     public function updStatus(int $id, string $status);
 
-    public function updateStatusBySessionId(string $sessionId, string $status): bool;
+    public function updateStatusBySessionId(string $sessionId, string $status) : bool;
 
-    public function getByCallId(string $callId): array|false;
+    public function getByCallId(string $callId) : array|false;
 
     /**
      * 获取所有活跃会话
@@ -30,13 +31,13 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param string|null $deviceId 可选，过滤指定设备
      * @return array
      */
-    public function getActiveSessions(?string $deviceId = null): array;
+    public function getActiveSessions(?string $deviceId = null) : array;
 
     public function getActiveByDeviceAndChannel(
         string $deviceId,
         string $channelId,
         int $timeoutSeconds = 30
-    ): array|false;
+    ) : array|false;
 
     /**
      * 查找同设备同通道、指定模式的活跃会话（带时间范围，排除指定 session）
@@ -54,7 +55,7 @@ interface VoiceSessionDao extends AdvancedDaoInterface
         string $mode,
         int $timeoutSeconds = 30,
         ?string $excludeSessionId = null
-    ): array;
+    ) : array;
 
     /**
      * 根据 SSRC 获取会话
@@ -62,7 +63,7 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param string $ssrc
      * @return array|false
      */
-    public function getBySsrc(string $ssrc): array|false;
+    public function getBySsrc(string $ssrc) : array|false;
 
     /**
      * CAS (Compare-And-Set) 更新状态
@@ -75,7 +76,7 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param array $extraFields 额外要更新的字段（如 ended_reason）
      * @return bool 更新成功返回 true，状态不匹配返回 false
      */
-    public function updStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []): bool;
+    public function updStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []) : bool;
 
     /**
      * 查找超时的会话
@@ -84,7 +85,7 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param int $limit 限制返回数量
      * @return array 超时会话列表
      */
-    public function findExpiredSessions(int $limit = 100): array;
+    public function findExpiredSessions(int $limit = 100) : array;
 
     /**
      * 标记会话为结束状态（带CAS）
@@ -93,7 +94,7 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param string $endedReason 结束原因
      * @return bool
      */
-    public function markAsEnded(int $id, string $endedReason = 'manual'): bool;
+    public function markAsEnded(int $id, string $endedReason = 'manual') : bool;
 
     /**
      * 结束会话（任意非 ENDED 状态 -> ENDED）
@@ -102,6 +103,6 @@ interface VoiceSessionDao extends AdvancedDaoInterface
      * @param string $endedReason 结束原因
      * @return bool 更新成功返回 true，已是 ENDED 返回 false
      */
-    public function endSession(int $id, string $endedReason = 'manual'): bool;
+    public function endSession(int $id, string $endedReason = 'manual') : bool;
 
 }

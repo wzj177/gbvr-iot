@@ -19,7 +19,7 @@ class MailServiceProvider implements ServiceProviderInterface
         $this->registerEmailTemplate($app);
         $app["push_mail_default"] = function () {
             return function ($options, $debug) {
-              return new DefaultMail($options, $debug);
+                return new DefaultMail($options, $debug);
             };
         };
 
@@ -40,7 +40,7 @@ class MailServiceProvider implements ServiceProviderInterface
             return [];
         });
         $app['email_template_paths'] = $app->extend('email_template_paths', function ($paths, $app) {
-            return array_merge($paths, [__DIR__.'/Template/twig']);
+            return array_merge($paths, [__DIR__ . '/Template/twig']);
         });
         $app['email_template_parser'] = function ($app) {
             $parser = new EmailTemplateParser();

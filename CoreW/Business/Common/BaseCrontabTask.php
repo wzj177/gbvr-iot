@@ -9,9 +9,9 @@ abstract class BaseCrontabTask implements CrontabTaskInterface
 {
     protected static ?CrontabTaskInterface $_instance = null;
 
-    abstract public function execute(): void;
+    abstract public function execute() : void;
 
-    public static function run(): void
+    public static function run() : void
     {
         if (static::$_instance === null) {
             static::$_instance = new static();
@@ -36,7 +36,7 @@ abstract class BaseCrontabTask implements CrontabTaskInterface
      * 获取bfw实例
      * @return \CoreW\Bfw
      */
-    protected function getBfw(): \CoreW\Bfw
+    protected function getBfw() : \CoreW\Bfw
     {
         return Core::instance();
     }

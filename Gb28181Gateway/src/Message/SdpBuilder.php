@@ -29,7 +29,7 @@ class SdpBuilder
      *   - sdp_owner: SDP o= 行的 owner 标识 (可选, 默认使用 server_id; Talk 场景应传入 channel_id, 与 WVP 一致)
      * @return string SDP字符串
      */
-    public static function buildInviteSdp(array $params): string
+    public static function buildInviteSdp(array $params) : string
     {
         // 必需参数验证
         $required = ['server_id', 'media_ip', 'media_port', 'session_name', 'mode', 'ssrc'];
@@ -72,7 +72,7 @@ class SdpBuilder
             // 视频会话的 Payload 配置
             if (isset($params['payload_types'])) {
                 $payloads = $params['payload_types'];
-            } elseif ($seniorSdp) {
+            } else if ($seniorSdp) {
                 $payloads = [
                     96  => ['type' => 'PS', 'rate' => 90000],
                     126 => ['type' => 'H264', 'rate' => 90000, 'fmtp' => 'profile-level-id=42e01e'],
@@ -110,7 +110,7 @@ class SdpBuilder
         if ($tcpMode == 1) {
             $sdp .= "a=setup:passive\r\n";
             $sdp .= "a=connection:new\r\n";
-        } elseif ($tcpMode == 2) {
+        } else if ($tcpMode == 2) {
             $sdp .= "a=setup:active\r\n";
             $sdp .= "a=connection:new\r\n";
         }
@@ -143,7 +143,7 @@ class SdpBuilder
             //  Talk/Broadcast 的 f= 格式：v/////a/1/8/1
             // 含义：视频(无)/音频(通道1/Payload8/通道数1)
             $sdp .= "f=v/////a/1/8/1\r\n";
-        } elseif ($sessionName === 'Download' && isset($params['download_speed'])) {
+        } else if ($sessionName === 'Download' && isset($params['download_speed'])) {
             $speed = $params['download_speed'];
             $sdp .= "f=v/{$speed}///a///\r\n";
         } else {
@@ -156,7 +156,7 @@ class SdpBuilder
     /**
      * 根据 TCP 模式获取传输协议
      */
-    private static function getTransportProtocol(int $tcpMode): string
+    private static function getTransportProtocol(int $tcpMode) : string
     {
         return match ($tcpMode) {
             1, 2 => 'TCP/RTP/AVP',
@@ -170,22 +170,22 @@ class SdpBuilder
     public static function buildLiveVideoSdp(
         string $serverId,
         string $mediaIp,
-        int    $mediaPort,
+        int $mediaPort,
         string $ssrc,
-        int    $tcpMode = 0,
-        bool   $seniorSdp = false,
+        int $tcpMode = 0,
+        bool $seniorSdp = false,
         ?string $streamId = null,
-    ): string
+    ) : string
     {
         return self::buildInviteSdp([
-            'server_id' => $serverId,
-            'media_ip' => $mediaIp,
-            'media_port' => $mediaPort,
-            'session_name' => 'Play',
-            'mode' => 'recvonly',
-            'ssrc' => $ssrc,
-            'tcp_mode' => $tcpMode,
-            'senior_sdp' => $seniorSdp,
+            'server_id'             => $serverId,
+            'media_ip'              => $mediaIp,
+            'media_port'            => $mediaPort,
+            'session_name'          => 'Play',
+            'mode'                  => 'recvonly',
+            'ssrc'                  => $ssrc,
+            'tcp_mode'              => $tcpMode,
+            'senior_sdp'            => $seniorSdp,
             'stream_identification' => $streamId,
         ]);
     }
@@ -196,26 +196,26 @@ class SdpBuilder
     public static function buildPlaybackSdp(
         string $serverId,
         string $mediaIp,
-        int    $mediaPort,
+        int $mediaPort,
         string $ssrc,
-        int    $startTime,
-        int    $endTime,
-        int    $tcpMode = 0,
-        bool   $seniorSdp = false,
+        int $startTime,
+        int $endTime,
+        int $tcpMode = 0,
+        bool $seniorSdp = false,
         ?string $streamId = null
-    ): string
+    ) : string
     {
         return self::buildInviteSdp([
-            'server_id' => $serverId,
-            'media_ip' => $mediaIp,
-            'media_port' => $mediaPort,
-            'session_name' => 'Playback',
-            'mode' => 'recvonly',
-            'ssrc' => $ssrc,
-            'tcp_mode' => $tcpMode,
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'senior_sdp' => $seniorSdp,
+            'server_id'             => $serverId,
+            'media_ip'              => $mediaIp,
+            'media_port'            => $mediaPort,
+            'session_name'          => 'Playback',
+            'mode'                  => 'recvonly',
+            'ssrc'                  => $ssrc,
+            'tcp_mode'              => $tcpMode,
+            'start_time'            => $startTime,
+            'end_time'              => $endTime,
+            'senior_sdp'            => $seniorSdp,
             'stream_identification' => $streamId,
         ]);
     }
@@ -238,22 +238,22 @@ class SdpBuilder
     public static function buildTalkSdp(
         string $serverId,
         string $mediaIp,
-        int    $mediaPort,
+        int $mediaPort,
         string $ssrc,
-        int    $tcpMode = 0,
+        int $tcpMode = 0,
         string $mode = 'recvonly',  //  默认 recvonly (设备接收音频)
         ?string $channelId = null
-    ): string
+    ) : string
     {
         return self::buildInviteSdp([
-            'server_id' => $serverId,
-            'media_ip' => $mediaIp,
-            'media_port' => $mediaPort,
+            'server_id'    => $serverId,
+            'media_ip'     => $mediaIp,
+            'media_port'   => $mediaPort,
             'session_name' => 'Talk',       // 关键标识
-            'mode' => $mode,                // recvonly/sendonly/sendrecv
-            'ssrc' => $ssrc,
-            'tcp_mode' => $tcpMode,
-            'sdp_owner' => $channelId ?? $serverId,  // Talk 使用 channelId (与 WVP 一致)
+            'mode'         => $mode,                // recvonly/sendonly/sendrecv
+            'ssrc'         => $ssrc,
+            'tcp_mode'     => $tcpMode,
+            'sdp_owner'    => $channelId ?? $serverId,  // Talk 使用 channelId (与 WVP 一致)
         ]);
     }
 
@@ -276,20 +276,20 @@ class SdpBuilder
     public static function buildBroadcastSdp(
         string $serverId,
         string $mediaIp,
-        int    $mediaPort,
+        int $mediaPort,
         string $ssrc,
-        int    $tcpMode = 0,
+        int $tcpMode = 0,
         string $mode = 'sendonly',
-    ): string
+    ) : string
     {
         return self::buildInviteSdp([
-            'server_id' => $serverId,
-            'media_ip' => $mediaIp,
-            'media_port' => $mediaPort,
+            'server_id'    => $serverId,
+            'media_ip'     => $mediaIp,
+            'media_port'   => $mediaPort,
             'session_name' => 'Broadcast',
-            'mode' => $mode,
-            'ssrc' => $ssrc,
-            'tcp_mode' => $tcpMode,
+            'mode'         => $mode,
+            'ssrc'         => $ssrc,
+            'tcp_mode'     => $tcpMode,
             // sdp_owner 默认使用 server_id（广播模式用 serverId，与 WVP 一致）
         ]);
     }
@@ -300,25 +300,25 @@ class SdpBuilder
     public static function buildDownloadSdp(
         string $serverId,
         string $mediaIp,
-        int    $mediaPort,
+        int $mediaPort,
         string $ssrc,
-        int    $startTime,
-        int    $endTime,
-        int    $tcpMode = 0,
-        int    $downloadSpeed = 1
-    ): string
+        int $startTime,
+        int $endTime,
+        int $tcpMode = 0,
+        int $downloadSpeed = 1
+    ) : string
     {
         return self::buildInviteSdp([
-            'server_id' => $serverId,
-            'media_ip' => $mediaIp,
-            'media_port' => $mediaPort,
-            'session_name' => 'Download',
-            'mode' => 'recvonly',
-            'ssrc' => $ssrc,
-            'tcp_mode' => $tcpMode,
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'payload_types' => [
+            'server_id'      => $serverId,
+            'media_ip'       => $mediaIp,
+            'media_port'     => $mediaPort,
+            'session_name'   => 'Download',
+            'mode'           => 'recvonly',
+            'ssrc'           => $ssrc,
+            'tcp_mode'       => $tcpMode,
+            'start_time'     => $startTime,
+            'end_time'       => $endTime,
+            'payload_types'  => [
                 96 => ['type' => 'PS', 'rate' => 90000],
             ],
             'download_speed' => $downloadSpeed,

@@ -16,23 +16,23 @@ class AuthIdentityMiddleware extends UnifiedAuthenticationListener implements Mi
         parent::__construct($this->getBiz());
     }
 
-    public function process(Request $request, callable $next): Response
+    public function process(Request $request, callable $next) : Response
     {
         try {
             $this->handle($request);
-            
+
             $response = $next($request);
-            
+
             // 如果需要续签JWT token
             if (isset($this->jwtRefreshData)) {
                 $response = $response->withHeaders([
-                    'Authorization' => $this->jwtRefreshData['token'],
-                    'AuthorizationType' => $this->jwtRefreshData['type']
+                    'Authorization'     => $this->jwtRefreshData['token'],
+                    'AuthorizationType' => $this->jwtRefreshData['type'],
                 ]);
             }
-            
+
             return $response;
-            
+
         } catch (\Throwable $e) {
             throw $e;
         }

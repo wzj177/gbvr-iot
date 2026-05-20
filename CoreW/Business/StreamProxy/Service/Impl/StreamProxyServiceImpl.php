@@ -17,7 +17,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 {
     // ==================== CRUD Operations ====================
 
-    public function createProxy(array $fields): array
+    public function createProxy(array $fields) : array
     {
         // Validate required fields
         if (!ArrayToolkit::requireds($fields, ['name', 'type', 'protocol', 'media_server_id'])) {
@@ -68,8 +68,8 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
         // Check for duplicate app/stream combination
         $existing = $this->getStreamProxyDao()->search([
-            'app' => $fields['app'],
-            'stream' => $fields['stream'],
+            'app'           => $fields['app'],
+            'stream'        => $fields['stream'],
             'mediaServerId' => $fields['media_server_id'],
         ], [], 0, 1);
 
@@ -100,7 +100,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             'enable_auto_reconnect', 'max_retry_count', 'current_retry_count',
             'timeout_sec', 'rtp_type', 'enable_hls', 'enable_mp4',
             'viewer_count', 'total_start_count', 'total_reconnect_count',
-            'description', 'tags'
+            'description', 'tags',
         ]);
 
         $proxy = $this->getStreamProxyDao()->create($fields);
@@ -119,7 +119,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return $proxy;
     }
 
-    public function updateProxy(int $id, array $fields): bool
+    public function updateProxy(int $id, array $fields) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -140,7 +140,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         $fields = ArrayToolkit::parts($fields, [
             'name', 'source_url', 'enable_auto_reconnect', 'max_retry_count',
             'timeout_sec', 'rtp_type', 'enable_hls', 'enable_mp4',
-            'description', 'tags'
+            'description', 'tags',
         ]);
 
         if (empty($fields)) {
@@ -152,7 +152,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return !empty($result);
     }
 
-    public function deleteProxy(int $id): bool
+    public function deleteProxy(int $id) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -184,29 +184,29 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return true;
     }
 
-    public function getProxy(int $id): ?array
+    public function getProxy(int $id) : ?array
     {
         return $this->getStreamProxyDao()->get($id);
     }
 
-    public function getProxyByProxyId(string $proxyId): ?array
+    public function getProxyByProxyId(string $proxyId) : ?array
     {
         return $this->getStreamProxyDao()->getByProxyId($proxyId);
     }
 
-    public function searchProxies(array $conditions, array $orderBys, int $start, int $limit): array
+    public function searchProxies(array $conditions, array $orderBys, int $start, int $limit) : array
     {
         return $this->getStreamProxyDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countProxies(array $conditions): int
+    public function countProxies(array $conditions) : int
     {
         return $this->getStreamProxyDao()->count($conditions);
     }
 
     // ==================== Stream Control Operations ====================
 
-    public function startProxy(int $id): array
+    public function startProxy(int $id) : array
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -235,15 +235,15 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         // Get strategy and add stream proxy
         $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
         $result = $strategy->addStreamProxy($mediaServer, [
-            'vhost' => $proxy['vhost'],
-            'app' => $proxy['app'],
-            'stream' => $proxy['stream'],
-            'url' => $proxy['source_url'],
+            'vhost'       => $proxy['vhost'],
+            'app'         => $proxy['app'],
+            'stream'      => $proxy['stream'],
+            'url'         => $proxy['source_url'],
             'retry_count' => -1, // Always auto-retry at ZLM level
-            'rtp_type' => $proxy['rtp_type'],
+            'rtp_type'    => $proxy['rtp_type'],
             'timeout_sec' => $proxy['timeout_sec'],
-            'enable_hls' => (bool)$proxy['enable_hls'],
-            'enable_mp4' => (bool)$proxy['enable_mp4'],
+            'enable_hls'  => (bool)$proxy['enable_hls'],
+            'enable_mp4'  => (bool)$proxy['enable_mp4'],
         ]);
 
         if (!$result['success']) {
@@ -255,19 +255,19 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
         // Update proxy status
         $this->getStreamProxyDao()->update($id, [
-            'status' => 'online',
-            'zlm_key' => $result['key'],
-            'started_at' => date('Y-m-d H:i:s'),
-            'last_heartbeat_at' => date('Y-m-d H:i:s'),
+            'status'              => 'online',
+            'zlm_key'             => $result['key'],
+            'started_at'          => date('Y-m-d H:i:s'),
+            'last_heartbeat_at'   => date('Y-m-d H:i:s'),
             'current_retry_count' => 0,
-            'error_message' => null,
-            'total_start_count' => $proxy['total_start_count'] + 1,
+            'error_message'       => null,
+            'total_start_count'   => $proxy['total_start_count'] + 1,
         ]);
 
         Log::channel('stream_proxy')->info("Stream proxy started", [
-            'id' => $id,
+            'id'       => $id,
             'proxy_id' => $proxy['proxy_id'],
-            'zlm_key' => $result['key'],
+            'zlm_key'  => $result['key'],
         ]);
 
         // Log start event
@@ -284,7 +284,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return $this->getProxy($id);
     }
 
-    public function stopProxy(int $id): bool
+    public function stopProxy(int $id) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -310,14 +310,14 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
         // Update proxy status
         $this->getStreamProxyDao()->update($id, [
-            'status' => 'stopped',
-            'stopped_at' => date('Y-m-d H:i:s'),
-            'zlm_key' => null,
+            'status'        => 'stopped',
+            'stopped_at'    => date('Y-m-d H:i:s'),
+            'zlm_key'       => null,
             'error_message' => null,
         ]);
 
         Log::channel('stream_proxy')->info("Stream proxy stopped", [
-            'id' => $id,
+            'id'       => $id,
             'proxy_id' => $proxy['proxy_id'],
         ]);
 
@@ -335,7 +335,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return true;
     }
 
-    public function restartProxy(int $id): array
+    public function restartProxy(int $id) : array
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -353,7 +353,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Play URLs ====================
 
-    public function getPlayUrls(int $id): array
+    public function getPlayUrls(int $id) : array
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -376,17 +376,17 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         $stream = $proxy['stream'];
 
         return [
-            'rtsp' => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
-            'rtmp' => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
-            'http_flv' => "http://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
-            'ws_flv' => "ws://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
-            'hls' => "http://{$host}:{$httpPort}/{$app}/{$stream}/hls.m3u8",
+            'rtsp'      => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
+            'rtmp'      => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
+            'http_flv'  => "http://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
+            'ws_flv'    => "ws://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
+            'hls'       => "http://{$host}:{$httpPort}/{$app}/{$stream}/hls.m3u8",
             'https_flv' => "https://{$host}:{$httpsPort}/{$app}/{$stream}.live.flv",
-            'wss_flv' => "wss://{$host}:{$httpsPort}/{$app}/{$stream}.live.flv",
+            'wss_flv'   => "wss://{$host}:{$httpsPort}/{$app}/{$stream}.live.flv",
         ];
     }
 
-    public function getPushUrl(int $id): array
+    public function getPushUrl(int $id) : array
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -415,20 +415,20 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         $stream = $proxy['stream'];
 
         return [
-            'rtmp' => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
-            'rtsp' => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
+            'rtmp'      => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
+            'rtsp'      => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
             'stream_id' => $stream,
-            'app' => $app,
-            'tips' => [
+            'app'       => $app,
+            'tips'      => [
                 'obs_rtmp' => "在OBS中设置推流地址时，服务器填写: rtmp://{$host}:{$rtmpPort}/{$app}，串流密钥填写: {$stream}",
-                'ffmpeg' => "使用FFmpeg推流: ffmpeg -re -i input.mp4 -c copy -f flv rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
+                'ffmpeg'   => "使用FFmpeg推流: ffmpeg -re -i input.mp4 -c copy -f flv rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
             ],
         ];
     }
 
     // ==================== Status Management ====================
 
-    public function updateStatus(int $id, string $status, ?string $errorMessage = null): bool
+    public function updateStatus(int $id, string $status, ?string $errorMessage = null) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -440,7 +440,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         if ($status === 'online') {
             $updateFields['last_heartbeat_at'] = date('Y-m-d H:i:s');
             $updateFields['error_message'] = null;
-        } elseif ($status === 'error') {
+        } else if ($status === 'error') {
             $updateFields['error_message'] = $errorMessage;
         }
 
@@ -449,7 +449,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return !empty($result);
     }
 
-    public function healthCheck(int $id): bool
+    public function healthCheck(int $id) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy || $proxy['status'] !== 'online') {
@@ -496,14 +496,14 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
     }
 
-    public function batchHealthCheck(): array
+    public function batchHealthCheck() : array
     {
         // Get all online proxies
         $proxies = $this->searchProxies(['status' => 'online'], [], 0, 1000);
 
         $results = [
-            'total' => count($proxies),
-            'online' => 0,
+            'total'   => count($proxies),
+            'online'  => 0,
             'offline' => 0,
         ];
 
@@ -518,18 +518,18 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return $results;
     }
 
-    public function autoReconnect(): array
+    public function autoReconnect() : array
     {
         // Get all offline/error proxies with auto-reconnect enabled
         $proxies = $this->searchProxies([
-            'statuses' => ['offline', 'error'],
+            'statuses'            => ['offline', 'error'],
             'enableAutoReconnect' => 1,
         ], [], 0, 1000);
 
         $results = [
-            'total' => count($proxies),
+            'total'   => count($proxies),
             'success' => 0,
-            'failed' => 0,
+            'failed'  => 0,
             'skipped' => 0,
         ];
 
@@ -577,8 +577,8 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
                 );
 
                 Log::channel('stream_proxy')->info("Auto reconnect success", [
-                    'id' => $proxy['id'],
-                    'proxy_id' => $proxy['proxy_id'],
+                    'id'          => $proxy['id'],
+                    'proxy_id'    => $proxy['proxy_id'],
                     'retry_count' => $proxy['current_retry_count'] + 1,
                 ]);
             } catch (\Exception $e) {
@@ -596,10 +596,10 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
                 );
 
                 Log::channel('stream_proxy')->error("Auto reconnect failed", [
-                    'id' => $proxy['id'],
-                    'proxy_id' => $proxy['proxy_id'],
+                    'id'          => $proxy['id'],
+                    'proxy_id'    => $proxy['proxy_id'],
                     'retry_count' => $proxy['current_retry_count'] + 1,
-                    'error' => $e->getMessage(),
+                    'error'       => $e->getMessage(),
                 ]);
             }
         }
@@ -609,7 +609,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Recording Plan ====================
 
-    public function bindRecordPlan(int $id, int $planId): bool
+    public function bindRecordPlan(int $id, int $planId) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -632,7 +632,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return !empty($result);
     }
 
-    public function unbindRecordPlan(int $id): bool
+    public function unbindRecordPlan(int $id) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -641,7 +641,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
         $result = $this->getStreamProxyDao()->update($id, [
             'record_plan_id' => 0,
-            'record_status' => 0,
+            'record_status'  => 0,
         ]);
 
         return !empty($result);
@@ -649,14 +649,14 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Statistics ====================
 
-    public function updateViewerCount(int $id, int $count): bool
+    public function updateViewerCount(int $id, int $count) : bool
     {
         return !empty($this->getStreamProxyDao()->update($id, [
             'viewer_count' => $count,
         ]));
     }
 
-    public function incrementRetryCount(int $id): bool
+    public function incrementRetryCount(int $id) : bool
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -668,7 +668,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         ]));
     }
 
-    public function resetRetryCount(int $id): bool
+    public function resetRetryCount(int $id) : bool
     {
         return !empty($this->getStreamProxyDao()->update($id, [
             'current_retry_count' => 0,
@@ -677,7 +677,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Helper Methods ====================
 
-    private function generateUuid(): string
+    private function generateUuid() : string
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
@@ -694,22 +694,22 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Logging ====================
 
-    public function addLog(string $proxyId, string $eventType, string $message, ?array $details = null, ?int $userId = null, ?string $ipAddress = null, string $level = 'info'): array
+    public function addLog(string $proxyId, string $eventType, string $message, ?array $details = null, ?int $userId = null, ?string $ipAddress = null, string $level = 'info') : array
     {
         $fields = [
-            'proxy_id' => $proxyId,
+            'proxy_id'   => $proxyId,
             'event_type' => $eventType,
-            'level' => $level,
-            'message' => $message,
-            'details' => $details,
-            'user_id' => $userId,
+            'level'      => $level,
+            'message'    => $message,
+            'details'    => $details,
+            'user_id'    => $userId,
             'ip_address' => $ipAddress,
         ];
 
         return $this->getStreamProxyLogDao()->create($fields);
     }
 
-    public function getProxyLogs(int $id, int $start = 0, int $limit = 100): array
+    public function getProxyLogs(int $id, int $start = 0, int $limit = 100) : array
     {
         $proxy = $this->getProxy($id);
         if (!$proxy) {
@@ -719,17 +719,17 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         return $this->getStreamProxyLogDao()->findByProxyId($proxy['proxy_id'], ['created_at' => 'DESC'], $start, $limit);
     }
 
-    public function searchLogs(array $conditions, array $orderBys, int $start, int $limit): array
+    public function searchLogs(array $conditions, array $orderBys, int $start, int $limit) : array
     {
         return $this->getStreamProxyLogDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countLogs(array $conditions): int
+    public function countLogs(array $conditions) : int
     {
         return $this->getStreamProxyLogDao()->count($conditions);
     }
 
-    public function cleanupOldLogs(int $daysToKeep = 30): int
+    public function cleanupOldLogs(int $daysToKeep = 30) : int
     {
         $date = date('Y-m-d H:i:s', strtotime("-{$daysToKeep} days"));
         return $this->getStreamProxyLogDao()->deleteBeforeDate($date);
@@ -737,22 +737,22 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Service Getters ====================
 
-    protected function getStreamProxyDao(): StreamProxyDao|\CoreW\Dao\DaoProxy
+    protected function getStreamProxyDao() : StreamProxyDao|\CoreW\Dao\DaoProxy
     {
         return $this->createDao('StreamProxy:StreamProxyDao');
     }
 
-    protected function getStreamProxyLogDao(): \CoreW\Business\StreamProxy\Dao\StreamProxyLogDao|\CoreW\Dao\DaoProxy
+    protected function getStreamProxyLogDao() : \CoreW\Business\StreamProxy\Dao\StreamProxyLogDao|\CoreW\Dao\DaoProxy
     {
         return $this->createDao('StreamProxy:StreamProxyLogDao');
     }
 
-    protected function getMediaServerService(): MediaServerService
+    protected function getMediaServerService() : MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
     }
 
-    protected function getRecordPlanService(): RecordPlanService
+    protected function getRecordPlanService() : RecordPlanService
     {
         return $this->createService('Record:RecordPlanService');
     }

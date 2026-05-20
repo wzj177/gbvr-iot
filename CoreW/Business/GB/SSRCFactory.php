@@ -39,7 +39,7 @@ class SSRCFactory
     /**
      * 初始化一个流媒体服务器的SSRC池
      */
-    public function initMediaServerSSRC(string $mediaServerId, ?array $usedSet = null): void
+    public function initMediaServerSSRC(string $mediaServerId, ?array $usedSet = null) : void
     {
         $sipDomain = $this->sipConfig['server_domain'];
 
@@ -72,7 +72,7 @@ class SSRCFactory
     /**
      * 获取视频预览SSRC（0开头）
      */
-    public function getPlaySsrc(string $mediaServerId): string
+    public function getPlaySsrc(string $mediaServerId) : string
     {
         return '0' . $this->getSN($mediaServerId);
     }
@@ -80,7 +80,7 @@ class SSRCFactory
     /**
      * 获取录像回放SSRC（1开头）
      */
-    public function getPlayBackSsrc(string $mediaServerId): string
+    public function getPlayBackSsrc(string $mediaServerId) : string
     {
         return '1' . $this->getSN($mediaServerId);
     }
@@ -89,7 +89,7 @@ class SSRCFactory
     /**
      * 获取对讲流 SSRC（2开头）
      */
-    public function getTalkSsrc(string $mediaServerId): ?string
+    public function getTalkSsrc(string $mediaServerId) : ?string
     {
         try {
             return '2' . $this->getSN($mediaServerId);
@@ -101,7 +101,7 @@ class SSRCFactory
     /**
      * 获取广播流 SSRC（3开头）
      */
-    public function getBroadcastSsrc(string $mediaServerId): string
+    public function getBroadcastSsrc(string $mediaServerId) : string
     {
         return '3' . $this->getSN($mediaServerId);
     }
@@ -109,15 +109,15 @@ class SSRCFactory
     /**
      * 获取下载流 SSRC（4开头）
      */
-    public function getDownloadSsrc(string $mediaServerId): string
+    public function getDownloadSsrc(string $mediaServerId) : string
     {
         return '4' . $this->getSN($mediaServerId);
     }
-    
+
     /**
      * 释放SSRC - 重新放回到池中
      */
-    public function releaseSsrc(string $mediaServerId, ?string $ssrc): void
+    public function releaseSsrc(string $mediaServerId, ?string $ssrc) : void
     {
         if ($ssrc === null) {
             return;
@@ -132,7 +132,7 @@ class SSRCFactory
     /**
      * 获取后四位SN
      */
-    private function getSN(string $mediaServerId): string
+    private function getSN(string $mediaServerId) : string
     {
         $redisKey = $this->getRedisKey($mediaServerId);
         if (!$this->redis->exists($redisKey)) {
@@ -158,12 +158,12 @@ class SSRCFactory
     /**
      * 重置某个流媒体服务SSRC
      */
-    public function reset(string $mediaServerId): void
+    public function reset(string $mediaServerId) : void
     {
         $this->initMediaServerSSRC($mediaServerId, null);
     }
 
-    public function removeMediaServerSSRC(string $mediaServerId): void
+    public function removeMediaServerSSRC(string $mediaServerId) : void
     {
         $redisKey = $this->getRedisKey($mediaServerId);
 
@@ -175,7 +175,7 @@ class SSRCFactory
     /**
      * 是否存在某MediaServer的SSRC池
      */
-    public function hasMediaServerSSRC(string $mediaServerId): bool
+    public function hasMediaServerSSRC(string $mediaServerId) : bool
     {
         return $this->redis->exists(
                 $this->getRedisKey($mediaServerId)
@@ -185,7 +185,7 @@ class SSRCFactory
     /**
      * 生成Redis Key
      */
-    private function getRedisKey(string $mediaServerId): string
+    private function getRedisKey(string $mediaServerId) : string
     {
         return self::SSRC_INFO_KEY
             . $this->appId

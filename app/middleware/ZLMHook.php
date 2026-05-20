@@ -21,15 +21,16 @@ class ZLMHook implements MiddlewareInterface
      * 不需要 mediaServerId 验证的白名单路由 /api/v2/zlm_hook/
      * 这些 hook 通常在服务器启动或特殊场景下触发，可能还没有 mediaServerId
      */
-    private array $whiteRoutes = [
-        'on_server_started',    // 服务器启动时触发
-        'on_stream_changed',    // 流注册/注销时触发（可能由外部触发）
-        'on_rtsp_realm',        // RTSP realm 查询
-    ];
+    private array $whiteRoutes
+        = [
+            'on_server_started',    // 服务器启动时触发
+            'on_stream_changed',    // 流注册/注销时触发（可能由外部触发）
+            'on_rtsp_realm',        // RTSP realm 查询
+        ];
 
-    public function process(Request $request, callable $next): Response
+    public function process(Request $request, callable $next) : Response
     {
-//        Log::channel('zlm_hook')->debug('ZLM Hook Request: ' . $request->rawBody());
+        //        Log::channel('zlm_hook')->debug('ZLM Hook Request: ' . $request->rawBody());
         $mediaServerId = $request->post('mediaServerId');
 
         // 如果 mediaServerId 为空，检查是否在白名单中
@@ -63,9 +64,9 @@ class ZLMHook implements MiddlewareInterface
     /**
      * 从请求路径中提取 hook action
      */
-    private function extractHookAction(string $path): string
+    private function extractHookAction(string $path) : string
     {
         $parts = explode('/', trim($path, '/'));
-        return end($parts) ?: '';
+        return end($parts) ? : '';
     }
 }

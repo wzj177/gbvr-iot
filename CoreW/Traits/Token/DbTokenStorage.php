@@ -8,7 +8,7 @@ use CoreW\Business\VIP\Dao\TokenDao;
 
 trait DbTokenStorage
 {
-    public function get($id, array $options = array())
+    public function get($id, array $options = [])
     {
         return $this->getTokenDao()->get($id, $options);
     }

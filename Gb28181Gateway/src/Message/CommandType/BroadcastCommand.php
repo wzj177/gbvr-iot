@@ -19,29 +19,29 @@ use \SimpleXMLElement;
  */
 class BroadcastCommand extends BaseCommand
 {
-    public function getCommandType(): string
+    public function getCommandType() : string
     {
         return 'Broadcast';
     }
 
-    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []): mixed
+    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []) : mixed
     {
         return [
-            'device_id' => $deviceId,
-            'cmd_type' => $this->getCommandType(),
+            'device_id'  => $deviceId,
+            'cmd_type'   => $this->getCommandType(),
             'channel_id' => (string)($xml->DeviceID ?? ''),
-            'result' => (string)($xml->Result ?? ''),
-            'sn' => (string)($xml->SN ?? ''),
+            'result'     => (string)($xml->Result ?? ''),
+            'sn'         => (string)($xml->SN ?? ''),
         ];
     }
 
-    public function generateResponse(array $data, int $sn): string
+    public function generateResponse(array $data, int $sn) : string
     {
         return $this->generateXml('Response', [
-            'CmdType' => $this->getCommandType(),
-            'SN' => $sn,
+            'CmdType'  => $this->getCommandType(),
+            'SN'       => $sn,
             'DeviceID' => $data['device_id'] ?? '',
-            'Result' => 'OK',
+            'Result'   => 'OK',
         ]);
     }
 }

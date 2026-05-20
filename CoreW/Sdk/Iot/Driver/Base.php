@@ -121,22 +121,22 @@ abstract class Base
         $this->initClient();
     }
 
-    protected function getIotDeviceTypeItems(): array
+    protected function getIotDeviceTypeItems() : array
     {
         return [
-            self::IOT_DEVICE_TYPE_INSECTICIDAL_LAMP => '杀虫灯',
-            self::IOT_DEVICE_TYPE_CAMERA => '视频监控',
-            self::IOT_DEVICE_TYPE_SPORE => '孢子仪',
-            self::IOT_DEVICE_TYPE_PEST => '虫情测报',
+            self::IOT_DEVICE_TYPE_INSECTICIDAL_LAMP   => '杀虫灯',
+            self::IOT_DEVICE_TYPE_CAMERA              => '视频监控',
+            self::IOT_DEVICE_TYPE_SPORE               => '孢子仪',
+            self::IOT_DEVICE_TYPE_PEST                => '虫情测报',
             self::IOT_DEVICE_TYPE_ENV_MONITOR_STATION => '环境监测站',
-            self::IOT_DEVICE_TYPE_WATER_RAIN => '水雨情',
+            self::IOT_DEVICE_TYPE_WATER_RAIN          => '水雨情',
             self::IOT_DEVICE_TYPE_WATER_QUALITY_FLOAT => '水质浮漂',
-            self::IOT_DEVICE_TYPE_WATER_QUALITY => '水质监测',
-            self::IOT_DEVICE_TYPE_WATER_FERTILIZER => '水肥机',
-            self::IOT_DEVICE_TYPE_WEATHER => '气象监测',
-            self::IOT_DEVICE_TYPE_SOIL => '土壤监测',
-            self::IOT_DEVICE_TYPE_POWER_BOX => '配电柜',
-            self::IOT_DEVICE_TYPE_SMART => '智能设备',
+            self::IOT_DEVICE_TYPE_WATER_QUALITY       => '水质监测',
+            self::IOT_DEVICE_TYPE_WATER_FERTILIZER    => '水肥机',
+            self::IOT_DEVICE_TYPE_WEATHER             => '气象监测',
+            self::IOT_DEVICE_TYPE_SOIL                => '土壤监测',
+            self::IOT_DEVICE_TYPE_POWER_BOX           => '配电柜',
+            self::IOT_DEVICE_TYPE_SMART               => '智能设备',
         ];
     }
 
@@ -184,7 +184,7 @@ abstract class Base
      * @param $deviceInfo
      * @return null|string
      */
-    public function iotDeviceTypeFormat($deviceInfo): ?string
+    public function iotDeviceTypeFormat($deviceInfo) : ?string
     {
         $deviceType = $this->getDeviceTypeFormat($deviceInfo);
         $deviceTypes = $this->getIotDeviceTypeItems();
@@ -205,7 +205,7 @@ abstract class Base
      * @param array|null $device
      * @return string|null
      */
-    abstract protected function getDeviceTypeFormat(array $device): ?string;
+    abstract protected function getDeviceTypeFormat(array $device) : ?string;
 
     protected function request($url, $method, $params = [], $headers = [])
     {
@@ -221,7 +221,7 @@ abstract class Base
 
         try {
             $rawResponse = 'POST' === $method ? $this->client->post($uri, $params, [], $headers) : $this->client->get($uri, $params, $headers);
-            list($rawHeaders, $rawBody) = $this->extractResponseHeadersAndBody($rawResponse);
+            [$rawHeaders, $rawBody] = $this->extractResponseHeadersAndBody($rawResponse);
             $response = new HttpResponse($rawHeaders, $rawBody);
             $this->log("[{$uri}] RESPONSE_BODY {$response->getBody()}", [], 'debug');
 
@@ -235,63 +235,63 @@ abstract class Base
             return [
                 'code' => $this->responseFailCode,
                 'data' => null,
-                'msg' => $e->getMessage()
+                'msg'  => $e->getMessage(),
             ];
         }
     }
 
-    protected function extractResponseHeadersAndBody($rawResponse): array
+    protected function extractResponseHeadersAndBody($rawResponse) : array
     {
         $parts = explode("\r\n\r\n", $rawResponse['raw']);
         $rawBody = array_pop($parts);
         $rawHeaders = implode("\r\n\r\n", $parts);
 
-        return array(trim($rawHeaders), trim($rawBody));
+        return [trim($rawHeaders), trim($rawBody)];
     }
 
-    protected function parseResponse(HttpResponse $response): array
+    protected function parseResponse(HttpResponse $response) : array
     {
         if ($response->getHttpResponseCode() !== 200) {
             return [
-                'code' => $this->responseFailCode,
-                'data' => [],
-                'message' => '请求失败'
+                'code'    => $this->responseFailCode,
+                'data'    => [],
+                'message' => '请求失败',
             ];
         }
         $body = $response->getBody();
         if (empty($body)) {
             return [
-                'code' => $this->responseFailCode,
-                'data' => [],
-                'message' => '请求失败, 响应报文为空'
+                'code'    => $this->responseFailCode,
+                'data'    => [],
+                'message' => '请求失败, 响应报文为空',
             ];
         }
 
         $context = json_decode($body, true);
         if (empty($context)) {
             return [
-                'code' => $this->responseFailCode,
-                'data' => [],
-                'message' => '请求失败, 响应报文解析失败, 系统只支持标准json格式'
+                'code'    => $this->responseFailCode,
+                'data'    => [],
+                'message' => '请求失败, 响应报文解析失败, 系统只支持标准json格式',
             ];
         }
 
         if ((int)$context['code'] === $this->apiResultOkCode) {
             return [
-                'code' => $this->responseOkCode,
-                'data' => $context['data'],
-                'message' => 'ok'
+                'code'    => $this->responseOkCode,
+                'data'    => $context['data'],
+                'message' => 'ok',
             ];
         }
 
         return [
-            'code' => $this->responseFailCode,
-            'data' => [],
-            'message' => 'error'
+            'code'    => $this->responseFailCode,
+            'data'    => [],
+            'message' => 'error',
         ];
     }
 
-    protected function afterResponse(?array $resultKeyMap, ?array $response): array
+    protected function afterResponse(?array $resultKeyMap, ?array $response) : array
     {
         if (!empty($resultKeyMap) && !empty($response['data'])) {
             $arrayType = $this->getDataType($response['data']);
@@ -322,7 +322,7 @@ abstract class Base
         return $response;
     }
 
-    protected function getDataType($array): int
+    protected function getDataType($array) : int
     {
         if (!is_array($array)) {
             return 0; // 不是数组
@@ -363,12 +363,12 @@ abstract class Base
     {
         $this->client = new CURLHttpClient([
             'Content-Type' => 'application/json; charset=utf-8',
-            'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+            'User-Agent'   => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         ]);
         $this->client->setConfig([
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_SSL_VERIFYPEER => 0,
-            CURLOPT_HEADER => true,
+            CURLOPT_HEADER         => true,
         ]);
         $this->client->setConnectionTimeoutInMillis($this->connectTimeout * 1000);
         $this->client->setSocketTimeoutInMillis($this->timeout * 1000);

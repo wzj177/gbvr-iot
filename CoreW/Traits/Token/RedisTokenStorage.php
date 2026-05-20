@@ -14,25 +14,25 @@ trait RedisTokenStorage
     protected $lockTimeout = 10;
     // 重试获取锁的时间间隔，单位为毫秒
     protected $lockRetryInterval = 100;
-    
+
     protected $hashTableName;
-    
+
     protected $countKey;
-    
+
     public function setHashTableName($name)
     {
         $this->hashTableName = $name;
     }
-    
+
     public function getHashTableName()
     {
-       return empty($this->hashTableName)  ? self::HASH_TABLE_NAME : $this->hashTableName;
+        return empty($this->hashTableName) ? self::HASH_TABLE_NAME : $this->hashTableName;
     }
 
     /**
      * @param int $lockTimeout
      */
-    public function setLockTimeout(int $lockTimeout): void
+    public function setLockTimeout(int $lockTimeout) : void
     {
         $this->lockTimeout = $lockTimeout;
     }
@@ -40,12 +40,12 @@ trait RedisTokenStorage
     /**
      * @param int $lockRetryInterval
      */
-    public function setLockRetryInterval(int $lockRetryInterval): void
+    public function setLockRetryInterval(int $lockRetryInterval) : void
     {
         $this->lockRetryInterval = $lockRetryInterval;
     }
 
-    public function get($id, array $options = array())
+    public function get($id, array $options = [])
     {
         $key = $this->getHashTableName() . ":" . $id;
         // 获取哈希表值
@@ -220,7 +220,7 @@ trait RedisTokenStorage
     public function getLastedByUserIDAndType($userId, $type)
     {
         $items = $this->getAllTokens();
-        if(empty($items)) {
+        if (empty($items)) {
             return null;
         }
         $ids = ArrayToolkit::column($items, 'id');

@@ -11,7 +11,7 @@ enum VoiceSessionStatusEnum: string
     case ENDED = 'ended';
     case FAILED = 'failed';
 
-    public function label(): string
+    public function label() : string
     {
         return match ($this) {
             self::WAITING_STREAM => '等待语音推流',
@@ -26,7 +26,7 @@ enum VoiceSessionStatusEnum: string
     /**
      * 检查是否为终态（不能再转换）
      */
-    public function isTerminal(): bool
+    public function isTerminal() : bool
     {
         return $this === self::ENDED || $this === self::FAILED;
     }
@@ -34,7 +34,7 @@ enum VoiceSessionStatusEnum: string
     /**
      * 检查是否为活跃状态
      */
-    public function isActive(): bool
+    public function isActive() : bool
     {
         return !$this->isTerminal();
     }

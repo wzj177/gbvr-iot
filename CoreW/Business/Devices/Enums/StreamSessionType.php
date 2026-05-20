@@ -2,7 +2,7 @@
 
 namespace CoreW\Business\Devices\Enums;
 
-enum StreamSessionType:string
+enum StreamSessionType: string
 {
     //'live','playback','download','talk'
     case LIVE = 'live';

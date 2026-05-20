@@ -11,18 +11,12 @@ use Workerman\Crontab\Crontab;
 
 class Gb28181DeviceCatalogQueryTaskProcess
 {
-    public function onWorkerStart(): void
+    public function onWorkerStart() : void
     {
         // 每s执行一次: 获取设备目录
         new Crontab('*/1 * * * * *', function () {
             Gb28181DeviceCatalogQueryTask::run();
         });
-
-
-
-
-
-
 
 
     }

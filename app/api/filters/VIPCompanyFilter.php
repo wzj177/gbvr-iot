@@ -7,35 +7,37 @@ use support\utils\AssetHelper;
 
 class VIPCompanyFilter extends Filter
 {
-    protected $simpleFields = [
-        'id',
-        'userId',
-        'name',
-        'code',
-        'logo',
-        'logoFull',
-        'address',
-        'contactName',
-        'contactMobile',
-        'contactEmail',
-        'status',
-        'reason',
-        'license',
-        'licenseFull',
-        'createdTime',
-        'createdTime',
-    ];
+    protected $simpleFields
+        = [
+            'id',
+            'userId',
+            'name',
+            'code',
+            'logo',
+            'logoFull',
+            'address',
+            'contactName',
+            'contactMobile',
+            'contactEmail',
+            'status',
+            'reason',
+            'license',
+            'licenseFull',
+            'createdTime',
+            'createdTime',
+        ];
 
-    protected $publicFields = [
-        'id',
-        'name',
-        'status',
-        'code',
-        'logo',
-        'logoFull',
-        'license',
-        'licenseFull',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'name',
+            'status',
+            'code',
+            'logo',
+            'logoFull',
+            'license',
+            'licenseFull',
+        ];
 
     protected function simpleFields(&$data)
     {

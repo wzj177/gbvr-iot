@@ -10,7 +10,7 @@ class EmptyTemplate implements EmailTemplateInterface
     {
         return [
             'title' => empty($options['title']) ? '' : $options['title'],
-            'body' => empty($options['body']) ? '' : $options['body'],
+            'body'  => empty($options['body']) ? '' : $options['body'],
         ];
     }
 }

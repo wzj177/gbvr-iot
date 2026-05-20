@@ -16,7 +16,7 @@ class IPCheck
         $this->biz = $biz;
     }
 
-    public function validate(Request $request): true
+    public function validate(Request $request) : true
     {
         $blacklistIps = $this->getSettingService()->get('blacklist_ip');
         $whitelistIps = $this->getSettingService()->get('whitelist_ip');
@@ -36,7 +36,7 @@ class IPCheck
         return true;
     }
 
-    private function matchIpConfigList($clientIp, $ipConfigList): bool
+    private function matchIpConfigList($clientIp, $ipConfigList) : bool
     {
         foreach ($ipConfigList as $ipConfigEntry) {
             if ($this->matchIp($clientIp, $ipConfigEntry)) {
@@ -46,7 +46,7 @@ class IPCheck
         return false;
     }
 
-    private function matchIp($clientIp, $ipConfigEntry): false|int
+    private function matchIp($clientIp, $ipConfigEntry) : false|int
     {
         $ipConfigEntry = trim($ipConfigEntry);
         if (strlen($ipConfigEntry) > 0) {
@@ -62,7 +62,7 @@ class IPCheck
     /**
      * @return SettingService
      */
-    protected function getSettingService(): SettingService
+    protected function getSettingService() : SettingService
     {
         return $this->biz->service('Setting:SettingService');
     }

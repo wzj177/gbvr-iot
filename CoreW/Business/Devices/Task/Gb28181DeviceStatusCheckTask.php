@@ -9,20 +9,21 @@ use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Core;
 use support\Log;
 
-class Gb28181DeviceStatusCheckTask  extends BaseCrontabTask
+class Gb28181DeviceStatusCheckTask extends BaseCrontabTask
 {
-    public function execute(): void
+    public function execute() : void
     {
         try {
-            $devices = $this->getDeviceService()->searchDevices([], [], 0,PHP_INT_MAX, ['id', 'device_id', 'status', 'last_heartbeat_at']);
+            $devices = $this->getDeviceService()->searchDevices([], [], 0, PHP_INT_MAX, ['id', 'device_id', 'status', 'last_heartbeat_at']);
             foreach ($devices as $device) {
                 $last_heartbeat_at_timestamp = (int)$device['last_heartbeat_at'];
-//                echo "设备ID: {$device['device_id']} 最后心跳时间: {$device['last_heartbeat_at']} \n";
+                //                echo "设备ID: {$device['device_id']} 最后心跳时间: {$device['last_heartbeat_at']} \n";
                 if ($last_heartbeat_at_timestamp < time() - config('gb28181.check_offline_device_interval', 3600)) {
                     $this->getDeviceService()->updateDeviceStatus($device['device_id'], DeviceStatusEnum::UNREGISTERED->value);
-                } elseif ($last_heartbeat_at_timestamp < time() - config('gb28181.timer_interval', 30)) {
+                } else if ($last_heartbeat_at_timestamp < time() - config('gb28181.timer_interval', 30)) {
                     $this->getDeviceService()->updateDeviceStatus($device['device_id'], DeviceStatusEnum::EXPIRED->value);
-                } else if ($device['status'] !== DeviceStatusEnum::ONLINE->value) {
+                } else if ($device['status'] !== DeviceStatusEnum::ONLINE->value
+                    && $device['status'] !== DeviceStatusEnum::UNREGISTERED->value) {
                     $this->getDeviceService()->updateDeviceStatus($device['device_id'], DeviceStatusEnum::ONLINE->value);
                 }
             }
@@ -37,7 +38,7 @@ class Gb28181DeviceStatusCheckTask  extends BaseCrontabTask
      * 获取设备服务
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return Core::instance()->service('Devices:DeviceService');
     }

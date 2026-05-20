@@ -69,7 +69,7 @@ class RateLimiter
         }
 
         $rate = $this->maxAllowance / $this->period; //每秒内允许生成的令牌数量： 每s请求占用的令牌数：2 / 3600 = 0.0005
-        list($allowance, $lastCheckTime) = $this->unpackValue($value);
+        [$allowance, $lastCheckTime] = $this->unpackValue($value);
 
         $timePassed = time() - $lastCheckTime; // 计算时间过去多久：当前时间 与上一次生成token的时间的差值
         // 通过速率计算已经生成的令牌数量，这个数量是累积的，它表示在 $timePassed 秒内生成的令牌数量
@@ -101,7 +101,7 @@ class RateLimiter
         $this->check($id, 0);
         $value = $this->storage->get($this->getKey($id));
         if ($value !== false) {
-            list($allowance) = $this->unpackValue($value);
+            [$allowance] = $this->unpackValue($value);
 
             return floor($allowance);
         }
@@ -120,7 +120,7 @@ class RateLimiter
         $key = $this->getKey($id);
         $value = $this->storage->get($key);
         if ($value !== false) {
-            list($allowance, $lastCheckTime) = $this->unpackValue($value);
+            [$allowance, $lastCheckTime] = $this->unpackValue($value);
             $updatedAllowance = ($allowance + $threshold) > 0 ? ($allowance + $threshold) : 0;
         } else {
             $updatedAllowance = $threshold > 0 ? $threshold : 0;

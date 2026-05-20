@@ -10,16 +10,16 @@ class StreamSessionViewerDaoImpl extends AdvancedDaoImpl implements StreamSessio
 
     protected $table = 'gv_stream_session_viewers';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
             ],
             'timestamps' => [],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],

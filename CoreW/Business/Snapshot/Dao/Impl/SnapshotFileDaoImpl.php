@@ -9,13 +9,13 @@ class SnapshotFileDaoImpl extends AdvancedDaoImpl implements SnapshotFileDao
 {
     protected $table = 'gv_snapshot_file';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'ai_meta' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'shot_time',
                 'created_at',
@@ -24,7 +24,7 @@ class SnapshotFileDaoImpl extends AdvancedDaoImpl implements SnapshotFileDao
                 'created_at',
                 'updated_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'shot_time',
                 'delete_at',
                 'created_at',
@@ -54,7 +54,7 @@ class SnapshotFileDaoImpl extends AdvancedDaoImpl implements SnapshotFileDao
         ];
     }
 
-    public function getBySource(string $sourceType, ?int $sourceId): array
+    public function getBySource(string $sourceType, ?int $sourceId) : array
     {
         $conditions = [
             'source_type' => $sourceType,

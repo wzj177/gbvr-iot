@@ -2,7 +2,7 @@
 
 namespace CoreW\Business\Devices\Enums;
 
-enum MediaServerType:string
+enum MediaServerType: string
 {
     case NONE = 'none';
     case ZLM = 'zlm';

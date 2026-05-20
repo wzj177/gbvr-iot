@@ -11,12 +11,13 @@ use Webman\Http\Request;
 
 class IpCheckMiddleware implements MiddlewareInterface
 {
-    protected array $whitePaths = [
-        '/api/v2/gb/server/hock',
-        '/api/v2/zlm/*',
-    ];
+    protected array $whitePaths
+        = [
+            '/api/v2/gb/server/hock',
+            '/api/v2/zlm/*',
+        ];
 
-    public function process(Request $request, callable $next): Response
+    public function process(Request $request, callable $next) : Response
     {
         try {
             foreach ($this->whitePaths as $whitePath) {

@@ -58,16 +58,16 @@ trait RequestAndResponseTrait
      * @param string $limitKey
      * @return array
      */
-    protected function getOffsetAndLimit(Request $request, string $pageKey = 'page', string $limitKey = 'page_size'): array
+    protected function getOffsetAndLimit(Request $request, string $pageKey = 'page', string $limitKey = 'page_size') : array
     {
         if (strtolower($request->method()) === 'get') {
-//            $offset = $request->get($offsetKey, self::DEFAULT_PAGING_OFFSET);
+            //            $offset = $request->get($offsetKey, self::DEFAULT_PAGING_OFFSET);
             $page = $request->get($pageKey, self::DEFAULT_PAGING_PAGE);
             $limit = $request->get($limitKey, self::DEFAULT_PAGING_LIMIT);
         } else {
             $body = $request->post();
             $post = empty($body) ? json_decode($request->rawBody(), true) : $body;
-//            $offset = $post[$offsetKey] ?? self::DEFAULT_PAGING_OFFSET;
+            //            $offset = $post[$offsetKey] ?? self::DEFAULT_PAGING_OFFSET;
             $page = $post[$pageKey] ?? self::DEFAULT_PAGING_PAGE;
             $limit = $post[$limitKey] ?? self::DEFAULT_PAGING_LIMIT;
         }
@@ -113,11 +113,11 @@ trait RequestAndResponseTrait
     protected function makePagingObject($objects, $total, $offset, $limit)
     {
         return [
-            'list' => $objects,
+            'list'   => $objects,
             'paging' => [
-                'total' => $total,
+                'total'  => $total,
                 'offset' => $offset,
-                'limit' => $limit,
+                'limit'  => $limit,
             ],
         ];
     }

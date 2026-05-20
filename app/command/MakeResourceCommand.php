@@ -33,7 +33,7 @@ class MakeResourceCommand extends MakeControllerCommand
      * @param OutputInterface $output
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $name = $input->getArgument('name');
         $service = $input->getArgument('service');
@@ -47,7 +47,7 @@ class MakeResourceCommand extends MakeControllerCommand
         $name = str_replace('\\', '/', $name);
         if (!($pos = strrpos($name, '/'))) {
             $name = ucfirst($name);
-            $controller_str = Util::guessPath(app_path(), 'controller') ?: 'controller';
+            $controller_str = Util::guessPath(app_path(), 'controller') ? : 'controller';
             $file = app_path() . "/$controller_str/$name.php";
             $namespace = $controller_str === 'Controller' ? 'App\Controller' : 'app\controller';
         } else {
@@ -79,17 +79,17 @@ class MakeResourceCommand extends MakeControllerCommand
     {
         $irregulars = [
             'child' => 'children',
-            'man' => 'men',
+            'man'   => 'men',
             'woman' => 'women',
             'tooth' => 'teeth',
-            'foot' => 'feet',
+            'foot'  => 'feet',
             'mouse' => 'mice',
             // ...
         ];
 
         $exceptions = [
             'quiz' => 'quizzes',
-            'box' => 'boxes',
+            'box'  => 'boxes',
             // ...
         ];
 
@@ -150,7 +150,7 @@ class MakeResourceCommand extends MakeControllerCommand
 
         $baseControllerNamespace = str_replace('controller', '', $namespace);
         $baseController = "BaseController";
-        $baseControllerClass = $baseControllerNamespace  . $baseController;
+        $baseControllerClass = $baseControllerNamespace . $baseController;
         if (class_exists($baseControllerClass)) {
             $useBaseControllerClassStr = "use $baseControllerClass;";
             $extendBaseControllerStr = " extends $baseController";

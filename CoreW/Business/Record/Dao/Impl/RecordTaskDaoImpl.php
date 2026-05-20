@@ -9,11 +9,11 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
 {
     protected $table = 'gv_local_record_task';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
                 'start_time',
@@ -23,7 +23,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
                 'created_at',
                 'updated_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],
@@ -59,7 +59,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         ];
     }
 
-    public function findPendingTasks(int $limit = 100): array
+    public function findPendingTasks(int $limit = 100) : array
     {
         $now = time();
         $sql = "SELECT * FROM {$this->table()}
@@ -71,7 +71,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->fetchAllAssociative($sql, [$now]);
     }
 
-    public function findRecordingTasksToStop(): array
+    public function findRecordingTasksToStop() : array
     {
         $now = time();
         $sql = "SELECT * FROM {$this->table()}
@@ -82,22 +82,22 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->fetchAllAssociative($sql, [$now]);
     }
 
-    public function  getByStreamId(string $streamId): ?array
+    public function getByStreamId(string $streamId) : ?array
     {
         return $this->getByFields(['stream_id' => $streamId]);
     }
 
-    public function  getDoneByStreamId(string $streamId): ?array
+    public function getDoneByStreamId(string $streamId) : ?array
     {
         return $this->getByFields(['stream_id' => $streamId, 'status' => 'done']);
     }
 
-    public function getBySsrc(string $ssrc): ?array
+    public function getBySsrc(string $ssrc) : ?array
     {
         return $this->getByFields(['ssrc' => $ssrc]);
     }
 
-    public function getValidityTaskByStreamId(string $streamId): ?array
+    public function getValidityTaskByStreamId(string $streamId) : ?array
     {
         $task_type = 'playback_download';
         $now = time();
@@ -126,10 +126,10 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
                 )
                 LIMIT 1";
 
-        return $this->db()->fetchAssoc($sql, [$streamId, $timeoutTimestamp, $now, $recentCompletedThreshold]) ?: null;
+        return $this->db()->fetchAssoc($sql, [$streamId, $timeoutTimestamp, $now, $recentCompletedThreshold]) ? : null;
     }
 
-    public function findWaitStreamTasksWithMediaServer(): array
+    public function findWaitStreamTasksWithMediaServer() : array
     {
         $task_type = 'playback_download';
         // 只查询最近1小时内创建的任务，避免扫描旧数据
@@ -154,7 +154,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->fetchAllAssociative($sql);
     }
 
-    public function findRecordingTasksWithMediaServer(): array
+    public function findRecordingTasksWithMediaServer() : array
     {
         $task_type = 'playback_download';
         // 只查询最近1小时内创建的任务，避免扫描旧数据
@@ -179,7 +179,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->fetchAllAssociative($sql);
     }
 
-    public function updateRecordStartTimeByStreamId(string $streamId, string $mediaServerId, int $time): int
+    public function updateRecordStartTimeByStreamId(string $streamId, string $mediaServerId, int $time) : int
     {
         $sql = "UPDATE {$this->table()}
                 SET record_start_time = IF(record_start_time = 0, ?, record_start_time)
@@ -188,7 +188,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->executeStatement($sql, [$time, $streamId, $mediaServerId]);
     }
 
-    public function updateRecordEndTimeByStreamId(string $streamId, string $mediaServerId, int $time): int
+    public function updateRecordEndTimeByStreamId(string $streamId, string $mediaServerId, int $time) : int
     {
         $sql = "UPDATE {$this->table()}
                 SET record_end_time = IF(record_end_time = 0, ?, record_end_time)
@@ -197,7 +197,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->executeStatement($sql, [$time, $streamId, $mediaServerId]);
     }
 
-    public function updateLastRtpTime(int $taskId, int $time): int
+    public function updateLastRtpTime(int $taskId, int $time) : int
     {
         $sql = "UPDATE {$this->table()}
                 SET last_rtp_time = ?
@@ -205,7 +205,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->executeStatement($sql, [$time, $taskId]);
     }
 
-    public function findFinalizingTasks(): array
+    public function findFinalizingTasks() : array
     {
         $task_type = 'playback_download';
         // 只查询最近1小时内创建的任务
@@ -230,7 +230,7 @@ class RecordTaskDaoImpl extends AdvancedDaoImpl implements RecordTaskDao
         return $this->db()->fetchAllAssociative($sql);
     }
 
-    public function deleteOtherTasksByStreamId(string $streamId, int $excludeTaskId): int
+    public function deleteOtherTasksByStreamId(string $streamId, int $excludeTaskId) : int
     {
         $sql = "DELETE FROM {$this->table()}
                 WHERE stream_id = ?

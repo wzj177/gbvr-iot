@@ -77,7 +77,7 @@ interface VIPService
      * @param LoginFormDto $dto
      * @return array
      */
-    public function login(LoginFormDto $dto): array;
+    public function login(LoginFormDto $dto) : array;
 
 
     /**
@@ -88,7 +88,7 @@ interface VIPService
      */
     public function getVIPByUUID($uuid);
 
-    public function getVIPByNickname(string $nickname):  ?array;
+    public function getVIPByNickname(string $nickname) : ?array;
 
     /**
      * 给账号发送邮箱
@@ -105,6 +105,7 @@ interface VIPService
     public function unBindUserByTypeAndToId($type, $toId);
 
     public function findBindsByUserId($userId);
+
     public function findUserBindByTypeAndFromIds($type, $fromIds);
 
     public function findUserBindByTypeAndToIds($type, $toIds);

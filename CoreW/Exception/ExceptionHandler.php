@@ -13,23 +13,26 @@ use function nl2br;
 
 class ExceptionHandler extends \Webman\Exception\ExceptionHandler
 {
-    public $dontReport = [
-    ];
+    public $dontReport
+        = [
+        ];
 
-    public array $openHttpCodes = [
-        400,
-        401,
-        422,
-        201,
-        403,
-        413,
-        500
-    ];
+    public array $openHttpCodes
+        = [
+            400,
+            401,
+            422,
+            201,
+            403,
+            413,
+            500,
+        ];
 
-    public array $blobRoutes = [
-        'admin.captcha',
-        'api.captcha'
-    ];
+    public array $blobRoutes
+        = [
+            'admin.captcha',
+            'api.captcha',
+        ];
 
     public function __construct($logger, $debug)
     {
@@ -42,9 +45,9 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         parent::report($exception);
     }
 
-    public function render(Request $request, Throwable $exception): Response
+    public function render(Request $request, Throwable $exception) : Response
     {
-        list($httpCode, $error) = ExceptionUtil::getErrorAndHttpCodeFromException($exception);
+        [$httpCode, $error] = ExceptionUtil::getErrorAndHttpCodeFromException($exception);
         $error['data'] = null;
         if ($error['code'] === CommonBizException::USER_IP_FORBIDDEN && in_array($request->route->getName(), $this->blobRoutes)) {
             return response()->file(public_path('static/images/default/403.png?t=' . time()));
@@ -52,7 +55,7 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
 
         if ($this->requestIsJson($request)) {
             if ($this->debug) {
-//                print_r(debug_backtrace(\PHP_VERSION_ID >= 50400 ? \DEBUG_BACKTRACE_IGNORE_ARGS : false));
+                //                print_r(debug_backtrace(\PHP_VERSION_ID >= 50400 ? \DEBUG_BACKTRACE_IGNORE_ARGS : false));
                 $error['traces'] = $this->formatExceptionTraces($exception);//explode("\n", (string)$exception);
                 $error['message'] = $exception->getMessage();
             }
@@ -89,13 +92,13 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         };
         do {
             $traces[] = [
-                'name' => get_class($nextException),
-                'file' => $nextException->getFile(),
-                'line' => $nextException->getLine(),
-                'code' => $nextException->getCode(),
+                'name'    => get_class($nextException),
+                'file'    => $nextException->getFile(),
+                'line'    => $nextException->getLine(),
+                'code'    => $nextException->getCode(),
                 'message' => $nextException->getMessage(),
-                'trace' => $nextException->getTraceAsString(),
-                'source' => $source($nextException)
+                'trace'   => $nextException->getTraceAsString(),
+                'source'  => $source($nextException),
             ];
         } while ($nextException = $nextException->getPrevious());
 
@@ -111,10 +114,10 @@ class ExceptionHandler extends \Webman\Exception\ExceptionHandler
         return $httpCode;
     }
 
-    protected function requestIsJson(Request $request): bool
+    protected function requestIsJson(Request $request) : bool
     {
         return $request->expectsJson()
-            || ($request->header('content-type')  && str_contains(strtolower($request->header('content-type')), 'application/json'))
-            || ($request->header('content-type')  &&  str_contains(strtolower($request->header('content-type')), 'text/json'));
+            || ($request->header('content-type') && str_contains(strtolower($request->header('content-type')), 'application/json'))
+            || ($request->header('content-type') && str_contains(strtolower($request->header('content-type')), 'text/json'));
     }
 }

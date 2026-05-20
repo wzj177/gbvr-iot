@@ -80,7 +80,7 @@ class ImageToolkit
 
         if (in_array($extension, ['jpg', 'jpeg'])) {
             $options['jpeg_quality'] = $level * 10;
-        } elseif ('png' == $extension) {
+        } else if ('png' == $extension) {
             $options['png_compression_level'] = $level;
         } else {
             return $fullPath;
@@ -135,7 +135,7 @@ class ImageToolkit
         }
 
         if (extension_loaded('gmagick')) {
-            return  new \Imagine\Gmagick\Imagine();
+            return new \Imagine\Gmagick\Imagine();
         }
 
         return new \Imagine\Gd\Imagine();

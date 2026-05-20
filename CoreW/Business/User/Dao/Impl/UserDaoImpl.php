@@ -143,7 +143,7 @@ class UserDaoImpl extends AdvancedDaoImpl implements UserDao
         return $this->db()->fetchAll($sql, $userIds);
     }
 
-    protected function createQueryBuilder($conditions): \CoreW\Dao\DynamicQueryBuilder
+    protected function createQueryBuilder($conditions) : \CoreW\Dao\DynamicQueryBuilder
     {
         $conditions = array_filter($conditions, function ($value) {
             if ('0' == $value) {
@@ -243,15 +243,15 @@ class UserDaoImpl extends AdvancedDaoImpl implements UserDao
         return $builder;
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'roles' => 'delimiter',
-                'orgIds' => 'delimiter',
+                'roles'    => 'delimiter',
+                'orgIds'   => 'delimiter',
                 'orgCodes' => 'delimiter',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',

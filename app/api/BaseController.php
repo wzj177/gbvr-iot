@@ -15,7 +15,7 @@ class BaseController extends AbstractController
      * 是否是游客访问
      * @return bool
      */
-    protected function isGuestVIPUser(): bool
+    protected function isGuestVIPUser() : bool
     {
         return !$this->getBiz()->offsetExists('vip');
     }
@@ -23,7 +23,7 @@ class BaseController extends AbstractController
     /**
      * @return CurrentUser
      */
-    protected function getVIPInfo(): CurrentUser
+    protected function getVIPInfo() : CurrentUser
     {
         $biz = $this->getBiz();
         if (!$biz->offsetExists('vip')) {
@@ -35,7 +35,7 @@ class BaseController extends AbstractController
         return $biz['vip'];
     }
 
-    protected function getUserId(): int
+    protected function getUserId() : int
     {
         return (int)$this->getVIPInfo()->getId();
     }

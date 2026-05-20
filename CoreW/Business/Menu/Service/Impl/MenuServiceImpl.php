@@ -31,7 +31,7 @@ class MenuServiceImpl extends BaseService implements MenuService
         $menu = ArrayToolkit::parts($menu, [
             'menuId', 'name', 'icon', 'path', 'component',
             'parentId', 'parentMenuId', 'sort', 'type', 'httpMethod',
-            'routeName', 'status', 'createdTime', 'updatedTime'
+            'routeName', 'status', 'createdTime', 'updatedTime',
         ]);
 
         if (!ArrayToolkit::requireds($menu, ['menuId', 'name', 'type'])) {
@@ -57,7 +57,7 @@ class MenuServiceImpl extends BaseService implements MenuService
         $fields = ArrayToolkit::parts($fields, [
             'name', 'icon', 'path', 'component',
             'parentId', 'parentMenuId', 'sort', 'type', 'httpMethod',
-            'routeName', 'status'
+            'routeName', 'status',
         ]);
 
         if (isset($fields['menuId'])) {
@@ -181,16 +181,16 @@ class MenuServiceImpl extends BaseService implements MenuService
         foreach ($menus as $menu) {
             $menuId = $menu['id'];
             $data = [
-                'menuId' => $menuId,
-                'name' => $menu['name'] ?? '',
-                'icon' => $menu['icon'] ?? '',
-                'path' => $menu['path'] ?? '',
-                'component' => $menu['component'] ?? '',
-                'parentId' => $parentId,
+                'menuId'       => $menuId,
+                'name'         => $menu['name'] ?? '',
+                'icon'         => $menu['icon'] ?? '',
+                'path'         => $menu['path'] ?? '',
+                'component'    => $menu['component'] ?? '',
+                'parentId'     => $parentId,
                 'parentMenuId' => $parentMenuId,
-                'sort' => $menu['sort'] ?? 0,
-                'type' => $menu['type'] ?? 'menu',
-                'status' => 1,
+                'sort'         => $menu['sort'] ?? 0,
+                'type'         => $menu['type'] ?? 'menu',
+                'status'       => 1,
             ];
 
             $existing = $this->getMenuDao()->getByMenuId($menuId);
@@ -212,7 +212,7 @@ class MenuServiceImpl extends BaseService implements MenuService
         }
     }
 
-    protected function prepareSearchConditions(array $conditions): array
+    protected function prepareSearchConditions(array $conditions) : array
     {
         if (isset($conditions['menuIdLike']) && !empty($conditions['menuIdLike'])) {
             $conditions['menuIdLike'] = "%{$conditions['menuIdLike']}%";
@@ -229,12 +229,12 @@ class MenuServiceImpl extends BaseService implements MenuService
         return $conditions;
     }
 
-    protected function getMenuDao(): MenuDao|DaoProxy
+    protected function getMenuDao() : MenuDao|DaoProxy
     {
         return $this->createDao('Menu:MenuDao');
     }
 
-    protected function getRoleService(): RoleService
+    protected function getRoleService() : RoleService
     {
         return $this->createService('Role:RoleService');
     }

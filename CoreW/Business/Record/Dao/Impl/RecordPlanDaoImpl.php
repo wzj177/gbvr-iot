@@ -9,15 +9,15 @@ class RecordPlanDaoImpl extends AdvancedDaoImpl implements RecordPlanDao
 {
     protected $table = 'gv_record_plan';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],
@@ -31,9 +31,9 @@ class RecordPlanDaoImpl extends AdvancedDaoImpl implements RecordPlanDao
         ];
     }
 
-    public function getByName(string $name): ?array
+    public function getByName(string $name) : ?array
     {
         $result = $this->getByFields(['name' => $name]);
-        return $result ?: null;
+        return $result ? : null;
     }
 }

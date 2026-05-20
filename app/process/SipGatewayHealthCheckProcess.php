@@ -16,7 +16,7 @@ use Workerman\Worker;
  */
 class SipGatewayHealthCheckProcess
 {
-    public function onWorkerStart(Worker $worker): void
+    public function onWorkerStart(Worker $worker) : void
     {
         // 延迟10秒启动，避免启动时与其他进程冲突
         Timer::add(10, function () {
@@ -39,7 +39,7 @@ class SipGatewayHealthCheckProcess
         ]);
     }
 
-    protected function checkGateways(): void
+    protected function checkGateways() : void
     {
         $startTime = microtime(true);
 
@@ -49,18 +49,18 @@ class SipGatewayHealthCheckProcess
 
         if (!empty($offlineGateways)) {
             Log::channel('default')->info('[SipGatewayHealthCheck] Offline gateways detected', [
-                'gateways' => $offlineGateways,
+                'gateways'   => $offlineGateways,
                 'elapsed_ms' => $elapsed,
             ]);
         }
     }
 
-    protected function getBfw(): \CoreW\Bfw
+    protected function getBfw() : \CoreW\Bfw
     {
         return Core::instance();
     }
 
-    protected function getSipGatewayService(): SipGatewayService
+    protected function getSipGatewayService() : SipGatewayService
     {
         return $this->getBfw()->service('SipGateway:SipGatewayService');
     }

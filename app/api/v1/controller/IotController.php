@@ -43,13 +43,13 @@ class IotController extends BaseController
             $dto->userId = $iotConfig['userId'];
             $dto->clientType = BizEnum::TOKEN_TYPE_VIP_PC_LOGIN;
             $dto->requestIp = $request->getRealIp();
-            list($vip, $token) = $this->getVIPService()->login($dto);
+            [$vip, $token] = $this->getVIPService()->login($dto);
             $filter = new VIPFilter();
             $filter->filter($vip);
 
             return $this->createSuccessJsonResponse([
                 'token' => $token,
-                'user' => $vip
+                'user'  => $vip,
             ], '授权成功');
         }
 
@@ -66,9 +66,9 @@ class IotController extends BaseController
     public function getDeviceList(Request $request)
     {
         $items = $this->iotDriver()->deviceList([
-            'cid' => $request->get('cid', ''),
-            'keyword' => $request->get('keyword', ''),
-            'page' => $request->get('page', 1),
+            'cid'       => $request->get('cid', ''),
+            'keyword'   => $request->get('keyword', ''),
+            'page'      => $request->get('page', 1),
             'page_size' => $request->get('page_size', 100),
         ]);
 
@@ -92,11 +92,11 @@ class IotController extends BaseController
     public function getDeviceHistoryData(Request $request, $deviceCode)
     {
         $item = $this->iotDriver()->deviceHistoryData($deviceCode, [
-            'start_time' => $request->get('start_time', ''),
-            'end_time' => $request->get('end_time', ''),
+            'start_time'  => $request->get('start_time', ''),
+            'end_time'    => $request->get('end_time', ''),
             'channel_num' => $request->get('channel_num', 1),
-            'format' => 'chart',
-            'type' => 9
+            'format'      => 'chart',
+            'type'        => 9,
         ]);
 
         return json($item);
@@ -105,15 +105,15 @@ class IotController extends BaseController
     public function getCameraLiveUrl(Request $request, $deviceCode)
     {
         $item = $this->iotDriver()->cameraLiveUrl($deviceCode, [
-            'protocol' => 'ezopen'
+            'protocol' => 'ezopen',
         ]);
-//        $item = [
-//            'code' => 0,
-//            'data' => [
-//                'url' => 'https://zlm.boyuntong.com/rtp/24FE7973/hls.m3u8'
-//            ],
-//            'message' => 'ok'
-//        ];
+        //        $item = [
+        //            'code' => 0,
+        //            'data' => [
+        //                'url' => 'https://zlm.boyuntong.com/rtp/24FE7973/hls.m3u8'
+        //            ],
+        //            'message' => 'ok'
+        //        ];
         return json($item);
     }
 
@@ -125,7 +125,7 @@ class IotController extends BaseController
     }
 
 
-    protected function iotDriver(): \CoreW\Sdk\Iot\Driver\IotInterface
+    protected function iotDriver() : \CoreW\Sdk\Iot\Driver\IotInterface
     {
         if ($this->productCode) {
             $userId = 0;
@@ -142,7 +142,7 @@ class IotController extends BaseController
         return IotDriverFactory::create($iotConfig['serviceType'], $iotConfig);
     }
 
-    protected function getIotDriverByAppId(string $appId): ?\CoreW\Sdk\Iot\Driver\IotInterface
+    protected function getIotDriverByAppId(string $appId) : ?\CoreW\Sdk\Iot\Driver\IotInterface
     {
         $iotConfig = $this->getVIPService()->getCompanyIotConfigByAppId($appId);
         if (empty($iotConfig)) {
@@ -155,7 +155,7 @@ class IotController extends BaseController
     /**
      * @return VIPService
      */
-    protected function getVIPService(): VIPService
+    protected function getVIPService() : VIPService
     {
         return $this->createService('VIP:VIPService');
     }
@@ -163,7 +163,7 @@ class IotController extends BaseController
     /**
      * @return ProductService
      */
-    protected function getProductService(): ProductService
+    protected function getProductService() : ProductService
     {
         return $this->createService('Product:ProductService');
     }

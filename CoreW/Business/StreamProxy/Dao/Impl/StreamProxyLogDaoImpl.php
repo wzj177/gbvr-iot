@@ -12,13 +12,13 @@ class StreamProxyLogDaoImpl extends AdvancedDaoImpl implements StreamProxyLogDao
 {
     protected $table = 'gv_stream_proxy_logs';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'details' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
             ],
@@ -41,24 +41,24 @@ class StreamProxyLogDaoImpl extends AdvancedDaoImpl implements StreamProxyLogDao
         ];
     }
 
-    public function findByProxyId(string $proxyId, array $orderBys = [], int $start = 0, int $limit = 100): array
+    public function findByProxyId(string $proxyId, array $orderBys = [], int $start = 0, int $limit = 100) : array
     {
-        $orderBys = $orderBys ?: ['created_at' => 'DESC'];
+        $orderBys = $orderBys ? : ['created_at' => 'DESC'];
         return $this->search(['proxy_id' => $proxyId], $orderBys, $start, $limit);
     }
 
-    public function countByProxyId(string $proxyId): int
+    public function countByProxyId(string $proxyId) : int
     {
         return $this->count(['proxy_id' => $proxyId]);
     }
 
-    public function deleteBeforeDate(string $date): int
+    public function deleteBeforeDate(string $date) : int
     {
         $sql = "DELETE FROM {$this->table} WHERE created_at < ?";
         return $this->db()->executeUpdate($sql, [$date]);
     }
 
-    public function deleteByProxyId(string $proxyId): int
+    public function deleteByProxyId(string $proxyId) : int
     {
         return $this->db()->delete($this->table, ['proxy_id' => $proxyId]);
     }

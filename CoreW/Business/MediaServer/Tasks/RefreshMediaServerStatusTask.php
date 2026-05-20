@@ -11,7 +11,7 @@ use Webman\RedisQueue\Client;
 
 class RefreshMediaServerStatusTask extends BaseCrontabTask
 {
-    public function execute(): void
+    public function execute() : void
     {
         try {
             /** @var MediaServerService $mediaServerService */
@@ -24,7 +24,7 @@ class RefreshMediaServerStatusTask extends BaseCrontabTask
                 try {
                     // 异步分发同步任务到队列
                     Client::send('sync_media_server_status_job', [
-                        'mediaServerId' => $server['id']
+                        'mediaServerId' => $server['id'],
                     ]);
 
                     // 避免干扰，延迟一下
@@ -32,14 +32,14 @@ class RefreshMediaServerStatusTask extends BaseCrontabTask
 
                     Log::channel('crontab')->info('Media server status sync job dispatched', [
                         'server_id' => $server['server_id'],
-                        'name' => $server['name'],
-                        'status' => $server['status'],
+                        'name'      => $server['name'],
+                        'status'    => $server['status'],
                     ]);
                 } catch (\Exception $e) {
                     Log::channel('crontab')->error('Failed to dispatch media server status sync job', [
                         'server_id' => $server['server_id'],
-                        'name' => $server['name'],
-                        'error' => $e->getMessage(),
+                        'name'      => $server['name'],
+                        'error'     => $e->getMessage(),
                     ]);
                 }
             }

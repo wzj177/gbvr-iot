@@ -14,21 +14,21 @@
 
 return [
 
-    'default' => env('DB_CONNECTION'),
+    'default'     => env('DB_CONNECTION'),
     'connections' => [
         'mysql' => [
-            'driver' => 'pdo_mysql',//mysql
-            'host' => env('DB_HOST'),
-            'port' => env('DB_PORT'),
-            'database' => env('DB_DATABASE'),
-            'username' => env('DB_USERNAME'),
-            'password' => env('DB_PASSWORD'),
+            'driver'      => 'pdo_mysql',//mysql
+            'host'        => env('DB_HOST'),
+            'port'        => env('DB_PORT'),
+            'database'    => env('DB_DATABASE'),
+            'username'    => env('DB_USERNAME'),
+            'password'    => env('DB_PASSWORD'),
             'unix_socket' => env('DB_SOCKET'),
-            'charset' => 'utf8',
-            'collation' => 'utf8_general_ci',
-            'prefix' => env('DB_PREFIX'),
-            'strict' => true,
-            'engine' => null,
+            'charset'     => 'utf8',
+            'collation'   => 'utf8_general_ci',
+            'prefix'      => env('DB_PREFIX'),
+            'strict'      => true,
+            'engine'      => null,
         ],
     ],
 ];

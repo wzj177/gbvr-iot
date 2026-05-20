@@ -3,19 +3,18 @@
 namespace CoreW\Business\Record\Service\Impl;
 
 use CoreW\Business\BaseService;
-use CoreW\Business\Common\Exception\CommonBizException;
 use CoreW\Business\Devices\Service\DeviceService;
 use CoreW\Business\Record\Dao\RecordPlanDao;
 use CoreW\Business\Record\Dao\RecordPlanRangeDao;
 use CoreW\Business\Record\Service\RecordPlanService;
 use CoreW\Dao\DaoProxy;
 use support\utils\ArrayToolkit;
-
+use CoreW\Business\Common\CommonBizException;
 class RecordPlanServiceImpl extends BaseService implements RecordPlanService
 {
     private const VALID_WEEK_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
-    public function createPlan(array $data): array
+    public function createPlan(array $data) : array
     {
         if (!ArrayToolkit::requireds($data, ['name'])) {
             throw CommonBizException::ERROR_PARAMETER_MISSING();
@@ -47,7 +46,7 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         return $plan;
     }
 
-    public function updatePlan(int $id, array $data): array
+    public function updatePlan(int $id, array $data) : array
     {
         $plan = $this->getRecordPlanDao()->get($id);
         if (!$plan) {
@@ -90,7 +89,7 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         return $this->getPlan($id);
     }
 
-    public function getPlan(int $id): ?array
+    public function getPlan(int $id) : ?array
     {
         $plan = $this->getRecordPlanDao()->get($id);
         if (!$plan) {
@@ -101,7 +100,7 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         return $plan;
     }
 
-    public function deletePlan(int $id): bool
+    public function deletePlan(int $id) : bool
     {
         $plan = $this->getRecordPlanDao()->get($id);
         if (!$plan) {
@@ -118,17 +117,17 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         return $this->getRecordPlanDao()->delete($id) > 0;
     }
 
-    public function searchPlans(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    public function searchPlans(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
         return $this->getRecordPlanDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countPlans(array $conditions): int
+    public function countPlans(array $conditions) : int
     {
         return $this->getRecordPlanDao()->count($conditions);
     }
 
-    public function togglePlanStatus(int $id, int $status): bool
+    public function togglePlanStatus(int $id, int $status) : bool
     {
         $plan = $this->getRecordPlanDao()->get($id);
         if (!$plan) {
@@ -139,7 +138,7 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         return true;
     }
 
-    public function setTimeRanges(int $planId, array $ranges): array
+    public function setTimeRanges(int $planId, array $ranges) : array
     {
         // 全量替换：先删后增
         $this->getRecordPlanRangeDao()->deleteByPlanId($planId);
@@ -157,21 +156,21 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
 
             $created[] = $this->getRecordPlanRangeDao()->create([
                 'record_plan_id' => $planId,
-                'week_day' => $weekDay,
-                'start_time' => $range['start_time'],
-                'end_time' => $range['end_time'],
+                'week_day'       => $weekDay,
+                'start_time'     => $range['start_time'],
+                'end_time'       => $range['end_time'],
             ]);
         }
 
         return $created;
     }
 
-    public function getTimeRanges(int $planId): array
+    public function getTimeRanges(int $planId) : array
     {
         return $this->getRecordPlanRangeDao()->findByPlanId($planId);
     }
 
-    public function bindChannels(int $planId, array $channelIds): int
+    public function bindChannels(int $planId, array $channelIds) : int
     {
         $plan = $this->getRecordPlanDao()->get($planId);
         if (!$plan) {
@@ -193,16 +192,16 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         return $count;
     }
 
-    public function unbindChannel(int $channelId): bool
+    public function unbindChannel(int $channelId) : bool
     {
         $this->getDeviceService()->updateChannel($channelId, [
             'record_plan_id' => 0,
-            'record_status' => 0,
+            'record_status'  => 0,
         ]);
         return true;
     }
 
-    public function unbindChannels(array $channelIds): int
+    public function unbindChannels(array $channelIds) : int
     {
         $count = 0;
         foreach ($channelIds as $channelId) {
@@ -212,14 +211,14 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
             }
             $this->getDeviceService()->updateChannel($channelId, [
                 'record_plan_id' => 0,
-                'record_status' => 0,
+                'record_status'  => 0,
             ]);
             $count++;
         }
         return $count;
     }
 
-    public function getBoundChannels(int $planId): array
+    public function getBoundChannels(int $planId) : array
     {
         return $this->getDeviceService()->searchChannels(
             ['record_plan_id' => $planId],
@@ -229,7 +228,7 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
         );
     }
 
-    public function getPlansWithRanges(): array
+    public function getPlansWithRanges() : array
     {
         $plans = $this->getRecordPlanDao()->search([], [], 0, PHP_INT_MAX);
         foreach ($plans as &$plan) {
@@ -240,17 +239,17 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
 
     // ==================== DAO / Service Getters ====================
 
-    protected function getRecordPlanDao(): RecordPlanDao|DaoProxy
+    protected function getRecordPlanDao() : RecordPlanDao|DaoProxy
     {
         return $this->createDao('Record:RecordPlanDao');
     }
 
-    protected function getRecordPlanRangeDao(): RecordPlanRangeDao|DaoProxy
+    protected function getRecordPlanRangeDao() : RecordPlanRangeDao|DaoProxy
     {
         return $this->createDao('Record:RecordPlanRangeDao');
     }
 
-    protected function getDeviceService(): DeviceService
+    protected function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }

@@ -22,7 +22,7 @@ class DeviceToServerSubscribeHandler
      * @param int $expires 订阅时长（秒）
      * @param string $body 消息体（可能包含订阅参数）
      */
-    public function handleMobilePositionSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body): void
+    public function handleMobilePositionSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body) : void
     {
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
@@ -46,12 +46,12 @@ class DeviceToServerSubscribeHandler
             // 通知业务系统
             $this->postTask('mobile_position_unsubscribe', [
                 'device_id' => $deviceId,
-                'call_id' => $callId,
+                'call_id'   => $callId,
                 'timestamp' => time(),
             ]);
 
             $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => 0
+                'Expires' => 0,
             ]);
             return;
         }
@@ -61,7 +61,7 @@ class DeviceToServerSubscribeHandler
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s (最小值)", 'WARNING');
 
             $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires
+                'Min-Expires' => $minExpires,
             ]);
             return;
         }
@@ -84,14 +84,14 @@ class DeviceToServerSubscribeHandler
 
         // 保存订阅信息
         $subscription = [
-            'device_id' => $deviceId,
-            'type' => 'mobile_position',
-            'event' => 'presence',
-            'call_id' => $callId,
-            'expires' => $expires,
+            'device_id'   => $deviceId,
+            'type'        => 'mobile_position',
+            'event'       => 'presence',
+            'call_id'     => $callId,
+            'expires'     => $expires,
             'expire_time' => time() + $expires,
-            'interval' => $interval,
-            'created_at' => time(),
+            'interval'    => $interval,
+            'created_at'  => time(),
         ];
 
         $this->deviceManager->addSubscription($deviceId, 'mobile_position', $subscription);
@@ -99,15 +99,15 @@ class DeviceToServerSubscribeHandler
         // 通知业务系统
         $this->postTask('mobile_position_subscribe', [
             'device_id' => $deviceId,
-            'expires' => $expires,
-            'interval' => $interval,
-            'call_id' => $callId,
+            'expires'   => $expires,
+            'interval'  => $interval,
+            'call_id'   => $callId,
             'timestamp' => time(),
         ]);
 
         // 返回 200 OK
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires
+            'Expires' => $expires,
         ]);
 
         $this->log("位置订阅成功: {$deviceId}, 有效期: {$expires}s" . ($interval ? ", 上报间隔: {$interval}s" : ""));
@@ -123,7 +123,7 @@ class DeviceToServerSubscribeHandler
      * @param int $expires 订阅时长（秒）
      * @param string $body 消息体
      */
-    public function handleCatalogSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body): void
+    public function handleCatalogSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body) : void
     {
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
@@ -136,7 +136,7 @@ class DeviceToServerSubscribeHandler
         if ($expires > 0 && $expires < $minExpires) {
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s", 'WARNING');
             $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires
+                'Min-Expires' => $minExpires,
             ]);
             return;
         }
@@ -148,14 +148,14 @@ class DeviceToServerSubscribeHandler
 
         // 保存订阅信息
         $subscription = [
-            'device_id' => $deviceId,
-            'type' => 'catalog',
-            'event' => 'Catalog',
-            'call_id' => $callId,
-            'dialog_id' => $dialogId,
-            'expires' => $expires,
+            'device_id'   => $deviceId,
+            'type'        => 'catalog',
+            'event'       => 'Catalog',
+            'call_id'     => $callId,
+            'dialog_id'   => $dialogId,
+            'expires'     => $expires,
             'expire_time' => time() + $expires,
-            'created_at' => time(),
+            'created_at'  => time(),
         ];
 
         $this->deviceManager->addSubscription($deviceId, 'catalog', $subscription);
@@ -163,15 +163,15 @@ class DeviceToServerSubscribeHandler
         // 通知业务系统
         $this->postTask('catalog_subscribe', [
             'device_id' => $deviceId,
-            'expires' => $expires,
-            'call_id' => $callId,
+            'expires'   => $expires,
+            'call_id'   => $callId,
             'dialog_id' => $dialogId,
             'timestamp' => time(),
         ]);
 
         // 返回 200 OK
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires
+            'Expires' => $expires,
         ]);
 
         $this->log("✓ 目录订阅成功: {$deviceId}, 有效期: {$expires}s");
@@ -187,7 +187,7 @@ class DeviceToServerSubscribeHandler
      * @param int $expires 订阅时长（秒）
      * @param string $body 消息体
      */
-    public function handleAlarmSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body): void
+    public function handleAlarmSubscribe(\SipEvent $event, string $deviceId, int $expires, string $body) : void
     {
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
@@ -200,7 +200,7 @@ class DeviceToServerSubscribeHandler
         if ($expires > 0 && $expires < $minExpires) {
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s", 'WARNING');
             $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires
+                'Min-Expires' => $minExpires,
             ]);
             return;
         }
@@ -226,34 +226,34 @@ class DeviceToServerSubscribeHandler
 
         // 保存订阅信息
         $subscription = [
-            'device_id' => $deviceId,
-            'type' => 'alarm',
-            'event' => 'Alarm',
-            'call_id' => $callId,
-            'dialog_id' => $dialogId,
-            'expires' => $expires,
-            'expire_time' => time() + $expires,
+            'device_id'      => $deviceId,
+            'type'           => 'alarm',
+            'event'          => 'Alarm',
+            'call_id'        => $callId,
+            'dialog_id'      => $dialogId,
+            'expires'        => $expires,
+            'expire_time'    => time() + $expires,
             'alarm_priority' => $alarmPriority,
-            'alarm_method' => $alarmMethod,
-            'created_at' => time(),
+            'alarm_method'   => $alarmMethod,
+            'created_at'     => time(),
         ];
 
         $this->deviceManager->addSubscription($deviceId, 'alarm', $subscription);
 
         // 通知业务系统
         $this->postTask('alarm_subscribe', [
-            'device_id' => $deviceId,
-            'expires' => $expires,
+            'device_id'      => $deviceId,
+            'expires'        => $expires,
             'alarm_priority' => $alarmPriority,
-            'alarm_method' => $alarmMethod,
-            'call_id' => $callId,
-            'dialog_id' => $dialogId,
-            'timestamp' => time(),
+            'alarm_method'   => $alarmMethod,
+            'call_id'        => $callId,
+            'dialog_id'      => $dialogId,
+            'timestamp'      => time(),
         ]);
 
         // 返回 200 OK
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires
+            'Expires' => $expires,
         ]);
 
         $this->log("✓ 报警订阅成功: {$deviceId}, 有效期: {$expires}s" .
@@ -270,7 +270,7 @@ class DeviceToServerSubscribeHandler
      * @param array $position 位置信息 [time, longitude, latitude, speed, direction, altitude]
      * @return bool
      */
-    public function notifyMobilePosition(string $deviceId, array $position): bool
+    public function notifyMobilePosition(string $deviceId, array $position) : bool
     {
         $subscriptionManager = $this->getSubscriptionManager();
         if (!$subscriptionManager) {
@@ -299,7 +299,7 @@ class DeviceToServerSubscribeHandler
      * @param string $xmlBody XML 消息体
      * @return array ['sent' => int, 'failed' => int]
      */
-    public function broadcastNotify(string $eventType, string $xmlBody): array
+    public function broadcastNotify(string $eventType, string $xmlBody) : array
     {
         $subscriptionManager = $this->getSubscriptionManager();
         if (!$subscriptionManager) {
@@ -324,7 +324,7 @@ class DeviceToServerSubscribeHandler
      * @param array $alarmInfo 报警信息 [priority, method, type, time, description, longitude, latitude]
      * @return bool
      */
-    public function notifyAlarm(string $deviceId, array $alarmInfo): bool
+    public function notifyAlarm(string $deviceId, array $alarmInfo) : bool
     {
         $subscriptionManager = $this->getSubscriptionManager();
         if (!$subscriptionManager) {
@@ -370,7 +370,7 @@ class DeviceToServerSubscribeHandler
      * @param string $event 事件类型: ON/OFF/VLOST/DEFECT/ADD/DEL/UPDATE
      * @return bool
      */
-    public function notifyCatalogChange(string $deviceId, array $channels, string $event = 'UPDATE'): bool
+    public function notifyCatalogChange(string $deviceId, array $channels, string $event = 'UPDATE') : bool
     {
         $subscriptionManager = $this->getSubscriptionManager();
         if (!$subscriptionManager) {

@@ -38,12 +38,12 @@ class AttachmentGroupDaoImpl extends AdvancedDaoImpl implements AttachmentGroupD
         return $this->getByFields(['title' => $title]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'sort',
                 'parentId',
@@ -62,7 +62,7 @@ class AttachmentGroupDaoImpl extends AdvancedDaoImpl implements AttachmentGroupD
                 'parentId = :parentId',
                 'level = :level',
                 'isDefault = :isDefault',
-                'level <= :level_le'
+                'level <= :level_le',
             ],
             'timestamps' => [
                 'createdTime',

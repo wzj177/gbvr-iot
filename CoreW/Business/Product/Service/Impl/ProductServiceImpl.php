@@ -119,22 +119,22 @@ class ProductServiceImpl extends BaseService implements ProductService
             // 获取lasted scene
             $index = isset($fields['index']) ? (int)$fields['index'] + 1 : 0;
             $scene = $this->getSceneDao()->create([
-                'productId' => $product['id'],
-                'userId' => $product['userId'],
-                'number' => $index,
-                'title' => '场景' . ($index + 1),
-                'panorama' => $result['path'],
-                'thumb' => $result['thumbPath'],
-                'prFileId' => $result['fileId'],
+                'productId'    => $product['id'],
+                'userId'       => $product['userId'],
+                'number'       => $index,
+                'title'        => '场景' . ($index + 1),
+                'panorama'     => $result['path'],
+                'thumb'        => $result['thumbPath'],
+                'prFileId'     => $result['fileId'],
                 'panoramaSize' => $panoramaFileSize,
-                'thumbSize' => $panoramaThumbFileSize,
+                'thumbSize'    => $panoramaThumbFileSize,
             ]);
             $usedSpaceSize = $panoramaFileSize + $panoramaFileSize;
             $this->getVIPService()->addUsedSpaceSize($fields['userId'], $usedSpaceSize);
             $this->commit();
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_ADD_SCENE, '添加场景成功', [
-                'userId' => $fields['userId'],
-                'currentIp' => $fields['currentIp'] ?? ''
+                'userId'    => $fields['userId'],
+                'currentIp' => $fields['currentIp'] ?? '',
             ]);
             Client::send('scene-panorama-chunk-tiles', $scene);
             return $scene;
@@ -143,8 +143,8 @@ class ProductServiceImpl extends BaseService implements ProductService
             is_file($panoramaFile) && @unlink($panoramaFile);
             ($panoramaThumbFile && is_file($panoramaThumbFile)) && @unlink($panoramaThumbFile);
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_ADD_SCENE, '添加场景失败', [
-                'userId' => $fields['userId'],
-                'currentIp' => $fields['currentIp'] ?? ''
+                'userId'    => $fields['userId'],
+                'currentIp' => $fields['currentIp'] ?? '',
             ]);
             throw $e;
         }
@@ -266,7 +266,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $config = [
             'image_max_upload_size' => $attachmentConfig['allow_image_upload_size'] ?? config('server.max_package_size'),
             'video_max_upload_size' => $attachmentConfig['allow_video_upload_size'] ?? config('server.max_package_size'),
-            'file_max_upload_size' => $attachmentConfig['allow_file_upload_size'] ?? config('server.max_package_size'),
+            'file_max_upload_size'  => $attachmentConfig['allow_file_upload_size'] ?? config('server.max_package_size'),
         ];
         $config['image_max_upload_size_txt'] = round($config['image_max_upload_size'] / 1024, 2) . 'MB';
         $config['video_max_upload_size_txt'] = round($config['video_max_upload_size'] / 1024, 2) . 'MB';
@@ -275,7 +275,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         return $config;
     }
 
-    public function getProductById($id): ?array
+    public function getProductById($id) : ?array
     {
         $product = $this->getProductDao()->get($id);
         if (empty($product)) {
@@ -291,7 +291,7 @@ class ProductServiceImpl extends BaseService implements ProductService
      * @param $id
      * @return array|null
      */
-    public function getProductByCode(string $code): ?array
+    public function getProductByCode(string $code) : ?array
     {
         $product = $this->getProductDao()->getByCode($code);
         if (empty($product)) {
@@ -301,7 +301,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         return $this->mapProduct($product);
     }
 
-    protected function mapProduct(array $product): array
+    protected function mapProduct(array $product) : array
     {
         $scenes = $this->getSceneDao()->getAllByProductId((int)$product['id']);
         $tags = $this->getProductTagDao()->getAll(['productId' => $product['id']], null, ['tagType', 'tagId', 'tagName']);
@@ -367,7 +367,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         $usedSpaceSize = 0;
         try {
             foreach ($scenes as $index => $scene) {
-                list($panoramaFile, $panoramaThumbFile) = $this->filterPanoramaByPathAndThumbPath($scene['path'] ?? '', $scene['thumb_path'] ?? '');
+                [$panoramaFile, $panoramaThumbFile] = $this->filterPanoramaByPathAndThumbPath($scene['path'] ?? '', $scene['thumb_path'] ?? '');
                 if (empty($panoramaFile) || empty($panoramaThumbFile)) {
                     continue;
                 }
@@ -375,13 +375,13 @@ class ProductServiceImpl extends BaseService implements ProductService
                 $panoramaThumbFileSize = filesize($panoramaThumbFile);
                 $usedSpaceSize += $panoramaFileSize + $panoramaThumbFileSize;
                 $sceneItems[] = [
-                    'number' => $index,
-                    'title' => '场景' . ($index + 1),
-                    'panorama' => $scene['path'],
-                    'thumb' => $scene['thumb_path'],
+                    'number'       => $index,
+                    'title'        => '场景' . ($index + 1),
+                    'panorama'     => $scene['path'],
+                    'thumb'        => $scene['thumb_path'],
                     'panoramaSize' => $panoramaFileSize,
-                    'thumbSize' => $panoramaThumbFileSize,
-                    'prFileId' => $scene['file_id'] ?? 0
+                    'thumbSize'    => $panoramaThumbFileSize,
+                    'prFileId'     => $scene['file_id'] ?? 0,
                 ];
                 if (empty($fields['cover'])) {
                     $fields['cover'] = $scene['thumb_path'];
@@ -404,8 +404,8 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->getVIPService()->addUsedSpaceSize($fields['userId'], $usedSpaceSize);
             $this->commit();
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT, 'add', '创建作品成功', [
-                'userId' => $fields['userId'],
-                'currentIp' => $currentIp
+                'userId'    => $fields['userId'],
+                'currentIp' => $currentIp,
             ]);
             foreach ($sceneItems as $sceneItem) {
                 Log::info("拆分场景瓦片图片，场景路径={$sceneItem['panorama']}");
@@ -416,9 +416,9 @@ class ProductServiceImpl extends BaseService implements ProductService
         } catch (\Throwable $e) {
             $this->rollback();
             $this->getLogService()->error(LogEnum::MODULE_PRODUCT, 'add', '创建作品失败', [
-                'userId' => $fields['userId'],
-                'error' => $e->getMessage(),
-                'currentIp' => $currentIp
+                'userId'    => $fields['userId'],
+                'error'     => $e->getMessage(),
+                'currentIp' => $currentIp,
             ]);
             throw $e;
         }
@@ -465,15 +465,15 @@ class ProductServiceImpl extends BaseService implements ProductService
             }
             $this->commit();
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT, 'update', '更新作品成功', [
-                'userId' => $fields['userId'],
-                'currentIp' => $currentIp
+                'userId'    => $fields['userId'],
+                'currentIp' => $currentIp,
             ]);
             return $product['id'];
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_PRODUCT, 'update', '更新作品失败', [
-                'userId' => $fields['userId'],
-                'error' => $e->getMessage(),
-                'currentIp' => $currentIp
+                'userId'    => $fields['userId'],
+                'error'     => $e->getMessage(),
+                'currentIp' => $currentIp,
             ]);
             throw $e;
         }
@@ -485,7 +485,7 @@ class ProductServiceImpl extends BaseService implements ProductService
      * @return bool
      * @throws \CoreW\Dao\DaoException
      */
-    public function closeProduct($id, array $fields): bool
+    public function closeProduct($id, array $fields) : bool
     {
         $product = $this->getProductDao()->get($id);
         if (empty($product)) {
@@ -503,18 +503,18 @@ class ProductServiceImpl extends BaseService implements ProductService
         }
 
         $this->getProductDao()->update($id, [
-            'status' => BizEnum::PRODUCT_STATUS_CLOSED
+            'status' => BizEnum::PRODUCT_STATUS_CLOSED,
         ]);
         $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_CLOSE, "关闭作品《{$product['title']}》,作品ID:{$id}", [
-            'userId' => $fields['userId'],
+            'userId'    => $fields['userId'],
             'productId' => $id,
-            'currentIp' => $fields['currentIp'] ?? '127.0.0.1'
+            'currentIp' => $fields['currentIp'] ?? '127.0.0.1',
         ]);
 
         return true;
     }
 
-    public function publishProduct($id, array $fields): bool
+    public function publishProduct($id, array $fields) : bool
     {
         $product = $this->getProductDao()->get($id);
         if (empty($product)) {
@@ -531,12 +531,12 @@ class ProductServiceImpl extends BaseService implements ProductService
         }
 
         $this->getProductDao()->update($id, [
-            'status' => BizEnum::PRODUCT_STATUS_PUBLISHED
+            'status' => BizEnum::PRODUCT_STATUS_PUBLISHED,
         ]);
         $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_PUBLISH, "发布作品《{$product['title']}》,作品ID:{$id}", [
-            'userId' => $fields['userId'],
+            'userId'    => $fields['userId'],
             'productId' => $id,
-            'currentIp' => $fields['currentIp'] ?? '127.0.0.1'
+            'currentIp' => $fields['currentIp'] ?? '127.0.0.1',
         ]);
 
         return true;
@@ -568,7 +568,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         if (empty($product)) {
             throw ProductException::NOT_FOUND_PRODUCT();
         }
-//        $scene = $this->getScene($fields['sceneId']);
+        //        $scene = $this->getScene($fields['sceneId']);
         $fields = ArrayToolkit::parts($fields, [
             'id',
             'uuid',
@@ -589,7 +589,7 @@ class ProductServiceImpl extends BaseService implements ProductService
             'videoUrl',
             'content',
             'iconMarkerParams',
-            'iconTitleMarkerParams'
+            'iconTitleMarkerParams',
         ]);
         //https://v.douyin.com/CeiG1C32/ - 7436887548753906981
         if (!empty($fields['videoUrl'])) {
@@ -619,13 +619,13 @@ class ProductServiceImpl extends BaseService implements ProductService
      * @param $url
      * @return string
      */
-    protected function getDouYinVideoRedirectUrl($url): string
+    protected function getDouYinVideoRedirectUrl($url) : string
     {
         $ch = curl_init();
         $finalUrl = null;
         $headers = [
             'Referer: https://www.douyin.com/',
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36'
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36',
         ];
         curl_setopt($ch, CURLOPT_URL, $url);            // 设置完整的请求 URL
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);      // 设置返回数据为字符串
@@ -744,9 +744,9 @@ class ProductServiceImpl extends BaseService implements ProductService
             throw ProductException::NOT_FOUND_PRODUCT();
         }
 
-//        if (empty($fields['nodes'])) {
-//            throw ProductException::SET_PRODUCT_TOUR_NODES_EMPTY_NODES();
-//        }
+        //        if (empty($fields['nodes'])) {
+        //            throw ProductException::SET_PRODUCT_TOUR_NODES_EMPTY_NODES();
+        //        }
 
         $nodes = $fields['nodes'];
         $this->beginTransaction();
@@ -755,9 +755,9 @@ class ProductServiceImpl extends BaseService implements ProductService
             if (empty($tour)) {
                 $tour = $this->getTourDao()->create([
                     'productId' => $productId,
-                    'title' => $product['title'],
-                    'startImg' => $product['cover'],
-                    'endImg' => $product['cover'],
+                    'title'     => $product['title'],
+                    'startImg'  => $product['cover'],
+                    'endImg'    => $product['cover'],
                 ]);
             }
             $existTourNodes = ArrayToolkit::index($this->getProductTourNodes($productId), 'idx');
@@ -774,26 +774,26 @@ class ProductServiceImpl extends BaseService implements ProductService
                         $id = $existTourNodes[$node['index']]['id'];
                         $updNodes[$id] = [
                             'productId' => $productId,
-                            'sceneId' => $node['sceneId'],
-                            'tourId' => $tour['id'],
-                            'idx' => $node['index'],
-                            'code' => $node['code'],
-                            'position' => $node['position'],
-                            'waitTime' => $node['waitTime'],
-                            'content' => $node['content'],
-                            'voice' => $node['voice'],
+                            'sceneId'   => $node['sceneId'],
+                            'tourId'    => $tour['id'],
+                            'idx'       => $node['index'],
+                            'code'      => $node['code'],
+                            'position'  => $node['position'],
+                            'waitTime'  => $node['waitTime'],
+                            'content'   => $node['content'],
+                            'voice'     => $node['voice'],
                         ];
                     } else {
                         $addNodes[] = [
                             'productId' => $productId,
-                            'sceneId' => $node['sceneId'],
-                            'tourId' => $tour['id'],
-                            'idx' => $node['index'],
-                            'code' => $node['code'],
-                            'position' => $node['position'],
-                            'waitTime' => $node['waitTime'],
-                            'content' => $node['content'],
-                            'voice' => $node['voice'],
+                            'sceneId'   => $node['sceneId'],
+                            'tourId'    => $tour['id'],
+                            'idx'       => $node['index'],
+                            'code'      => $node['code'],
+                            'position'  => $node['position'],
+                            'waitTime'  => $node['waitTime'],
+                            'content'   => $node['content'],
+                            'voice'     => $node['voice'],
                         ];
                     }
                 }
@@ -809,8 +809,8 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->commit();
             $count = count($nodes);
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT, LogEnum::ACTION_SET_PRODUCT_TOUR_NODES, "作品(ID={$product['id']})成功登记{$count}个导游节点", [
-                'nodes' => $nodes,
-                'userId' => $fields['userId'] ?? 1,
+                'nodes'     => $nodes,
+                'userId'    => $fields['userId'] ?? 1,
                 'currentIp' => $fields['currentIp'] ?? '',
             ]);
             return true;
@@ -858,11 +858,11 @@ class ProductServiceImpl extends BaseService implements ProductService
 
         $fields = [
             'productId' => $product['id'],
-            'imgUrl' => $dto->imgUrl,
-            'type' => $dto->type,
-            'markers' => $dto->markers,
-            'center' => $dto->center,
-            'rotation' => $dto->rotation,
+            'imgUrl'    => $dto->imgUrl,
+            'type'      => $dto->type,
+            'markers'   => $dto->markers,
+            'center'    => $dto->center,
+            'rotation'  => $dto->rotation,
         ];
         if (!empty($dto->gisParam)) {
             $fields['gisParam'] = $dto->gisParam;
@@ -916,9 +916,9 @@ class ProductServiceImpl extends BaseService implements ProductService
                 $addRows = array_map(function ($marker) use ($product) {
                     return [
                         'productId' => $product['id'],
-                        'sceneId' => $marker['sceneId'],
-                        'position' => $marker['position'],
-                        'deg' => $marker['deg'],
+                        'sceneId'   => $marker['sceneId'],
+                        'position'  => $marker['position'],
+                        'deg'       => $marker['deg'],
                     ];
                 }, $addMarkers);
                 $this->getPlaneGraphDao()->batchCreate($addRows);
@@ -937,7 +937,7 @@ class ProductServiceImpl extends BaseService implements ProductService
                     $existUpdMarker = $existMarkerSceneGroupList[$scenedId];
                     $updMarkers[$existUpdMarker['id']] = [
                         'position' => $updMarker['position'],
-                        'deg' => $updMarker['deg'],
+                        'deg'      => $updMarker['deg'],
                     ];
                 }
 
@@ -1031,9 +1031,9 @@ class ProductServiceImpl extends BaseService implements ProductService
         }
 
         return $this->getProductDao()->update($productId, [
-            'logo' => $logo,
+            'logo'         => $logo,
             'brandWebsite' => $brandWebsite,
-            'logoPosition' => empty($logoPosition) ? 'left_top' : $logoPosition
+            'logoPosition' => empty($logoPosition) ? 'left_top' : $logoPosition,
         ]);
     }
 
@@ -1050,9 +1050,9 @@ class ProductServiceImpl extends BaseService implements ProductService
         }
 
         return [
-            'logo' => $product['logo'],
-            'logo_full' => AssetHelper::getUploadUrl($product['logo']),
-            'link_url' => $product['brandWebsite'],
+            'logo'          => $product['logo'],
+            'logo_full'     => AssetHelper::getUploadUrl($product['logo']),
+            'link_url'      => $product['brandWebsite'],
             'logo_position' => $product['logoPosition'],
         ];
     }
@@ -1079,16 +1079,16 @@ class ProductServiceImpl extends BaseService implements ProductService
         if (!empty($setting)) {
             return $this->getSettingDao()->update($setting['id'], [
                 'userId' => $dto->userId,
-                'name' => $dto->key,
-                'val' => $dto->values
+                'name'   => $dto->key,
+                'val'    => $dto->values,
             ]);
         }
 
         return $this->getSettingDao()->create([
             'productId' => $dto->productId,
-            'userId' => $dto->userId,
-            'name' => $dto->key,
-            'val' => $dto->values
+            'userId'    => $dto->userId,
+            'name'      => $dto->key,
+            'val'       => $dto->values,
         ]);
     }
 
@@ -1097,7 +1097,7 @@ class ProductServiceImpl extends BaseService implements ProductService
      * @param int $productId
      * @return array
      */
-    public function getProductConfigs(int $productId): array
+    public function getProductConfigs(int $productId) : array
     {
         $configs = $this->getSettingDao()->findByProductId($productId);
         $items = [];
@@ -1123,7 +1123,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         return $this->mapProductConfig($config);
     }
 
-    protected function mapProductConfig(?array $config): ?array
+    protected function mapProductConfig(?array $config) : ?array
     {
         if (empty($config)) {
             return null;
@@ -1181,8 +1181,8 @@ class ProductServiceImpl extends BaseService implements ProductService
         } catch (\Throwable $e) {
             $this->rollback();
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT, 'delete', '删除作品失败', [
-                'error' => $e->getMessage(),
-                'product' => $product
+                'error'   => $e->getMessage(),
+                'product' => $product,
             ]);
             return false;
         }
@@ -1199,23 +1199,23 @@ class ProductServiceImpl extends BaseService implements ProductService
 
         return [
             [
-                'key' => BizEnum::PRODUCT_TYPE_PICTURES,
+                'key'   => BizEnum::PRODUCT_TYPE_PICTURES,
                 'label' => $items[BizEnum::PRODUCT_TYPE_PICTURES],
-                'logo' => AssetHelper::getAssetUrl('images/default/vr_pictures.png'),
-                'desc' => '适用于静态场景展示，呈现自然风光或建筑景观，提供静谧观赏体验。'
+                'logo'  => AssetHelper::getAssetUrl('images/default/vr_pictures.png'),
+                'desc'  => '适用于静态场景展示，呈现自然风光或建筑景观，提供静谧观赏体验。',
             ],
             [
-                'key' => BizEnum::PRODUCT_TYPE_VIDEOS,
+                'key'   => BizEnum::PRODUCT_TYPE_VIDEOS,
                 'label' => $items[BizEnum::PRODUCT_TYPE_VIDEOS],
-                'logo' => AssetHelper::getAssetUrl('images/default/vr_videos.png'),
-                'desc' => '适合动态场景展示，可用于旅游、教育等，传递沉浸式的故事体验。'
+                'logo'  => AssetHelper::getAssetUrl('images/default/vr_videos.png'),
+                'desc'  => '适合动态场景展示，可用于旅游、教育等，传递沉浸式的故事体验。',
             ],
             [
-                'key' => BizEnum::PRODUCT_TYPE_3D_RING,
+                'key'   => BizEnum::PRODUCT_TYPE_3D_RING,
                 'label' => $items[BizEnum::PRODUCT_TYPE_3D_RING],
-                'logo' => AssetHelper::getAssetUrl('images/default/vr_3d_ring.png'),
-                'desc' => '用于交互体验，适配游戏、模拟场景，提供自由探索和互动。'
-            ]
+                'logo'  => AssetHelper::getAssetUrl('images/default/vr_3d_ring.png'),
+                'desc'  => '用于交互体验，适配游戏、模拟场景，提供自由探索和互动。',
+            ],
         ];
     }
 
@@ -1232,17 +1232,17 @@ class ProductServiceImpl extends BaseService implements ProductService
         // 已经存在的自定义标签
         $oldCustomTags = $this->getTagService()->searchTags([
             'userId' => $userId,
-            'names' => $customTags
+            'names'  => $customTags,
         ], [], 0, PHP_INT_MAX, ['id', 'name', 'userId']);
 
         // 添加推荐标签
         foreach ($recommendTags as $recommendTag) {
             $tagItems[] = [
                 'productId' => $productId,
-                'userId' => $userId,
-                'tagType' => 'system',
-                'tagId' => $recommendTag['id'],
-                'tagName' => $recommendTag['name'],
+                'userId'    => $userId,
+                'tagType'   => 'system',
+                'tagId'     => $recommendTag['id'],
+                'tagName'   => $recommendTag['name'],
             ];
         }
 
@@ -1255,10 +1255,10 @@ class ProductServiceImpl extends BaseService implements ProductService
                     $exist = true;
                     $tagItems[] = [
                         'productId' => $productId,
-                        'userId' => $userId,
-                        'tagType' => 'custom',
-                        'tagId' => $excludeTag['id'],
-                        'tagName' => $excludeTag['name'],
+                        'userId'    => $userId,
+                        'tagType'   => 'custom',
+                        'tagId'     => $excludeTag['id'],
+                        'tagName'   => $excludeTag['name'],
                     ];
                     break;
                 }
@@ -1270,8 +1270,8 @@ class ProductServiceImpl extends BaseService implements ProductService
 
             $newTags[] = [
                 'userId' => $userId,
-                'type' => 'custom',
-                'name' => $customTag
+                'type'   => 'custom',
+                'name'   => $customTag,
             ];
 
 
@@ -1281,16 +1281,16 @@ class ProductServiceImpl extends BaseService implements ProductService
             $this->getTagService()->batchCreateTags($newTags);
             $newCustomTags = $this->getTagService()->searchTags([
                 'userId' => $userId,
-                'type' => 'custom',
-                'names' => ArrayToolkit::column($newTags, 'name')
+                'type'   => 'custom',
+                'names'  => ArrayToolkit::column($newTags, 'name'),
             ], [], 0, PHP_INT_MAX, ['id', 'name']);
             foreach ($newCustomTags as $customTag) {
                 $tagItems[] = [
                     'productId' => $productId,
-                    'userId' => $userId,
-                    'tagType' => 'custom',
-                    'tagId' => $customTag['id'],
-                    'tagName' => $customTag['name'],
+                    'userId'    => $userId,
+                    'tagType'   => 'custom',
+                    'tagId'     => $customTag['id'],
+                    'tagName'   => $customTag['name'],
                 ];
             }
         }
@@ -1300,7 +1300,7 @@ class ProductServiceImpl extends BaseService implements ProductService
         return $this->getProductTagDao()->batchCreate($tagItems);
     }
 
-    protected function filterPanoramaByPathAndThumbPath($path, $thumbPath = ''): array
+    protected function filterPanoramaByPathAndThumbPath($path, $thumbPath = '') : array
     {
         if (strpos($path, 'http') !== false) {
             return [$path, $thumbPath];
@@ -1382,7 +1382,7 @@ class ProductServiceImpl extends BaseService implements ProductService
      * @param int $productId
      * @return string
      */
-    public function makeShareUrl(int $productId): array
+    public function makeShareUrl(int $productId) : array
     {
         $product = $this->getProductDao()->get($productId);
         $uri = config('app.design_site_url', null);
@@ -1394,8 +1394,8 @@ class ProductServiceImpl extends BaseService implements ProductService
         $productShareConfig = $this->getProductConfig($productId, 'product_share');
         if (empty($productShareConfig) || !$productShareConfig['val']['time_limit']) {
             return [
-                'url' => sprintf("%s/vr/%s", str_replace('/api', '', rtrim($uri, '/')), $product['code']),
-                'cover' => $cover
+                'url'   => sprintf("%s/vr/%s", str_replace('/api', '', rtrim($uri, '/')), $product['code']),
+                'cover' => $cover,
             ];
         }
 
@@ -1404,8 +1404,8 @@ class ProductServiceImpl extends BaseService implements ProductService
         $token = $tokenHandler->generateToken($expired_time);
 
         return [
-            'url' => sprintf("%s/share/%s", str_replace('/api', '', rtrim($uri, '/')), $token),
-            'cover' => $cover
+            'url'   => sprintf("%s/share/%s", str_replace('/api', '', rtrim($uri, '/')), $token),
+            'cover' => $cover,
         ];
     }
 
@@ -1426,14 +1426,14 @@ class ProductServiceImpl extends BaseService implements ProductService
         return intval($params[0]);
     }
 
-    public function increaseViewCount(int $id): int
+    public function increaseViewCount(int $id) : int
     {
         // 并发控制：如果有大量并发请求访问相同的记录，可以考虑使用数据库锁或其他机制来防止视图计数更新冲突。
         // 缓存: 为了减少数据库压力，可以将视图计数缓存在内存中（例如使用Redis），并定期将计数写回数据库。
         return $this->getProductDao()->increment($id, 'clickCount');
     }
 
-    public function increaseLikeCount(int $id): int
+    public function increaseLikeCount(int $id) : int
     {
         return $this->getProductDao()->increment($id, 'likeCount');
     }

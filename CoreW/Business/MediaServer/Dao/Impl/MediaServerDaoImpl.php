@@ -26,12 +26,12 @@ class MediaServerDaoImpl extends AdvancedDaoImpl implements MediaServerDao
         return $this->findInField('server_id', $serverIds);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
             ],
             'conditions' => [

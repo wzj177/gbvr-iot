@@ -10,5 +10,5 @@ interface ProductDao extends AdvancedDaoInterface
      * @param string $code
      * @return null|array
      */
-    public function getByCode(string $code): ?array;
+    public function getByCode(string $code) : ?array;
 }

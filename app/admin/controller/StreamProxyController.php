@@ -18,7 +18,7 @@ class StreamProxyController extends BaseController
     /**
      * 获取流代理列表
      */
-    public function index(Request $request): Response
+    public function index(Request $request) : Response
     {
         $conditions = [];
 
@@ -53,7 +53,7 @@ class StreamProxyController extends BaseController
         }
 
         $total = $this->getStreamProxyService()->countProxies($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $orderBys = ['id' => 'DESC'];
         if ($request->get('sort')) {
@@ -74,7 +74,7 @@ class StreamProxyController extends BaseController
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $proxies,
+            'list'      => $proxies,
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
@@ -82,7 +82,7 @@ class StreamProxyController extends BaseController
     /**
      * 创建流代理
      */
-    public function create(Request $request): Response
+    public function create(Request $request) : Response
     {
         try {
             $fields = $request->post();
@@ -101,7 +101,7 @@ class StreamProxyController extends BaseController
     /**
      * 获取流代理详情
      */
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
         $proxy = $this->getStreamProxyService()->getProxy((int)$id);
 
@@ -115,7 +115,7 @@ class StreamProxyController extends BaseController
     /**
      * 更新流代理
      */
-    public function update(Request $request, $id): Response
+    public function update(Request $request, $id) : Response
     {
         try {
             $fields = $request->post();
@@ -137,7 +137,7 @@ class StreamProxyController extends BaseController
     /**
      * 删除流代理
      */
-    public function destroy(Request $request, $id): Response
+    public function destroy(Request $request, $id) : Response
     {
         try {
             $result = $this->getStreamProxyService()->deleteProxy((int)$id);
@@ -157,7 +157,7 @@ class StreamProxyController extends BaseController
     /**
      * 启动流代理
      */
-    public function start(Request $request, $id): Response
+    public function start(Request $request, $id) : Response
     {
         try {
             $proxy = $this->getStreamProxyService()->startProxy((int)$id);
@@ -173,7 +173,7 @@ class StreamProxyController extends BaseController
     /**
      * 停止流代理
      */
-    public function stop(Request $request, $id): Response
+    public function stop(Request $request, $id) : Response
     {
         try {
             $result = $this->getStreamProxyService()->stopProxy((int)$id);
@@ -193,7 +193,7 @@ class StreamProxyController extends BaseController
     /**
      * 重启流代理
      */
-    public function restart(Request $request, $id): Response
+    public function restart(Request $request, $id) : Response
     {
         try {
             $proxy = $this->getStreamProxyService()->restartProxy((int)$id);
@@ -209,7 +209,7 @@ class StreamProxyController extends BaseController
     /**
      * 获取播放地址
      */
-    public function playUrls(Request $request, $id): Response
+    public function playUrls(Request $request, $id) : Response
     {
         try {
             $urls = $this->getStreamProxyService()->getPlayUrls((int)$id);
@@ -225,7 +225,7 @@ class StreamProxyController extends BaseController
     /**
      * 获取推流地址
      */
-    public function pushUrl(Request $request, $id): Response
+    public function pushUrl(Request $request, $id) : Response
     {
         try {
             $pushInfo = $this->getStreamProxyService()->getPushUrl((int)$id);
@@ -241,7 +241,7 @@ class StreamProxyController extends BaseController
     /**
      * 绑定录像计划
      */
-    public function bindPlan(Request $request, $id): Response
+    public function bindPlan(Request $request, $id) : Response
     {
         try {
             $planId = (int)$request->post('record_plan_id');
@@ -267,7 +267,7 @@ class StreamProxyController extends BaseController
     /**
      * 解绑录像计划
      */
-    public function unbindPlan(Request $request, $id): Response
+    public function unbindPlan(Request $request, $id) : Response
     {
         try {
             $result = $this->getStreamProxyService()->unbindRecordPlan((int)$id);
@@ -287,7 +287,7 @@ class StreamProxyController extends BaseController
     /**
      * 统计摘要
      */
-    public function summary(Request $request): Response
+    public function summary(Request $request) : Response
     {
         $total = $this->getStreamProxyService()->countProxies([]);
         $online = $this->getStreamProxyService()->countProxies(['status' => 'online']);
@@ -302,14 +302,14 @@ class StreamProxyController extends BaseController
         $recording = $this->getStreamProxyService()->countProxies(['recordStatus' => 1]);
 
         return $this->createSuccessJsonResponse([
-            'total' => $total,
+            'total'     => $total,
             'by_status' => [
-                'online' => $online,
+                'online'  => $online,
                 'offline' => $offline,
                 'stopped' => $stopped,
-                'error' => $error,
+                'error'   => $error,
             ],
-            'by_type' => [
+            'by_type'   => [
                 'pull' => $pullType,
                 'push' => $pushType,
             ],
@@ -323,7 +323,7 @@ class StreamProxyController extends BaseController
     /**
      * 批量健康检查（手动触发）
      */
-    public function healthCheck(Request $request): Response
+    public function healthCheck(Request $request) : Response
     {
         try {
             $result = $this->getStreamProxyService()->batchHealthCheck();
@@ -340,34 +340,33 @@ class StreamProxyController extends BaseController
     /**
      * 获取流代理日志列表
      */
-    public function logs(Request $request, $id): Response
+    public function logs(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $proxy = $this->getStreamProxyService()->getProxy($id);
 
         if (!$proxy) {
             return $this->createErrorJsonResponse('流代理不存在', null, -1, 404);
         }
 
-        $start = (int) $request->get('start', 0);
-        $limit = (int) $request->get('limit', 20);
+        $start = (int)$request->get('start', 0);
+        $limit = (int)$request->get('limit', 20);
         $limit = min($limit, 100); // Max 100 per page
 
         $logs = $this->getStreamProxyService()->getProxyLogs($id, $start, $limit);
         $total = $this->getStreamProxyService()->countLogs(['proxy_id' => $proxy['proxy_id']]);
 
-        return $this->createSuccessJsonResponse(Paginator::create([
-            'data' => $logs,
-            'total' => $total,
-            'start' => $start,
-            'limit' => $limit,
-        ]));
+        $paginator = new Paginator(1, $total, $request->uri(), $limit);
+        return $this->createSuccessJsonResponse([
+            'list'      => $logs,
+            'paginator' => Paginator::toArray($paginator),
+        ]);
     }
 
     /**
      * 获取所有流代理日志列表（支持筛选）
      */
-    public function allLogs(Request $request): Response
+    public function allLogs(Request $request) : Response
     {
         $conditions = [];
 
@@ -400,8 +399,8 @@ class StreamProxyController extends BaseController
             $conditions['message_LIKE'] = '%' . $request->get('keyword') . '%';
         }
 
-        $start = (int) $request->get('start', 0);
-        $limit = (int) $request->get('limit', 20);
+        $start = (int)$request->get('start', 0);
+        $limit = (int)$request->get('limit', 20);
         $limit = min($limit, 100); // Max 100 per page
 
         $orderBys = ['created_at' => 'DESC'];
@@ -409,20 +408,19 @@ class StreamProxyController extends BaseController
         $logs = $this->getStreamProxyService()->searchLogs($conditions, $orderBys, $start, $limit);
         $total = $this->getStreamProxyService()->countLogs($conditions);
 
-        return $this->createSuccessJsonResponse(Paginator::create([
-            'data' => $logs,
-            'total' => $total,
-            'start' => $start,
-            'limit' => $limit,
-        ]));
+        $paginator = new Paginator(1, $total, $request->uri(), $limit);
+        return $this->createSuccessJsonResponse([
+            'list'      => $logs,
+            'paginator' => Paginator::toArray($paginator),
+        ]);
     }
 
     /**
      * 清理旧日志
      */
-    public function cleanupLogs(Request $request): Response
+    public function cleanupLogs(Request $request) : Response
     {
-        $daysToKeep = (int) $request->post('days_to_keep', 30);
+        $daysToKeep = (int)$request->post('days_to_keep', 30);
 
         if ($daysToKeep < 7) {
             return $this->createErrorJsonResponse('保留天数不能少于7天');
@@ -432,11 +430,11 @@ class StreamProxyController extends BaseController
 
         return $this->createSuccessJsonResponse([
             'deleted_count' => $deletedCount,
-            'days_to_keep' => $daysToKeep,
+            'days_to_keep'  => $daysToKeep,
         ], "已清理 {$deletedCount} 条日志");
     }
 
-    protected function getStreamProxyService(): StreamProxyService
+    protected function getStreamProxyService() : StreamProxyService
     {
         return $this->createService('StreamProxy:StreamProxyService');
     }

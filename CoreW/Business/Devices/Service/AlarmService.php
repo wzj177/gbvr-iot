@@ -8,7 +8,7 @@ interface AlarmService
 
     public function countAlarms(array $conditions);
 
-    public function countActiveAlarms(): int;
+    public function countActiveAlarms() : int;
 
     public function searchAlarms(array $conditions, array $orderBys, $start, $limit, $columns = []);
 
@@ -16,7 +16,7 @@ interface AlarmService
 
     public function updateAlarm($id, array $fields);
 
-    public function updateAlarmStatus(int $id, string $status, ?string $action = null, ?string $remark = null): bool;
+    public function updateAlarmStatus(int $id, string $status, ?string $action = null, ?string $remark = null) : bool;
 
     public function deleteAlarmById($id);
 }

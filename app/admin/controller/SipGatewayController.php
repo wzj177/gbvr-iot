@@ -12,7 +12,7 @@ use support\utils\Paginator;
 
 class SipGatewayController extends BaseController
 {
-    public function index(Request $request): Response
+    public function index(Request $request) : Response
     {
         $conditions = [];
 
@@ -27,19 +27,19 @@ class SipGatewayController extends BaseController
         }
 
         $total = $this->getSipGatewayService()->countGateways($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $orderBys = ['id' => 'DESC'];
         $gateways = $this->getSipGatewayService()->searchGateways($conditions, $orderBys, $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $gateways,
+            'list'      => $gateways,
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
         $gateway = $this->getSipGatewayService()->getGateway((int)$id);
         if (!$gateway) {
@@ -49,7 +49,7 @@ class SipGatewayController extends BaseController
         return $this->createSuccessJsonResponse($gateway);
     }
 
-    public function store(Request $request): Response
+    public function store(Request $request) : Response
     {
         try {
             $fields = $request->post();
@@ -65,7 +65,7 @@ class SipGatewayController extends BaseController
         }
     }
 
-    public function update(Request $request, $id): Response
+    public function update(Request $request, $id) : Response
     {
         try {
             $fields = $request->post();
@@ -81,7 +81,7 @@ class SipGatewayController extends BaseController
         }
     }
 
-    public function destroy(Request $request, $id): Response
+    public function destroy(Request $request, $id) : Response
     {
         try {
             $this->getSipGatewayService()->deleteGateway((int)$id);
@@ -94,7 +94,7 @@ class SipGatewayController extends BaseController
         }
     }
 
-    public function toggle(Request $request, $id): Response
+    public function toggle(Request $request, $id) : Response
     {
         try {
             $gateway = $this->getSipGatewayService()->toggleGateway((int)$id);
@@ -107,7 +107,59 @@ class SipGatewayController extends BaseController
         }
     }
 
-    protected function getSipGatewayService(): SipGatewayService
+    /**
+     * 绑定设备到网关（单个/批量）
+     * POST /api/admin/sip-gateways/bind
+     */
+    public function bindDevices(Request $request) : Response
+    {
+        try {
+            $gatewayId = $request->post('gateway_id', '');
+            $deviceIds = $request->post('device_ids', []);
+
+            if (empty($gatewayId)) {
+                return $this->createErrorJsonResponse('gateway_id参数缺失', null, -1, 400);
+            }
+            if (empty($deviceIds) || !is_array($deviceIds)) {
+                return $this->createErrorJsonResponse('device_ids参数缺失或格式错误', null, -1, 400);
+            }
+
+            $result = $this->getSipGatewayService()->bindDevicesToGateway($deviceIds, $gatewayId);
+
+            return $this->createSuccessJsonResponse($result, '绑定完成');
+        } catch (SipGatewayException $e) {
+            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
+        } catch (CommonBizException $e) {
+            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('绑定失败：' . $e->getMessage(), null, -1, 500);
+        }
+    }
+
+    /**
+     * 解绑设备（单个/批量）
+     * POST /api/admin/sip-gateways/unbind
+     */
+    public function unbindDevices(Request $request) : Response
+    {
+        try {
+            $deviceIds = $request->post('device_ids', []);
+
+            if (empty($deviceIds) || !is_array($deviceIds)) {
+                return $this->createErrorJsonResponse('device_ids参数缺失或格式错误', null, -1, 400);
+            }
+
+            $result = $this->getSipGatewayService()->unbindDevicesFromGateway($deviceIds);
+
+            return $this->createSuccessJsonResponse($result, '解绑完成');
+        } catch (CommonBizException $e) {
+            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('解绑失败：' . $e->getMessage(), null, -1, 500);
+        }
+    }
+
+    protected function getSipGatewayService() : SipGatewayService
     {
         return $this->createService('SipGateway:SipGatewayService');
     }

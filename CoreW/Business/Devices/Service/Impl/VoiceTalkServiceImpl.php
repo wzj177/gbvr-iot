@@ -55,7 +55,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return array
      */
-    public function prepareTalk(string $deviceId, string $channelId, string $mode = 'talk'): array
+    public function prepareTalk(string $deviceId, string $channelId, string $mode = 'talk') : array
     {
         // 1. 验证设备和通道
         $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
@@ -93,21 +93,21 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
                 // 流不存在，属于异常状态的僵尸会话，自动清理
                 $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                     '发现僵尸会话（流不存在），自动清理', [
-                        'device_id' => $deviceId,
-                        'channel_id' => $channelId,
+                        'device_id'           => $deviceId,
+                        'channel_id'          => $channelId,
                         'existing_session_id' => $existingSession['session_id'],
-                        'existing_status' => $existingSession['status'],
-                        'stream' => $existingSession['stream'],
+                        'existing_status'     => $existingSession['status'],
+                        'stream'              => $existingSession['stream'],
                     ]);
 
                 $this->stopVoiceTalkBySession($existingSession, 'stale_session_cleanup');
             } else {
                 // 流存在，说明确实在对讲中
                 $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK, '设备正在对讲中', [
-                    'device_id' => $deviceId,
-                    'channel_id' => $channelId,
+                    'device_id'           => $deviceId,
+                    'channel_id'          => $channelId,
                     'existing_session_id' => $existingSession['session_id'],
-                    'existing_status' => $existingSession['status'],
+                    'existing_status'     => $existingSession['status'],
                 ]);
 
                 throw CommonBizException::ERROR_PARAMETER('设备正在对讲中，请稍后再试');
@@ -146,19 +146,19 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         $rtpTcp = 1;
 
         $sessionData = [
-            'session_id' => $sessionId,
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'stream' => $streamId,
-            'rtp_port' => $srcPort,
+            'session_id'      => $sessionId,
+            'device_id'       => $deviceId,
+            'channel_id'      => $channelId,
+            'stream'          => $streamId,
+            'rtp_port'        => $srcPort,
             'media_server_ip' => $zlmIp,
-            'mode' => $mode,
-            'rtp_tcp' => $rtpTcp,
+            'mode'            => $mode,
+            'rtp_tcp'         => $rtpTcp,
             'media_server_id' => $mediaServer['server_id'],
-            'started_at' => date('Y-m-d H:i:s'),
-            'status' => VoiceSessionStatusEnum::WAITING_STREAM->value,
-            'expires_at' => $expiresAt,
-            'version' => 0,
+            'started_at'      => date('Y-m-d H:i:s'),
+            'status'          => VoiceSessionStatusEnum::WAITING_STREAM->value,
+            'expires_at'      => $expiresAt,
+            'version'         => 0,
         ];
 
         $this->getVoiceSessionDao()->create($sessionData);
@@ -170,11 +170,11 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
 
         return [
             'session_id' => $sessionId,
-            'stream_id' => $streamId,
-            'mode' => $mode,
-            'status' => $sessionData['status'],
-            'streams' => $pushUrls,
-            'rtp_port' => $srcPort,
+            'stream_id'  => $streamId,
+            'mode'       => $mode,
+            'status'     => $sessionData['status'],
+            'streams'    => $pushUrls,
+            'rtp_port'   => $srcPort,
             'expires_at' => $expiresAt,
         ];
     }
@@ -195,7 +195,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      * - TalkStreamArrivalHandler: 互斥检查 -> 超时定时器 -> ZLM 开端口 -> SIP INVITE
      * - BroadcastStreamArrivalHandler: 冲突检查 -> SIP MESSAGE 通知 -> 等待设备 INVITE 超时定时器
      */
-    public function handleStreamArrival(string $app, string $stream, string $mediaServerId): void
+    public function handleStreamArrival(string $app, string $stream, string $mediaServerId) : void
     {
         // 1. 根据 stream 查找 session
         $session = $this->getVoiceSessionDao()->getByStreamAndMediaServerId($stream, $mediaServerId);
@@ -216,15 +216,15 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             // 状态已经不是 WAITING_STREAM，可能是已超时或已结束
             $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '会话状态已变更，跳过流到达处理', [
-                    'session_id' => $session['session_id'],
+                    'session_id'     => $session['session_id'],
                     'current_status' => $session['status'],
                 ]);
             return;
         }
 
         $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_STREAM_ARRIVAL, '语音流到达，开始发起信令', [
-            'app' => $app,
-            'stream' => $stream,
+            'app'        => $app,
+            'stream'     => $stream,
             'session_id' => $session['session_id'],
         ]);
 
@@ -262,7 +262,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         if (!$success) {
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '流到达处理失败', [
-                    'app' => $app,
+                    'app'        => $app,
                     'session_id' => $session['session_id'],
                 ]);
             $this->markSessionFailed($session, 'handler_failed');
@@ -284,7 +284,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      * @param string $app 应用名 (talk/broadcast)
      * @return StreamArrivalHandlerInterface
      */
-    private function resolveStreamArrivalHandler(string $app): StreamArrivalHandlerInterface
+    private function resolveStreamArrivalHandler(string $app) : StreamArrivalHandlerInterface
     {
         // WVP 对齐：talk 和 broadcast 使用相同的广播流程（设备发起 INVITE）
         // talk 模式在 GB28181-2022 中已移除，WVP 也只处理与 broadcast 相同的逻辑
@@ -296,7 +296,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * 状态转换: INVITING -> CONNECTED
      */
-    public function onSipResponseOk(string $sessionId, array $sipResponse): void
+    public function onSipResponseOk(string $sessionId, array $sipResponse) : void
     {
         $session = $this->getVoiceSessionDao()->getBySessionId($sessionId);
         if (!$session) {
@@ -307,13 +307,13 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
 
         // 保存 sendRtpInfo
         $sendRtpInfo = [
-            'call_id' => $sipResponse['call_id'],
-            'device_id' => $session['device_id'],
+            'call_id'    => $sipResponse['call_id'],
+            'device_id'  => $session['device_id'],
             'channel_id' => $session['channel_id'],
-            'stream' => $session['stream'],
-            'app' => $session['mode'] ?? 'talk',
-            'ssrc' => $session['ssrc'],
-            'port' => $session['rtp_port'],
+            'stream'     => $session['stream'],
+            'app'        => $session['mode'] ?? 'talk',
+            'ssrc'       => $session['ssrc'],
+            'port'       => $session['rtp_port'],
             'local_port' => $session['rtp_local_port'],
         ];
         $this->getGb28181SendRtpPortService()->saveSendRtpInfo($sendRtpInfo);
@@ -321,7 +321,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         // 更新 dialog_id 和 call_id
         $this->getVoiceSessionDao()->update($session['id'], [
             'dialog_id' => $sipResponse['dialog_id'] ?? null,
-            'call_id' => $sipResponse['call_id'],
+            'call_id'   => $sipResponse['call_id'],
         ]);
 
         // CAS: INVITING -> CONNECTED
@@ -334,7 +334,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         if (!$updated) {
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '会话状态不匹配，无法更新为 CONNECTED', [
-                    'session_id' => $sessionId,
+                    'session_id'     => $sessionId,
                     'current_status' => $session['status'],
                 ]);
         } else {
@@ -348,13 +348,13 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return array
      */
-    public function stopVoiceTalk(string $sessionId): array
+    public function stopVoiceTalk(string $sessionId) : array
     {
         $session = $this->getVoiceSessionDao()->getBySessionId($sessionId);
         if (!$session) {
             return [
                 'success' => false,
-                'message' => '未找到对讲会话'
+                'message' => '未找到对讲会话',
             ];
         }
 
@@ -373,7 +373,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return array
      */
-    public function stopVoiceTalkBySession(array $session, string $reason = 'manual'): array
+    public function stopVoiceTalkBySession(array $session, string $reason = 'manual') : array
     {
         // 1. CAS: 任意非 ENDED 状态 -> ENDED
         // 先尝试从当前状态更新到 ENDED
@@ -381,7 +381,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         if ($currentStatus === VoiceSessionStatusEnum::ENDED->value) {
             return [
                 'success' => true,
-                'message' => '语音对讲已停止'
+                'message' => '语音对讲已停止',
             ];
         }
 
@@ -392,14 +392,14 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             // 已经是 ENDED 状态
             return [
                 'success' => true,
-                'message' => '语音对讲已停止'
+                'message' => '语音对讲已停止',
             ];
         }
 
         $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
             '停止语音对讲', [
-                'session_id' => $session['session_id'],
-                'reason' => $reason,
+                'session_id'      => $session['session_id'],
+                'reason'          => $reason,
                 'previous_status' => $currentStatus,
             ]);
 
@@ -419,13 +419,13 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
                     if ($streamReady) {
                         $zlmClient->stopSendRtp('__defaultVhost__', $app, $session['stream'], $session['ssrc']);
                     }
-//                    else {
-//                        $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
-//                            '流已不存在，跳过 stopSendRtp', [
-//                                'session_id' => $session['session_id'],
-//                                'stream' => $session['stream'],
-//                            ]);
-//                    }
+                    //                    else {
+                    //                        $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
+                    //                            '流已不存在，跳过 stopSendRtp', [
+                    //                                'session_id' => $session['session_id'],
+                    //                                'stream' => $session['stream'],
+                    //                            ]);
+                    //                    }
                 } catch (\Throwable $e) {
                     $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                         '停止 RTP 失败（可能已停止）', ['error' => $e->getMessage()]);
@@ -444,7 +444,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
 
             // 5. 删除 sendRtpInfo 释放端口
             try {
-                $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK, '删除 sendRtpInfo',  $session);
+                $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK, '删除 sendRtpInfo', $session);
                 $this->getGb28181SendRtpPortService()->deleteSendRtpInfo($session);
             } catch (\Throwable $e) {
                 $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
@@ -453,18 +453,18 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
 
             return [
                 'success' => true,
-                'message' => '语音对讲已停止'
+                'message' => '语音对讲已停止',
             ];
 
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK, '停止语音对讲异常', [
                 'session' => $session,
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'message' => '停止对讲失败: ' . $e->getMessage()
+                'message' => '停止对讲失败: ' . $e->getMessage(),
             ];
         }
     }
@@ -474,14 +474,14 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return void
      */
-    public function handleStreamDeparture(string $app, string $stream, string $mediaServerId): void
+    public function handleStreamDeparture(string $app, string $stream, string $mediaServerId) : void
     {
         $session = $this->getVoiceSessionDao()->getByNoEndedStreamAndMediaServerId($stream, $mediaServerId);
         if ($session) {
             $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_STREAM_DEPARTURE,
                 '语音流离开，清理资源', [
-                    'app' => $app,
-                    'stream' => $stream,
+                    'app'        => $app,
+                    'stream'     => $stream,
                     'session_id' => $session['session_id'],
                 ]);
             $this->stopVoiceTalkBySession($session, 'stream_departure');
@@ -496,7 +496,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return int
      */
-    public function processTimeouts(): int
+    public function processTimeouts() : int
     {
         $expiredSessions = $this->getVoiceSessionDao()->findExpiredSessions(100);
 
@@ -521,7 +521,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      * @param string $reason
      * @return void
      */
-    private function markSessionFailed(array $session, string $reason): void
+    private function markSessionFailed(array $session, string $reason) : void
     {
         // CAS: 当前状态 -> FAILED
         $updated = $this->getVoiceSessionDao()->updStatusIf(
@@ -530,15 +530,15 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             VoiceSessionStatusEnum::FAILED->value,
             [
                 'ended_reason' => $reason,
-                'ended_at' => date('Y-m-d H:i:s'),
+                'ended_at'     => date('Y-m-d H:i:s'),
             ]
         );
 
         if ($updated) {
             $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '会话标记为失败', [
-                    'session_id' => $session['session_id'],
-                    'reason' => $reason,
+                    'session_id'      => $session['session_id'],
+                    'reason'          => $reason,
                     'previous_status' => $session['status'],
                 ]);
 
@@ -552,7 +552,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return array|null
      */
-    public function getSession(string $sessionId): ?array
+    public function getSession(string $sessionId) : ?array
     {
         return $this->getVoiceSessionDao()->getBySessionId($sessionId);
     }
@@ -562,7 +562,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      *
      * @return array|null
      */
-    public function getSessionByCallId(string $callId): ?array
+    public function getSessionByCallId(string $callId) : ?array
     {
         $result = $this->getVoiceSessionDao()->getByCallId($callId);
         return $result === false ? null : $result;
@@ -585,7 +585,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      * @param string $stream 流ID
      * @return bool 流存在返回 true，不存在返回 false
      */
-    public function isStreamReady(string $mediaServerId, string $app, string $stream): bool
+    public function isStreamReady(string $mediaServerId, string $app, string $stream) : bool
     {
         try {
             $zlmClient = $this->getZlmClientByServerId($mediaServerId);
@@ -596,9 +596,9 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '检查流状态异常，视为流不存在', [
                     'media_server_id' => $mediaServerId,
-                    'app' => $app,
-                    'stream' => $stream,
-                    'error' => $e->getMessage(),
+                    'app'             => $app,
+                    'stream'          => $stream,
+                    'error'           => $e->getMessage(),
                 ]);
 
             return false;
@@ -615,7 +615,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      * @param array $deviceSdpInfo 设备 SDP 信息: device_transport, device_setup, device_ip, device_port
      * @return array 包含 local_port, media_server_ip, ssrc, tcp_mode
      */
-    public function setupBroadcastRtp(string $sessionId, array $deviceSdpInfo): array
+    public function setupBroadcastRtp(string $sessionId, array $deviceSdpInfo) : array
     {
         $session = $this->getVoiceSessionDao()->getBySessionId($sessionId);
         if (!$session) {
@@ -627,7 +627,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         $isTcp = stripos($deviceTransport, 'TCP') !== false;
 
         $receiveStreamId = $session['receive_stream']
-            ?: $this->generateStreamId($session['device_id'], $session['channel_id'], $session['mode']) . '_recv';
+            ? : $this->generateStreamId($session['device_id'], $session['channel_id'], $session['mode']) . '_recv';
 
         // 调 ZLM startSendRtpPassive
         $dto = VoiceTalkStreamArrivalDto::create(
@@ -649,7 +649,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Broadcast setupBroadcastRtp: startSendRtpPassive 失败', [
                     'session_id' => $sessionId,
-                    'error' => $openResult['msg'] ?? 'unknown',
+                    'error'      => $openResult['msg'] ?? 'unknown',
                 ]);
             throw CommonBizException::ERROR_PARAMETER('RTP 端口开设失败: ' . ($openResult['msg'] ?? 'unknown'));
         }
@@ -657,7 +657,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         // 更新 session
         $this->getVoiceSessionDao()->update($session['id'], [
             'rtp_local_port' => $openResult['local_port'],
-            'rtp_tcp' => $isTcp ? 1 : 0,
+            'rtp_tcp'        => $isTcp ? 1 : 0,
             'receive_stream' => $receiveStreamId,
         ]);
 
@@ -665,7 +665,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
             'Broadcast setupBroadcastRtp: startSendRtpPassive 成功', [
                 'session_id' => $sessionId,
                 'local_port' => $openResult['local_port'],
-                'is_tcp' => $isTcp,
+                'is_tcp'     => $isTcp,
             ]);
 
         // 计算 tcp_mode: 0=UDP, 1=TCP被动, 2=TCP主动
@@ -676,10 +676,10 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
         }
 
         return [
-            'local_port' => $openResult['local_port'],
+            'local_port'      => $openResult['local_port'],
             'media_server_ip' => $session['media_server_ip'],
-            'ssrc' => $session['ssrc'],
-            'tcp_mode' => $tcpMode,
+            'ssrc'            => $session['ssrc'],
+            'tcp_mode'        => $tcpMode,
         ];
     }
 
@@ -695,7 +695,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
      * @param string $mode 应用层模式 (talk/broadcast)
      * @return string 合法的 SDP direction 属性
      */
-    public static function mapModeToSdpDirection(string $mode): string
+    public static function mapModeToSdpDirection(string $mode) : string
     {
         return match ($mode) {
             'talk' => 'sendrecv',         // 双向对讲：平台和设备双向收发音频
@@ -707,22 +707,22 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
     /**
      * 生成流ID
      */
-    private function generateStreamId(string $deviceId, string $channelId, string $mode): string
+    private function generateStreamId(string $deviceId, string $channelId, string $mode) : string
     {
         return $mode . '_' . $deviceId . '_' . $channelId;
     }
 
-    protected function getSsrcFactory(): SSRCFactory
+    protected function getSsrcFactory() : SSRCFactory
     {
         return $this->bfw['SSRCFactory'];
     }
 
-    protected function getVoiceSessionDao(): VoiceSessionDao|DaoProxy
+    protected function getVoiceSessionDao() : VoiceSessionDao|DaoProxy
     {
         return $this->createDao('Devices:VoiceSessionDao');
     }
 
-    protected function getDeviceService(): DeviceService
+    protected function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -730,22 +730,22 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
     /**
      * @return Gb28181Service
      */
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->bfw['gb28181_service'];
     }
 
-    protected function getGb28181SendRtpPortService(): Gb28181SendRtpPortService
+    protected function getGb28181SendRtpPortService() : Gb28181SendRtpPortService
     {
         return $this->bfw['gb28181_send_rtp_port_service'];
     }
 
-    protected function getMediaService(): MediaServerService
+    protected function getMediaService() : MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
     }
 
-    protected function getZlmClientByServerId(string $serverId): \CoreW\Sdk\ZLMediaKit\ZLMClient
+    protected function getZlmClientByServerId(string $serverId) : \CoreW\Sdk\ZLMediaKit\ZLMClient
     {
         return $this->getGb28181Service()->getZlmClientByServerId($serverId);
     }

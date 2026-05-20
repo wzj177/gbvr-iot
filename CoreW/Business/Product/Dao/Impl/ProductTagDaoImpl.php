@@ -9,19 +9,19 @@ class ProductTagDaoImpl extends AdvancedDaoImpl implements ProductTagDao
 {
     protected $table = 'gv_product_tag';
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'productId',
                 'tagId',
             ],
             'conditions' => [
                 'tagId = :tagId',
                 'productId = :productId',
-                'productId IN (:productIds)'
+                'productId IN (:productIds)',
             ],
             'timestamps' => [
             ],

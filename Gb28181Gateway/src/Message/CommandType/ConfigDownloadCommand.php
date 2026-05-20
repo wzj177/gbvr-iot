@@ -25,46 +25,46 @@ use \SimpleXMLElement;
  */
 class ConfigDownloadCommand extends BaseCommand
 {
-    public function getCommandType(): string
+    public function getCommandType() : string
     {
         return 'ConfigDownload';
     }
 
-    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []): mixed
+    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []) : mixed
     {
         $basicParam = [];
 
         if (isset($xml->BasicParam)) {
             $bp = $xml->BasicParam;
             $basicParam = [
-                'Name' => (string) ($bp->Name ?? ''),
-                'DeviceID' => (string) ($bp->DeviceID ?? ''),
-                'SIPServerID' => (string) ($bp->SIPServerID ?? ''),
-                'SIPServerIP' => (string) ($bp->SIPServerIP ?? ''),
-                'SIPServerPort' => (string) ($bp->SIPServerPort ?? ''),
-                'DomainName' => (string) ($bp->DomainName ?? ''),
-                'Expiration' => (string) ($bp->Expiration ?? ''),
-                'Password' => (string) ($bp->Password ?? ''),
-                'HeartBeatInterval' => (string) ($bp->HeartBeatInterval ?? ''),
-                'HeartBeatCount' => (string) ($bp->HeartBeatCount ?? ''),
+                'Name'              => (string)($bp->Name ?? ''),
+                'DeviceID'          => (string)($bp->DeviceID ?? ''),
+                'SIPServerID'       => (string)($bp->SIPServerID ?? ''),
+                'SIPServerIP'       => (string)($bp->SIPServerIP ?? ''),
+                'SIPServerPort'     => (string)($bp->SIPServerPort ?? ''),
+                'DomainName'        => (string)($bp->DomainName ?? ''),
+                'Expiration'        => (string)($bp->Expiration ?? ''),
+                'Password'          => (string)($bp->Password ?? ''),
+                'HeartBeatInterval' => (string)($bp->HeartBeatInterval ?? ''),
+                'HeartBeatCount'    => (string)($bp->HeartBeatCount ?? ''),
             ];
         }
 
         return [
-            'device_id' => $deviceId,
-            'cmd_type' => $this->getCommandType(),
-            'result' => (string) ($xml->Result ?? ''),
+            'device_id'   => $deviceId,
+            'cmd_type'    => $this->getCommandType(),
+            'result'      => (string)($xml->Result ?? ''),
             'basic_param' => $basicParam,
         ];
     }
 
-    public function generateResponse(array $data, int $sn): string
+    public function generateResponse(array $data, int $sn) : string
     {
         return $this->generateXml('Response', [
-            'CmdType' => $this->getCommandType(),
-            'SN' => $sn,
+            'CmdType'  => $this->getCommandType(),
+            'SN'       => $sn,
             'DeviceID' => $data['device_id'] ?? '',
-            'Result' => 'OK',
+            'Result'   => 'OK',
         ]);
     }
 }

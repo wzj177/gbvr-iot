@@ -20,7 +20,7 @@ class SystemMonitoringController extends BaseController
      * @param Request $request
      * @return Response
      */
-    public function getSystemStats(Request $request): Response
+    public function getSystemStats(Request $request) : Response
     {
         try {
             $systemService = $this->getSystemService();
@@ -38,7 +38,7 @@ class SystemMonitoringController extends BaseController
                 if (preg_match('/cpu MHz\s*:\s*([\d.]+)/', $cpuinfo, $matches)) {
                     $cpuFrequency = round((float)$matches[1] / 1000, 2) . ' GHz';
                 }
-            } elseif (PHP_OS_FAMILY === 'Darwin') {
+            } else if (PHP_OS_FAMILY === 'Darwin') {
                 // macOS: try sysctl hw.cpufrequency first
                 $freq = @shell_exec('sysctl -n hw.cpufrequency 2>/dev/null');
                 if ($freq && trim($freq) !== '') {
@@ -59,35 +59,35 @@ class SystemMonitoringController extends BaseController
             $serverTime = gmdate('Y-m-d\TH:i:s\Z');
 
             return $this->createSuccessJsonResponse([
-                'cpu_usage' => (int)round($stats['cpu']['usage'] ?? 0),
-                'cpu_cores' => $cpuCores,
+                'cpu_usage'     => (int)round($stats['cpu']['usage'] ?? 0),
+                'cpu_cores'     => $cpuCores,
                 'cpu_frequency' => $cpuFrequency,
-                'cpu_load' => [
-                    'load1' => round($loadAvg[0], 2),
-                    'load5' => round($loadAvg[1], 2),
-                    'load15' => round($loadAvg[2], 2),
+                'cpu_load'      => [
+                    'load1'          => round($loadAvg[0], 2),
+                    'load5'          => round($loadAvg[1], 2),
+                    'load15'         => round($loadAvg[2], 2),
                     // 负载百分比（相对于核心数）
-                    'load1_percent' => $cpuCores > 0 ? round(($loadAvg[0] / $cpuCores) * 100, 1) : 0,
-                    'load5_percent' => $cpuCores > 0 ? round(($loadAvg[1] / $cpuCores) * 100, 1) : 0,
+                    'load1_percent'  => $cpuCores > 0 ? round(($loadAvg[0] / $cpuCores) * 100, 1) : 0,
+                    'load5_percent'  => $cpuCores > 0 ? round(($loadAvg[1] / $cpuCores) * 100, 1) : 0,
                     'load15_percent' => $cpuCores > 0 ? round(($loadAvg[2] / $cpuCores) * 100, 1) : 0,
                 ],
 
                 'memory_usage' => (int)round($stats['memory']['usage_percent'] ?? 0),
                 'memory_total' => $stats['memory']['total'] ?? 0,
-                'memory_used' => $stats['memory']['used'] ?? 0,
-                'memory_free' => $stats['memory']['available'] ?? 0,
+                'memory_used'  => $stats['memory']['used'] ?? 0,
+                'memory_free'  => $stats['memory']['available'] ?? 0,
 
                 'disk_usage' => (int)round($stats['disk']['usage_percent'] ?? 0),
                 'disk_total' => $stats['disk']['total'] ?? 0,
-                'disk_used' => $stats['disk']['used'] ?? 0,
-                'disk_free' => $stats['disk']['free'] ?? 0,
+                'disk_used'  => $stats['disk']['used'] ?? 0,
+                'disk_free'  => $stats['disk']['free'] ?? 0,
 
-                'network_upload' => $stats['network']['out_speed'] ?? 0,
+                'network_upload'   => $stats['network']['out_speed'] ?? 0,
                 'network_download' => $stats['network']['in_speed'] ?? 0,
 
-                'os_name' => $osName,
-                'os_version' => $osVersion,
-                'uptime' => $uptime,
+                'os_name'     => $osName,
+                'os_version'  => $osVersion,
+                'uptime'      => $uptime,
                 'server_time' => $serverTime,
             ]);
         } catch (\Exception $e) {
@@ -100,13 +100,13 @@ class SystemMonitoringController extends BaseController
      *
      * @return int
      */
-    private function getSystemUptime(): int
+    private function getSystemUptime() : int
     {
         if (file_exists('/proc/uptime')) {
             $uptime = file_get_contents('/proc/uptime');
             $uptimeParts = explode(' ', $uptime);
             return (int)($uptimeParts[0] ?? 0);
-        } elseif (PHP_OS_FAMILY === 'Darwin') {
+        } else if (PHP_OS_FAMILY === 'Darwin') {
             $bootTime = shell_exec('sysctl -n kern.boottime');
             // macOS boottime output format: { sec = 1234567890, usec = 0 }
             if (preg_match('/sec\s*=\s*(\d+)/', $bootTime, $matches)) {
@@ -123,7 +123,7 @@ class SystemMonitoringController extends BaseController
      * @param Request $request
      * @return Response
      */
-    public function getCpuUsage(Request $request): Response
+    public function getCpuUsage(Request $request) : Response
     {
         try {
 
@@ -141,7 +141,7 @@ class SystemMonitoringController extends BaseController
      * @param Request $request
      * @return Response
      */
-    public function getMemoryUsage(Request $request): Response
+    public function getMemoryUsage(Request $request) : Response
     {
         try {
 
@@ -159,7 +159,7 @@ class SystemMonitoringController extends BaseController
      * @param Request $request
      * @return Response
      */
-    public function getNetworkStats(Request $request): Response
+    public function getNetworkStats(Request $request) : Response
     {
         try {
             $systemService = $this->createService('System:SystemService');
@@ -178,7 +178,7 @@ class SystemMonitoringController extends BaseController
      * @param Request $request
      * @return Response
      */
-    public function getDiskStats(Request $request): Response
+    public function getDiskStats(Request $request) : Response
     {
         try {
 
@@ -202,7 +202,7 @@ class SystemMonitoringController extends BaseController
     /**
      * @return SystemService
      */
-    protected function getSystemService(): SystemService
+    protected function getSystemService() : SystemService
     {
         return $this->createService('System:SystemService');
     }

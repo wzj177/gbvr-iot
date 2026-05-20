@@ -13,11 +13,11 @@ class UserController extends BaseController
     /**
      * 获取用户列表
      */
-    public function index(Request $request): Response
+    public function index(Request $request) : Response
     {
         $conditions = $request->get();
-        $start = (int) ($request->get('start', 0));
-        $limit = (int) ($request->get('limit', 10));
+        $start = (int)($request->get('start', 0));
+        $limit = (int)($request->get('limit', 10));
 
         $orderBy = ['id' => 'DESC'];
         if (!empty($request->get('orderBy'))) {
@@ -53,16 +53,16 @@ class UserController extends BaseController
 
         return $this->createSuccessJsonResponse([
             'total' => $total,
-            'list' => $users,
+            'list'  => $users,
         ]);
     }
 
     /**
      * 获取单个用户
      */
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         if ($id === 1) {
             return $this->createErrorJsonResponse('不能查看默认用户');
         }
@@ -105,7 +105,7 @@ class UserController extends BaseController
     /**
      * 创建用户
      */
-    public function store(Request $request): Response
+    public function store(Request $request) : Response
     {
         $user = $request->post();
 
@@ -137,7 +137,7 @@ class UserController extends BaseController
     /**
      * 更新用户
      */
-    public function update(Request $request, $id): Response
+    public function update(Request $request, $id) : Response
     {
         $fields = $request->post();
 
@@ -173,12 +173,12 @@ class UserController extends BaseController
     /**
      * 删除用户
      */
-    public function destroy(Request $request, $id): Response
+    public function destroy(Request $request, $id) : Response
     {
         $currentUser = $this->getCurrentUser();
 
         // 不允许删除自己
-        if ((int) $id == $currentUser['id']) {
+        if ((int)$id == $currentUser['id']) {
             return $this->createErrorJsonResponse('不能删除当前登录用户');
         }
 
@@ -192,7 +192,7 @@ class UserController extends BaseController
     /**
      * 分配角色给用户
      */
-    public function assignRoles(Request $request, $id): Response
+    public function assignRoles(Request $request, $id) : Response
     {
         $roles = $request->post('roles', []);
 
@@ -201,11 +201,11 @@ class UserController extends BaseController
         }
 
         $currentUser = $this->getCurrentUser();
-        $user = $this->getUserService()->changeUserRoles((int) $id, $roles, $currentUser);
+        $user = $this->getUserService()->changeUserRoles((int)$id, $roles, $currentUser);
 
         $this->getLogService()->info('user', 'assign_roles', '分配用户角色', [
             'userId' => $id,
-            'roles' => $roles,
+            'roles'  => $roles,
         ]);
 
         return $this->createSuccessJsonResponse($user);
@@ -214,7 +214,7 @@ class UserController extends BaseController
     /**
      * 重置用户密码
      */
-    public function resetPassword(Request $request, $id): Response
+    public function resetPassword(Request $request, $id) : Response
     {
         $newPassword = $request->post('password', '');
 
@@ -228,7 +228,7 @@ class UserController extends BaseController
         }
 
         $currentIp = $request->getRealIp();
-        $this->getUserService()->initPassword((int) $id, $newPassword, $currentIp);
+        $this->getUserService()->initPassword((int)$id, $newPassword, $currentIp);
 
         $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_RESET_PASSWORD, '重置用户密码', ['id' => $id]);
 
@@ -238,11 +238,11 @@ class UserController extends BaseController
     /**
      * 锁定/解锁用户
      */
-    public function toggleLock(Request $request, $id): Response
+    public function toggleLock(Request $request, $id) : Response
     {
-        $locked = (bool) $request->post('locked', false);
+        $locked = (bool)$request->post('locked', false);
 
-        $user = $this->getUserService()->updateUser((int) $id, ['locked' => $locked ? 1 : 0]);
+        $user = $this->getUserService()->updateUser((int)$id, ['locked' => $locked ? 1 : 0]);
 
         $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_TOGGLE_LOCK, $locked ? '锁定用户' : '解锁用户', ['id' => $id]);
 
@@ -252,7 +252,7 @@ class UserController extends BaseController
     /**
      * 批量删除用户
      */
-    public function batchDelete(Request $request): Response
+    public function batchDelete(Request $request) : Response
     {
         $ids = $request->post('ids', []);
         if (empty($ids) || !is_array($ids)) {
@@ -265,7 +265,7 @@ class UserController extends BaseController
             if ($id == $currentUser['id']) {
                 continue;
             }
-            $this->getUserService()->deleteUserById((int) $id);
+            $this->getUserService()->deleteUserById((int)$id);
         }
 
         $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_BATCH_DELETE_USER, '批量删除用户', ['ids' => $ids]);
@@ -276,7 +276,7 @@ class UserController extends BaseController
     /**
      * 获取用户角色选项
      */
-    public function roleOptions(Request $request): Response
+    public function roleOptions(Request $request) : Response
     {
         $roles = $this->getRoleService()->searchRoles([], 'created', 0, PHP_INT_MAX);
 
@@ -293,7 +293,7 @@ class UserController extends BaseController
     /**
      * 获取前端菜单配置（保留原有功能）
      */
-    public function getMenuAdmin(Request $request): Response
+    public function getMenuAdmin(Request $request) : Response
     {
         return $this->createSuccessJsonResponse(config('vue'), []);
     }
@@ -305,7 +305,7 @@ class UserController extends BaseController
      * @param array $roleMap 角色映射数组 [code => ['name' => xxx, 'code' => xxx]]
      * @return array
      */
-    protected function parseRoles(array $roleCodes, array $roleMap): array
+    protected function parseRoles(array $roleCodes, array $roleMap) : array
     {
         if (empty($roleCodes)) {
             return [];
@@ -324,7 +324,7 @@ class UserController extends BaseController
     /**
      * @return RoleService
      */
-    protected function getRoleService(): RoleService
+    protected function getRoleService() : RoleService
     {
         return $this->createService('Role:RoleService');
     }

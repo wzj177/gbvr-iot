@@ -14,17 +14,17 @@ class ProductDaoImpl extends AdvancedDaoImpl implements ProductDao
      * @param string $code
      * @return null|array
      */
-    public function getByCode(string $code): ?array
+    public function getByCode(string $code) : ?array
     {
         return $this->getByFields(['code' => $code]);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',

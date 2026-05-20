@@ -12,7 +12,7 @@ enum AlarmLevelEnum: int
     case LEVEL_3 = 3;  // 3级 - 紧急
     case LEVEL_4 = 4;  // 4级 - 特急
 
-    public function label(): string
+    public function label() : string
     {
         return match ($this) {
             self::LEVEL_1 => '1级',
@@ -22,7 +22,7 @@ enum AlarmLevelEnum: int
         };
     }
 
-    public function getText(): string
+    public function getText() : string
     {
         return match ($this) {
             self::LEVEL_1 => '一般',
@@ -32,7 +32,7 @@ enum AlarmLevelEnum: int
         };
     }
 
-    public static function tryFromInt(?int $value): ?self
+    public static function tryFromInt(?int $value) : ?self
     {
         if ($value === null) {
             return null;
@@ -44,14 +44,14 @@ enum AlarmLevelEnum: int
      * 获取所有选项
      * @return array
      */
-    public static function options(): array
+    public static function options() : array
     {
         $options = [];
         foreach (self::cases() as $case) {
             $options[] = [
                 'value' => $case->value,
                 'label' => $case->label(),
-                'text' => $case->getText(),
+                'text'  => $case->getText(),
             ];
         }
         return $options;

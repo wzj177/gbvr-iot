@@ -33,12 +33,12 @@ class MetadataReader
             return null;
         }
 
-        $metadata = array(
-            'strategy' => $annotation->getName(),
-            'cache_key_of_field_name' => array(),
-            'cache_key_of_arg_index' => array(),
-            'update_rel_query_methods' => array(),
-        );
+        $metadata = [
+            'strategy'                 => $annotation->getName(),
+            'cache_key_of_field_name'  => [],
+            'cache_key_of_arg_index'   => [],
+            'update_rel_query_methods' => [],
+        ];
 
         $methodRefs = $classRef->getMethods(\ReflectionMethod::IS_PUBLIC);
         foreach ($methodRefs as $methodRef) {
@@ -57,19 +57,19 @@ class MetadataReader
             $args = array_flip($args);
             foreach ($annotation->relFields as $field) {
                 if (empty($metadata['cache_key_of_arg_index'][$methodRef->getName()])) {
-                    $metadata['cache_key_of_arg_index'][$methodRef->getName()] = array();
+                    $metadata['cache_key_of_arg_index'][$methodRef->getName()] = [];
                 }
                 $metadata['cache_key_of_arg_index'][$methodRef->getName()][] = $args[$field];
 
                 if (empty($metadata['update_rel_query_methods'][$field])) {
-                    $metadata['update_rel_query_methods'][$field] = array();
+                    $metadata['update_rel_query_methods'][$field] = [];
                 }
                 $metadata['update_rel_query_methods'][$field][] = $methodRef->getName();
             }
         }
 
-        $metadata['cache_key_of_arg_index']['get'] = array(0);
-        $metadata['cache_key_of_field_name']['get'] = array('id');
+        $metadata['cache_key_of_arg_index']['get'] = [0];
+        $metadata['cache_key_of_field_name']['get'] = ['id'];
 
         $this->saveCache($dao, $metadata);
 
@@ -79,7 +79,7 @@ class MetadataReader
     protected function getMethodArgumentNames(\ReflectionMethod $methodRef)
     {
         $args = $methodRef->getParameters();
-        $names = array();
+        $names = [];
         foreach ($args as $arg) {
             $names[] = $arg->getName();
         }
@@ -111,7 +111,7 @@ class MetadataReader
 
         $this->makeCacheDirectory($this->cacheDirectory);
         $filePath = $this->getCacheFilePath($this->cacheDirectory, $dao);
-        $content = "<?php \n return ".var_export($metadata, true).';';
+        $content = "<?php \n return " . var_export($metadata, true) . ';';
 
         file_put_contents($filePath, $content);
         $fs = new Filesystem();
@@ -120,8 +120,8 @@ class MetadataReader
 
     protected function getCacheFilePath($cacheDirectory, $dao)
     {
-        $filename = str_replace('\\', '_', is_string($dao) ? $dao : get_class($dao)).'.php';
-        $filepath = $this->cacheDirectory.DIRECTORY_SEPARATOR.$filename;
+        $filename = str_replace('\\', '_', is_string($dao) ? $dao : get_class($dao)) . '.php';
+        $filepath = $this->cacheDirectory . DIRECTORY_SEPARATOR . $filename;
 
         return $filepath;
     }

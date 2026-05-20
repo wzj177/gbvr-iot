@@ -6,5 +6,5 @@ namespace CoreW\Dao;
 
 interface DaoInterface
 {
-    public function declares(): array;
+    public function declares() : array;
 }

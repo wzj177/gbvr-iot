@@ -19,10 +19,10 @@ use Workerman\Worker;
  */
 class StreamProxyAutoReconnectProcess
 {
-    public function onWorkerStart(Worker $worker): void
+    public function onWorkerStart(Worker $worker) : void
     {
         // 检查是否启用
-        if (!((int)env('ENABLE_STREAM_PROXY_AUTO_RECONNECT') ?: 1)) {
+        if (!((int)env('ENABLE_STREAM_PROXY_AUTO_RECONNECT') ? : 1)) {
             Log::channel('stream_proxy')->info('StreamProxyAutoReconnectProcess disabled');
             return;
         }
@@ -48,7 +48,7 @@ class StreamProxyAutoReconnectProcess
         ]);
     }
 
-    protected function runAutoReconnect(): void
+    protected function runAutoReconnect() : void
     {
         $startTime = microtime(true);
 
@@ -61,21 +61,21 @@ class StreamProxyAutoReconnectProcess
 
         if ($result['total'] > 0) {
             Log::channel('stream_proxy')->info('[AutoReconnect] Completed', [
-                'total' => $result['total'],
-                'success' => $result['success'],
-                'failed' => $result['failed'],
-                'skipped' => $result['skipped'],
+                'total'      => $result['total'],
+                'success'    => $result['success'],
+                'failed'     => $result['failed'],
+                'skipped'    => $result['skipped'],
                 'elapsed_ms' => $elapsed,
             ]);
         }
     }
 
-    protected function getBfw(): \CoreW\Bfw
+    protected function getBfw() : \CoreW\Bfw
     {
         return Core::instance();
     }
 
-    protected function getStreamProxyService(): StreamProxyService
+    protected function getStreamProxyService() : StreamProxyService
     {
         return $this->getBfw()->service('StreamProxy:StreamProxyService');
     }

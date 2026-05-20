@@ -8,14 +8,14 @@ use Doctrine\DBAL\Connections\PrimaryReadReplicaConnection;
 
 class MasterSlaveConnection extends PrimaryReadReplicaConnection
 {
-    public function update($tableExpression, array $data, array $identifier, array $types = array())
+    public function update($tableExpression, array $data, array $identifier, array $types = [])
     {
         $this->checkFieldNames(array_keys($data));
 
         return parent::update($tableExpression, $data, $identifier, $types);
     }
 
-    public function insert($tableExpression, array $data, array $types = array())
+    public function insert($tableExpression, array $data, array $types = [])
     {
         $this->checkFieldNames(array_keys($data));
 

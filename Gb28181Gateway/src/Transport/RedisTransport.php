@@ -22,7 +22,7 @@ class RedisTransport implements TransportInterface
         $this->logger = Logger::getInstance();
     }
 
-    public function connect(): bool
+    public function connect() : bool
     {
         try {
             $this->redis = new ClientRedis($this->config);
@@ -38,11 +38,13 @@ class RedisTransport implements TransportInterface
         }
     }
 
-    public function push(string $queueKey, string $message): bool
+    public function push(string $queueKey, string $message) : bool
     {
+        // Auto-reconnect if not connected
         if (!$this->redis) {
-            $this->logger->error("[RedisTransport] Cannot push: not connected", 'Transport');
-            return false;
+            if (!$this->connect()) {
+                return false;
+            }
         }
 
         try {
@@ -50,15 +52,20 @@ class RedisTransport implements TransportInterface
             $this->logger->debug("[RedisTransport] Pushed message to queue: {$queueKey}", 'Transport');
             return $result !== false;
         } catch (\Exception $e) {
-            $this->logger->error("[RedisTransport] Push failed: {$e->getMessage()}", 'Transport');
+            $this->logger->error("[RedisTransport] Push failed: {$e->getMessage()}, reconnecting...", 'Transport');
+            // Connection lost, force reconnect on next operation
+            $this->redis = null;
             return false;
         }
     }
 
-    public function pop(array $queueKeys, int $timeout): ?array
+    public function pop(array $queueKeys, int $timeout) : ?array
     {
+        // Auto-reconnect if not connected
         if (!$this->redis) {
-            return null;
+            if (!$this->connect()) {
+                return null;
+            }
         }
 
         try {
@@ -68,32 +75,41 @@ class RedisTransport implements TransportInterface
             }
             return null;
         } catch (\Exception $e) {
-            $this->logger->error("[RedisTransport] Pop failed: {$e->getMessage()}", 'Transport');
+            $this->logger->error("[RedisTransport] Pop failed: {$e->getMessage()}, reconnecting...", 'Transport');
+            // Connection lost, force reconnect on next pop
+            $this->redis = null;
             return null;
         }
     }
 
-    public function isHealthy(): bool
+    public function isHealthy() : bool
     {
         if (!$this->redis) {
             return false;
         }
 
         try {
-            return $this->redis->ping();
+            $result = $this->redis->ping();
+            if (!$result) {
+                // ping returned false, connection is dead
+                $this->redis = null;
+            }
+            return $result;
         } catch (\Exception $e) {
             $this->logger->error("[RedisTransport] Health check failed: {$e->getMessage()}", 'Transport');
+            // Connection lost, force reconnect on next operation
+            $this->redis = null;
             return false;
         }
     }
 
-    public function close(): void
+    public function close() : void
     {
         $this->redis = null;
         $this->logger->info("[RedisTransport] Connection closed", 'Transport');
     }
 
-    public function getType(): string
+    public function getType() : string
     {
         return 'redis';
     }

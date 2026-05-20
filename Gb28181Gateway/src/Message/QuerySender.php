@@ -28,9 +28,9 @@ class QuerySender
     {
         $this->sipServer = $sipServer;
         $this->config = array_merge([
-            'server_id' => '34020000002000000001',
+            'server_id'     => '34020000002000000001',
             'server_domain' => '3402000000',
-            'debug' => false,
+            'debug'         => false,
         ], $config);
         $this->logger = Logger::getInstance();
     }
@@ -41,7 +41,7 @@ class QuerySender
      * @param int $dialogId Dialog ID
      * @return int 下一个 CSeq 值
      */
-    private function getNextCSeq(int $dialogId): int
+    private function getNextCSeq(int $dialogId) : int
     {
         if (!isset($this->dialogCSeqMap[$dialogId])) {
             $this->dialogCSeqMap[$dialogId] = 0;
@@ -54,7 +54,7 @@ class QuerySender
      *
      * @param int $dialogId Dialog ID
      */
-    public function clearDialogCSeq(int $dialogId): void
+    public function clearDialogCSeq(int $dialogId) : void
     {
         unset($this->dialogCSeqMap[$dialogId]);
     }
@@ -62,7 +62,7 @@ class QuerySender
     /**
      * 生成序列号
      */
-    private function generateSN(): int
+    private function generateSN() : int
     {
         $this->sn++;
         if ($this->sn > 99999999) {
@@ -73,11 +73,11 @@ class QuerySender
 
     /**
      * 解析字符集
-     * 
+     *
      * @param string|null $charset 设备配置的字符集 (gb2312/utf8/auto)
      * @return string 解析后的字符集 (GB2312 或 UTF-8)
      */
-    private function resolveCharset(?string $charset): string
+    private function resolveCharset(?string $charset) : string
     {
         if ($charset === null || $charset === '' || strtolower($charset) === 'auto') {
             return 'GB2312';  // 默认 GB2312
@@ -95,13 +95,13 @@ class QuerySender
 
     /**
      * 构建查询 XML
-     * 
+     *
      * @param string $cmdType 命令类型
      * @param string $deviceId 设备ID
      * @param string $charset 字符集 (默认 GB2312)
      * @return string XML 字符串
      */
-    private function buildQueryXml(string $cmdType, string $deviceId, string $charset = 'GB2312'): string
+    private function buildQueryXml(string $cmdType, string $deviceId, string $charset = 'GB2312') : string
     {
         $sn = $this->generateSN();
         $encoding = $this->resolveCharset($charset);
@@ -119,14 +119,14 @@ class QuerySender
 
     /**
      * 构建控制 XML
-     * 
+     *
      * @param string $cmdType 命令类型
      * @param string $deviceId 设备ID
      * @param array $params 额外参数
      * @param string $charset 字符集 (默认 GB2312)
      * @return string XML 字符串
      */
-    private function buildControlXml(string $cmdType, string $deviceId, array $params, string $charset = 'GB2312'): string
+    private function buildControlXml(string $cmdType, string $deviceId, array $params, string $charset = 'GB2312') : string
     {
         $sn = $this->generateSN();
         $encoding = $this->resolveCharset($charset);
@@ -145,12 +145,12 @@ class QuerySender
 
     /**
      * 发送目录查询
-     * 
+     *
      * @param string $deviceUri 设备 URI
      * @param string $deviceId 设备 ID
      * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryCatalog(string $deviceUri, string $deviceId, string $charset = 'GB2312'): bool|int
+    public function queryCatalog(string $deviceUri, string $deviceId, string $charset = 'GB2312') : bool|int
     {
         $xml = $this->buildQueryXml('Catalog', $deviceId, $charset);
 
@@ -170,12 +170,12 @@ class QuerySender
 
     /**
      * 发送设备信息查询
-     * 
+     *
      * @param string $deviceUri 设备 URI
      * @param string $deviceId 设备 ID
      * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryDeviceInfo(string $deviceUri, string $deviceId, string $charset = 'GB2312'): bool|int
+    public function queryDeviceInfo(string $deviceUri, string $deviceId, string $charset = 'GB2312') : bool|int
     {
         $xml = $this->buildQueryXml('DeviceInfo', $deviceId, $charset);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
@@ -183,12 +183,12 @@ class QuerySender
 
     /**
      * 发送设备状态查询
-     * 
+     *
      * @param string $deviceUri 设备 URI
      * @param string $deviceId 设备 ID
      * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryDeviceStatus(string $deviceUri, string $deviceId, string $charset = 'GB2312'): bool|int
+    public function queryDeviceStatus(string $deviceUri, string $deviceId, string $charset = 'GB2312') : bool|int
     {
         $xml = $this->buildQueryXml('DeviceStatus', $deviceId, $charset);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
@@ -196,7 +196,7 @@ class QuerySender
 
     /**
      * 发送录像文件查询
-     * 
+     *
      * @param string $deviceUri 设备 URI
      * @param string $deviceId 设备 ID
      * @param string $startTime 开始时间
@@ -204,7 +204,7 @@ class QuerySender
      * @param string $type 类型
      * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function queryRecordInfo(string $deviceUri, string $deviceId, string $startTime, string $endTime, string $type = 'all', string $charset = 'GB2312'): bool|int
+    public function queryRecordInfo(string $deviceUri, string $deviceId, string $startTime, string $endTime, string $type = 'all', string $charset = 'GB2312') : bool|int
     {
         $sn = $this->generateSN();
         $encoding = $this->resolveCharset($charset);
@@ -221,16 +221,16 @@ class QuerySender
 
     /**
      * PTZ 控制
-     * 
+     *
      * @param string $deviceUri 设备 URI
      * @param string $channelId 通道 ID
      * @param string $ptzCmd PTZ 控制命令
      * @param string $charset 字符集 (默认 GB2312, 可选: utf8/auto)
      */
-    public function ptzControl(string $deviceUri, string $channelId, string $ptzCmd, string $charset = 'GB2312'): bool|int
+    public function ptzControl(string $deviceUri, string $channelId, string $ptzCmd, string $charset = 'GB2312') : bool|int
     {
         $xml = $this->buildControlXml('DeviceControl', $channelId, [
-            'PTZCmd' => $ptzCmd
+            'PTZCmd' => $ptzCmd,
         ], $charset);
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }
@@ -238,12 +238,12 @@ class QuerySender
 
     /**
      * 发送目录订阅
-     * 
+     *
      * @param Device $device 设备对象
      * @param int $expires 订阅有效期（秒）
      * @return int 订阅ID（dialog_id），用于续订和取消订阅
      */
-    public function sendSubscribeCatalog(Device $device, int $expires = 3600): int
+    public function sendSubscribeCatalog(Device $device, int $expires = 3600) : int
     {
         try {
             $eventType = 'Catalog';
@@ -254,8 +254,8 @@ class QuerySender
             $toUri = "sip:{$deviceId}@{$device->ip}:{$device->port}";
 
             // 构造 GB28181 订阅 XML 消息体
-//            $sn = time();
-            $sn = (int) ((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
+            //            $sn = time();
+            $sn = (int)((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
             $xmlBody = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
             $xmlBody .= "<Query>\r\n";
             $xmlBody .= "<CmdType>Catalog</CmdType>\r\n";
@@ -284,7 +284,7 @@ class QuerySender
 
     /**
      * 发送报警订阅
-     * 
+     *
      * @param Device $device 设备对象
      * @param int $expires 订阅有效期（秒）
      * @param int|null $startAlarmPriority 起始报警优先级 (1~4, 1最低,4最高)
@@ -296,15 +296,15 @@ class QuerySender
      * @return int 订阅ID（subscription_id），用于续订和取消订阅
      */
     public function sendSubscribeAlarm(
-        Device  $device,
-        int     $expires = 3600,
-        ?int     $startAlarmPriority = null,
-        ?int     $endAlarmPriority = null,
+        Device $device,
+        int $expires = 3600,
+        ?int $startAlarmPriority = null,
+        ?int $endAlarmPriority = null,
         ?string $alarmMethod = null,
         ?string $alarmType = null,
         ?string $startAlarmTime = null,
         ?string $endAlarmTime = null
-    ): int
+    ) : int
     {
         try {
             // GB28181 标准：报警订阅使用 Event: presence，通过 CmdType 区分
@@ -317,8 +317,8 @@ class QuerySender
             $toUri = "sip:{$deviceId}@{$device->ip}:{$device->port}";
 
             // 构造 GB28181 报警订阅 XML 消息体
-//            $sn = time();
-            $sn = (int) ((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
+            //            $sn = time();
+            $sn = (int)((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
             $xmlBody = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
             $xmlBody .= "<Query>\r\n";
             $xmlBody .= "<CmdType>Alarm</CmdType>\r\n";
@@ -354,12 +354,12 @@ class QuerySender
             // 记录订阅信息到设备（包含 subscription_id）
             // 注意：使用 subscriptionType ('Alarm') 而不是 eventType ('presence')
             $device->addSubscription($subscriptionType, $subscriptionId, $expires, [
-                'start_priority' => $startAlarmPriority,
-                'end_priority' => $endAlarmPriority,
-                'alarm_method' => $alarmMethod,
+                'start_priority'   => $startAlarmPriority,
+                'end_priority'     => $endAlarmPriority,
+                'alarm_method'     => $alarmMethod,
                 'start_alarm_time' => $startAlarmTime,
-                'end_alarm_time' => $endAlarmTime,
-                'sip_event_type' => $eventType  // 记录实际的 SIP Event 头值
+                'end_alarm_time'   => $endAlarmTime,
+                'sip_event_type'   => $eventType,  // 记录实际的 SIP Event 头值
             ]);
 
             $this->logger->info('发送报警订阅成功');
@@ -374,13 +374,13 @@ class QuerySender
 
     /**
      * 发送移动位置订阅
-     * 
+     *
      * @param Device $device 设备对象
      * @param int $expires 订阅有效期（秒）
      * @param int $interval 位置上报间隔（秒）
      * @return int 订阅ID（subscription_id），用于续订和取消订阅
      */
-    public function sendSubscribeMobilePosition(Device $device, int $expires = 3600, int $interval = 5): int
+    public function sendSubscribeMobilePosition(Device $device, int $expires = 3600, int $interval = 5) : int
     {
         try {
             // GB28181 标准：移动位置订阅使用 Event: presence，通过 CmdType 区分
@@ -393,8 +393,8 @@ class QuerySender
             $toUri = "sip:{$deviceId}@{$device->ip}:{$device->port}";
 
             // 构造 GB28181 移动位置订阅 XML 消息体
-//            $sn = time();
-            $sn = (int) ((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
+            //            $sn = time();
+            $sn = (int)((mt_rand() / mt_getrandmax() * 9 + 1) * 100000);
             $xmlBody = "<?xml version=\"1.0\" encoding=\"{$encoding}\"?>\r\n";
             $xmlBody .= "<Query>\r\n";
             $xmlBody .= "<CmdType>MobilePosition</CmdType>\r\n";
@@ -413,8 +413,8 @@ class QuerySender
             // 记录订阅信息到设备（包含 subscription_id）
             // 注意：使用 subscriptionType ('MobilePosition') 而不是 eventType ('presence')
             $device->addSubscription($subscriptionType, $subscriptionId, $expires, [
-                'interval' => $interval,
-                'sip_event_type' => $eventType  // 记录实际的 SIP Event 头值
+                'interval'       => $interval,
+                'sip_event_type' => $eventType,  // 记录实际的 SIP Event 头值
             ]);
 
             $this->logger->info('发送移动位置订阅成功');
@@ -427,32 +427,32 @@ class QuerySender
         }
     }
 
-//PTZ 精准状态查询或订阅请求
-//<! - 命令类型：PTZ 精准状态查询(必选)一>
-//<elementname="CmdType"fixed="PTZPosition"/>
-//<!-命令序列号(必选)--〉
-//<element               name="SN"type="tg:SNType"/>
-//<!-查询目标设备编码(必选)--〉
-//<elementname="DeviceID"type="tg:deviceIDType"/>
-//GB/T  28181—2022
-//
-//A.2.4.14  存储卡状态查询请求
-//〈! --  命令类型：存储卡状态查询(可选)--〉
-//<element                 name="CmdType"fixed="SDCardStatus"minOccurs="0"/>
-//<! - 命令序列号(必选) -〉
-//<element           name="SN"type="tg:SNType"/>
-//<!-查询目标设备编码(必选)--)
-//<element           name="DevicelD"type="tg:devicelDType"/>\
+    //PTZ 精准状态查询或订阅请求
+    //<! - 命令类型：PTZ 精准状态查询(必选)一>
+    //<elementname="CmdType"fixed="PTZPosition"/>
+    //<!-命令序列号(必选)--〉
+    //<element               name="SN"type="tg:SNType"/>
+    //<!-查询目标设备编码(必选)--〉
+    //<elementname="DeviceID"type="tg:deviceIDType"/>
+    //GB/T  28181—2022
+    //
+    //A.2.4.14  存储卡状态查询请求
+    //〈! --  命令类型：存储卡状态查询(可选)--〉
+    //<element                 name="CmdType"fixed="SDCardStatus"minOccurs="0"/>
+    //<! - 命令序列号(必选) -〉
+    //<element           name="SN"type="tg:SNType"/>
+    //<!-查询目标设备编码(必选)--)
+    //<element           name="DevicelD"type="tg:devicelDType"/>\
 
-public function sendSubscribePtzStatus(Device $device): void
-{
+    public function sendSubscribePtzStatus(Device $device) : void
+    {
 
-}
+    }
 
     /**
      * 取消目录订阅
      */
-    public function sendUnsubscribeCatalog(Device $device): void
+    public function sendUnsubscribeCatalog(Device $device) : void
     {
         try {
             $eventType = 'Catalog';
@@ -462,8 +462,8 @@ public function sendSubscribePtzStatus(Device $device): void
             $subscriptionId = $device->getSubscriptionId($eventType);
             if ($subscriptionId === null) {
                 $this->logger->warning('取消订阅失败：未找到订阅记录', [
-                    'device_id' => $deviceId,
-                    'event_type' => $eventType
+                    'device_id'  => $deviceId,
+                    'event_type' => $eventType,
                 ]);
                 return;
             }
@@ -484,7 +484,7 @@ public function sendSubscribePtzStatus(Device $device): void
     /**
      * 取消报警订阅
      */
-    public function sendUnsubscribeAlarm(Device $device): void
+    public function sendUnsubscribeAlarm(Device $device) : void
     {
         try {
             $eventType = 'Alarm';
@@ -494,8 +494,8 @@ public function sendSubscribePtzStatus(Device $device): void
             $subscriptionId = $device->getSubscriptionId($eventType);
             if ($subscriptionId === null) {
                 $this->logger->warning('取消订阅失败：未找到订阅记录', [
-                    'device_id' => $deviceId,
-                    'event_type' => $eventType
+                    'device_id'  => $deviceId,
+                    'event_type' => $eventType,
                 ]);
                 return;
             }
@@ -516,7 +516,7 @@ public function sendSubscribePtzStatus(Device $device): void
     /**
      * 取消移动位置订阅
      */
-    public function sendUnsubscribeMobilePosition(Device $device): void
+    public function sendUnsubscribeMobilePosition(Device $device) : void
     {
         try {
             $eventType = 'MobilePosition';
@@ -572,10 +572,10 @@ public function sendSubscribePtzStatus(Device $device): void
      * $querySender->playbackControl($dialogId, 'teardown');
      */
     public function playbackControl(
-        int    $dialogId,
+        int $dialogId,
         string $action,
-        array  $options = []
-    ): bool
+        array $options = []
+    ) : bool
     {
         // 获取该 dialog 的下一个 CSeq 值（每个会话维护独立的序列）
         $cseq = $this->getNextCSeq($dialogId);
@@ -586,9 +586,9 @@ public function sendSubscribePtzStatus(Device $device): void
         if ($this->config['debug']) {
             $this->logger->debug("PlaybackControl: " . json_encode([
                     'dialog_id' => $dialogId,
-                    'action' => $action,
-                    'cseq' => $cseq,
-                    'body' => $body
+                    'action'    => $action,
+                    'cseq'      => $cseq,
+                    'body'      => $body,
                 ]));
         }
 
@@ -609,7 +609,7 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param array $options 额外参数
      * @return string MANSRTSP 格式的消息体
      */
-    private function buildMansrtspBody(string $action, int $cseq, array $options): string
+    private function buildMansrtspBody(string $action, int $cseq, array $options) : string
     {
         $lines = [];
 
@@ -630,7 +630,7 @@ public function sendSubscribePtzStatus(Device $device): void
                 $lines[] = "CSeq: {$cseq}";
                 $range = $options['range'] ?? 'npt=now-';
                 $lines[] = "Range: {$range}";
-                
+
                 // 如果同时指定了 scale，也添加（支持恢复并切换倍速）
                 if (isset($options['scale'])) {
                     $lines[] = "Scale: {$options['scale']}";
@@ -655,9 +655,9 @@ public function sendSubscribePtzStatus(Device $device): void
                 $lines[] = "CSeq: {$cseq}";
                 $scale = $options['scale'] ?? 1.00000;
                 $lines[] = "Scale: {$scale}";
-//                if (isset($options['range'])) {
-//                    $lines[] = "Range: {$options['range']}";
-//                }
+                //                if (isset($options['range'])) {
+                //                    $lines[] = "Range: {$options['range']}";
+                //                }
                 break;
 
             case 'reverse':
@@ -668,7 +668,7 @@ public function sendSubscribePtzStatus(Device $device): void
                 $lines[] = "CSeq: {$cseq}";
                 $scale = $options['scale'] ?? -1.000000;
                 $lines[] = "Scale: {$scale}";
-                
+
                 // 可选：指定倒放起点
                 // Range: npt=600-120 表示从第600秒倒放到第120秒
                 if (isset($options['range'])) {
@@ -698,7 +698,7 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param int $dialogId INVITE 会话的 Dialog ID
      * @return bool
      */
-    public function playbackPause(int $dialogId): bool
+    public function playbackPause(int $dialogId) : bool
     {
         return $this->playbackControl($dialogId, 'pause');
     }
@@ -709,7 +709,7 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param int $dialogId INVITE 会话的 Dialog ID
      * @return bool
      */
-    public function playbackResume(int $dialogId): bool
+    public function playbackResume(int $dialogId) : bool
     {
         return $this->playbackControl($dialogId, 'play');
     }
@@ -721,10 +721,10 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param float $seconds 秒数（从录像开始算起）
      * @return bool
      */
-    public function playbackSeek(int $dialogId, float $seconds): bool
+    public function playbackSeek(int $dialogId, float $seconds) : bool
     {
         return $this->playbackControl($dialogId, 'seek', [
-            'range' => "npt={$seconds}-"
+            'range' => "npt={$seconds}-",
         ]);
     }
 
@@ -735,10 +735,10 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param float $scale 速度倍数 (0.5=半速, 1.0=正常, 2.0=2倍速, 4.0=4倍速)
      * @return bool
      */
-    public function playbackSpeed(int $dialogId, float $scale): bool
+    public function playbackSpeed(int $dialogId, float $scale) : bool
     {
         return $this->playbackControl($dialogId, 'scale', [
-            'scale' => $scale
+            'scale' => $scale,
         ]);
     }
 
@@ -748,7 +748,7 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param int $dialogId INVITE 会话的 Dialog ID
      * @return bool
      */
-    public function playbackStop(int $dialogId): bool
+    public function playbackStop(int $dialogId) : bool
     {
         return $this->playbackControl($dialogId, 'teardown');
     }
@@ -762,12 +762,12 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param float|null $endSeconds 倒放终点（秒，可选。如120表示倒放到第120秒停止）
      * @return bool
      */
-    public function playbackReverse(int $dialogId, float $speed = 1.0, ?float $startSeconds = null, ?float $endSeconds = null): bool
+    public function playbackReverse(int $dialogId, float $speed = 1.0, ?float $startSeconds = null, ?float $endSeconds = null) : bool
     {
         $options = [
-            'scale' => -abs($speed)  // 负数表示倒放
+            'scale' => -abs($speed),  // 负数表示倒放
         ];
-        
+
         // 如果指定了倒放范围
         if ($startSeconds !== null) {
             if ($endSeconds !== null) {
@@ -779,7 +779,7 @@ public function sendSubscribePtzStatus(Device $device): void
             }
         }
         // 否则从当前位置倒放（相当于 Range: npt=now-）
-        
+
         return $this->playbackControl($dialogId, 'reverse', $options);
     }
 
@@ -791,10 +791,10 @@ public function sendSubscribePtzStatus(Device $device): void
      * @param float $scale 播放倍速（默认1.0）
      * @return bool
      */
-    public function playbackSeekAndPlay(int $dialogId, float $seconds, float $scale = 1.0): bool
+    public function playbackSeekAndPlay(int $dialogId, float $seconds, float $scale = 1.0) : bool
     {
         $options = [
-            'range' => "npt={$seconds}-"
+            'range' => "npt={$seconds}-",
         ];
 
         // 如果倍速不是1.0，添加 Scale 头
@@ -808,7 +808,7 @@ public function sendSubscribePtzStatus(Device $device): void
     /**
      * 公共方法: 构建控制 XML（供 CommandDispatcher 使用）
      */
-    public function buildControlXmlPublic(string $cmdType, string $deviceId, array $params, string $charset = 'GB2312'): string
+    public function buildControlXmlPublic(string $cmdType, string $deviceId, array $params, string $charset = 'GB2312') : string
     {
         return $this->buildControlXml($cmdType, $deviceId, $params, $charset);
     }
@@ -816,7 +816,7 @@ public function sendSubscribePtzStatus(Device $device): void
     /**
      * 公共方法: 构建查询 XML（供 CommandDispatcher 使用）
      */
-    public function buildQueryXmlPublic(string $cmdType, string $deviceId, string $charset = 'GB2312'): string
+    public function buildQueryXmlPublic(string $cmdType, string $deviceId, string $charset = 'GB2312') : string
     {
         return $this->buildQueryXml($cmdType, $deviceId, $charset);
     }
@@ -824,7 +824,7 @@ public function sendSubscribePtzStatus(Device $device): void
     /**
      * 公共方法: 发送 MESSAGE（供 CommandDispatcher 使用）
      */
-    public function sendQuery(string $deviceUri, string $xml): bool|int
+    public function sendQuery(string $deviceUri, string $xml) : bool|int
     {
         return $this->sipServer->sendMessage($deviceUri, $xml, 'Application/MANSCDP+xml');
     }

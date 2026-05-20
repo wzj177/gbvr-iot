@@ -32,11 +32,11 @@ class MenuDaoImpl extends AdvancedDaoImpl implements MenuDao
         return $this->search(['type' => $type], ['sort' => 'ASC'], 0, PHP_INT_MAX);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'sort',
                 'createdTime',

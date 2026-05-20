@@ -13,7 +13,7 @@ use support\Log;
  */
 class SubscriptionRenewTask extends BaseCrontabTask
 {
-    public function execute(): void
+    public function execute() : void
     {
         $this->log()->info('SubscriptionRenewTask started');
 
@@ -29,7 +29,7 @@ class SubscriptionRenewTask extends BaseCrontabTask
 
             $this->log()->info('SubscriptionRenewTask completed', [
                 'renewed_count' => $count,
-                'expire_time' => $expireTime,
+                'expire_time'   => $expireTime,
             ]);
 
         } catch (\Exception $e) {

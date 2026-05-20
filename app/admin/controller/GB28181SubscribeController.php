@@ -13,7 +13,7 @@ class GB28181SubscribeController extends BaseController
      * 创建/更新订阅配置
      * POST /api/v2/gb28181/subscribe/config
      */
-    public function saveConfig(Request $request): Response
+    public function saveConfig(Request $request) : Response
     {
         $deviceId = $request->post('device_id', '');
         $channelId = $request->post('channel_id', null);
@@ -23,15 +23,15 @@ class GB28181SubscribeController extends BaseController
         }
 
         $config = [
-            'event_catalog' => (int)$request->post('event_catalog', 0),
-            'event_alarm' => (int)$request->post('event_alarm', 0),
+            'event_catalog'         => (int)$request->post('event_catalog', 0),
+            'event_alarm'           => (int)$request->post('event_alarm', 0),
             'event_mobile_position' => (int)$request->post('event_mobile_position', 0),
-            'alarm_priority_min' => (int)$request->post('alarm_priority_min', 0),
-            'alarm_priority_max' => (int)$request->post('alarm_priority_max', 4),
-            'mobile_interval_sec' => (int)$request->post('mobile_interval_sec', 5),
-            'subscribe_expires' => (int)$request->post('subscribe_expires', 3600),
-            'auto_renew' => (int)$request->post('auto_renew', 1),
-            'status' => (int)$request->post('status', 1),
+            'alarm_priority_min'    => (int)$request->post('alarm_priority_min', 0),
+            'alarm_priority_max'    => (int)$request->post('alarm_priority_max', 4),
+            'mobile_interval_sec'   => (int)$request->post('mobile_interval_sec', 5),
+            'subscribe_expires'     => (int)$request->post('subscribe_expires', 3600),
+            'auto_renew'            => (int)$request->post('auto_renew', 1),
+            'status'                => (int)$request->post('status', 1),
         ];
 
         // 验证至少有一个订阅类型
@@ -53,7 +53,7 @@ class GB28181SubscribeController extends BaseController
      * 批量创建订阅配置
      * POST /api/v2/gb28181/subscribe/batch
      */
-    public function batchCreate(Request $request): Response
+    public function batchCreate(Request $request) : Response
     {
         $deviceIds = $request->post('device_ids', []);
         $defaultConfig = $request->post('config', []);
@@ -74,7 +74,7 @@ class GB28181SubscribeController extends BaseController
      * 取消订阅
      * POST /api/v2/gb28181/subscribe/cancel
      */
-    public function cancel(Request $request): Response
+    public function cancel(Request $request) : Response
     {
         $configId = (int)$request->post('config_id', 0);
 
@@ -94,7 +94,7 @@ class GB28181SubscribeController extends BaseController
      * 查询订阅配置列表
      * GET /api/v2/gb28181/subscribe/configs
      */
-    public function listConfigs(Request $request): Response
+    public function listConfigs(Request $request) : Response
     {
         $conditions = $request->get();
         $start = (int)$request->get('start', 0);
@@ -105,7 +105,7 @@ class GB28181SubscribeController extends BaseController
             $total = $this->getSubscribeService()->countSubscribeConfigs($conditions);
 
             return $this->createSuccessJsonResponse([
-                'list' => $list,
+                'list'  => $list,
                 'total' => $total,
             ]);
         } catch (\Exception $e) {
@@ -117,7 +117,7 @@ class GB28181SubscribeController extends BaseController
      * 查询单个订阅配置
      * GET /api/v2/gb28181/subscribe/config
      */
-    public function getConfig(Request $request): Response
+    public function getConfig(Request $request) : Response
     {
         $deviceId = $request->get('device_id', '');
         $channelId = $request->get('channel_id', null);
@@ -143,10 +143,10 @@ class GB28181SubscribeController extends BaseController
      * 获取订阅类型选项
      * GET /api/v2/gb28181/subscribe/options
      */
-    public function options(): Response
+    public function options() : Response
     {
         return $this->createSuccessJsonResponse([
-            'event_types' => \CoreW\Business\Subscribe\Enums\SubscribeEventTypeEnum::getItems(),
+            'event_types'      => \CoreW\Business\Subscribe\Enums\SubscribeEventTypeEnum::getItems(),
             'alarm_priorities' => [
                 ['key' => 0, 'value' => '0级'],
                 ['key' => 1, 'value' => '1级'],
@@ -157,7 +157,7 @@ class GB28181SubscribeController extends BaseController
         ]);
     }
 
-    private function getSubscribeService(): SubscribeService
+    private function getSubscribeService() : SubscribeService
     {
         return $this->createService('Subscribe:SubscribeService');
     }

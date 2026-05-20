@@ -19,7 +19,7 @@ class RoleException extends AbstractBizException
     {
         $this->messages = [
             self::CODE_NOT_ALLL_DIGITAL => '角色代码不能全是数字，必须包含字母！',
-            self::FORBIDDEN_MODIFY => '系统角色禁止修改！',
+            self::FORBIDDEN_MODIFY      => '系统角色禁止修改！',
         ];
     }
 

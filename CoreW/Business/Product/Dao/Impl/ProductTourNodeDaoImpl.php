@@ -5,7 +5,7 @@ namespace CoreW\Business\Product\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\Product\Dao\ProductTourNodeDao;
 
-class ProductTourNodeDaoImpl extends AdvancedDaoImpl implements ProductTourNodeDao 
+class ProductTourNodeDaoImpl extends AdvancedDaoImpl implements ProductTourNodeDao
 {
 
     protected $table = 'gv_product_tour_node';
@@ -25,19 +25,19 @@ class ProductTourNodeDaoImpl extends AdvancedDaoImpl implements ProductTourNodeD
         return $this->getAll(['sceneId' => $sceneId], null, $fields);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'position' => 'json',
-           ], 
-            'orderbys' => [ 
+            ],
+            'orderbys'   => [
                 'id',
                 'idx',
                 'createdTime',
                 'updatedTime',
-           ], 
-            'conditions' => [ 
+            ],
+            'conditions' => [
                 'id = :id',
                 'id > :id_GT',
                 'id IN (:ids)',
@@ -50,10 +50,10 @@ class ProductTourNodeDaoImpl extends AdvancedDaoImpl implements ProductTourNodeD
                 'idx = :index',
                 'idx > :idx_GT',
             ],
-            'timestamps' => [ 
+            'timestamps' => [
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
         ];
-    } 
+    }
 }

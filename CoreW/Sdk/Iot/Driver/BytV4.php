@@ -30,9 +30,9 @@ class BytV4 extends Base implements IotInterface
         return $result;
     }
 
-    protected function getDeviceTypeFormat(array $device): ?string
+    protected function getDeviceTypeFormat(array $device) : ?string
     {
-        list($catalog, $id) = explode('_', $device['device_full_id']);
+        [$catalog, $id] = explode('_', $device['device_full_id']);
         $deviceTypeMap = [
             2 => self::IOT_DEVICE_TYPE_WEATHER,
             3 => self::IOT_DEVICE_TYPE_SOIL,
@@ -50,7 +50,7 @@ class BytV4 extends Base implements IotInterface
         $result = $this->getFuncData(BizEnum::VIP_COMPANY_IOT_API_DEVICE_REAL_DATA, $params);
         if (!empty($result['data'])) {
             $deviceType = $this->getDeviceTypeFormat([
-                'device_full_id' => $deviceCode
+                'device_full_id' => $deviceCode,
             ]);
             if (in_array($deviceType, [self::IOT_DEVICE_TYPE_WEATHER, self::IOT_DEVICE_TYPE_SOIL])) {
                 $result['data']['lasted_data_time'] = $result['data']['time'];
@@ -70,7 +70,7 @@ class BytV4 extends Base implements IotInterface
         $result = $this->getFuncData(BizEnum::VIP_COMPANY_IOT_API_DEVICE_HISTORY_DATA, $params);
         if (!empty($result['data'])) {
             $deviceType = $this->getDeviceTypeFormat([
-                'device_full_id' => $deviceCode
+                'device_full_id' => $deviceCode,
             ]);
             if (in_array($deviceType, [self::IOT_DEVICE_TYPE_WEATHER, self::IOT_DEVICE_TYPE_SOIL])) {
                 $xAxisData = array_column($result['data']['data'], 'created_at');
@@ -82,14 +82,14 @@ class BytV4 extends Base implements IotInterface
                     }, $result['data']['data']);
                 }
                 $result['data']['data'] = [
-                    'xAxisData' => $xAxisData,
-                    'seriesData' => $seriesData
+                    'xAxisData'  => $xAxisData,
+                    'seriesData' => $seriesData,
                 ];
 
             } else if (self::IOT_DEVICE_TYPE_PEST === $deviceType) {
                 $result['data'] = [
-                    'xAxisData' => $result['data']['times'],
-                    'seriesData' => array_column($result['data']['list'], 'total')
+                    'xAxisData'  => $result['data']['times'],
+                    'seriesData' => array_column($result['data']['list'], 'total'),
                 ];
             }
         }
@@ -129,7 +129,7 @@ class BytV4 extends Base implements IotInterface
         return $this->request($setting['url'], $setting['method'], $params);
     }
 
-    public function auth(string $token): ?array
+    public function auth(string $token) : ?array
     {
         if (Str::startsWith($token, "Bearer ") === false) {
             $token = "Bearer " . $token;
@@ -138,8 +138,8 @@ class BytV4 extends Base implements IotInterface
         // 保证物联网后台管理登录的token验证有效
         $this->host = str_replace('api', 'admin', $this->host);
 
-        return $this->request('/auth/user','GET', [], [
-            'Authorization' => $token
+        return $this->request('/auth/user', 'GET', [], [
+            'Authorization' => $token,
         ]);
     }
 }

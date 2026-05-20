@@ -23,22 +23,22 @@ use \SimpleXMLElement;
  */
 class PresetQueryCommand extends BaseCommand
 {
-    public function getCommandType(): string
+    public function getCommandType() : string
     {
         return 'PresetQuery';
     }
 
-    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []): mixed
+    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []) : mixed
     {
         $presets = [];
 
         if (isset($xml->PresetList)) {
             foreach ($xml->PresetList->children() as $item) {
-                $presetId = (string) ($item->PresetID ?? '');
-                $presetName = (string) ($item->PresetName ?? '');
+                $presetId = (string)($item->PresetID ?? '');
+                $presetName = (string)($item->PresetName ?? '');
                 if ($presetId !== '') {
                     $presets[] = [
-                        'preset_id' => (int) $presetId,
+                        'preset_id'   => (int)$presetId,
                         'preset_name' => $presetName,
                     ];
                 }
@@ -46,20 +46,20 @@ class PresetQueryCommand extends BaseCommand
         }
 
         return [
-            'device_id' => $deviceId,
-            'cmd_type' => $this->getCommandType(),
+            'device_id'   => $deviceId,
+            'cmd_type'    => $this->getCommandType(),
             'preset_list' => $presets,
-            'num' => count($presets),
+            'num'         => count($presets),
         ];
     }
 
-    public function generateResponse(array $data, int $sn): string
+    public function generateResponse(array $data, int $sn) : string
     {
         return $this->generateXml('Response', [
-            'CmdType' => $this->getCommandType(),
-            'SN' => $sn,
+            'CmdType'  => $this->getCommandType(),
+            'SN'       => $sn,
             'DeviceID' => $data['device_id'] ?? '',
-            'Result' => 'OK',
+            'Result'   => 'OK',
         ]);
     }
 }

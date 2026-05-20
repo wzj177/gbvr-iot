@@ -1,7 +1,7 @@
 <?php
 
 
-namespace  CoreW\NotificationCenter;
+namespace CoreW\NotificationCenter;
 
 use ReflectionClass;
 
@@ -13,10 +13,11 @@ class CreateSenderFactory
      */
     private $sender;
 
-    private $senderClassMap = [
-        'DingDing' => DingDingSender::class,
-        'Email' => MailSender::class,
-    ];
+    private $senderClassMap
+        = [
+            'DingDing' => DingDingSender::class,
+            'Email'    => MailSender::class,
+        ];
 
     private $regiseterMsgSenders = [];
 

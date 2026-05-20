@@ -4,7 +4,6 @@
 namespace CoreW\Exception;
 
 
-
 abstract class AbstractBizException extends HttpException
 {
     const DEFAULT_STATUS_CODE = 500;
@@ -45,7 +44,7 @@ abstract class AbstractBizException extends HttpException
     public static function __callStatic($method, $arguments)
     {
         $class = get_called_class();
-        $code = constant($class.'::'.$method); // 返回一个常量的值
+        $code = constant($class . '::' . $method); // 返回一个常量的值
         $reflection = new \ReflectionClass($class);
 
         return $reflection->newInstanceArgs([$code, !empty($arguments[0]) ? $arguments[0] : null]);

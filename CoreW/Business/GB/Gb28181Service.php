@@ -36,7 +36,7 @@ class Gb28181Service
      * @param string $app
      * @return array
      */
-    public function getMediaList(string $mediaServerId, string $streamId, string $app = 'rtp'): array
+    public function getMediaList(string $mediaServerId, string $streamId, string $app = 'rtp') : array
     {
         try {
             $zlmClient = $this->getZlmClientByServerId($mediaServerId);
@@ -55,7 +55,7 @@ class Gb28181Service
      * @param string $app
      * @return array
      */
-    public function getMediaPlayerList(string $mediaServerId, string $streamId, string $schema, string $app = 'rtp'): array
+    public function getMediaPlayerList(string $mediaServerId, string $streamId, string $schema, string $app = 'rtp') : array
     {
         try {
             $zlmClient = $this->getZlmClientByServerId($mediaServerId);
@@ -78,46 +78,46 @@ class Gb28181Service
      * @throws ZlmException
      */
     public function startLiveVideo(
-        array   $channel,
-        int     $zlmPort,
-        int     $tcpMode = 1,
+        array $channel,
+        int $zlmPort,
+        int $tcpMode = 1,
         ?string $streamId = null,
         ?string $streamIp = null,
-        bool $seniorSdp  = false
-    ): bool
+        bool $seniorSdp = false
+    ) : bool
     {
         $this->checkZlmState($channel['media_server_id']);
         return $this->getGb28181Client()->startLiveVideo($channel['device_id'], $channel['channel_id'], $channel['ssrc'], $zlmPort, $tcpMode, $streamId, $streamIp, $seniorSdp);
     }
 
-    public function stopLiveVideo(string $deviceId, string $channelId, string $streamId): bool
+    public function stopLiveVideo(string $deviceId, string $channelId, string $streamId) : bool
     {
         return $this->getGb28181Client()->stopLiveVideo($deviceId, $channelId, $streamId);
     }
 
     public function startPlayback(
-        array   $channel,
-        string  $startTime,
-        string  $endTime,
-        string  $ssrc,
-        int     $zlmPort,
-        int     $tcpMode = 1,
+        array $channel,
+        string $startTime,
+        string $endTime,
+        string $ssrc,
+        int $zlmPort,
+        int $tcpMode = 1,
         ?string $streamId = null,
         ?string $streamIp = null
-    ): bool
+    ) : bool
     {
         $this->checkZlmState($channel['media_server_id']);
         return $this->getGb28181Client()->startPlayback($channel['device_id'], $channel['channel_id'], $startTime, $endTime, $ssrc, $zlmPort, $tcpMode, $streamId, $streamIp);
     }
 
-    public function stopPlayback(string $deviceId, string $channelId, string $streamId): bool
+    public function stopPlayback(string $deviceId, string $channelId, string $streamId) : bool
     {
         return $this->getGb28181Client()->stopPlayback($deviceId, $channelId, $streamId);
     }
 
     /**
      * 发送回放控制命令
-     * 
+     *
      * 支持的操作:
      * - play: 正常播放
      * - pause: 暂停
@@ -125,7 +125,7 @@ class Gb28181Service
      * - slow_forward: 慢放 (speed: 1=0.5倍速, 2=0.25倍速)
      * - seek: 拖动到指定时间
      * - scale: 缩放
-     * 
+     *
      * @param string $deviceId 设备ID
      * @param string $channelId 通道ID
      * @param string $streamId 流ID (用于标识活跃会话)
@@ -143,7 +143,8 @@ class Gb28181Service
         int|float $speed = 1,
         ?string $seekTime = null,
         float $scale = 1.0
-    ): bool {
+    ) : bool
+    {
         return $this->getGb28181Client()->playbackControl(
             $deviceId,
             $channelId,
@@ -157,7 +158,7 @@ class Gb28181Service
 
     /**
      * 创建下载会话并打开 RTP 端口
-     * 
+     *
      * @param string $deviceId 设备ID
      * @param string $channelId 通道ID
      * @param string $startTime 开始时间
@@ -175,7 +176,8 @@ class Gb28181Service
         array $mediaServer,
         int $tcpMode = 1,
         int $downloadSpeed = 1
-    ): ?array {
+    ) : ?array
+    {
         try {
             // 创建下载会话（使用独立的 stream_id 前缀 download_）
             return $this->createPlaybackSessionAndOpenRtp(
@@ -189,9 +191,9 @@ class Gb28181Service
             );
         } catch (\Throwable $e) {
             Log::channel('sip')->error('Create download session failed', [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
             return null;
         }
@@ -199,11 +201,11 @@ class Gb28181Service
 
     /**
      * 开始录像下载
-     * 
+     *
      * 与普通回放的区别：
      * - session_name = 'Download' (而非 'Playback')
      * - 用于将录像下载为文件
-     * 
+     *
      * @param array $channel 通道信息
      * @param string $startTime 开始时间
      * @param string $endTime 结束时间
@@ -225,7 +227,8 @@ class Gb28181Service
         ?string $streamId = null,
         ?string $streamIp = null,
         int $downloadSpeed = 1
-    ): bool {
+    ) : bool
+    {
         $this->checkZlmState($channel['media_server_id']);
         return $this->getGb28181Client()->startDownload(
             $channel['device_id'],
@@ -256,7 +259,7 @@ class Gb28181Service
      * @return bool
      * @throws ZlmException
      */
-    public function startAudioBroadcast(array $session): bool
+    public function startAudioBroadcast(array $session) : bool
     {
         $this->checkZlmState($session['media_server_id']);
         $result = $this->getGb28181Client()->startAudioBroadcast($session);
@@ -270,7 +273,7 @@ class Gb28181Service
      * @return bool
      * @throws ZlmException
      */
-    public function startVoiceTalk(array $session): bool
+    public function startVoiceTalk(array $session) : bool
     {
         $this->checkZlmState($session['media_server_id']);
         // 调用 GB28181Client 的 startVoiceTalk 方法
@@ -284,7 +287,7 @@ class Gb28181Service
      * @param array $session
      * @return bool
      */
-    public function stopVoiceTalk(array $session): bool
+    public function stopVoiceTalk(array $session) : bool
     {
         // 获取 dialog_id（从 metadata 或 dialog_id 字段）
         $dialogId = $session['dialog_id'] ?? null;
@@ -306,18 +309,18 @@ class Gb28181Service
         return $result['success'] ?? false;
     }
 
-    public function queryCatalog(string $deviceId): bool
+    public function queryCatalog(string $deviceId) : bool
     {
         return $this->getGb28181Client()->queryCatalog($deviceId);
     }
 
-    public function queryDeviceInfo(string $deviceId): bool
+    public function queryDeviceInfo(string $deviceId) : bool
     {
         return $this->getGb28181Client()->queryDeviceInfo($deviceId);
     }
 
 
-    public function queryDeviceStatus(string $deviceId): bool
+    public function queryDeviceStatus(string $deviceId) : bool
     {
         return $this->getGb28181Client()->queryDeviceStatus($deviceId);
     }
@@ -328,7 +331,7 @@ class Gb28181Service
         string $startTime,
         string $endTime,
         string $type = 'all'
-    ): bool
+    ) : bool
     {
         return $this->getGb28181Client()->queryRecord($deviceId, $channelId, $startTime, $endTime, $type);
     }
@@ -358,8 +361,8 @@ class Gb28181Service
         string $deviceId,
         string $channelId,
         string $command,
-        int    $speed = 5
-    ): bool
+        int $speed = 5
+    ) : bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, $command, $speed);
     }
@@ -373,7 +376,7 @@ class Gb28181Service
      * @param string $channelId 通道ID
      * @return bool
      */
-    public function ptzStop(string $deviceId, string $channelId): bool
+    public function ptzStop(string $deviceId, string $channelId) : bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'stop', 0);
     }
@@ -386,7 +389,7 @@ class Gb28181Service
      * @param int $speed 速度 (1-255)
      * @return bool
      */
-    public function focusNear(string $deviceId, string $channelId, int $speed = 5): bool
+    public function focusNear(string $deviceId, string $channelId, int $speed = 5) : bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'focus_near', $speed);
     }
@@ -399,7 +402,7 @@ class Gb28181Service
      * @param int $speed 速度 (1-255)
      * @return bool
      */
-    public function focusFar(string $deviceId, string $channelId, int $speed = 5): bool
+    public function focusFar(string $deviceId, string $channelId, int $speed = 5) : bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'focus_far', $speed);
     }
@@ -412,7 +415,7 @@ class Gb28181Service
      * @param int $speed 速度 (1-255)
      * @return bool
      */
-    public function irisOpen(string $deviceId, string $channelId, int $speed = 5): bool
+    public function irisOpen(string $deviceId, string $channelId, int $speed = 5) : bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'iris_open', $speed);
     }
@@ -425,7 +428,7 @@ class Gb28181Service
      * @param int $speed 速度 (1-255)
      * @return bool
      */
-    public function irisClose(string $deviceId, string $channelId, int $speed = 5): bool
+    public function irisClose(string $deviceId, string $channelId, int $speed = 5) : bool
     {
         return $this->getGb28181Client()->ptzControl($deviceId, $channelId, 'iris_close', $speed);
     }
@@ -438,7 +441,7 @@ class Gb28181Service
      * @param int $presetId 预置位编号 (1-255)
      * @return bool
      */
-    public function presetSet(string $deviceId, string $channelId, int $presetId): bool
+    public function presetSet(string $deviceId, string $channelId, int $presetId) : bool
     {
         return $this->getGb28181Client()->presetControl($deviceId, $channelId, 'set', $presetId);
     }
@@ -451,7 +454,7 @@ class Gb28181Service
      * @param int $presetId 预置位编号 (1-255)
      * @return bool
      */
-    public function presetCall(string $deviceId, string $channelId, int $presetId): bool
+    public function presetCall(string $deviceId, string $channelId, int $presetId) : bool
     {
         return $this->getGb28181Client()->presetControl($deviceId, $channelId, 'call', $presetId);
     }
@@ -464,7 +467,7 @@ class Gb28181Service
      * @param int $presetId 预置位编号 (1-255)
      * @return bool
      */
-    public function presetDelete(string $deviceId, string $channelId, int $presetId): bool
+    public function presetDelete(string $deviceId, string $channelId, int $presetId) : bool
     {
         return $this->getGb28181Client()->presetControl($deviceId, $channelId, 'delete', $presetId);
     }
@@ -500,7 +503,7 @@ class Gb28181Service
      * @param int $presetId 预置位编号 (1-255)
      * @return bool
      */
-    public function cruiseAddPoint(string $deviceId, string $channelId, int $groupId, int $presetId): bool
+    public function cruiseAddPoint(string $deviceId, string $channelId, int $groupId, int $presetId) : bool
     {
         return $this->getGb28181Client()->cruiseControl($deviceId, $channelId, 'add_point', $groupId, $presetId);
     }
@@ -514,7 +517,7 @@ class Gb28181Service
      * @param int $presetId 预置位编号 (1-255)
      * @return bool
      */
-    public function cruiseDeletePoint(string $deviceId, string $channelId, int $groupId, int $presetId): bool
+    public function cruiseDeletePoint(string $deviceId, string $channelId, int $groupId, int $presetId) : bool
     {
         return $this->getGb28181Client()->cruiseControl($deviceId, $channelId, 'delete_point', $groupId, $presetId);
     }
@@ -530,7 +533,7 @@ class Gb28181Service
      * @param int $speed 巡航速度 (1-4095)
      * @return bool
      */
-    public function cruiseSetSpeed(string $deviceId, string $channelId, int $groupId, int $speed): bool
+    public function cruiseSetSpeed(string $deviceId, string $channelId, int $groupId, int $speed) : bool
     {
         return $this->getGb28181Client()->cruiseControl($deviceId, $channelId, 'set_speed', $groupId, $speed);
     }
@@ -546,7 +549,7 @@ class Gb28181Service
      * @param int $duration 停留时间（秒，1-4095）
      * @return bool
      */
-    public function cruiseSetDuration(string $deviceId, string $channelId, int $groupId, int $duration): bool
+    public function cruiseSetDuration(string $deviceId, string $channelId, int $groupId, int $duration) : bool
     {
         return $this->getGb28181Client()->cruiseControl($deviceId, $channelId, 'set_duration', $groupId, $duration);
     }
@@ -561,7 +564,7 @@ class Gb28181Service
      * @param int $groupId 巡航组号 (0-255)
      * @return bool
      */
-    public function cruiseStart(string $deviceId, string $channelId, int $groupId): bool
+    public function cruiseStart(string $deviceId, string $channelId, int $groupId) : bool
     {
         return $this->getGb28181Client()->cruiseControl($deviceId, $channelId, 'start', $groupId, 0);
     }
@@ -575,7 +578,7 @@ class Gb28181Service
      * @param string $channelId 通道ID
      * @return bool
      */
-    public function cruiseStop(string $deviceId, string $channelId): bool
+    public function cruiseStop(string $deviceId, string $channelId) : bool
     {
         // 停止巡航使用普通的 PTZ 停止命令
         return $this->ptzStop($deviceId, $channelId);
@@ -589,7 +592,7 @@ class Gb28181Service
      * @param string $firmware 固件版本
      * @return array 包含 success, session_id, sn 等信息
      */
-    public function deviceUpgrade(string $deviceId, string $manufacturer, string $firmware): array
+    public function deviceUpgrade(string $deviceId, string $manufacturer, string $firmware) : array
     {
         return $this->getGb28181Client()->deviceUpgrade($deviceId, $manufacturer, $firmware);
     }
@@ -602,7 +605,7 @@ class Gb28181Service
      * @param string $imageFormat 图片格式 (JPEG/PNG/BMP)
      * @return array 包含 success, session_id, sn 等信息
      */
-    public function snapshot(string $deviceId, string $channelId, string $imageFormat = 'JPEG'): array
+    public function snapshot(string $deviceId, string $channelId, string $imageFormat = 'JPEG') : array
     {
         return $this->getGb28181Client()->snapshot($deviceId, $channelId, $imageFormat);
     }
@@ -626,7 +629,7 @@ class Gb28181Service
      * @param int|null $interval 位置上报间隔(秒)，null表示设备自行决定
      * @return bool
      */
-    public function subscribeMobilePosition(string $deviceId, array $params = []): array
+    public function subscribeMobilePosition(string $deviceId, array $params = []) : array
     {
         return $this->getGb28181Client()->subscribeMobilePosition($deviceId, $params);
     }
@@ -640,7 +643,7 @@ class Gb28181Service
      * @param string $deviceId 设备ID
      * @return bool
      */
-    public function unsubscribeMobilePosition(string $deviceId): bool
+    public function unsubscribeMobilePosition(string $deviceId) : bool
     {
         return $this->getGb28181Client()->unsubscribeMobilePosition($deviceId);
     }
@@ -652,7 +655,7 @@ class Gb28181Service
      * @param array $params 参数，包含 expires 等字段
      * @return array 返回结果，包含 success, dialog_id, error 等字段
      */
-    public function subscribeCatalog(string $deviceId, array $params = []): array
+    public function subscribeCatalog(string $deviceId, array $params = []) : array
     {
         return $this->getGb28181Client()->subscribeCatalog($deviceId, $params);
     }
@@ -663,7 +666,7 @@ class Gb28181Service
      * @param string $deviceId 设备ID
      * @return bool
      */
-    public function unsubscribeCatalog(string $deviceId): bool
+    public function unsubscribeCatalog(string $deviceId) : bool
     {
         return $this->getGb28181Client()->unsubscribeCatalog($deviceId);
     }
@@ -675,7 +678,7 @@ class Gb28181Service
      * @param array $params 参数，包含 expires, start_priority, end_priority, alarm_method 等字段
      * @return array 返回结果，包含 success, dialog_id, error 等字段
      */
-    public function subscribeAlarm(string $deviceId, array $params = []): array
+    public function subscribeAlarm(string $deviceId, array $params = []) : array
     {
         return $this->getGb28181Client()->subscribeAlarm($deviceId, $params);
     }
@@ -686,7 +689,7 @@ class Gb28181Service
      * @param string $deviceId 设备ID
      * @return bool
      */
-    public function unsubscribeAlarm(string $deviceId): bool
+    public function unsubscribeAlarm(string $deviceId) : bool
     {
         return $this->getGb28181Client()->unsubscribeAlarm($deviceId);
     }
@@ -699,7 +702,7 @@ class Gb28181Service
      * @param int $expires 新的订阅有效期(秒)
      * @return array 返回结果，包含 success, error 等字段
      */
-    public function refreshSubscribe(int $dialogId, string $event, int $expires): array
+    public function refreshSubscribe(int $dialogId, string $event, int $expires) : array
     {
         return $this->getGb28181Client()->refreshSubscribe($dialogId, $event, $expires);
     }
@@ -712,7 +715,7 @@ class Gb28181Service
      * @param int $tcpMode TCP模式
      * @return array|null 会话信息，包含stream_id和rtp_port等
      */
-    public function createLiveSessionAndOpenRtp(array $channel, array $mediaServer, int $tcpMode = 1): ?array
+    public function createLiveSessionAndOpenRtp(array $channel, array $mediaServer, int $tcpMode = 1) : ?array
     {
         if ($mediaServer['type'] === MediaServerType::ZLM->value) {
             //  最小修改：检查流是否已存在且活跃
@@ -727,11 +730,11 @@ class Gb28181Service
                     Log::channel('gb_stream')->info("[Gb28181Service] 复用现有流: {$channel['stream_id']}");
 
                     return [
-                        'session' => $activeSession,
+                        'session'   => $activeSession,
                         'stream_id' => $channel['stream_id'],
-                        'ssrc' => $channel['ssrc'],
-                        'rtp_port' => $activeSession['rtp_port'],
-                        'reused' => true  // 标记为复用
+                        'ssrc'      => $channel['ssrc'],
+                        'rtp_port'  => $activeSession['rtp_port'],
+                        'reused'    => true,  // 标记为复用
                     ];
                 }
 
@@ -748,19 +751,19 @@ class Gb28181Service
 
             // 创建会话记录
             $sessionData = [
-                'session_id' => Uuid::uuid4(),//uniqid($channel['device_id'] . '_' . $channel['channel_id'] . '_' . $channel['media_server_id'] . '_'),
-                'device_id' => $channel['device_id'],
-                'channel_id' => $channel['channel_id'],
-                'ssrc' => $channel['ssrc'],
-                'stream_id' => $channel['stream_id'],
+                'session_id'      => Uuid::uuid4(),//uniqid($channel['device_id'] . '_' . $channel['channel_id'] . '_' . $channel['media_server_id'] . '_'),
+                'device_id'       => $channel['device_id'],
+                'channel_id'      => $channel['channel_id'],
+                'ssrc'            => $channel['ssrc'],
+                'stream_id'       => $channel['stream_id'],
                 'media_server_id' => $channel['media_server_id'],
-                'type' => StreamSessionType::LIVE->value,
-                'rtp_port' => $portResult['port'],
-                'tcp_mode' => $tcpMode,
-                'status' => StreamSessionStatus::Inviting->value,
-                'started_at' => date('Y-m-d H:i:s'),
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'type'            => StreamSessionType::LIVE->value,
+                'rtp_port'        => $portResult['port'],
+                'tcp_mode'        => $tcpMode,
+                'status'          => StreamSessionStatus::Inviting->value,
+                'started_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => date('Y-m-d H:i:s'),
+                'updated_at'      => date('Y-m-d H:i:s'),
             ];
 
             $session = $this->getDeviceService()->createSession($sessionData);
@@ -769,11 +772,11 @@ class Gb28181Service
             $this->incrementViewerCount($channel['stream_id']);
 
             return [
-                'session' => $session,
+                'session'   => $session,
                 'stream_id' => $channel['stream_id'],
-                'ssrc' => $channel['ssrc'],
-                'rtp_port' => $portResult['port'],
-                'reused' => false
+                'ssrc'      => $channel['ssrc'],
+                'rtp_port'  => $portResult['port'],
+                'reused'    => false,
             ];
         }
 
@@ -797,10 +800,10 @@ class Gb28181Service
         string $channelId,
         string $startTime,
         string $endTime,
-        array  $mediaServer,
-        int    $tcpMode = 1,
-        bool   $isDownload = false
-    ): ?array
+        array $mediaServer,
+        int $tcpMode = 1,
+        bool $isDownload = false
+    ) : ?array
     {
         if ($mediaServer['type'] === MediaServerType::ZLM->value) {
             // 生成流ID：回放用 pb_，下载用 download_
@@ -824,11 +827,11 @@ class Gb28181Service
                     $logMsg = $isDownload ? "复用现有下载流" : "复用现有回放流";
                     Log::channel('gb_stream')->info("[Gb28181Service] {$logMsg}: {$streamId}");
                     return [
-                        'session' => $activeSession,
+                        'session'   => $activeSession,
                         'stream_id' => $streamId,
-                        'ssrc' => $activeSession['ssrc'],
-                        'rtp_port' => $activeSession['rtp_port'],
-                        'reused' => true
+                        'ssrc'      => $activeSession['ssrc'],
+                        'rtp_port'  => $activeSession['rtp_port'],
+                        'reused'    => true,
                     ];
                 }
 
@@ -845,26 +848,26 @@ class Gb28181Service
             }
 
             // 生成SSRC
-//            $playbackSsrc = $this->getDeviceService()->generateUniqueSsrc();
+            //            $playbackSsrc = $this->getDeviceService()->generateUniqueSsrc();
             $playbackSsrc = $this->getSSRCFactory()->getPlayBackSsrc($mediaServer['server_id']);
 
             // 创建会话记录
             $sessionData = [
-                'session_id' => Uuid::uuid4(),
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'ssrc' => $playbackSsrc,
-                'stream_id' => $streamId,
-                'type' => !$isDownload ? StreamSessionType::PLAYBACK->value : StreamSessionType::DOWNLOAD->value,
-                'rtp_port' => $portResult['port'],
+                'session_id'      => Uuid::uuid4(),
+                'device_id'       => $deviceId,
+                'channel_id'      => $channelId,
+                'ssrc'            => $playbackSsrc,
+                'stream_id'       => $streamId,
+                'type'            => !$isDownload ? StreamSessionType::PLAYBACK->value : StreamSessionType::DOWNLOAD->value,
+                'rtp_port'        => $portResult['port'],
                 'media_server_id' => $mediaServer['server_id'],
-                'tcp_mode' => $tcpMode,
-                'status' => StreamSessionStatus::Inviting->value,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'started_at' => date('Y-m-d H:i:s'),
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'tcp_mode'        => $tcpMode,
+                'status'          => StreamSessionStatus::Inviting->value,
+                'start_time'      => $startTime,
+                'end_time'        => $endTime,
+                'started_at'      => date('Y-m-d H:i:s'),
+                'created_at'      => date('Y-m-d H:i:s'),
+                'updated_at'      => date('Y-m-d H:i:s'),
             ];
 
             $session = $this->getDeviceService()->createSession($sessionData);
@@ -873,11 +876,11 @@ class Gb28181Service
             $this->incrementViewerCount($streamId);
 
             return [
-                'session' => $session,
+                'session'   => $session,
                 'stream_id' => $streamId,
-                'ssrc' => $playbackSsrc,
-                'rtp_port' => $portResult['port'],
-                'reused' => false
+                'ssrc'      => $playbackSsrc,
+                'rtp_port'  => $portResult['port'],
+                'reused'    => false,
             ];
         }
 
@@ -892,7 +895,7 @@ class Gb28181Service
      * @param int $tcpMode TCP模式
      * @return array ZLM返回的结果
      */
-    public function openRtpServer(string $streamId, string $serverId, int $tcpMode = 1): array
+    public function openRtpServer(string $streamId, string $serverId, int $tcpMode = 1) : array
     {
         $this->checkZlmState($serverId);
 
@@ -930,7 +933,7 @@ class Gb28181Service
         Log::channel('gb_stream')->error("[Gb28181Service] 无法分配可用端口，所有端口都在冷却中");
         return [
             'code' => -1,
-            'msg' => '无法分配可用端口，所有端口都在冷却中'
+            'msg'  => '无法分配可用端口，所有端口都在冷却中',
         ];
     }
 
@@ -950,7 +953,7 @@ class Gb28181Service
      * @param string $mediaServerId 媒体服务器ID
      * @return array|null 关闭结果
      */
-    public function closeRtpServer(string $streamId, string $mediaServerId): ?array
+    public function closeRtpServer(string $streamId, string $mediaServerId) : ?array
     {
         // 关闭RTP服务器时同时释放端口
         $this->releaseStreamSessionRtpPort($streamId);
@@ -964,7 +967,7 @@ class Gb28181Service
      * @param string $streamId 流ID
      * @return array|null 释放结果
      */
-    public function releaseStreamSessionRtpPort(string $streamId, bool $delSession = false): bool
+    public function releaseStreamSessionRtpPort(string $streamId, bool $delSession = false) : bool
     {
         // 获取会话信息
         $session = $this->getDeviceService()->getSessionByStreamId($streamId);
@@ -974,16 +977,16 @@ class Gb28181Service
 
         // 更新会话状态为已停止，并更新时间戳
         $this->getDeviceService()->updateChannelByMainId($session['stream_id'], [
-            'stream_status' => ChannelStreamStatus::IDLE->value
+            'stream_status' => ChannelStreamStatus::IDLE->value,
         ]);
         // 这样端口就会进入20秒的冷却期
         if ($delSession) {
             $this->getDeviceService()->deleteSession($session['id']);
         } else {
             $this->getDeviceService()->updateSession($session['id'], [
-                'status' => StreamSessionStatus::Stopped->value,
+                'status'     => StreamSessionStatus::Stopped->value,
                 'stopped_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
@@ -997,12 +1000,12 @@ class Gb28181Service
      * @return bool
      * @throws ZlmException
      */
-    public function closeStream(string $schema, string $streamId): bool
+    public function closeStream(string $schema, string $streamId) : bool
     {
         return $this->getZlmClientByStreamId($streamId)->closeStream($schema, $streamId);
     }
 
-    public function updateRtpServerSsrc(string $streamId, string $ssrc): array
+    public function updateRtpServerSsrc(string $streamId, string $ssrc) : array
     {
         return $this->getZlmClientByStreamId($streamId)->updateRtpServerSsrc($streamId, $ssrc);
     }
@@ -1016,7 +1019,7 @@ class Gb28181Service
      * @param string $app 应用名
      * @return array 播放地址
      */
-    public function getPlayUrls(string $serverId, string $streamId, ?string $accessUrl = null, string $app = 'rtp'): array
+    public function getPlayUrls(string $serverId, string $streamId, ?string $accessUrl = null, string $app = 'rtp') : array
     {
         return $this->getZlmClientByServerId($serverId)->getPlayUrls($streamId, $app, $accessUrl);
     }
@@ -1055,7 +1058,7 @@ class Gb28181Service
      *     ]
      * ]
      */
-    public function queryStreamSchemaMediaInfo(string $streamId, string $schema = 'fmp4', string $app = 'rtp'): ?array
+    public function queryStreamSchemaMediaInfo(string $streamId, string $schema = 'fmp4', string $app = 'rtp') : ?array
     {
         // 通过 streamId 获取 ZLM 客户端
         $zlmClient = $this->getZlmClientByStreamId($streamId);
@@ -1067,7 +1070,7 @@ class Gb28181Service
         }
 
         $result = [
-            'online' => true,
+            'online'    => true,
             'stream_id' => $streamId,
         ];
 
@@ -1081,11 +1084,11 @@ class Gb28181Service
                 // 视频轨道 (codec_type = 0)
                 if ($codecType === 0) {
                     $result['video'] = [
-                        'codec' => $this->getCodecName($track['codec_id'] ?? 0, 'video'),
+                        'codec'    => $this->getCodecName($track['codec_id'] ?? 0, 'video'),
                         'codec_id' => $track['codec_id'] ?? 0,
-                        'width' => $track['width'] ?? 0,
-                        'height' => $track['height'] ?? 0,
-                        'fps' => $track['fps'] ?? 0,
+                        'width'    => $track['width'] ?? 0,
+                        'height'   => $track['height'] ?? 0,
+                        'fps'      => $track['fps'] ?? 0,
                         'bit_rate' => $track['bit_rate'] ?? 0,
                     ];
                 }
@@ -1093,20 +1096,20 @@ class Gb28181Service
                 // 音频轨道 (codec_type = 1)
                 if ($codecType === 1) {
                     $result['audio'] = [
-                        'codec' => $this->getCodecName($track['codec_id'] ?? 0, 'audio'),
-                        'codec_id' => $track['codec_id'] ?? 0,
+                        'codec'       => $this->getCodecName($track['codec_id'] ?? 0, 'audio'),
+                        'codec_id'    => $track['codec_id'] ?? 0,
                         'sample_rate' => $track['sample_rate'] ?? 0,
-                        'channels' => $track['channels'] ?? 0,
-                        'sample_bit' => $track['sample_bit'] ?? 16,
+                        'channels'    => $track['channels'] ?? 0,
+                        'sample_bit'  => $track['sample_bit'] ?? 16,
                     ];
                 }
             }
         }
 
-       $result['reader_count'] = $mediaInfo['readerCount'];
-       $result['total_reader_count'] = $mediaInfo['totalReaderCount'];
+        $result['reader_count'] = $mediaInfo['readerCount'];
+        $result['total_reader_count'] = $mediaInfo['totalReaderCount'];
 
-       return $result;
+        return $result;
     }
 
     /**
@@ -1116,7 +1119,7 @@ class Gb28181Service
      * @param string $type 'video' 或 'audio'
      * @return string 编码格式名称
      */
-    private function getCodecName(int $codecId, string $type): string
+    private function getCodecName(int $codecId, string $type) : string
     {
         if ($type === 'video') {
             // 视频编码 ID 映射
@@ -1149,7 +1152,7 @@ class Gb28181Service
     /**
      * 远程重启
      */
-    public function teleBoot(string $deviceId, string $channelId): bool
+    public function teleBoot(string $deviceId, string $channelId) : bool
     {
         return $this->getGb28181Client()->teleBoot($deviceId, $channelId);
     }
@@ -1158,7 +1161,7 @@ class Gb28181Service
      * 录像控制
      * @param string $action Record / StopRecord
      */
-    public function recordControl(string $deviceId, string $channelId, string $action): bool
+    public function recordControl(string $deviceId, string $channelId, string $action) : bool
     {
         return $this->getGb28181Client()->recordControl($deviceId, $channelId, $action);
     }
@@ -1167,7 +1170,7 @@ class Gb28181Service
      * 布防/撤防
      * @param string $action SetGuard / ResetGuard
      */
-    public function guardControl(string $deviceId, string $channelId, string $action): bool
+    public function guardControl(string $deviceId, string $channelId, string $action) : bool
     {
         return $this->getGb28181Client()->guardControl($deviceId, $channelId, $action);
     }
@@ -1175,7 +1178,7 @@ class Gb28181Service
     /**
      * 报警复位
      */
-    public function alarmReset(string $deviceId, string $channelId, ?int $alarmMethod = null, ?int $alarmType = null): bool
+    public function alarmReset(string $deviceId, string $channelId, ?int $alarmMethod = null, ?int $alarmType = null) : bool
     {
         return $this->getGb28181Client()->alarmReset($deviceId, $channelId, $alarmMethod, $alarmType);
     }
@@ -1183,7 +1186,7 @@ class Gb28181Service
     /**
      * 强制关键帧请求
      */
-    public function requestIFrame(string $deviceId, string $channelId): bool
+    public function requestIFrame(string $deviceId, string $channelId) : bool
     {
         return $this->getGb28181Client()->iFrameCmd($deviceId, $channelId);
     }
@@ -1193,7 +1196,7 @@ class Gb28181Service
     /**
      * 看守位控制
      */
-    public function homePosition(string $deviceId, string $channelId, bool $enabled, int $resetTime = 0, int $presetIndex = 1): bool
+    public function homePosition(string $deviceId, string $channelId, bool $enabled, int $resetTime = 0, int $presetIndex = 1) : bool
     {
         return $this->getGb28181Client()->homePosition($deviceId, $channelId, $enabled, $resetTime, $presetIndex);
     }
@@ -1201,7 +1204,7 @@ class Gb28181Service
     /**
      * 拖拽变倍
      */
-    public function dragZoom(string $deviceId, string $channelId, string $type, array $params): bool
+    public function dragZoom(string $deviceId, string $channelId, string $type, array $params) : bool
     {
         return $this->getGb28181Client()->dragZoom($deviceId, $channelId, $type, $params);
     }
@@ -1209,7 +1212,7 @@ class Gb28181Service
     /**
      * 设备基础配置
      */
-    public function deviceConfig(string $deviceId, string $channelId, array $params): bool
+    public function deviceConfig(string $deviceId, string $channelId, array $params) : bool
     {
         return $this->getGb28181Client()->deviceConfig($deviceId, $channelId, $params);
     }
@@ -1219,7 +1222,7 @@ class Gb28181Service
     /**
      * 自动扫描控制
      */
-    public function scanControl(string $deviceId, string $channelId, string $action, int $groupId = 0, int $speed = 0): bool
+    public function scanControl(string $deviceId, string $channelId, string $action, int $groupId = 0, int $speed = 0) : bool
     {
         return $this->getGb28181Client()->scanControl($deviceId, $channelId, $action, $groupId, $speed);
     }
@@ -1227,7 +1230,7 @@ class Gb28181Service
     /**
      * 雨刷控制
      */
-    public function wiperControl(string $deviceId, string $channelId, bool $on): bool
+    public function wiperControl(string $deviceId, string $channelId, bool $on) : bool
     {
         return $this->getGb28181Client()->wiperControl($deviceId, $channelId, $on);
     }
@@ -1235,7 +1238,7 @@ class Gb28181Service
     /**
      * 辅助开关控制
      */
-    public function auxControl(string $deviceId, string $channelId, int $switchId, bool $on): bool
+    public function auxControl(string $deviceId, string $channelId, int $switchId, bool $on) : bool
     {
         return $this->getGb28181Client()->auxControl($deviceId, $channelId, $switchId, $on);
     }
@@ -1245,7 +1248,7 @@ class Gb28181Service
     /**
      * 设备预置位查询（从设备获取）
      */
-    public function presetQuery(string $deviceId, string $channelId): bool
+    public function presetQuery(string $deviceId, string $channelId) : bool
     {
         return $this->getGb28181Client()->presetQuery($deviceId, $channelId);
     }
@@ -1253,12 +1256,12 @@ class Gb28181Service
     /**
      * 设备配置查询
      */
-    public function configDownload(string $deviceId, string $channelId, string $configType = 'BasicParam'): bool
+    public function configDownload(string $deviceId, string $channelId, string $configType = 'BasicParam') : bool
     {
         return $this->getGb28181Client()->configDownload($deviceId, $channelId, $configType);
     }
 
-    private function generateStreamId(string $deviceId, string $channelId, ?string $suffix = null): string
+    private function generateStreamId(string $deviceId, string $channelId, ?string $suffix = null) : string
     {
         $streamId = "{$deviceId}_{$channelId}";
         if ($suffix) {
@@ -1273,7 +1276,7 @@ class Gb28181Service
      * @param string $videoSrcUrl
      * @return string
      */
-    public function getDisGB28181VideoChannelMainId(string $videoSrcUrl): string
+    public function getDisGB28181VideoChannelMainId(string $videoSrcUrl) : string
     {
         $crc32 = CRC32Helper::getCRC32(strtoupper(trim($videoSrcUrl)));
         return sprintf("%08X", $crc32);
@@ -1286,7 +1289,7 @@ class Gb28181Service
      * @param string $channelId
      * @return array 返回数组，第一个是用于SIP推流的SSRC，第二个是用于ZLM的streamId
      */
-    public function getSSRCInfo(string $deviceId, string $channelId): array
+    public function getSSRCInfo(string $deviceId, string $channelId) : array
     {
         $tag = "0" . substr($channelId, 3, 5) . $deviceId . $channelId;
         $crc32 = CRC32Helper::getCRC32($tag);
@@ -1316,7 +1319,7 @@ class Gb28181Service
      * @param string $serverId 媒体服务器ID
      * @throws ZlmException
      */
-    protected function checkZlmState(string $serverId): void
+    protected function checkZlmState(string $serverId) : void
     {
         if ($this->getZlmClientByServerId($serverId)->getVersion() === null) {
             throw new ZlmException('ZLM未启动');
@@ -1324,13 +1327,12 @@ class Gb28181Service
     }
 
 
-
     /**
      * 获取媒体服务
      *
      * @return MediaServerService
      */
-    protected function getMediaService(): MediaServerService
+    protected function getMediaService() : MediaServerService
     {
         return $this->bfw->service('MediaServer:MediaServerService');
     }
@@ -1338,7 +1340,7 @@ class Gb28181Service
     /**
      * @return Gb28181Client
      */
-    private function getGb28181Client(): Gb28181Client
+    private function getGb28181Client() : Gb28181Client
     {
 
         return $this->bfw['gb28181_gateway_sdk'];
@@ -1347,12 +1349,12 @@ class Gb28181Service
     /**
      * @return ZLMClient
      */
-    private function getZlmClient(array $config): ZLMClient
+    private function getZlmClient(array $config) : ZLMClient
     {
         return $this->bfw['zlm_sdk']($config);
     }
 
-    public function getZlmClientByServerId(string $serverId): ZLMClient
+    public function getZlmClientByServerId(string $serverId) : ZLMClient
     {
         $mediaServer = $this->getMediaService()->getMediaServerByServerId($serverId);
         if (!$mediaServer || $mediaServer['type'] !== MediaServerType::ZLM->value) {
@@ -1370,7 +1372,7 @@ class Gb28181Service
      * @return ZLMClient
      * @throws ZlmException
      */
-    protected function getZlmClientByStreamId(string $streamId): ZLMClient
+    protected function getZlmClientByStreamId(string $streamId) : ZLMClient
     {
         $session = $this->getDeviceService()->getSessionByStreamId($streamId);
         if (!$session || empty($session['media_server_id'])) {
@@ -1382,7 +1384,7 @@ class Gb28181Service
     /**
      *  增加流的 viewer 计数（最小修改：内存实现）
      */
-    public function incrementViewerCount(string $streamId): int|bool
+    public function incrementViewerCount(string $streamId) : int|bool
     {
         return $this->getDeviceService()->incrementSessionViewerCount($streamId);
     }
@@ -1390,11 +1392,10 @@ class Gb28181Service
     /**
      *  减少流的 viewer 计数，返回剩余计数
      */
-    public function decrementViewerCount(string $streamId): int|bool
+    public function decrementViewerCount(string $streamId) : int|bool
     {
         return $this->getDeviceService()->decrementSessionViewerCount($streamId);
     }
-
 
 
     /**
@@ -1404,7 +1405,7 @@ class Gb28181Service
      * @param VoiceTalkStreamArrivalDto $dto
      * @return array|null 返回 RTP 端口信息，失败返回 null
      */
-    public function handleVoiceTalkStreamArrival(VoiceTalkStreamArrivalDto $dto): ?array
+    public function handleVoiceTalkStreamArrival(VoiceTalkStreamArrivalDto $dto) : ?array
     {
         $zlmClient = $this->getZlmClientByServerId($dto->getMediaServerId());
 
@@ -1427,10 +1428,10 @@ class Gb28181Service
             $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '语音对讲 RTP 推流启动成功',
                 [
-                    'app' => $dto->getApp(),
-                    'stream' => $dto->getStream(),
-                    'receive_stream_id' =>  $dto->getReceiveStreamId(),
-                    'local_port' => $result['local_port'] ?? null,
+                    'app'               => $dto->getApp(),
+                    'stream'            => $dto->getStream(),
+                    'receive_stream_id' => $dto->getReceiveStreamId(),
+                    'local_port'        => $result['local_port'] ?? null,
                 ]
             );
         } else {
@@ -1438,7 +1439,7 @@ class Gb28181Service
                 '语音对讲 RTP 推流启动失败',
                 [
                     'error' => $result['msg'] ?? 'unknown',
-                    'dto' => $dto->toArray(),
+                    'dto'   => $dto->toArray(),
                 ]
             );
         }
@@ -1449,7 +1450,7 @@ class Gb28181Service
     /**
      * 生成接收流ID
      */
-    private function generateReceiveStreamId(string $originalStream): string
+    private function generateReceiveStreamId(string $originalStream) : string
     {
         // 原始流: rtp/34020000001320000009/talk
         // 接收流: rtp/34020000001320000009/talk_recv
@@ -1457,7 +1458,7 @@ class Gb28181Service
     }
 
 
-    protected function getLogService(): SystemLogService
+    protected function getLogService() : SystemLogService
     {
         return $this->bfw->service('SystemLog:SystemLogService');
     }
@@ -1467,12 +1468,12 @@ class Gb28181Service
      *
      * @return DeviceService
      */
-    protected function getDeviceService(): DeviceService
+    protected function getDeviceService() : DeviceService
     {
         return $this->bfw->service('Devices:DeviceService');
     }
 
-    protected function getSSRCFactory():SSRCFactory
+    protected function getSSRCFactory() : SSRCFactory
     {
         return $this->bfw['SSRCFactory'];
     }

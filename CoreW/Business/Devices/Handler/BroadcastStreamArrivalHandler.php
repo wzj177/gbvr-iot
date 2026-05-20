@@ -61,7 +61,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
     /**
      * 处理 Broadcast 模式流到达
      */
-    public function handle(StreamArrivalContext $context): bool
+    public function handle(StreamArrivalContext $context) : bool
     {
         $session = $context->getSession();
 
@@ -74,7 +74,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
         // broadcast 模式此时不调 ZLM，ZLM 端口在设备 INVITE 到达后再开（setupBroadcastRtp）
         $updData = [
             'receive_stream' => $context->getReceiveStreamId(),
-            'ssrc' => $context->getSsrc(),
+            'ssrc'           => $context->getSsrc(),
         ];
         $this->getVoiceSessionDao()->update($session['id'], $updData);
         $context->mergeSession($updData);
@@ -82,8 +82,8 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
         $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
             'Broadcast: SSRC 已分配，准备发送 MESSAGE（不调 ZLM）', [
                 'session_id' => $context->getSessionId(),
-                'ssrc' => $context->getSsrc(),
-                'rtp_port' => $session['rtp_port'],
+                'ssrc'       => $context->getSsrc(),
+                'rtp_port'   => $session['rtp_port'],
             ]);
 
         // === 第三步：发送 SIP MESSAGE（Broadcast）通知设备 ===
@@ -102,7 +102,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
      * 1. 查是否正在对讲（talk）：流存活 -> 拒绝；流不在 -> stopTalk 清理
      * 2. 查是否正在广播（broadcast 但不是自己）：流存活 -> 拒绝；流不在 -> stopAudioBroadcast 清理
      */
-    private function checkConflict(StreamArrivalContext $context): bool
+    private function checkConflict(StreamArrivalContext $context) : bool
     {
         $deviceId = $context->getDeviceId();
         $channelId = $context->getChannelId();
@@ -112,7 +112,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
         if ($talkConflict === false) {
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Broadcast: 冲突检查失败 - 设备正在语音对讲中', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
             return false;
@@ -123,7 +123,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
         if ($broadcastConflict === false) {
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Broadcast: 冲突检查失败 - 设备正在语音广播中', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
             return false;
@@ -142,13 +142,13 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
      * @param string $mode 要检查的模式（talk/broadcast）
      * @return bool true=无冲突或已清理, false=流存活需拒绝
      */
-    private function checkExistingSession(StreamArrivalContext $context, string $mode): bool
+    private function checkExistingSession(StreamArrivalContext $context, string $mode) : bool
     {
         $deviceId = $context->getDeviceId();
         $channelId = $context->getChannelId();
         $currentSessionId = $context->getSessionId();
 
-        $timeoutSeconds = (int) env('GB_VOICE_BROADCAST_WAIT_INVITE_TIMEOUT', self::BROADCAST_INVITE_TIMEOUT) + 5;
+        $timeoutSeconds = (int)env('GB_VOICE_BROADCAST_WAIT_INVITE_TIMEOUT', self::BROADCAST_INVITE_TIMEOUT) + 5;
 
         $existingSessions = $this->getVoiceSessionDao()->findActiveByDeviceChannelAndMode(
             $deviceId,
@@ -174,7 +174,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
             $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 "Broadcast: 清理 {$mode} 僵尸会话", [
                     'session_id' => $existingSession['session_id'],
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
             $this->getVoiceTalkService()->stopVoiceTalkBySession($existingSession, 'broadcast_conflict_cleanup');
@@ -195,7 +195,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
      *
      * 注意：与 talk 模式不同，broadcast 模式的 INVITE 由设备发起。
      */
-    private function sendBroadcastNotify(StreamArrivalContext $context): void
+    private function sendBroadcastNotify(StreamArrivalContext $context) : void
     {
         $session = $context->getSession();
 
@@ -204,10 +204,10 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
 
         $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
             'Broadcast: 发送 SIP MESSAGE 通知设备', [
-                'session_id' => $context->getSessionId(),
-                'device_id' => $context->getDeviceId(),
-                'channel_id' => $context->getChannelId(),
-                'ssrc' => $session['ssrc'] ?? null,
+                'session_id'     => $context->getSessionId(),
+                'device_id'      => $context->getDeviceId(),
+                'channel_id'     => $context->getChannelId(),
+                'ssrc'           => $session['ssrc'] ?? null,
                 'rtp_local_port' => $session['rtp_local_port'] ?? null,
             ]);
 
@@ -220,15 +220,15 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
      * 通过 RedisQueue 延迟任务实现。
      * 如果超时后设备未发送 INVITE，自动调用 stopAudioBroadcast 终止流程。
      */
-    private function startWaitInviteTimeoutTimer(StreamArrivalContext $context): void
+    private function startWaitInviteTimeoutTimer(StreamArrivalContext $context) : void
     {
-        $timeout = (int) env('GB_VOICE_BROADCAST_WAIT_INVITE_TIMEOUT', self::BROADCAST_INVITE_TIMEOUT);
+        $timeout = (int)env('GB_VOICE_BROADCAST_WAIT_INVITE_TIMEOUT', self::BROADCAST_INVITE_TIMEOUT);
 
         try {
             \Webman\RedisQueue\Client::send(self::TIMEOUT_QUEUE, [
-                'type' => 'broadcast_wait_invite_timeout',
+                'type'       => 'broadcast_wait_invite_timeout',
                 'session_id' => $context->getSessionId(),
-                'device_id' => $context->getDeviceId(),
+                'device_id'  => $context->getDeviceId(),
                 'channel_id' => $context->getChannelId(),
                 'created_at' => date('Y-m-d H:i:s'),
             ], $timeout);
@@ -242,7 +242,7 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Broadcast: 启动超时定时器失败', [
                     'session_id' => $context->getSessionId(),
-                    'error' => $e->getMessage(),
+                    'error'      => $e->getMessage(),
                 ]);
         }
     }
@@ -251,22 +251,22 @@ class BroadcastStreamArrivalHandler implements StreamArrivalHandlerInterface
     // 依赖获取
     // ============================================================
 
-    protected function getVoiceSessionDao(): VoiceSessionDao|DaoProxy
+    protected function getVoiceSessionDao() : VoiceSessionDao|DaoProxy
     {
         return $this->bfw->dao('Devices:VoiceSessionDao');
     }
 
-    protected function getVoiceTalkService(): VoiceTalkService
+    protected function getVoiceTalkService() : VoiceTalkService
     {
         return $this->bfw->service('Devices:VoiceTalkService');
     }
 
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->bfw['gb28181_service'];
     }
 
-    protected function getLogService(): SystemLogService
+    protected function getLogService() : SystemLogService
     {
         return $this->bfw->service('SystemLog:SystemLogService');
     }

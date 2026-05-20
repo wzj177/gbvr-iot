@@ -32,22 +32,22 @@ class VIPException extends \CoreW\Business\Common\UserException
     {
         parent::setMessages();
         $this->messages += [
-            self::REGISTER_VIP_ERROR => '会员注册失败',
-            self::EMAIL_VERIFY_LINK_INVALID => '邮箱验证链接失效',
-            self::LOGIN_SEND_EMAIL_CODE_NOTFOUND_USER => '获取验证码失败，该邮箱未注册',
-            self::LOGIN_EMAIL_CODE_EMPTY => '邮箱登录验证码为空',
-            self::LOGIN_EMAIL_CODE_ERROR => '邮箱登录验证码不正确',
-            self::LOGIN_EMAIL_CODE_USERNAME_ERROR => '登录邮箱格式错误',
-            self::LOGIN_EMAIL_CODE_EXPIRED => '邮箱登录验证码已过期，请重新发送',
-            self::LOGIN_OAUTH2_CODE_NULL_ERROR => '第三方授权登录失败，授权code未提供',
+            self::REGISTER_VIP_ERROR                   => '会员注册失败',
+            self::EMAIL_VERIFY_LINK_INVALID            => '邮箱验证链接失效',
+            self::LOGIN_SEND_EMAIL_CODE_NOTFOUND_USER  => '获取验证码失败，该邮箱未注册',
+            self::LOGIN_EMAIL_CODE_EMPTY               => '邮箱登录验证码为空',
+            self::LOGIN_EMAIL_CODE_ERROR               => '邮箱登录验证码不正确',
+            self::LOGIN_EMAIL_CODE_USERNAME_ERROR      => '登录邮箱格式错误',
+            self::LOGIN_EMAIL_CODE_EXPIRED             => '邮箱登录验证码已过期，请重新发送',
+            self::LOGIN_OAUTH2_CODE_NULL_ERROR         => '第三方授权登录失败，授权code未提供',
             self::LOGIN_OAUTH2_REDIRECT_URI_NULL_ERROR => '第三方授权登录失败，授权回调地址未提供',
-            self::LOGIN_OAUTH2_ERROR => '第三方授权登录失败, 未获取到认证信息',
-            self::OK_APPLY_COMPANY => '您已经是企业会员,无须再申请认证',
-            self::ALREADY_APPLY_COMPANY => '您的企业认证已提交,请耐心等待审核',
-            self::COMPANY_CODE_EXIST => '企业信用代码已存在',
-            self::COMPANY_NAME_EXIST => '企业名称已存在',
-            self::NOTFOUND_VIP_COMPANY => '企业信息不存在',
-            self::NOT_VIP_COMPANY_USER => '无权限修改他人企业信息',
+            self::LOGIN_OAUTH2_ERROR                   => '第三方授权登录失败, 未获取到认证信息',
+            self::OK_APPLY_COMPANY                     => '您已经是企业会员,无须再申请认证',
+            self::ALREADY_APPLY_COMPANY                => '您的企业认证已提交,请耐心等待审核',
+            self::COMPANY_CODE_EXIST                   => '企业信用代码已存在',
+            self::COMPANY_NAME_EXIST                   => '企业名称已存在',
+            self::NOTFOUND_VIP_COMPANY                 => '企业信息不存在',
+            self::NOT_VIP_COMPANY_USER                 => '无权限修改他人企业信息',
         ];
     }
 }

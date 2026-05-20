@@ -13,22 +13,22 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
     public function getByDeviceAndChannel(string $deviceId, string $channelId)
     {
         return $this->getByFields([
-            'device_id' => $deviceId,
-            'channel_id' => $channelId
+            'device_id'  => $deviceId,
+            'channel_id' => $channelId,
         ]);
     }
 
     public function getByMainId(string $mainId)
     {
         return $this->getByFields([
-            'main_id' => $mainId
+            'main_id' => $mainId,
         ]);
     }
 
-    public function findByDeviceId(string $deviceId): array
+    public function findByDeviceId(string $deviceId) : array
     {
         return $this->findByFields([
-            'device_id' => $deviceId
+            'device_id' => $deviceId,
         ]);
     }
 
@@ -38,26 +38,26 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
      * @return int|string
      * @throws \Doctrine\DBAL\Exception
      */
-    public function deleteByDeviceId(string $deviceId): int|string
+    public function deleteByDeviceId(string $deviceId) : int|string
     {
-        return  $this->db()->delete($this->table(), ['device_id' => $deviceId]);
+        return $this->db()->delete($this->table(), ['device_id' => $deviceId]);
     }
 
-    public function existBySsrc(string $ssrc): bool
+    public function existBySsrc(string $ssrc) : bool
     {
         return $this->getByFields([
-                'ssrc' => $ssrc
+                'ssrc' => $ssrc,
             ]) !== null;
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
-                'status'
+                'status',
             ],
             'conditions' => [
                 'id = :id',
@@ -81,7 +81,7 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
         ];
     }
 
-    public function updatePositionByDeviceId(string $deviceId, float $longitude, float $latitude): int
+    public function updatePositionByDeviceId(string $deviceId, float $longitude, float $latitude) : int
     {
         $sql = "UPDATE {$this->table()} SET lat = ?, lng = ?, updated_at = NOW() WHERE device_id = ?";
         return $this->db()->executeStatement($sql, [$latitude, $longitude, $deviceId]);

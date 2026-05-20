@@ -10,12 +10,12 @@ class ArrayStorage implements \ArrayAccess
 
     public function __construct()
     {
-        $this->data = array();
+        $this->data = [];
     }
 
     public function flush()
     {
-        $this->data = array();
+        $this->data = [];
     }
 
     public function offsetSet($offset, $value)

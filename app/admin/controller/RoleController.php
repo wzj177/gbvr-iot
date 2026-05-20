@@ -14,11 +14,11 @@ class RoleController extends BaseController
     /**
      * 获取角色列表
      */
-    public function index(Request $request): Response
+    public function index(Request $request) : Response
     {
         $conditions = $request->get();
-        $start = (int) ($request->get('start', 0));
-        $limit = (int) ($request->get('limit', 10));
+        $start = (int)($request->get('start', 0));
+        $limit = (int)($request->get('limit', 10));
         $sort = $request->get('sort', 'created');
 
         $total = $this->getRoleService()->searchRolesCount($conditions);
@@ -26,16 +26,16 @@ class RoleController extends BaseController
 
         return $this->createSuccessJsonResponse([
             'total' => $total,
-            'list' => $roles,
+            'list'  => $roles,
         ]);
     }
 
     /**
      * 获取单个角色
      */
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $role = $this->getRoleService()->getRole($id);
 
         if (empty($role)) {
@@ -52,7 +52,7 @@ class RoleController extends BaseController
     /**
      * 创建角色
      */
-    public function store(Request $request): Response
+    public function store(Request $request) : Response
     {
         $role = $request->post();
 
@@ -73,9 +73,9 @@ class RoleController extends BaseController
     /**
      * 更新角色
      */
-    public function update(Request $request, $id): Response
+    public function update(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $fields = $request->post();
 
         // 分离菜单权限
@@ -99,9 +99,9 @@ class RoleController extends BaseController
     /**
      * 删除角色
      */
-    public function destroy(Request $request, $id): Response
+    public function destroy(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $this->getRoleService()->deleteRole($id);
 
         $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_DELETE_ROLE, '删除角色', ['id' => $id]);
@@ -112,9 +112,9 @@ class RoleController extends BaseController
     /**
      * 获取角色的菜单权限
      */
-    public function menus(Request $request, $id): Response
+    public function menus(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $role = $this->getRoleService()->getRole($id);
         $menuIds = $role['data']['menuIds'] ?? [];
 
@@ -134,9 +134,9 @@ class RoleController extends BaseController
     /**
      * 分配菜单权限给角色
      */
-    public function assignMenus(Request $request, $id): Response
+    public function assignMenus(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $menuIds = $request->post('menuIds', []);
 
         if (!is_array($menuIds)) {
@@ -150,7 +150,7 @@ class RoleController extends BaseController
         $this->getRoleService()->updateRole($id, ['data' => $updatedData]);
 
         $this->getLogService()->info('role', 'assign_menus', '分配菜单权限', [
-            'roleId' => $id,
+            'roleId'  => $id,
             'menuIds' => $menuIds,
         ]);
 
@@ -160,7 +160,7 @@ class RoleController extends BaseController
     /**
      * 批量删除角色
      */
-    public function batchDelete(Request $request): Response
+    public function batchDelete(Request $request) : Response
     {
         $ids = $request->post('ids', []);
         if (empty($ids) || !is_array($ids)) {
@@ -168,7 +168,7 @@ class RoleController extends BaseController
         }
 
         foreach ($ids as $id) {
-            $this->getRoleService()->deleteRole((int) $id);
+            $this->getRoleService()->deleteRole((int)$id);
         }
 
         $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_BATCH_DELETE_ROLE, '批量删除角色', ['ids' => $ids]);
@@ -179,7 +179,7 @@ class RoleController extends BaseController
     /**
      * 获取角色选项（用于下拉框）
      */
-    public function options(Request $request): Response
+    public function options(Request $request) : Response
     {
         $roles = $this->getRoleService()->searchRoles([], 'created', 0, PHP_INT_MAX);
 
@@ -187,19 +187,19 @@ class RoleController extends BaseController
             return [
                 'value' => $role['id'],
                 'label' => $role['name'],
-                'code' => $role['code'],
+                'code'  => $role['code'],
             ];
         }, $roles);
 
         return $this->createSuccessJsonResponse($options);
     }
 
-    protected function getRoleService(): RoleService
+    protected function getRoleService() : RoleService
     {
         return $this->createService('Role:RoleService');
     }
 
-    protected function getMenuService(): MenuService
+    protected function getMenuService() : MenuService
     {
         return $this->createService('Menu:MenuService');
     }

@@ -44,13 +44,13 @@ class StreamProxyDaoImpl extends AdvancedDaoImpl implements StreamProxyDao
         return $this->findByFields(['record_plan_id' => $recordPlanId]);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'tags' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
                 'updated_at',

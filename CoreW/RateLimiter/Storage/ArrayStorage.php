@@ -4,15 +4,15 @@ namespace CoreW\RateLimiter\Storage;
 
 class ArrayStorage implements Storage
 {
-    protected $data = array();
+    protected $data = [];
 
     public function set($key, $value, $ttl)
     {
-        $this->data[$key] = array(
-            'key' => $key,
-            'value' => $value,
+        $this->data[$key] = [
+            'key'      => $key,
+            'value'    => $value,
             'deadline' => time() + $ttl,
-        );
+        ];
 
         return true;
     }

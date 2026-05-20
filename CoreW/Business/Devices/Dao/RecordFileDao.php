@@ -6,7 +6,7 @@ use CoreW\Dao\DaoInterface;
 
 interface RecordFileDao extends DaoInterface
 {
-    public function getByMainId(string $mainId): ?array;
+    public function getByMainId(string $mainId) : ?array;
 
-    public function countByDate(string $date): int;
+    public function countByDate(string $date) : int;
 }

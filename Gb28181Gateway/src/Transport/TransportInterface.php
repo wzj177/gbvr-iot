@@ -13,7 +13,7 @@ interface TransportInterface
      * 建立连接
      * @return bool
      */
-    public function connect(): bool;
+    public function connect() : bool;
 
     /**
      * 推送消息到队列
@@ -21,7 +21,7 @@ interface TransportInterface
      * @param string $message 消息内容（JSON）
      * @return bool
      */
-    public function push(string $queueKey, string $message): bool;
+    public function push(string $queueKey, string $message) : bool;
 
     /**
      * 从队列中弹出消息（阻塞或非阻塞）
@@ -29,22 +29,22 @@ interface TransportInterface
      * @param int $timeout 超时时间（秒），0为非阻塞
      * @return array|null [queueKey, message] 或 null
      */
-    public function pop(array $queueKeys, int $timeout): ?array;
+    public function pop(array $queueKeys, int $timeout) : ?array;
 
     /**
      * 检查连接是否健康
      * @return bool
      */
-    public function isHealthy(): bool;
+    public function isHealthy() : bool;
 
     /**
      * 关闭连接
      */
-    public function close(): void;
+    public function close() : void;
 
     /**
      * 获取传输类型
      * @return string 'redis' 或 'rabbitmq'
      */
-    public function getType(): string;
+    public function getType() : string;
 }

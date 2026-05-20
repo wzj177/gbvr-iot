@@ -11,6 +11,7 @@ class DeviceToolkit
     {
         return strpos($userAgent, 'Windows NT') !== false || strpos($userAgent, 'Macintosh') !== false;
     }
+
     /**
      * 是否移动端访问访问.
      *
@@ -149,52 +150,52 @@ class DeviceToolkit
             preg_match("/Firefox\/([^;)]+)+/i", $agent, $version);
             $exp[0] = 'Firefox';
             $exp[1] = $version[1];  //获取火狐浏览器的版本号
-        } elseif (false !== stripos($agent, 'Maxthon')) {
+        } else if (false !== stripos($agent, 'Maxthon')) {
             preg_match("/Maxthon\/([\d\.]+)/", $agent, $version);
             $exp[0] = '傲游';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'MSIE')) {
+        } else if (false !== stripos($agent, 'MSIE')) {
             preg_match("/MSIE\s+([^;)]+)+/i", $agent, $version);
             $exp[0] = 'IE';
             $exp[1] = $version[1];  //获取IE的版本号
-        } elseif (false !== stripos($agent, 'Opera')) {
+        } else if (false !== stripos($agent, 'Opera')) {
             preg_match("/Opera\/([\d\.]+)/", $agent, $version);
             $exp[0] = 'Opera';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'Edge')) {
+        } else if (false !== stripos($agent, 'Edge')) {
             //win10 Edge浏览器 添加了chrome内核标记 在判断Chrome之前匹配
             preg_match("/Edge\/([\d\.]+)/", $agent, $version);
             $exp[0] = 'Edge';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'QQBrowserLite')) {
+        } else if (false !== stripos($agent, 'QQBrowserLite')) {
             preg_match("/QQBrowserLite\/([\d\.]+)/", $agent, $version);
             $exp[0] = 'QQ Lite浏览器';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'QQBrowser')) {
+        } else if (false !== stripos($agent, 'QQBrowser')) {
             preg_match("/QQBrowser\/([\d\.]+)/", $agent, $version);
             $exp[0] = 'QQ浏览器';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'Chrome')) {
+        } else if (false !== stripos($agent, 'Chrome')) {
             preg_match("/Chrome\/([\d\.]+)/", $agent, $version);
             $exp[0] = 'Chrome';
             $exp[1] = $version[1];  //获取google chrome的版本号
-        } elseif (false !== stripos($agent, 'rv:') && false !== stripos($agent, 'Gecko')) {
+        } else if (false !== stripos($agent, 'rv:') && false !== stripos($agent, 'Gecko')) {
             preg_match("/rv:([\d\.]+)/", $agent, $version);
             $exp[0] = 'IE';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'MetaSr')) {
+        } else if (false !== stripos($agent, 'MetaSr')) {
             preg_match("/MetaSr([\d\.]+)/", $agent, $version);
             $exp[0] = '搜狗浏览器';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, '360SE')) {
+        } else if (false !== stripos($agent, '360SE')) {
             preg_match("/360SE([\d\.]+)/", $agent, $version);
             $exp[0] = '360浏览器';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'safari/')) {
+        } else if (false !== stripos($agent, 'safari/')) {
             preg_match('/safari\/([^\s]+)/i', $agent, $version);
             $exp[0] = 'Safari';
             $exp[1] = $version[1];
-        } elseif (false !== stripos($agent, 'OmniWeb/')) {
+        } else if (false !== stripos($agent, 'OmniWeb/')) {
             preg_match('/OmniWeb\/(v*)([^\s|;]+)/i', $agent, $version);
             $exp[0] = 'OmniWeb';
             $exp[1] = $version[1];
@@ -216,51 +217,51 @@ class DeviceToolkit
         $agent = $header['user_agent'];
         if (stripos($agent, 'win') && stripos($agent, '95')) {
             $os = 'Windows 95';
-        } elseif (stripos($agent, 'win 9x') && stripos($agent, '4.90')) {
+        } else if (stripos($agent, 'win 9x') && stripos($agent, '4.90')) {
             $os = 'Windows ME';
-        } elseif (stripos($agent, 'win') && stripos($agent, '98')) {
+        } else if (stripos($agent, 'win') && stripos($agent, '98')) {
             $os = 'Windows 98';
-        } elseif (stripos($agent, 'win') && stripos($agent, 'nt 5.1')) {
+        } else if (stripos($agent, 'win') && stripos($agent, 'nt 5.1')) {
             $os = 'Windows XP';
-        } elseif (stripos($agent, 'win') && stripos($agent, 'nt 5')) {
+        } else if (stripos($agent, 'win') && stripos($agent, 'nt 5')) {
             $os = 'Windows 2000';
-        } elseif (stripos($agent, 'win') && stripos($agent, 'nt')) {
+        } else if (stripos($agent, 'win') && stripos($agent, 'nt')) {
             $os = 'Windows NT';
-        } elseif (stripos($agent, 'win') && stripos($agent, '32')) {
+        } else if (stripos($agent, 'win') && stripos($agent, '32')) {
             $os = 'Windows 32';
-        } elseif (stripos($agent, 'linux')) {
+        } else if (stripos($agent, 'linux')) {
             $os = 'Linux';
-        } elseif (stripos($agent, 'unix')) {
+        } else if (stripos($agent, 'unix')) {
             $os = 'Unix';
-        } elseif (stripos($agent, 'sun') && stripos($agent, 'os')) {
+        } else if (stripos($agent, 'sun') && stripos($agent, 'os')) {
             $os = 'SunOS';
-        } elseif (stripos($agent, 'ibm') && stripos($agent, 'os')) {
+        } else if (stripos($agent, 'ibm') && stripos($agent, 'os')) {
             $os = 'IBM OS/2';
-        } elseif (stripos($agent, 'Mac') && stripos($agent, 'PC')) {
+        } else if (stripos($agent, 'Mac') && stripos($agent, 'PC')) {
             $os = 'Macintosh';
-        } elseif (stripos($agent, 'PowerPC')) {
+        } else if (stripos($agent, 'PowerPC')) {
             $os = 'PowerPC';
-        } elseif (stripos($agent, 'AIX')) {
+        } else if (stripos($agent, 'AIX')) {
             $os = 'AIX';
-        } elseif (stripos($agent, 'HPUX')) {
+        } else if (stripos($agent, 'HPUX')) {
             $os = 'HPUX';
-        } elseif (stripos($agent, 'NetBSD')) {
+        } else if (stripos($agent, 'NetBSD')) {
             $os = 'NetBSD';
-        } elseif (stripos($agent, 'BSD')) {
+        } else if (stripos($agent, 'BSD')) {
             $os = 'BSD';
-        } elseif (stripos($agent, 'OSF1')) {
+        } else if (stripos($agent, 'OSF1')) {
             $os = 'OSF1';
-        } elseif (stripos($agent, 'IRIX')) {
+        } else if (stripos($agent, 'IRIX')) {
             $os = 'IRIX';
-        } elseif (stripos($agent, 'FreeBSD')) {
+        } else if (stripos($agent, 'FreeBSD')) {
             $os = 'FreeBSD';
-        } elseif (stripos($agent, 'teleport')) {
+        } else if (stripos($agent, 'teleport')) {
             $os = 'teleport';
-        } elseif (stripos($agent, 'flashget')) {
+        } else if (stripos($agent, 'flashget')) {
             $os = 'flashget';
-        } elseif (stripos($agent, 'webzip')) {
+        } else if (stripos($agent, 'webzip')) {
             $os = 'webzip';
-        } elseif (stripos($agent, 'offline')) {
+        } else if (stripos($agent, 'offline')) {
             $os = 'offline';
         } else {
             $os = '未知操作系统';

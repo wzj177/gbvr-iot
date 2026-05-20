@@ -9,16 +9,16 @@ class AlarmEventDaoImpl extends AdvancedDaoImpl implements AlarmEventDao
 {
     protected $table = 'gv_alarm_event';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'alarm_level' => 'json',
-                'alarm_method' => 'json',
-                'alarm_type' => 'json',
+                'alarm_level'     => 'json',
+                'alarm_method'    => 'json',
+                'alarm_type'      => 'json',
                 'alarm_eventtype' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'alarm_time',
                 'recv_time',
@@ -28,7 +28,7 @@ class AlarmEventDaoImpl extends AdvancedDaoImpl implements AlarmEventDao
                 'created_at',
                 'updated_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'alarm_time',
                 'recv_time',
                 'created_at',
@@ -78,11 +78,11 @@ class AlarmEventDaoImpl extends AdvancedDaoImpl implements AlarmEventDao
         return parent::create($fields);
     }
 
-    public function getLatestByDeviceAndChannel(string $deviceId, string $channelId): ?array
+    public function getLatestByDeviceAndChannel(string $deviceId, string $channelId) : ?array
     {
         $results = $this->search(
             [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
             ],
             ['alarm_time' => 'DESC'],

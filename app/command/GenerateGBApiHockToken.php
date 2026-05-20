@@ -26,7 +26,7 @@ class GenerateGBApiHockToken extends Command
      * @param OutputInterface $output
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $apiHookSecret = config('app.gb.api_hock_secret');
         $serverDomain = config('gb28181.server_domain');

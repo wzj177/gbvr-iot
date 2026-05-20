@@ -30,7 +30,7 @@ class GB28181DeviceController extends BaseController
     public function index(Request $request)
     {
         $conditions = [
-            'sum_num_GT' => 0
+            'sum_num_GT' => 0,
         ];
 
         if ($request->get('status')) {
@@ -38,16 +38,16 @@ class GB28181DeviceController extends BaseController
         }
 
         $total = $this->getDeviceService()->countDevices($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         // TODO：status 根据enum设置顺序排序
         $devices = $this->getDeviceService()->searchDevices($conditions, ['status' => 'ASC', 'id' => 'DESC'], $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'summary' => $this->getDeviceService()->summaryDevices($conditions),
-            'list' => DeviceFilter::publicList($devices),
-            'paginator' => Paginator::toArray($paginator)
+            'summary'   => $this->getDeviceService()->summaryDevices($conditions),
+            'list'      => DeviceFilter::publicList($devices),
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
@@ -190,7 +190,7 @@ class GB28181DeviceController extends BaseController
 
             // 通道过滤
             'filter_channel_types',  // 过滤的通道类型列表，如[134,135]
-            'senior_sdp'
+            'senior_sdp',
         ];
 
         // 过滤只允许更新的字段
@@ -245,7 +245,7 @@ class GB28181DeviceController extends BaseController
             // 检测订阅配置字段变化
             $subscriptionFields = [
                 'subscribe_catalog', 'subscribe_alarm', 'subscribe_position',
-                'subscribe_ptz', 'subscribe_expires', 'position_interval'
+                'subscribe_ptz', 'subscribe_expires', 'position_interval',
             ];
             $hasSubscriptionUpdate = !empty(array_intersect_key($updateData, array_flip($subscriptionFields)));
 
@@ -257,19 +257,19 @@ class GB28181DeviceController extends BaseController
                 try {
                     // 构建订阅配置
                     $subscribeConfig = [
-                        'event_catalog' => (int)($updateData['subscribe_catalog'] ?? 0),
-                        'event_alarm' => (int)($updateData['subscribe_alarm'] ?? 0),
+                        'event_catalog'         => (int)($updateData['subscribe_catalog'] ?? 0),
+                        'event_alarm'           => (int)($updateData['subscribe_alarm'] ?? 0),
                         'event_mobile_position' => (int)($updateData['subscribe_position'] ?? 0),
-                        'subscribe_expires' => (int)($updateData['subscribe_expires'] ?? 3600),
-                        'mobile_interval_sec' => (int)($updateData['position_interval'] ?? 5),
-                        'status' => 1,  // 默认启用
+                        'subscribe_expires'     => (int)($updateData['subscribe_expires'] ?? 3600),
+                        'mobile_interval_sec'   => (int)($updateData['position_interval'] ?? 5),
+                        'status'                => 1,  // 默认启用
                     ];
 
                     $this->getSubscribeService()->saveSubscribeConfig($device['device_id'], null, $subscribeConfig);
 
                     $this->getLogService()->info('subscribe', 'update_subscribe', '设备订阅配置已更新', [
                         'device_id' => $device['device_id'],
-                        'config' => $subscribeConfig,
+                        'config'    => $subscribeConfig,
                     ]);
                 } catch (\Exception $e) {
                     $this->getLogService()->error(LogEnum::MODULE_SUBSCRIBE, LogEnum::ACTION_UPDATE_SUBSCRIBE, '更新订阅配置失败: ' . $e->getMessage(), [
@@ -304,7 +304,7 @@ class GB28181DeviceController extends BaseController
 
         $result = match ($cmd) {
             'query_device_info' => $this->getGb28181Service()->queryDeviceInfo($device['device_id']),
-            'query_record' => (function($request, $device){
+            'query_record' => (function ($request, $device) {
                 $startTime = $request->post('start_time', '');
                 if (empty($startTime)) {
                     return $this->createErrorJsonResponse('请指定开始时间', 400);
@@ -371,13 +371,13 @@ class GB28181DeviceController extends BaseController
             }
 
             $this->getLogService()->info('gb28181', 'batch_update_area', "批量设置设备地区，成功: {$successCount}个", [
-                'ids' => $ids,
+                'ids'        => $ids,
                 'updateData' => $updateData,
             ]);
 
             return $this->createSuccessJsonResponse([
                 'successCount' => $successCount,
-                'message' => "成功设置 {$successCount} 个设备的地区信息",
+                'message'      => "成功设置 {$successCount} 个设备的地区信息",
             ]);
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_BATCH_UPDATE_AREA, '批量设置设备地区失败: ' . $e->getMessage(), [
@@ -467,13 +467,13 @@ class GB28181DeviceController extends BaseController
                 return;
             }
 
-//            $connection->send(new ServerSentEvents(['data' => 'hello']));
+            //            $connection->send(new ServerSentEvents(['data' => 'hello']));
 
             // 如果有错误且没有数据，发送错误消息
             if ($error !== null && $totalLines === 0 && $sentCount === 0) {
                 $connection->send(new ServerSentEvents([
                     'event' => 'error',
-                    'data' => $error,
+                    'data'  => $error,
                 ]));
                 $sentCount++;
                 Timer::del($timerId);
@@ -499,18 +499,18 @@ class GB28181DeviceController extends BaseController
                     ]));
                     $sentCount++;
                 }
-            } elseif ($sentCount > 0) {
+            } else if ($sentCount > 0) {
                 // 数据发送完毕，发送结束消息
                 $connection->send(new ServerSentEvents([
                     'event' => 'end',
-                    'data' => 'done',
+                    'data'  => 'done',
                 ]));
                 Timer::del($timerId);
             } else {
                 // 文件为空，发送提示
                 $connection->send(new ServerSentEvents([
                     'event' => 'end',
-                    'data' => 'done',
+                    'data'  => 'done',
                 ]));
                 $sentCount++;
                 Timer::del($timerId);
@@ -518,9 +518,9 @@ class GB28181DeviceController extends BaseController
         });
 
         return response('', 200, [
-            'Content-Type' => 'text/event-stream',
-            'Cache-Control' => 'no-cache',
-            'Connection' => 'keep-alive',
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache',
+            'Connection'        => 'keep-alive',
             'X-Accel-Buffering' => 'no',
         ]);
     }
@@ -529,7 +529,7 @@ class GB28181DeviceController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -537,7 +537,7 @@ class GB28181DeviceController extends BaseController
     /**
      * @return Gb28181Service
      */
-    private function getGb28181Service(): Gb28181Service
+    private function getGb28181Service() : Gb28181Service
     {
         return $this->getBiz()->offsetGet('gb28181_service');
     }
@@ -545,7 +545,7 @@ class GB28181DeviceController extends BaseController
     /**
      * @return SubscribeService
      */
-    private function getSubscribeService(): SubscribeService
+    private function getSubscribeService() : SubscribeService
     {
         return $this->createService('Subscribe:SubscribeService');
     }

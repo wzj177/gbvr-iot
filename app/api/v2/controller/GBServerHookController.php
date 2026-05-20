@@ -30,7 +30,7 @@ use support\Request;
 class GBServerHookController extends BaseController
 {
 
-    public function index(Request $request): \support\Response
+    public function index(Request $request) : \support\Response
     {
         $scene = $request->post('scene');
         $body = $request->post('body', []);
@@ -38,7 +38,7 @@ class GBServerHookController extends BaseController
         if ($scene !== 'sip_xml') {
             Log::channel('sip')->info('GBServer Hook Received', [
                 'scene' => $scene,
-                'body' => $body,
+                'body'  => $body,
             ]);
         }
 
@@ -80,16 +80,16 @@ class GBServerHookController extends BaseController
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Hook handler exception', [
-                'scene' => $scene,
+                'scene'     => $scene,
                 'exception' => $e->getMessage(),
-                'trace' => $e->getMessage(),
+                'trace'     => $e->getMessage(),
             ]);
 
             return $this->createErrorJsonResponse($e->getMessage(), 500);
         }
     }
 
-    private function handleSipXml(array $body): void
+    private function handleSipXml(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -115,7 +115,7 @@ class GBServerHookController extends BaseController
      * @param array $body
      * @return void
      */
-    private function handleGatewayCmdAfter(array $body): void
+    private function handleGatewayCmdAfter(array $body) : void
     {
         Log::channel('sip')->info('Gateway command after', $body);
     }
@@ -126,7 +126,7 @@ class GBServerHookController extends BaseController
      * 设备返回 XML:
      * <Response><CmdType>PresetQuery</CmdType><PresetList>...</PresetList></Response>
      */
-    private function handlePresetQueryResult(array $body): void
+    private function handlePresetQueryResult(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $presetList = $body['preset_list'] ?? [];
@@ -134,8 +134,8 @@ class GBServerHookController extends BaseController
 
         Log::channel('sip')->info('Preset query result', [
             'device_id' => $deviceId,
-            'num' => $num,
-            'presets' => $presetList,
+            'num'       => $num,
+            'presets'   => $presetList,
         ]);
 
         if ($deviceId && !empty($presetList)) {
@@ -144,7 +144,7 @@ class GBServerHookController extends BaseController
             } catch (\Exception $e) {
                 Log::channel('sip')->error('Failed to sync presets from device', [
                     'device_id' => $deviceId,
-                    'error' => $e->getMessage(),
+                    'error'     => $e->getMessage(),
                 ]);
             }
         }
@@ -156,15 +156,15 @@ class GBServerHookController extends BaseController
      * 设备返回 XML:
      * <Response><CmdType>ConfigDownload</CmdType><BasicParam>...</BasicParam></Response>
      */
-    private function handleConfigDownloadResult(array $body): void
+    private function handleConfigDownloadResult(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $basicParam = $body['basic_param'] ?? [];
         $result = $body['result'] ?? '';
 
         Log::channel('sip')->info('Config download result', [
-            'device_id' => $deviceId,
-            'result' => $result,
+            'device_id'   => $deviceId,
+            'result'      => $result,
             'basic_param' => $basicParam,
         ]);
 
@@ -176,13 +176,13 @@ class GBServerHookController extends BaseController
                     $updateFields['name'] = $basicParam['Name'];
                 }
                 if (!empty($basicParam['HeartBeatInterval'])) {
-                    $updateFields['heartbeat_interval'] = (int) $basicParam['HeartBeatInterval'];
+                    $updateFields['heartbeat_interval'] = (int)$basicParam['HeartBeatInterval'];
                 }
                 if (!empty($basicParam['HeartBeatCount'])) {
-                    $updateFields['heartbeat_count'] = (int) $basicParam['HeartBeatCount'];
+                    $updateFields['heartbeat_count'] = (int)$basicParam['HeartBeatCount'];
                 }
                 if (!empty($basicParam['Expiration'])) {
-                    $updateFields['expiration'] = (int) $basicParam['Expiration'];
+                    $updateFields['expiration'] = (int)$basicParam['Expiration'];
                 }
                 if (!empty($updateFields)) {
                     $this->getDeviceService()->updateDeviceConfig($deviceId, $updateFields);
@@ -190,7 +190,7 @@ class GBServerHookController extends BaseController
             } catch (\Exception $e) {
                 Log::channel('sip')->error('Failed to update device config', [
                     'device_id' => $deviceId,
-                    'error' => $e->getMessage(),
+                    'error'     => $e->getMessage(),
                 ]);
             }
         }
@@ -199,7 +199,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理设备注册
      */
-    private function handleRegister(array $body): void
+    private function handleRegister(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -220,14 +220,14 @@ class GBServerHookController extends BaseController
             $this->getGb28181Service()->queryDeviceInfo($deviceId);
 
             Log::channel('sip')->info('Device registered', [
-                'device_id' => $deviceId,
-                'status' => $device['status'] ?? 'unknown',
+                'device_id'  => $deviceId,
+                'status'     => $device['status'] ?? 'unknown',
                 'gateway_id' => $gatewayId,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Register failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getTraceAsString(),
+                'error'     => $e->getTraceAsString(),
             ]);
         }
     }
@@ -235,7 +235,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理设备注销 (主动注销)
      */
-    private function handleUnRegister(array $body): void
+    private function handleUnRegister(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -252,7 +252,7 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('Unregister failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -260,7 +260,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理设备心跳超时
      */
-    private function handleExpired(array $body): void
+    private function handleExpired(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -272,14 +272,14 @@ class GBServerHookController extends BaseController
             $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::EXPIRED->value);
 
             Log::channel('sip')->warning('Device heartbeat expired', [
-                'device_id' => $deviceId,
+                'device_id'      => $deviceId,
                 'last_heartbeat' => $body['last_heartbeat'] ?? 0,
-                'timeout' => $body['timeout'] ?? 0,
+                'timeout'        => $body['timeout'] ?? 0,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Expired handler failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -288,7 +288,7 @@ class GBServerHookController extends BaseController
      * @deprecated
      * 处理设备长期注销，这里仅更新设备状态为已注销
      */
-    private function handleOffline(array $body): void
+    private function handleOffline(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -300,14 +300,14 @@ class GBServerHookController extends BaseController
             $this->getDeviceService()->updateDeviceStatus($deviceId, DeviceStatusEnum::UNREGISTERED->value);
 
             Log::channel('sip')->info('Device offline (cleaned)', [
-                'device_id' => $deviceId,
-                'registered_at' => $body['registered_at'] ?? 0,
+                'device_id'      => $deviceId,
+                'registered_at'  => $body['registered_at'] ?? 0,
                 'last_heartbeat' => $body['last_heartbeat'] ?? 0,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Offline handler failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -315,7 +315,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理心跳更新
      */
-    private function handleHeartbeat(array $body): void
+    private function handleHeartbeat(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -327,7 +327,7 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('Heartbeat update failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -335,7 +335,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理设备目录
      */
-    private function handleCatalog(array $body): void
+    private function handleCatalog(array $body) : void
     {
         Log::channel('sip')->debug('Catalog received', $body);
         $deviceId = $body['device_id'] ?? '';
@@ -344,7 +344,7 @@ class GBServerHookController extends BaseController
         if (!$deviceId || empty($devices)) {
             Log::channel('sip')->warning('Catalog missing data', [
                 'device_id' => $deviceId,
-                'count' => count($devices),
+                'count'     => count($devices),
             ]);
             return;
         }
@@ -354,12 +354,12 @@ class GBServerHookController extends BaseController
 
             Log::channel('sip')->info('Device catalog saved', [
                 'device_id' => $deviceId,
-                'count' => $count,
+                'count'     => $count,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Catalog save failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -367,7 +367,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理媒体流就绪（收到设备200 OK，包含设备SSRC）
      */
-    private function handleMediaReady(array $body): void
+    private function handleMediaReady(array $body) : void
     {
         $callId = $body['call_id'] ?? 0;
         $deviceSsrc = $body['device_ssrc'] ?? '';
@@ -394,12 +394,12 @@ class GBServerHookController extends BaseController
 
             // 更新会话状态和设备 SSRC
             $updateData = [
-                'status' => StreamSessionStatus::Active->value,
-                'device_ip' => !empty($body['device_ip']) ? $body['device_ip'] : $sdp['origin']['addr'] ?? null,
+                'status'      => StreamSessionStatus::Active->value,
+                'device_ip'   => !empty($body['device_ip']) ? $body['device_ip'] : $sdp['origin']['addr'] ?? null,
                 'device_port' => $body['device_port'] ?? 0,
-                'call_id' => $callId,
-                'dialog_id' => $body['dialog_id'] ?? -1,
-                'sdp' => isset($body['sdp']) ? serialize($sdp) : null,
+                'call_id'     => $callId,
+                'dialog_id'   => $body['dialog_id'] ?? -1,
+                'sdp'         => isset($body['sdp']) ? serialize($sdp) : null,
             ];
 
             $this->getDeviceService()->updateChannelByMainId($session['stream_id'], [
@@ -410,7 +410,7 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('Media ready handler failed', [
                 'call_id' => $callId,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
         }
     }
@@ -434,7 +434,7 @@ class GBServerHookController extends BaseController
      * 2. 调用 VoiceTalkService::onSipResponseOk() 更新会话状态为 CONNECTED
      * 3. VoiceTalkService 内部保存 sendRtpInfo 并更新数据库
      */
-    private function handleVoiceEstablished(array $body): void
+    private function handleVoiceEstablished(array $body) : void
     {
         $sessionId = $body['session_id'] ?? '';
         $deviceId = $body['device_id'] ?? '';
@@ -448,25 +448,25 @@ class GBServerHookController extends BaseController
         }
 
         Log::channel('sip')->info('Voice talk established', [
-            'session_id' => $sessionId,
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'call_id' => $callId,
-            'dialog_id' => $dialogId,
-            'device_ip' => $body['device_ip'] ?? null,
+            'session_id'  => $sessionId,
+            'device_id'   => $deviceId,
+            'channel_id'  => $channelId,
+            'call_id'     => $callId,
+            'dialog_id'   => $dialogId,
+            'device_ip'   => $body['device_ip'] ?? null,
             'device_port' => $body['device_port'] ?? null,
         ]);
 
         try {
             // 调用 VoiceTalkService::onSipResponseOk() 更新会话状态
             $sipResponse = [
-                'call_id' => $callId,
-                'dialog_id' => $dialogId,
-                'device_ip' => $body['device_ip'] ?? null,
+                'call_id'     => $callId,
+                'dialog_id'   => $dialogId,
+                'device_ip'   => $body['device_ip'] ?? null,
                 'device_port' => $body['device_port'] ?? null,
-                'ssrc' => $body['ssrc'] ?? null,
-                'stream_id' => $body['stream_id'] ?? null,
-                'mode' => $body['mode'] ?? 'talk',
+                'ssrc'        => $body['ssrc'] ?? null,
+                'stream_id'   => $body['stream_id'] ?? null,
+                'mode'        => $body['mode'] ?? 'talk',
             ];
 
             $this->getVoiceTalkService()->onSipResponseOk($sessionId, $sipResponse);
@@ -478,8 +478,8 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('Voice established handler failed', [
                 'session_id' => $sessionId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
             ]);
         }
     }
@@ -487,13 +487,13 @@ class GBServerHookController extends BaseController
     /**
      * 处理会话结束（BYE）
      */
-    private function handleSessionBye(array $body): void
+    private function handleSessionBye(array $body) : void
     {
         $callId = $body['call_id'] ?? 0;
         $deviceId = $body['device_id'] ?? '';
 
         Log::channel('sip')->info('Session bye', [
-            'call_id' => $callId,
+            'call_id'   => $callId,
             'device_id' => $deviceId,
         ]);
 
@@ -517,7 +517,7 @@ class GBServerHookController extends BaseController
                     } catch (\Exception $e) {
                         Log::channel('sip')->warning('Close stream failed', [
                             'stream_id' => $streamId,
-                            'error' => $e->getMessage(),
+                            'error'     => $e->getMessage(),
                         ]);
                     }
                 }
@@ -529,7 +529,7 @@ class GBServerHookController extends BaseController
                         Log::channel('sip')->info('RTP port closed', ['port' => $port]);
                     } catch (\Exception $e) {
                         Log::channel('sip')->warning('Close RTP port failed', [
-                            'port' => $port,
+                            'port'  => $port,
                             'error' => $e->getMessage(),
                         ]);
                     }
@@ -546,7 +546,7 @@ class GBServerHookController extends BaseController
             $voiceSession = $this->getVoiceTalkService()->getSessionByCallId((string)$callId);
             if ($voiceSession) {
                 Log::channel('sip')->info('Voice talk session bye from device', [
-                    'call_id' => $callId,
+                    'call_id'    => $callId,
                     'session_id' => $voiceSession['session_id'] ?? null,
                 ]);
 
@@ -554,7 +554,7 @@ class GBServerHookController extends BaseController
                 $this->getVoiceTalkService()->stopVoiceTalkBySession($voiceSession, 'device_bye');
 
                 Log::channel('sip')->info('Voice talk session cleaned up', [
-                    'call_id' => $callId,
+                    'call_id'    => $callId,
                     'session_id' => $voiceSession['session_id'] ?? null,
                 ]);
                 return;
@@ -562,13 +562,13 @@ class GBServerHookController extends BaseController
 
             // 3. 未找到任何会话
             Log::channel('sip')->warning('Session not found for BYE (neither video nor voice)', [
-                'call_id' => $callId
+                'call_id' => $callId,
             ]);
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Session bye handler failed', [
                 'call_id' => $callId,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
         }
     }
@@ -576,7 +576,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理设备状态变化
      */
-    private function handleDeviceStatus(array $body): void
+    private function handleDeviceStatus(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $online = $body['online'] ?? 'OFFLINE';
@@ -592,12 +592,12 @@ class GBServerHookController extends BaseController
 
             Log::channel('sip')->info('Device status changed', [
                 'device_id' => $deviceId,
-                'status' => $status,
+                'status'    => $status,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Device Status update failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -623,15 +623,15 @@ class GBServerHookController extends BaseController
             $records = [];
             foreach ($recordList as $item) {
                 $records[] = [
-                    'device_id' => $body['device_id'],
-                    'channel_id' => $item['DeviceID'],
-                    'name' => $item['Name'],
-                    'file_path' => $item['FilePath'] ?? '',
-                    'address' => $item['Address'] ?? '',
-                    'start_time' => strtotime($item['StartTime']),
-                    'end_time' => strtotime($item['EndTime']),
-                    'secrecy' => (int)($item['Secrecy'] ?? 0),
-                    'type' => $item['Type'] ?? 'time',
+                    'device_id'   => $body['device_id'],
+                    'channel_id'  => $item['DeviceID'],
+                    'name'        => $item['Name'],
+                    'file_path'   => $item['FilePath'] ?? '',
+                    'address'     => $item['Address'] ?? '',
+                    'start_time'  => strtotime($item['StartTime']),
+                    'end_time'    => strtotime($item['EndTime']),
+                    'secrecy'     => (int)($item['Secrecy'] ?? 0),
+                    'type'        => $item['Type'] ?? 'time',
                     'recorder_id' => $item['RecorderID'] ?? '',
                 ];
             }
@@ -641,19 +641,19 @@ class GBServerHookController extends BaseController
 
             Log::channel('sip')->info('Playback records saved', [
                 'device_id' => $body['device_id'],
-                'count' => count($records),
+                'count'     => count($records),
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Playback records save failed', [
                 'device_id' => $body['device_id'],
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
 
         return;
     }
 
-    private function handleDeviceInfo(array $body): void
+    private function handleDeviceInfo(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
@@ -672,21 +672,21 @@ class GBServerHookController extends BaseController
 
         try {
             $this->getDeviceService()->updateDevice($device['id'], [
-                'device_name' => $info['DeviceName'] ?? $device['name'],
+                'device_name'  => $info['DeviceName'] ?? $device['name'],
                 'manufacturer' => $info['Manufacturer'] ?? $device['manufacturer'],
-                'model' => $info['Model'] ?? $device['model'],
-                'firmware' => $info['Firmware'] ?? $device['firmware'],
-                'sum_num' => $info['Channel'] ?? $device['sum_num'],
+                'model'        => $info['Model'] ?? $device['model'],
+                'firmware'     => $info['Firmware'] ?? $device['firmware'],
+                'sum_num'      => $info['Channel'] ?? $device['sum_num'],
             ]);
 
             Log::channel('sip')->info('Device Info changed', [
                 'device_id' => $deviceId,
-                'info' => $info,
+                'info'      => $info,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Device Info update failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -694,7 +694,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理报警信息
      */
-    private function handleAlarm(array $body): void
+    private function handleAlarm(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $priority = $body['priority'] ?? '1';
@@ -702,9 +702,9 @@ class GBServerHookController extends BaseController
 
         Log::channel('sip')->warning('Device alarm', [
             'device_id' => $deviceId,
-            'priority' => $priority,
-            'method' => $method,
-            'data' => $body['data'] ?? [],
+            'priority'  => $priority,
+            'method'    => $method,
+            'data'      => $body['data'] ?? [],
         ]);
 
         // TODO: 存储报警记录到数据库
@@ -724,7 +724,7 @@ class GBServerHookController extends BaseController
      * - 录像控制：标记录像任务已提交
      * - 设备配置：标记配置命令已下发
      */
-    private function handleCommandConfirmed(array $body): void
+    private function handleCommandConfirmed(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $callId = $body['call_id'] ?? 0;
@@ -737,9 +737,9 @@ class GBServerHookController extends BaseController
         }
 
         Log::channel('sip')->info('Device confirmed command', [
-            'device_id' => $deviceId,
-            'call_id' => $callId,
-            'cseq' => $cseq,
+            'device_id'   => $deviceId,
+            'call_id'     => $callId,
+            'cseq'        => $cseq,
             'status_code' => $statusCode,
         ]);
 
@@ -760,7 +760,7 @@ class GBServerHookController extends BaseController
                 // ]);
 
                 Log::channel('sip')->debug('Device command confirmed', [
-                    'device_id' => $deviceId,
+                    'device_id'   => $deviceId,
                     'device_name' => $device['device_name'] ?? 'unknown',
                 ]);
             }
@@ -768,7 +768,7 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('Handle command confirmed failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -785,7 +785,7 @@ class GBServerHookController extends BaseController
      * @param array $body 请求体
      * @return array 返回 local_port, media_server_ip, ssrc, tcp_mode, stream_ready
      */
-    private function handleBroadcastSetupRtp(array $body): array
+    private function handleBroadcastSetupRtp(array $body) : array
     {
         $sessionId = $body['session_id'] ?? '';
         if (!$sessionId) {
@@ -793,16 +793,16 @@ class GBServerHookController extends BaseController
         }
 
         Log::channel('sip')->info('Broadcast setup RTP', [
-            'session_id' => $sessionId,
+            'session_id'       => $sessionId,
             'device_transport' => $body['device_transport'] ?? null,
-            'device_setup' => $body['device_setup'] ?? null,
+            'device_setup'     => $body['device_setup'] ?? null,
         ]);
 
         $deviceSdpInfo = [
             'device_transport' => $body['device_transport'] ?? 'RTP/AVP',
-            'device_setup' => $body['device_setup'] ?? 'active',
-            'device_ip' => $body['device_ip'] ?? null,
-            'device_port' => $body['device_port'] ?? null,
+            'device_setup'     => $body['device_setup'] ?? 'active',
+            'device_ip'        => $body['device_ip'] ?? null,
+            'device_port'      => $body['device_port'] ?? null,
         ];
 
         $result = $this->getVoiceTalkService()->setupBroadcastRtp($sessionId, $deviceSdpInfo);
@@ -822,9 +822,9 @@ class GBServerHookController extends BaseController
         $result['stream_ready'] = $streamReady;
 
         Log::channel('sip')->info('Broadcast setup RTP result', [
-            'session_id' => $sessionId,
-            'local_port' => $result['local_port'] ?? null,
-            'tcp_mode' => $result['tcp_mode'] ?? null,
+            'session_id'   => $sessionId,
+            'local_port'   => $result['local_port'] ?? null,
+            'tcp_mode'     => $result['tcp_mode'] ?? null,
             'stream_ready' => $streamReady,
         ]);
 
@@ -844,7 +844,7 @@ class GBServerHookController extends BaseController
      * @param array $body 请求体
      * @return array|null
      */
-    private function handleStartSendRtp(array $body): ?array
+    private function handleStartSendRtp(array $body) : ?array
     {
         $sessionId = $body['session_id'] ?? '';
         $ssrc = $body['ssrc'] ?? '';
@@ -860,10 +860,10 @@ class GBServerHookController extends BaseController
 
         Log::channel('sip')->info('Start send RTP for broadcast', [
             'session_id' => $sessionId,
-            'stream_id' => $streamId,
-            'ssrc' => $ssrc,
-            'app' => $app,
-            'tcp_mode' => $tcpMode,
+            'stream_id'  => $streamId,
+            'ssrc'       => $ssrc,
+            'app'        => $app,
+            'tcp_mode'   => $tcpMode,
         ]);
 
         try {
@@ -872,7 +872,7 @@ class GBServerHookController extends BaseController
             if (!$streamReady) {
                 Log::channel('sip')->warning('Stream not ready when starting send RTP', [
                     'session_id' => $sessionId,
-                    'stream_id' => $streamId,
+                    'stream_id'  => $streamId,
                 ]);
 
                 // 流已不存在，触发清理
@@ -907,8 +907,8 @@ class GBServerHookController extends BaseController
 
             if (!$deviceIp || !$devicePort) {
                 Log::channel('sip')->warning('Missing device IP/Port for active push', [
-                    'session_id' => $sessionId,
-                    'device_ip' => $deviceIp,
+                    'session_id'  => $sessionId,
+                    'device_ip'   => $deviceIp,
                     'device_port' => $devicePort,
                 ]);
                 return ['success' => false, 'reason' => 'missing_device_address'];
@@ -936,11 +936,11 @@ class GBServerHookController extends BaseController
             );
 
             Log::channel('sip')->info('startSendRtp result', [
-                'session_id' => $sessionId,
-                'tcp_mode' => $tcpMode,
-                'is_udp' => $isUdp,
+                'session_id'    => $sessionId,
+                'tcp_mode'      => $tcpMode,
+                'is_udp'        => $isUdp,
                 'device_target' => "{$deviceIp}:{$devicePort}",
-                'result' => $result,
+                'result'        => $result,
             ]);
 
             return ['success' => true, 'result' => $result];
@@ -948,8 +948,8 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('start_send_rtp failed', [
                 'session_id' => $sessionId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
             ]);
 
             return ['success' => false, 'reason' => $e->getMessage()];
@@ -963,7 +963,7 @@ class GBServerHookController extends BaseController
      *
      * @param array $body 请求体
      */
-    private function handleBroadcastStop(array $body): void
+    private function handleBroadcastStop(array $body) : void
     {
         $sessionId = $body['session_id'] ?? '';
         $reason = $body['reason'] ?? 'unknown';
@@ -975,7 +975,7 @@ class GBServerHookController extends BaseController
 
         Log::channel('sip')->info('Broadcast stop requested', [
             'session_id' => $sessionId,
-            'reason' => $reason,
+            'reason'     => $reason,
         ]);
 
         try {
@@ -993,7 +993,7 @@ class GBServerHookController extends BaseController
         } catch (\Exception $e) {
             Log::channel('sip')->error('broadcast_stop failed', [
                 'session_id' => $sessionId,
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
         }
     }
@@ -1001,7 +1001,7 @@ class GBServerHookController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -1010,15 +1010,15 @@ class GBServerHookController extends BaseController
     /**
      * @return Gb28181Service
      */
-    private function getGb28181Service(): Gb28181Service
+    private function getGb28181Service() : Gb28181Service
     {
-        return $this->createService('GB:Gb28181Service');
+        return $this->getBiz()->offsetGet('gb28181_service');
     }
 
     /**
      * @return PlaybackRecordService
      */
-    private function getPlaybackRecordService(): PlaybackRecordService
+    private function getPlaybackRecordService() : PlaybackRecordService
     {
         return $this->createService('Devices:PlaybackRecordService');
     }
@@ -1026,7 +1026,7 @@ class GBServerHookController extends BaseController
     /**
      * @return AlarmEventService
      */
-    private function getAlarmEventService(): AlarmEventService
+    private function getAlarmEventService() : AlarmEventService
     {
         return $this->createService('Alarm:AlarmEventService');
     }
@@ -1034,7 +1034,7 @@ class GBServerHookController extends BaseController
     /**
      * @return RecordTaskService
      */
-    private function getRecordTaskService(): \CoreW\Business\Record\Service\RecordTaskService
+    private function getRecordTaskService() : \CoreW\Business\Record\Service\RecordTaskService
     {
         return $this->createService('Record:RecordTaskService');
     }
@@ -1042,7 +1042,7 @@ class GBServerHookController extends BaseController
     /**
      * @return \CoreW\Business\Devices\Service\VoiceTalkService
      */
-    private function getVoiceTalkService(): \CoreW\Business\Devices\Service\VoiceTalkService
+    private function getVoiceTalkService() : \CoreW\Business\Devices\Service\VoiceTalkService
     {
         return $this->createService('Devices:VoiceTalkService');
     }
@@ -1051,7 +1051,7 @@ class GBServerHookController extends BaseController
      * 处理目录变更通知（NOTIFY with Event: Catalog）
      * 设备主动推送目录变更时触发
      */
-    private function handleCatalogUpdate(array $body): void
+    private function handleCatalogUpdate(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $devices = $body['devices'] ?? [];
@@ -1059,7 +1059,7 @@ class GBServerHookController extends BaseController
         if (!$deviceId || empty($devices)) {
             Log::channel('sip')->warning('Catalog update missing data', [
                 'device_id' => $deviceId,
-                'count' => count($devices),
+                'count'     => count($devices),
             ]);
             return;
         }
@@ -1070,12 +1070,12 @@ class GBServerHookController extends BaseController
 
             Log::channel('sip')->info('Catalog update handled', [
                 'device_id' => $deviceId,
-                'count' => $count,
+                'count'     => $count,
             ]);
         } catch (\Exception $e) {
             Log::channel('sip')->error('Catalog update handler failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -1084,7 +1084,7 @@ class GBServerHookController extends BaseController
      * 处理报警事件通知（NOTIFY with Event: Alarm）
      * 设备主动推送报警时触发
      */
-    private function handleAlarmEvent(array $body): void
+    private function handleAlarmEvent(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $alarmData = $body['data'] ?? [];
@@ -1097,17 +1097,17 @@ class GBServerHookController extends BaseController
         try {
             // 解析报警数据
             $alarmEvent = [
-                'device_id' => $deviceId,
-                'channel_id' => $alarmData['channel_id'] ?? $deviceId,
-                'level' => $alarmData['priority'] ?? $alarmData['level'] ?? 1,
-                'method' => $alarmData['method'] ?? $alarmData['alarm_method'] ?? 1,
-                'type' => $alarmData['alarm_type'] ?? $alarmData['type'] ?? null,
-                'eventtype' => $alarmData['event_type'] ?? $alarmData['eventtype'] ?? null,
+                'device_id'   => $deviceId,
+                'channel_id'  => $alarmData['channel_id'] ?? $deviceId,
+                'level'       => $alarmData['priority'] ?? $alarmData['level'] ?? 1,
+                'method'      => $alarmData['method'] ?? $alarmData['alarm_method'] ?? 1,
+                'type'        => $alarmData['alarm_type'] ?? $alarmData['type'] ?? null,
+                'eventtype'   => $alarmData['event_type'] ?? $alarmData['eventtype'] ?? null,
                 'description' => $alarmData['description'] ?? $alarmData['alarm_description'] ?? '',
-                'longitude' => $alarmData['longitude'] ?? null,
-                'latitude' => $alarmData['latitude'] ?? null,
-                'alarm_time' => $alarmData['alarm_time'] ?? date('Y-m-d H:i:s.v'),
-                'recv_time' => date('Y-m-d H:i:s.v'),
+                'longitude'   => $alarmData['longitude'] ?? null,
+                'latitude'    => $alarmData['latitude'] ?? null,
+                'alarm_time'  => $alarmData['alarm_time'] ?? date('Y-m-d H:i:s.v'),
+                'recv_time'   => date('Y-m-d H:i:s.v'),
                 'raw_payload' => $body['raw_payload'] ?? json_encode($alarmData, JSON_UNESCAPED_UNICODE),
             ];
 
@@ -1115,17 +1115,17 @@ class GBServerHookController extends BaseController
             $event = $this->getAlarmEventService()->handleAlarmNotify($alarmEvent);
 
             Log::channel('sip')->info('Alarm event handled', [
-                'event_id' => $event['id'],
-                'device_id' => $deviceId,
-                'channel_id' => $event['channel_id'],
-                'level' => $event['level'],
+                'event_id'      => $event['id'],
+                'device_id'     => $deviceId,
+                'channel_id'    => $event['channel_id'],
+                'level'         => $event['level'],
                 'alarm_plan_id' => $event['alarm_plan_id'] ?? null,
             ]);
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Alarm event handler failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -1134,7 +1134,7 @@ class GBServerHookController extends BaseController
      * 处理位置更新通知（NOTIFY with Event: presence）
      * 移动设备周期性推送位置时触发
      */
-    private function handlePositionUpdate(array $body): void
+    private function handlePositionUpdate(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $positionData = $body['position'] ?? $body['data'] ?? [];
@@ -1148,12 +1148,12 @@ class GBServerHookController extends BaseController
 
         try {
             $position = [
-                'device_id' => $deviceId,
-                'longitude' => $positionData['longitude'] ?? 0,
-                'latitude' => $positionData['latitude'] ?? 0,
-                'speed' => $positionData['speed'] ?? 0,
-                'direction' => $positionData['direction'] ?? 0,
-                'altitude' => $positionData['altitude'] ?? 0,
+                'device_id'   => $deviceId,
+                'longitude'   => $positionData['longitude'] ?? 0,
+                'latitude'    => $positionData['latitude'] ?? 0,
+                'speed'       => $positionData['speed'] ?? 0,
+                'direction'   => $positionData['direction'] ?? 0,
+                'altitude'    => $positionData['altitude'] ?? 0,
                 'record_time' => $positionData['time'] ?? $positionData['alarm_time'] ?? date('Y-m-d H:i:s'),
             ];
 
@@ -1163,13 +1163,13 @@ class GBServerHookController extends BaseController
             Log::channel('sip')->debug('Position update received', [
                 'device_id' => $deviceId,
                 'longitude' => $position['longitude'],
-                'latitude' => $position['latitude'],
+                'latitude'  => $position['latitude'],
             ]);
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Position update handler failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
         }
     }
@@ -1178,7 +1178,7 @@ class GBServerHookController extends BaseController
      * 处理移动位置订阅确认
      * 订阅成功后网关推送确认
      */
-    private function handleMobilePositionSubscribe(array $body): void
+    private function handleMobilePositionSubscribe(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $expires = $body['expires'] ?? 0;
@@ -1186,8 +1186,8 @@ class GBServerHookController extends BaseController
 
         Log::channel('sip')->info('Mobile position subscribed', [
             'device_id' => $deviceId,
-            'expires' => $expires,
-            'interval' => $interval,
+            'expires'   => $expires,
+            'interval'  => $interval,
         ]);
 
         // TODO: 更新订阅配置状态
@@ -1197,7 +1197,7 @@ class GBServerHookController extends BaseController
     /**
      * 处理移动位置取消订阅确认
      */
-    private function handleMobilePositionUnsubscribe(array $body): void
+    private function handleMobilePositionUnsubscribe(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
 
@@ -1213,7 +1213,7 @@ class GBServerHookController extends BaseController
      * 处理移动位置上报（mobile_position_report）
      * Gateway收到设备的MobilePosition NOTIFY后投递的任务
      */
-    private function handleMobilePositionReport(array $body): void
+    private function handleMobilePositionReport(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
         $data = $body['data'] ?? [];
@@ -1229,15 +1229,15 @@ class GBServerHookController extends BaseController
             // 构建位置数据
             $positionData = [
                 'device_id' => $deviceId,
-                'cmd_type' => $data['cmd_type'] ?? 'MobilePosition',
-                'time' => $data['time'] ?? date('Y-m-d H:i:s'),
+                'cmd_type'  => $data['cmd_type'] ?? 'MobilePosition',
+                'time'      => $data['time'] ?? date('Y-m-d H:i:s'),
                 'longitude' => $data['longitude'] ?? 0,
-                'latitude' => $data['latitude'] ?? 0,
-                'speed' => $data['speed'] ?? 0,
+                'latitude'  => $data['latitude'] ?? 0,
+                'speed'     => $data['speed'] ?? 0,
                 'direction' => $data['direction'] ?? 0,
-                'altitude' => $data['altitude'] ?? 0,
+                'altitude'  => $data['altitude'] ?? 0,
                 'recv_time' => date('Y-m-d H:i:s'),
-                'raw_data' => json_encode($data, JSON_UNESCAPED_UNICODE),
+                'raw_data'  => json_encode($data, JSON_UNESCAPED_UNICODE),
             ];
 
             // 保存位置信息到历史表
@@ -1253,15 +1253,15 @@ class GBServerHookController extends BaseController
             Log::channel('sip')->debug('Mobile position saved', [
                 'device_id' => $deviceId,
                 'longitude' => $positionData['longitude'],
-                'latitude' => $positionData['latitude'],
-                'time' => $positionData['time'],
+                'latitude'  => $positionData['latitude'],
+                'time'      => $positionData['time'],
             ]);
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Mobile position report handler failed', [
                 'device_id' => $deviceId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'     => $e->getMessage(),
+                'trace'     => $e->getTraceAsString(),
             ]);
         }
     }
@@ -1269,7 +1269,7 @@ class GBServerHookController extends BaseController
     /**
      * @return \CoreW\Business\Devices\Service\DevicePositionService
      */
-    private function getDevicePositionService(): \CoreW\Business\Devices\Service\DevicePositionService
+    private function getDevicePositionService() : \CoreW\Business\Devices\Service\DevicePositionService
     {
         return $this->createService('Devices:DevicePositionService');
     }

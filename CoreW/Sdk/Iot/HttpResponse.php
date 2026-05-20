@@ -47,7 +47,7 @@ class HttpResponse
      *
      * @return array
      */
-    public function getHeaders(): array
+    public function getHeaders() : array
     {
         return $this->headers;
     }
@@ -57,7 +57,7 @@ class HttpResponse
      *
      * @return string
      */
-    public function getBody(): string
+    public function getBody() : string
     {
         return $this->body;
     }
@@ -67,7 +67,7 @@ class HttpResponse
      *
      * @return int
      */
-    public function getHttpResponseCode(): int
+    public function getHttpResponseCode() : int
     {
         return $this->httpResponseCode;
     }
@@ -79,8 +79,8 @@ class HttpResponse
      */
     public function setHttpResponseCodeFromHeader(string $rawResponseHeader)
     {
-//        preg_match('|HTTP/\d\.\d\s+(\d+)\s+.*|', $rawResponseHeader, $match);
-//        $this->httpResponseCode = (int)$match[1];
+        //        preg_match('|HTTP/\d\.\d\s+(\d+)\s+.*|', $rawResponseHeader, $match);
+        //        $this->httpResponseCode = (int)$match[1];
         preg_match('|HTTP/(\d+\.?\d*)\s+(\d+)|', $rawResponseHeader, $match);
         $this->httpResponseCode = (int)$match[2];
 
@@ -107,7 +107,7 @@ class HttpResponse
             if (false === strpos($line, ': ')) {
                 $this->setHttpResponseCodeFromHeader($line);
             } else {
-                list($key, $value) = explode(': ', $line, 2);
+                [$key, $value] = explode(': ', $line, 2);
                 $this->headers[$key] = $value;
             }
         }

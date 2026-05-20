@@ -21,6 +21,7 @@ class TimeMachineToolkit
     const ONE_WEEK = 604800;
 
     const ONE_MONTH = 2592000;
+
     public static function formatTime($time)
     {
         if (!is_int($time)) {
@@ -39,13 +40,13 @@ class TimeMachineToolkit
         $time = time() - $time;
         if ($time < 60) {
             $str = '刚刚';
-        } elseif ($time < 60 * 60) {
+        } else if ($time < 60 * 60) {
             $min = floor($time / 60);
             $str = $min . '分钟前';
-        } elseif ($time < 60 * 60 * 24) {
+        } else if ($time < 60 * 60 * 24) {
             $h = floor($time / (60 * 60));
             $str = $h . '小时前 ' . $hTime;
-        } elseif ($time < 60 * 60 * 24 * 3) {
+        } else if ($time < 60 * 60 * 24 * 3) {
             $d = floor($time / (60 * 60 * 24));
             if ($d == 1)
                 $str = '昨天 ' . $rTime;
@@ -73,7 +74,7 @@ class TimeMachineToolkit
 
     public static function isTimestamp($timestamp)
     {
-        return ((string) (int) $timestamp === (string) $timestamp)
+        return ((string)(int)$timestamp === (string)$timestamp)
             && ($timestamp <= PHP_INT_MAX)
             && ($timestamp >= ~PHP_INT_MAX);
     }
@@ -99,7 +100,7 @@ class TimeMachineToolkit
     public function format($format, $timestamp = null)
     {
         $datetime = new DateTime(null, new DateTimeZone($this->timezone));
-        $datetime->setTimestamp($timestamp ?: time());
+        $datetime->setTimestamp($timestamp ? : time());
 
         return $datetime->format($format);
     }
@@ -128,7 +129,7 @@ class TimeMachineToolkit
         $startTime = $datetime->getTimestamp();
         $endTime = $startTime + 86400;
 
-        return array($startTime, $endTime);
+        return [$startTime, $endTime];
     }
 
     public function diffDays($timestamp1, $timestamp2)

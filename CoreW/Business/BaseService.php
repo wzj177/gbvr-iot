@@ -34,18 +34,18 @@ class BaseService
     /**
      * @return EventDispatcherInterface
      */
-    private function getDispatcher(): EventDispatcherInterface
+    private function getDispatcher() : EventDispatcherInterface
     {
         return $this->bfw['dispatcher'];
     }
 
     /**
-     * @param string      $eventName
+     * @param string $eventName
      * @param Event|mixed $subject
      *
      * @return object
      */
-    protected function dispatchEvent(string $eventName, $subject, $arguments = []): object
+    protected function dispatchEvent(string $eventName, $subject, $arguments = []) : object
     {
         if ($subject instanceof Event) {
             $event = $subject;
@@ -91,7 +91,7 @@ class BaseService
     /**
      * @return CurrentUser|null
      */
-    protected function getCurrentUser(): ?CurrentUser
+    protected function getCurrentUser() : ?CurrentUser
     {
         return $this->bfw['user'];
     }

@@ -7,7 +7,7 @@ use Workerman\Crontab\Crontab;
 
 class CleanupRtpPortAndClearStreamSessionTaskProcess
 {
-    public function onWorkerStart(): void
+    public function onWorkerStart() : void
     {
         // 每1分钟执行一次：cleanup rtp
         new Crontab('* */1 * * * *', function () {

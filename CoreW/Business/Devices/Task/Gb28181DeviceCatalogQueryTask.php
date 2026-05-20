@@ -10,19 +10,19 @@ use CoreW\Business\GB\Gb28181Service;
 use CoreW\Core;
 use support\Log;
 
-class Gb28181DeviceCatalogQueryTask  extends BaseCrontabTask
+class Gb28181DeviceCatalogQueryTask extends BaseCrontabTask
 {
 
 
-    public function execute(): void
+    public function execute() : void
     {
         /**@var Gb28181Service $gb28181Service */
         $gb28181Service = $this->getBfw()->offsetGet('gb28181_service');
         try {
             $devices = $this->getDeviceService()->searchDevices([
                 'subscribe_catalog' => 0, // 对于开启设备目录订阅的设备，系统不会主动查询目录
-                'status' => DeviceStatusEnum::ONLINE->value,
-            ], [], 0,PHP_INT_MAX, ['id', 'device_id', 'catalog_interval', 'last_catalog_at', 'last_heartbeat_at']);
+                'status'            => DeviceStatusEnum::ONLINE->value,
+            ], [], 0, PHP_INT_MAX, ['id', 'device_id', 'catalog_interval', 'last_catalog_at', 'last_heartbeat_at']);
             foreach ($devices as $device) {
                 // 判断根据 now 和 last_catalog_at 的时间间隔是否满足 catalog_interval 来确定是否发送
                 if ($device['catalog_interval'] == 0 || empty($device['catalog_interval']) || ($device['catalog_interval'] > 0 && $device['last_catalog_at'] + $device['catalog_interval'] > time())) {
@@ -43,7 +43,7 @@ class Gb28181DeviceCatalogQueryTask  extends BaseCrontabTask
                 echo "发送设备目录查询: " . $device['device_id'] . "\n";
             }
 
-//            Log::channel('crontab')->info("定期发送设备目录查询完成");
+            //            Log::channel('crontab')->info("定期发送设备目录查询完成");
         } catch (\Exception $e) {
             Log::channel('crontab')->error("定期发送设备目录查询异常: " . $e->getMessage());
         }
@@ -53,7 +53,7 @@ class Gb28181DeviceCatalogQueryTask  extends BaseCrontabTask
      * 获取设备服务
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->getBfw()->service('Devices:DeviceService');
     }

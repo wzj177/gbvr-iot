@@ -5,28 +5,28 @@ namespace CoreW\Business\Alarm\Service\Impl;
 use CoreW\Business\Alarm\Dao\AlarmPlanDao;
 use CoreW\Business\Alarm\Service\AlarmPlanService;
 use CoreW\Business\BaseService;
-use CoreW\Business\CommonBizException;
 use CoreW\Dao\DaoProxy;
 use support\Log;
+use CoreW\Business\Common\CommonBizException;
 
 class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
 {
-    public function searchPlans(array $conditions, int $start = 0, int $limit = 20): array
+    public function searchPlans(array $conditions, int $start = 0, int $limit = 20) : array
     {
         return $this->getAlarmPlanDao()->search($conditions, ['id' => 'DESC'], $start, $limit);
     }
 
-    public function countPlans(array $conditions): int
+    public function countPlans(array $conditions) : int
     {
         return $this->getAlarmPlanDao()->count($conditions);
     }
 
-    public function getPlan(int $id): ?array
+    public function getPlan(int $id) : ?array
     {
         return $this->getAlarmPlanDao()->get($id);
     }
 
-    public function createPlan(array $data): array
+    public function createPlan(array $data) : array
     {
         // 验证必填字段
         if (!isset($data['name']) || empty($data['name'])) {
@@ -35,15 +35,15 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
 
         // 过滤字段
         $fields = [
-            'name' => $data['name'],
-            'status' => $data['status'] ?? 1,
-            'remark' => $data['remark'] ?? null,
+            'name'                  => $data['name'],
+            'status'                => $data['status'] ?? 1,
+            'remark'                => $data['remark'] ?? null,
             'snapshot_interval_sec' => $data['snapshot_interval_sec'] ?? 0,
-            'record_duration_sec' => $data['record_duration_sec'] ?? 0,
-            'alarm_level' => $data['alarm_level'] ?? null,
-            'alarm_method' => $data['alarm_method'] ?? null,
-            'alarm_type' => $data['alarm_type'] ?? null,
-            'alarm_eventtype' => $data['alarm_eventtype'] ?? null,
+            'record_duration_sec'   => $data['record_duration_sec'] ?? 0,
+            'alarm_level'           => $data['alarm_level'] ?? null,
+            'alarm_method'          => $data['alarm_method'] ?? null,
+            'alarm_type'            => $data['alarm_type'] ?? null,
+            'alarm_eventtype'       => $data['alarm_eventtype'] ?? null,
         ];
 
         // 验证数值范围
@@ -67,7 +67,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         return $this->getAlarmPlanDao()->create($fields);
     }
 
-    public function updatePlan(int $id, array $data): array
+    public function updatePlan(int $id, array $data) : array
     {
         $plan = $this->getAlarmPlanDao()->get($id);
         if (!$plan) {
@@ -76,15 +76,15 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
 
         // 过滤可更新字段
         $fields = [
-            'name' => $data['name'] ?? $plan['name'],
-            'status' => $data['status'] ?? $plan['status'],
-            'remark' => $data['remark'] ?? $plan['remark'],
+            'name'                  => $data['name'] ?? $plan['name'],
+            'status'                => $data['status'] ?? $plan['status'],
+            'remark'                => $data['remark'] ?? $plan['remark'],
             'snapshot_interval_sec' => $data['snapshot_interval_sec'] ?? $plan['snapshot_interval_sec'],
-            'record_duration_sec' => $data['record_duration_sec'] ?? $plan['record_duration_sec'],
-            'alarm_level' => $data['alarm_level'] ?? $plan['alarm_level'],
-            'alarm_method' => $data['alarm_method'] ?? $plan['alarm_method'],
-            'alarm_type' => $data['alarm_type'] ?? $plan['alarm_type'],
-            'alarm_eventtype' => $data['alarm_eventtype'] ?? $plan['alarm_eventtype'],
+            'record_duration_sec'   => $data['record_duration_sec'] ?? $plan['record_duration_sec'],
+            'alarm_level'           => $data['alarm_level'] ?? $plan['alarm_level'],
+            'alarm_method'          => $data['alarm_method'] ?? $plan['alarm_method'],
+            'alarm_type'            => $data['alarm_type'] ?? $plan['alarm_type'],
+            'alarm_eventtype'       => $data['alarm_eventtype'] ?? $plan['alarm_eventtype'],
         ];
 
         // 验证数值范围
@@ -110,7 +110,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         return $this->getAlarmPlanDao()->get($id);
     }
 
-    public function deletePlan(int $id): bool
+    public function deletePlan(int $id) : bool
     {
         $plan = $this->getAlarmPlanDao()->get($id);
         if (!$plan) {
@@ -131,7 +131,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         return true;
     }
 
-    public function bindChannels(int $planId, string $deviceId, array $channelIds): bool
+    public function bindChannels(int $planId, string $deviceId, array $channelIds) : bool
     {
         $plan = $this->getAlarmPlanDao()->get($planId);
         if (!$plan) {
@@ -161,25 +161,25 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
                 // 插入新记录
                 $this->bfw['db']->insert('gv_alarm_plan_channel', [
                     'alarm_plan_id' => $planId,
-                    'device_id' => $deviceId,
-                    'channel_id' => $channelId,
-                    'enabled' => 1,
-                    'created_at' => $now,
-                    'updated_at' => $now,
+                    'device_id'     => $deviceId,
+                    'channel_id'    => $channelId,
+                    'enabled'       => 1,
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
                 ]);
             }
         }
 
         Log::channel('sip')->info('Alarm plan channels bound', [
-            'plan_id' => $planId,
-            'device_id' => $deviceId,
+            'plan_id'     => $planId,
+            'device_id'   => $deviceId,
             'channel_ids' => $channelIds,
         ]);
 
         return true;
     }
 
-    public function unbindChannel(int $planId, string $channelId): bool
+    public function unbindChannel(int $planId, string $channelId) : bool
     {
         $plan = $this->getAlarmPlanDao()->get($planId);
         if (!$plan) {
@@ -193,7 +193,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
 
         if ($result > 0) {
             Log::channel('sip')->info('Alarm plan channel unbound', [
-                'plan_id' => $planId,
+                'plan_id'    => $planId,
                 'channel_id' => $channelId,
             ]);
             return true;
@@ -202,7 +202,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         return false;
     }
 
-    public function getBoundChannels(int $planId): array
+    public function getBoundChannels(int $planId) : array
     {
         $sql = "SELECT pc.*, c.channel_name
                 FROM gv_alarm_plan_channel pc
@@ -213,7 +213,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         return $this->bfw['db']->fetchAll($sql, [$planId]);
     }
 
-    public function matchPlan(string $deviceId, string $channelId, int $level, int $method, ?int $type = null, ?int $eventtype = null): ?array
+    public function matchPlan(string $deviceId, string $channelId, int $level, int $method, ?int $type = null, ?int $eventtype = null) : ?array
     {
         // 获取该通道绑定的所有启用的预案
         $plans = $this->getAlarmPlanDao()->getPlansByDeviceAndChannel($deviceId, $channelId);
@@ -261,7 +261,7 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
         return null;
     }
 
-    protected function getAlarmPlanDao(): AlarmPlanDao|DaoProxy
+    protected function getAlarmPlanDao() : AlarmPlanDao|DaoProxy
     {
         return $this->createDao('Alarm:AlarmPlanDao');
     }

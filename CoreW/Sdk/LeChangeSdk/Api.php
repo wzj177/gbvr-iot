@@ -48,7 +48,7 @@ class Api
     /**
      * @param int $timeout
      */
-    public function setTimeout(int $timeout): void
+    public function setTimeout(int $timeout) : void
     {
         $this->timeout = $timeout;
     }
@@ -62,11 +62,11 @@ class Api
      * @return array
      * @throws \Exception
      */
-    public function request(string $url, array $params = [], string $method = 'POST', array $headers = []): array
+    public function request(string $url, array $params = [], string $method = 'POST', array $headers = []) : array
     {
         $headers = array_merge([
             'Content-Type' => 'application/json',
-            'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36'
+            'User-Agent'   => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
         ], $headers);
         // token 必须要在 请求params 中设置
         if ('accessToken' !== $url && empty($params['token'])) {
@@ -76,14 +76,14 @@ class Api
         $systemParams = RequestGenerator::getInstance($this->appSecret)->generate();
         $data = [
             'system' => [
-                'ver' => "1.0",
+                'ver'   => "1.0",
                 'appId' => $this->appId,
-                'time' => $systemParams['time'],
+                'time'  => $systemParams['time'],
                 'nonce' => $systemParams['nonce'],
-                'sign' => $systemParams['sign'],
+                'sign'  => $systemParams['sign'],
             ],
-            'id' => $systemParams['id'],
-            'params' => $params
+            'id'     => $systemParams['id'],
+            'params' => $params,
         ];
 
         $this->logRequest($method, $url, $data, $headers);
@@ -103,9 +103,9 @@ class Api
     {
         if ($this->logger) {
             $this->logger->info(json_encode([
-                'method' => $method,
-                'url' => $url,
-                'params' => $params,
+                'method'  => $method,
+                'url'     => $url,
+                'params'  => $params,
                 'headers' => $headers,
             ]));
         }
@@ -115,8 +115,8 @@ class Api
     {
         if ($this->logger) {
             $logContext = [
-                'response' => $response,
-                'response_code' => $response['result']['code'] ?? 'UNKNOWN'
+                'response'      => $response,
+                'response_code' => $response['result']['code'] ?? 'UNKNOWN',
             ];
 
             if (($response['result']['code'] ?? 0) === 0) {
@@ -127,16 +127,16 @@ class Api
         }
     }
 
-    private function guzzleRequest($method, $url, $params, $headers): array
+    private function guzzleRequest($method, $url, $params, $headers) : array
     {
         try {
             $client = new \GuzzleHttp\Client([
                 'base_uri' => ltrim($this->baseUri, '/') . '/',
-                'timeout' => $this->timeout,
+                'timeout'  => $this->timeout,
             ]);
             $options = [
-                'headers' => $headers,
-                'http_errors' => false // 不抛出HTTP异常
+                'headers'     => $headers,
+                'http_errors' => false, // 不抛出HTTP异常
             ];
 
             if ($method === 'GET') {
@@ -155,15 +155,15 @@ class Api
         }
     }
 
-    private function curlRequest($method, $url, $params, $headers): array
+    private function curlRequest($method, $url, $params, $headers) : array
     {
         $ch = curl_init();
         $curlOptions = [
-            CURLOPT_URL => rtrim($this->baseUri, '/') . '/' . ltrim($url, '/'),
+            CURLOPT_URL            => rtrim($this->baseUri, '/') . '/' . ltrim($url, '/'),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER => false,
-            CURLOPT_HTTPHEADER => $this->formatHeaders($headers),
-            CURLOPT_TIMEOUT => $this->timeout,
+            CURLOPT_HEADER         => false,
+            CURLOPT_HTTPHEADER     => $this->formatHeaders($headers),
+            CURLOPT_TIMEOUT        => $this->timeout,
             CURLOPT_SSL_VERIFYPEER => false,
         ];
 
@@ -191,7 +191,7 @@ class Api
         return $this->parseResponse($response);
     }
 
-    protected function formatHeaders($headers): array
+    protected function formatHeaders($headers) : array
     {
         $formattedHeaders = [];
         foreach ($headers as $key => $value) {
@@ -201,7 +201,7 @@ class Api
         return $formattedHeaders;
     }
 
-    protected function parseResponse(string $body): array
+    protected function parseResponse(string $body) : array
     {
         $result = json_decode($body, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -214,18 +214,18 @@ class Api
 
         !isset($result['result']['data']) && $result['result']['data'] = [];
 
-        return $result ?: [];
+        return $result ? : [];
     }
 
-    protected function buildErrorResponse($code, $message, $body = ''): array
+    protected function buildErrorResponse($code, $message, $body = '') : array
     {
         return [
             'result' => [
-                'code' => $code,
+                'code'    => $code,
                 'message' => $message,
-                'body' => $body,
+                'body'    => $body,
             ],
-            'id' => null
+            'id'     => null,
         ];
     }
 }

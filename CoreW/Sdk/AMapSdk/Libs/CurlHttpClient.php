@@ -122,7 +122,7 @@ class CurlHttpClient
         curl_close($ch);
 
         return [
-            'code' => $code,
+            'code'    => $code,
             'content' => $content,
         ];
     }
@@ -169,7 +169,7 @@ class CurlHttpClient
             $content = curl_multi_getcontent($ch);
             $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $result[] = [
-                'code' => $code,
+                'code'    => $code,
                 'content' => $content,
             ];
             curl_multi_remove_handle($mh, $ch);
@@ -219,8 +219,8 @@ class CurlHttpClient
         curl_close($ch);
 
         return [
-            'code' => $code,
-            'content' => $content
+            'code'    => $code,
+            'content' => $content,
         ];
     }
 

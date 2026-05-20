@@ -12,11 +12,11 @@ class MenuController extends BaseController
     /**
      * 获取菜单列表
      */
-    public function index(Request $request): Response
+    public function index(Request $request) : Response
     {
         $conditions = $request->get();
-        $start = (int) ($request->get('start', 0));
-        $limit = (int) ($request->get('limit', 10));
+        $start = (int)($request->get('start', 0));
+        $limit = (int)($request->get('limit', 10));
         $sort = $request->get('sort', 'sort');
 
         $total = $this->getMenuService()->searchMenusCount($conditions);
@@ -24,16 +24,16 @@ class MenuController extends BaseController
 
         return $this->createSuccessJsonResponse([
             'total' => $total,
-            'list' => $menus,
+            'list'  => $menus,
         ]);
     }
 
     /**
      * 获取单个菜单
      */
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $menu = $this->getMenuService()->getMenu($id);
 
         if (empty($menu)) {
@@ -46,7 +46,7 @@ class MenuController extends BaseController
     /**
      * 创建菜单
      */
-    public function store(Request $request): Response
+    public function store(Request $request) : Response
     {
         $menu = $request->post();
         $menu = $this->getMenuService()->createMenu($menu);
@@ -59,9 +59,9 @@ class MenuController extends BaseController
     /**
      * 更新菜单
      */
-    public function update(Request $request, $id): Response
+    public function update(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $fields = $request->post();
 
         $menu = $this->getMenuService()->updateMenu($id, $fields);
@@ -74,9 +74,9 @@ class MenuController extends BaseController
     /**
      * 删除菜单
      */
-    public function destroy(Request $request, $id): Response
+    public function destroy(Request $request, $id) : Response
     {
-        $id = (int) $id;
+        $id = (int)$id;
         $this->getMenuService()->deleteMenu($id);
 
         $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_DELETE_MENU, '删除菜单', ['id' => $id]);
@@ -87,7 +87,7 @@ class MenuController extends BaseController
     /**
      * 获取菜单树
      */
-    public function tree(Request $request): Response
+    public function tree(Request $request) : Response
     {
         $tree = $this->getMenuService()->getMenuTree();
         return $this->createSuccessJsonResponse($tree);
@@ -96,7 +96,7 @@ class MenuController extends BaseController
     /**
      * 同步菜单（从 menu.json）
      */
-    public function sync(Request $request): Response
+    public function sync(Request $request) : Response
     {
         $menuFile = base_path('docs/menu.json');
         if (!file_exists($menuFile)) {
@@ -118,7 +118,7 @@ class MenuController extends BaseController
     /**
      * 获取当前用户的菜单树
      */
-    public function userMenu(Request $request): Response
+    public function userMenu(Request $request) : Response
     {
         $user = $this->getCurrentUser();
         $roles = $user['roles'] ?? [];
@@ -136,7 +136,7 @@ class MenuController extends BaseController
     /**
      * 批量删除菜单
      */
-    public function batchDelete(Request $request): Response
+    public function batchDelete(Request $request) : Response
     {
         $ids = $request->post('ids', []);
         if (empty($ids) || !is_array($ids)) {
@@ -144,7 +144,7 @@ class MenuController extends BaseController
         }
 
         foreach ($ids as $id) {
-            $this->getMenuService()->deleteMenu((int) $id);
+            $this->getMenuService()->deleteMenu((int)$id);
         }
 
         $this->getLogService()->info(LogEnum::MODULE_MENU, LogEnum::ACTION_BATCH_DELETE_MENU, '批量删除菜单', ['ids' => $ids]);
@@ -155,7 +155,7 @@ class MenuController extends BaseController
     /**
      * 获取菜单类型选项
      */
-    public function typeOptions(Request $request): Response
+    public function typeOptions(Request $request) : Response
     {
         $options = [
             ['value' => 'directory', 'label' => '目录'],
@@ -167,7 +167,7 @@ class MenuController extends BaseController
         return $this->createSuccessJsonResponse($options);
     }
 
-    protected function getMenuService(): MenuService
+    protected function getMenuService() : MenuService
     {
         return $this->createService('Menu:MenuService');
     }

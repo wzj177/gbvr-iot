@@ -6,6 +6,7 @@ namespace CoreW\Dao;
 
 use Illuminate\Redis\Connections\Connection;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+
 class RedisCache
 {
     /**
@@ -33,13 +34,13 @@ class RedisCache
     public function set($key, $value, $lifetime = 0)
     {
         $this->redis->set($key, $value, $lifetime);
-        $this->eventDispatcher->dispatch(new CacheEvent($key, $value, $lifetime),'dao.cache.set');
+        $this->eventDispatcher->dispatch(new CacheEvent($key, $value, $lifetime), 'dao.cache.set');
     }
 
     public function incr($key)
     {
         $newValue = $this->redis->incr($key);
-        $this->eventDispatcher->dispatch( new CacheEvent($key, $newValue), 'dao.cache.set');
+        $this->eventDispatcher->dispatch(new CacheEvent($key, $newValue), 'dao.cache.set');
     }
 
     public function del($key)
@@ -50,6 +51,6 @@ class RedisCache
 
     public function __call($name, $arguments)
     {
-        return call_user_func_array(array($this->redis, $name), $arguments);
+        return call_user_func_array([$this->redis, $name], $arguments);
     }
 }

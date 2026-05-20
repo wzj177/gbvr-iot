@@ -9,7 +9,7 @@ enum DeviceStatusEnum: string
     case UNREGISTERED = 'unregistered';
 
 
-    public function getText(): string
+    public function getText() : string
     {
         return match ($this) {
             self::ONLINE => '在线',
@@ -19,15 +19,15 @@ enum DeviceStatusEnum: string
         };
     }
 
-    public static function getItems(): array
+    public static function getItems() : array
     {
         return array_map(fn($item) => [
-            'key' => $item->value,
+            'key'   => $item->value,
             'value' => $item->getText(),
         ], self::cases());
     }
 
-    public static function getOptions(): array
+    public static function getOptions() : array
     {
         $options = [];
         foreach (self::cases() as $case) {
@@ -39,7 +39,7 @@ enum DeviceStatusEnum: string
     /**
      * 安全转换
      */
-    public static function tryFromInt(int $value): ?self
+    public static function tryFromInt(int $value) : ?self
     {
         return self::tryFrom($value);
     }

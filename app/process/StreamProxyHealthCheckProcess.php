@@ -19,10 +19,10 @@ use Workerman\Worker;
  */
 class StreamProxyHealthCheckProcess
 {
-    public function onWorkerStart(Worker $worker): void
+    public function onWorkerStart(Worker $worker) : void
     {
         // 检查是否启用
-        if (!((int)env('ENABLE_STREAM_PROXY_HEALTH_CHECK') ?: 1)) {
+        if (!((int)env('ENABLE_STREAM_PROXY_HEALTH_CHECK') ? : 1)) {
             Log::channel('stream_proxy')->info('StreamProxyHealthCheckProcess disabled');
             return;
         }
@@ -48,7 +48,7 @@ class StreamProxyHealthCheckProcess
         ]);
     }
 
-    protected function runHealthCheck(): void
+    protected function runHealthCheck() : void
     {
         $startTime = microtime(true);
 
@@ -60,19 +60,19 @@ class StreamProxyHealthCheckProcess
         $elapsed = round((microtime(true) - $startTime) * 1000, 2);
 
         Log::channel('stream_proxy')->info('[HealthCheck] Completed', [
-            'total' => $result['total'],
-            'online' => $result['online'],
-            'offline' => $result['offline'],
+            'total'      => $result['total'],
+            'online'     => $result['online'],
+            'offline'    => $result['offline'],
             'elapsed_ms' => $elapsed,
         ]);
     }
 
-    protected function getBfw(): \CoreW\Bfw
+    protected function getBfw() : \CoreW\Bfw
     {
         return Core::instance();
     }
 
-    protected function getStreamProxyService(): StreamProxyService
+    protected function getStreamProxyService() : StreamProxyService
     {
         return $this->getBfw()->service('StreamProxy:StreamProxyService');
     }

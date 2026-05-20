@@ -19,7 +19,7 @@ class ProductTagController extends BaseController
         }
 
         $total = $this->getProductTagService()->countTag($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
         $sort = $this->getSort($request);
         $sort['id'] = 'DESC';
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
@@ -28,8 +28,8 @@ class ProductTagController extends BaseController
         $filter->filters($items);
 
         return $this->createSuccessJsonResponse([
-            'list' => $items,
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => $items,
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 

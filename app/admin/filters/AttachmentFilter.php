@@ -10,27 +10,28 @@ use support\utils\AssetHelper;
 
 class AttachmentFilter extends Filter
 {
-    protected $publicFields = [
-        'id',
-        'hashId',
-        'groupCode',
-        'groupTitle',
-        'status',
-        'filename',
-        'filepath',
-        'coverFull',
-        'url',
-        'ext',
-        'fileSize',
-        'length',
-        'type',
-        'storage',
-        'createClient',
-        'imgSize',
-        'createdTime',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'hashId',
+            'groupCode',
+            'groupTitle',
+            'status',
+            'filename',
+            'filepath',
+            'coverFull',
+            'url',
+            'ext',
+            'fileSize',
+            'length',
+            'type',
+            'storage',
+            'createClient',
+            'imgSize',
+            'createdTime',
+        ];
 
-    public function publicFields(&$data): void
+    public function publicFields(&$data) : void
     {
         $data['storageText'] = BizEnum::getStorageTypeItems($data['storage']);
         $data['createClientText'] = BizEnum::getUploadClientTypeItems($data['createClient']);

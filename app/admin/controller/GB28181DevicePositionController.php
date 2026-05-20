@@ -36,14 +36,14 @@ class GB28181DevicePositionController extends BaseController
         }
 
         $total = $this->getDevicePositionService()->countPositions($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $positions = $this->getDevicePositionService()->searchPositions($conditions, ['time' => 'DESC'], $offset, $limit);
 
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $this->formatPositions($positions),
+            'list'      => $this->formatPositions($positions),
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
@@ -80,11 +80,11 @@ class GB28181DevicePositionController extends BaseController
         $track = $this->getDevicePositionService()->getDeviceTrack($deviceId, $startTime, $endTime);
 
         return $this->createSuccessJsonResponse([
-            'device_id' => $deviceId,
+            'device_id'  => $deviceId,
             'start_time' => $startTime,
-            'end_time' => $endTime,
-            'count' => count($track),
-            'track' => $this->formatPositions($track),
+            'end_time'   => $endTime,
+            'count'      => count($track),
+            'track'      => $this->formatPositions($track),
         ]);
     }
 
@@ -122,18 +122,18 @@ class GB28181DevicePositionController extends BaseController
             // 只返回有位置信息的设备
             if ($longitude != 0 || $latitude != 0) {
                 $result[] = [
-                    'device_id' => $device['device_id'],
+                    'device_id'   => $device['device_id'],
                     'device_name' => $device['device_name'] ?? '',
                     'device_type' => $device['device_type'] ?? '',
-                    'longitude' => $longitude,
-                    'latitude' => $latitude,
-                    'is_custom' => !empty($device['custom_lng']) && !empty($device['custom_lat']),
+                    'longitude'   => $longitude,
+                    'latitude'    => $latitude,
+                    'is_custom'   => !empty($device['custom_lng']) && !empty($device['custom_lat']),
                 ];
             }
         }
 
         return $this->createSuccessJsonResponse([
-            'count' => count($result),
+            'count'  => count($result),
             'points' => $result,
         ]);
     }
@@ -172,23 +172,23 @@ class GB28181DevicePositionController extends BaseController
         foreach ($deviceIds as $deviceId) {
             $result[] = [
                 'device_id' => $deviceId,
-                'count' => isset($tracks[$deviceId]) ? count($tracks[$deviceId]) : 0,
-                'track' => isset($tracks[$deviceId]) ? $this->formatPositions($tracks[$deviceId]) : [],
+                'count'     => isset($tracks[$deviceId]) ? count($tracks[$deviceId]) : 0,
+                'track'     => isset($tracks[$deviceId]) ? $this->formatPositions($tracks[$deviceId]) : [],
             ];
         }
 
         return $this->createSuccessJsonResponse([
-            'start_time' => $startTime,
-            'end_time' => $endTime,
+            'start_time'   => $startTime,
+            'end_time'     => $endTime,
             'device_count' => count($result),
-            'tracks' => $result,
+            'tracks'       => $result,
         ]);
     }
 
     /**
      * 格式化位置数据列表
      */
-    private function formatPositions(array $positions): array
+    private function formatPositions(array $positions) : array
     {
         return array_map(fn($p) => $this->formatPosition($p), $positions);
     }
@@ -196,19 +196,19 @@ class GB28181DevicePositionController extends BaseController
     /**
      * 格式化单个位置数据
      */
-    private function formatPosition(array $position): array
+    private function formatPosition(array $position) : array
     {
         return [
-            'id' => $position['id'],
-            'device_id' => $position['device_id'],
-            'longitude' => (float)$position['longitude'],
-            'latitude' => (float)$position['latitude'],
-            'speed' => (float)$position['speed'],
-            'direction' => (int)$position['direction'],
-            'altitude' => (float)$position['altitude'],
-            'time' => $position['time'],
-            'time_formatted' => date('Y-m-d H:i:s', $position['time']),
-            'recv_time' => $position['recv_time'],
+            'id'                  => $position['id'],
+            'device_id'           => $position['device_id'],
+            'longitude'           => (float)$position['longitude'],
+            'latitude'            => (float)$position['latitude'],
+            'speed'               => (float)$position['speed'],
+            'direction'           => (int)$position['direction'],
+            'altitude'            => (float)$position['altitude'],
+            'time'                => $position['time'],
+            'time_formatted'      => date('Y-m-d H:i:s', $position['time']),
+            'recv_time'           => $position['recv_time'],
             'recv_time_formatted' => date('Y-m-d H:i:s', $position['recv_time']),
         ];
     }
@@ -216,7 +216,7 @@ class GB28181DevicePositionController extends BaseController
     /**
      * @return DevicePositionService
      */
-    private function getDevicePositionService(): DevicePositionService
+    private function getDevicePositionService() : DevicePositionService
     {
         return $this->createService('Devices:DevicePositionService');
     }
@@ -224,7 +224,7 @@ class GB28181DevicePositionController extends BaseController
     /**
      * @return \CoreW\Business\Devices\Service\DeviceService
      */
-    private function getDeviceService(): \CoreW\Business\Devices\Service\DeviceService
+    private function getDeviceService() : \CoreW\Business\Devices\Service\DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }

@@ -48,22 +48,22 @@ class GB28181RecordTaskController extends BaseController
 
         // 开始时间范围筛选
         if ($request->get('start_time_gte')) {
-            $conditions['start_time_gte'] = (int) $request->get('start_time_gte');
+            $conditions['start_time_gte'] = (int)$request->get('start_time_gte');
         }
         if ($request->get('start_time_lte')) {
-            $conditions['start_time_lte'] = (int) $request->get('start_time_lte');
+            $conditions['start_time_lte'] = (int)$request->get('start_time_lte');
         }
 
         // 结束时间范围筛选
         if ($request->get('end_time_gte')) {
-            $conditions['end_time_gte'] = (int) $request->get('end_time_gte');
+            $conditions['end_time_gte'] = (int)$request->get('end_time_gte');
         }
         if ($request->get('end_time_lte')) {
-            $conditions['end_time_lte'] = (int) $request->get('end_time_lte');
+            $conditions['end_time_lte'] = (int)$request->get('end_time_lte');
         }
 
         $total = $this->getRecordTaskService()->countRecordTasks($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $orderBy = ['created_at' => 'DESC'];
         if ($request->get('order_by')) {
@@ -78,7 +78,7 @@ class GB28181RecordTaskController extends BaseController
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $this->formatTasks($tasks),
+            'list'      => $this->formatTasks($tasks),
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
@@ -89,7 +89,7 @@ class GB28181RecordTaskController extends BaseController
      */
     public function destroy(Request $request, $id)
     {
-        $taskId = (int) $id;
+        $taskId = (int)$id;
 
         $task = $this->getRecordTaskService()->searchRecordTasks(['id' => $taskId], [], 0, 1);
         if (empty($task)) {
@@ -116,7 +116,7 @@ class GB28181RecordTaskController extends BaseController
     /**
      * 为 status=done 的任务附加 record_file 信息
      */
-    private function attachRecordFiles(array $tasks): array
+    private function attachRecordFiles(array $tasks) : array
     {
         $doneTaskIds = [];
         foreach ($tasks as $task) {
@@ -156,37 +156,37 @@ class GB28181RecordTaskController extends BaseController
     /**
      * 格式化任务数据
      */
-    private function formatTasks(array $tasks): array
+    private function formatTasks(array $tasks) : array
     {
         return array_map(function ($task) {
             return [
-                'id' => $task['id'],
-                'partner_id' => $task['partner_id'] ?? 0,
-                'task_type' => $task['task_type'],
-                'device_id' => $task['device_id'],
-                'channel_id' => $task['channel_id'],
-                'media_server_id' => $task['media_server_id'],
-                'vhost' => $task['vhost'],
-                'app' => $task['app'],
-                'stream_id' => $task['stream_id'],
-                'ssrc' => $task['ssrc'] ?? '',
-                'dialog_id' => $task['dialog_id'] ?? null,
-                'start_time' => $task['start_time'],
-                'start_time_formatted' => date('Y-m-d H:i:s', $task['start_time']),
-                'end_time' => $task['end_time'],
-                'end_time_formatted' => date('Y-m-d H:i:s', $task['end_time']),
-                'customized_path' => $task['customized_path'],
-                'download_speed' => $task['download_speed'] ?? 1.0,
-                'status' => $task['status'],
-                'fail_reason' => $task['fail_reason'],
-                'record_start_time' => $task['record_start_time'],
+                'id'                          => $task['id'],
+                'partner_id'                  => $task['partner_id'] ?? 0,
+                'task_type'                   => $task['task_type'],
+                'device_id'                   => $task['device_id'],
+                'channel_id'                  => $task['channel_id'],
+                'media_server_id'             => $task['media_server_id'],
+                'vhost'                       => $task['vhost'],
+                'app'                         => $task['app'],
+                'stream_id'                   => $task['stream_id'],
+                'ssrc'                        => $task['ssrc'] ?? '',
+                'dialog_id'                   => $task['dialog_id'] ?? null,
+                'start_time'                  => $task['start_time'],
+                'start_time_formatted'        => date('Y-m-d H:i:s', $task['start_time']),
+                'end_time'                    => $task['end_time'],
+                'end_time_formatted'          => date('Y-m-d H:i:s', $task['end_time']),
+                'customized_path'             => $task['customized_path'],
+                'download_speed'              => $task['download_speed'] ?? 1.0,
+                'status'                      => $task['status'],
+                'fail_reason'                 => $task['fail_reason'],
+                'record_start_time'           => $task['record_start_time'],
                 'record_start_time_formatted' => $task['record_start_time'] ? date('Y-m-d H:i:s', $task['record_start_time']) : null,
-                'record_end_time' => $task['record_end_time'],
-                'record_end_time_formatted' => $task['record_end_time'] ? date('Y-m-d H:i:s', $task['record_end_time']) : null,
-                'record_duration' => $task['record_duration'],
-                'created_at' => $task['created_at'],
-                'updated_at' => $task['updated_at'],
-                'record_file' => $task['record_file'] ?? null,
+                'record_end_time'             => $task['record_end_time'],
+                'record_end_time_formatted'   => $task['record_end_time'] ? date('Y-m-d H:i:s', $task['record_end_time']) : null,
+                'record_duration'             => $task['record_duration'],
+                'created_at'                  => $task['created_at'],
+                'updated_at'                  => $task['updated_at'],
+                'record_file'                 => $task['record_file'] ?? null,
             ];
         }, $tasks);
     }
@@ -194,7 +194,7 @@ class GB28181RecordTaskController extends BaseController
     /**
      * @return RecordTaskService
      */
-    private function getRecordTaskService(): RecordTaskService
+    private function getRecordTaskService() : RecordTaskService
     {
         return $this->createService('Record:RecordTaskService');
     }
@@ -202,7 +202,7 @@ class GB28181RecordTaskController extends BaseController
     /**
      * @return RecordFileService
      */
-    private function getRecordFileService(): RecordFileService
+    private function getRecordFileService() : RecordFileService
     {
         return $this->createService('RecordFile:RecordFileService');
     }

@@ -32,13 +32,13 @@ class SipGatewayException extends AbstractBizException
     public function setMessages()
     {
         $this->messages = [
-            self::GATEWAY_NOT_FOUND => 'SIP网关不存在',
-            self::INVALID_PARAMETER => '参数错误',
+            self::GATEWAY_NOT_FOUND    => 'SIP网关不存在',
+            self::INVALID_PARAMETER    => '参数错误',
             self::DUPLICATE_GATEWAY_ID => '网关标识已存在',
-            self::DUPLICATE_HOST_PORT => 'SIP监听地址和端口已存在',
-            self::GATEWAY_HAS_DEVICES => '网关下存在关联设备，无法删除',
-            self::GATEWAY_DISABLED => '网关已被禁用',
-            self::HEARTBEAT_FAILED => '心跳上报失败',
+            self::DUPLICATE_HOST_PORT  => 'SIP监听地址和端口已存在',
+            self::GATEWAY_HAS_DEVICES  => '网关下存在关联设备，无法删除',
+            self::GATEWAY_DISABLED     => '网关已被禁用',
+            self::HEARTBEAT_FAILED     => '心跳上报失败',
         ];
     }
 }

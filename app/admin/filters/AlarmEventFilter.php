@@ -10,13 +10,14 @@ class AlarmEventFilter extends Filter
 {
     protected array $publicFields = [];
 
-    protected array $appendFields = [
-        'level_text' => 'appendLevelText',
-        'method_text' => 'appendMethodText',
-        'alarm_time_format' => 'appendAlarmTimeFormat',
-    ];
+    protected array $appendFields
+        = [
+            'level_text'        => 'appendLevelText',
+            'method_text'       => 'appendMethodText',
+            'alarm_time_format' => 'appendAlarmTimeFormat',
+        ];
 
-    protected function appendLevelText($data): string
+    protected function appendLevelText($data) : string
     {
         if (!isset($data['level'])) {
             return '--';
@@ -26,7 +27,7 @@ class AlarmEventFilter extends Filter
         return $enum ? $enum->label() : '--';
     }
 
-    protected function appendMethodText($data): string
+    protected function appendMethodText($data) : string
     {
         if (!isset($data['method'])) {
             return '--';
@@ -36,7 +37,7 @@ class AlarmEventFilter extends Filter
         return $enum ? $enum->label() : '--';
     }
 
-    protected function appendAlarmTimeFormat($data): string
+    protected function appendAlarmTimeFormat($data) : string
     {
         if (!isset($data['alarm_time'])) {
             return '--';
@@ -48,7 +49,7 @@ class AlarmEventFilter extends Filter
     /**
      * 格式化单条数据
      */
-    public static function one(array $data): array
+    public static function one(array $data) : array
     {
         $filter = new self();
         return $filter->filter($data);
@@ -57,7 +58,7 @@ class AlarmEventFilter extends Filter
     /**
      * 格式化列表数据
      */
-    public static function list(array $list): array
+    public static function list(array $list) : array
     {
         return array_map(fn($item) => self::one($item), $list);
     }
@@ -65,7 +66,7 @@ class AlarmEventFilter extends Filter
     /**
      * 公开列表数据（去除敏感字段）
      */
-    public static function publicList(array $list): array
+    public static function publicList(array $list) : array
     {
         return self::list($list);
     }

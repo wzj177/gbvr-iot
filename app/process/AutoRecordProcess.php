@@ -17,17 +17,19 @@ use Workerman\Worker;
 /**
  * 自动云端录像进程
  *
- * 参考旧版 TaskRecord 设计：
  * - 多进程，每个进程负责一部分通道（按 worker id 分片）
  * - 1 秒轮询：检查计划状态 → 时间段 → 限制 → 启/停录像
  * - 内存追踪已在录制的通道，避免重复调用
  * - 进程退出时清理所有录制中的通道
+ *
+ * 前提约束：云端录像的通道必须开启 auto_live=1
+ * 本进程只负责告知 ZLM 开始/停止写文件，流的生命周期由 AutoLiveStreamTask 统一管理。
  */
 class AutoRecordProcess
 {
     private int $processNum;
 
-    /** @var array<string, array<string, true>> 按 worker key 索引的正在录制通道列表 */
+    /** @var array<string, array<string, array{'recording': bool}>> 按 worker key 索引的正在录制通道列表 */
     private static array $recordingItems = [];
 
     /** @var string[] 去重日志 */
@@ -35,18 +37,19 @@ class AutoRecordProcess
 
     // ==================== 星期映射 ====================
 
-    private const WEEK_DAY_MAP = [
-        1 => 'MON', 2 => 'TUE', 3 => 'WED', 4 => 'THU',
-        5 => 'FRI', 6 => 'SAT', 7 => 'SUN',
-    ];
+    private const WEEK_DAY_MAP
+        = [
+            1 => 'MON', 2 => 'TUE', 3 => 'WED', 4 => 'THU',
+            5 => 'FRI', 6 => 'SAT', 7 => 'SUN',
+        ];
 
-    public function onWorkerStart(Worker $worker): void
+    public function onWorkerStart(Worker $worker) : void
     {
-        if (!((int)env('ENABLE_AUTO_RECORD') ?: 0)) {
+        if (!((int)env('ENABLE_AUTO_RECORD') ? : 0)) {
             return;
         }
 
-        $this->processNum = (int)env('TASK_RECORD_PROCESS_NUM') ?: 3;
+        $this->processNum = (int)env('TASK_RECORD_PROCESS_NUM') ? : 3;
 
         $worker->onWorkerStop = function ($worker) {
             $this->clearAllRecording($worker->id);
@@ -64,7 +67,7 @@ class AutoRecordProcess
 
     // ==================== 核心循环 ====================
 
-    protected function keepRecord(int $workerId): void
+    protected function keepRecord(int $workerId) : void
     {
         $planList = $this->getRecordPlanService()->getPlansWithRanges();
         if (empty($planList)) {
@@ -85,7 +88,7 @@ class AutoRecordProcess
         $workerKey = 'worker_' . $workerId;
 
         foreach ($myChannels as $channel) {
-            $vKey = $channel['stream_id'] ?: ($channel['device_id'] . '_' . $channel['channel_id']);
+            $vKey = $channel['stream_id'] ? : ($channel['device_id'] . '_' . $channel['channel_id']);
 
             $plan = $plans[$channel['record_plan_id']] ?? null;
             if (!$plan) {
@@ -103,13 +106,6 @@ class AutoRecordProcess
             // 不在时间范围
             if (!$this->checkTimeRange($plan)) {
                 $this->loopLog($vKey . ' 不在时间范围内');
-                $this->tryStopRecording($workerKey, $vKey, $channel);
-                continue;
-            }
-
-            // 通道已关闭直播
-            if (!empty($channel['close_live'])) {
-                $this->loopLog($vKey . ' 通道已关闭直播');
                 $this->tryStopRecording($workerKey, $vKey, $channel);
                 continue;
             }
@@ -132,7 +128,7 @@ class AutoRecordProcess
             }
 
             // 已在录制中则跳过，否则启动录像
-            if (empty(self::$recordingItems[$workerKey][$vKey])) {
+            if (empty(self::$recordingItems[$workerKey][$vKey]['recording'])) {
                 $this->startRecording($workerKey, $vKey, $channel);
             }
         }
@@ -144,12 +140,12 @@ class AutoRecordProcess
     /**
      * 处理流代理录像
      */
-    protected function handleStreamProxyRecording(string $workerKey, int $workerId, array $plans): void
+    protected function handleStreamProxyRecording(string $workerKey, int $workerId, array $plans) : void
     {
         try {
             // 获取所有在线且绑定了录像计划的流代理
             $proxies = $this->getStreamProxyService()->searchProxies([
-                'status' => 'online',
+                'status'          => 'online',
                 'recordPlanId_GT' => 0,
             ], [], 0, 1000);
 
@@ -201,7 +197,7 @@ class AutoRecordProcess
                 }
 
                 // 已在录制中则跳过，否则启动录像
-                if (empty(self::$recordingItems[$workerKey][$vKey])) {
+                if (empty(self::$recordingItems[$workerKey][$vKey]['recording'])) {
                     $this->startStreamProxyRecording($workerKey, $vKey, $proxy);
                 }
             }
@@ -213,14 +209,14 @@ class AutoRecordProcess
     /**
      * 启动流代理录像
      */
-    protected function startStreamProxyRecording(string $workerKey, string $vKey, array $proxy): void
+    protected function startStreamProxyRecording(string $workerKey, string $vKey, array $proxy) : void
     {
         try {
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($proxy['media_server_id']);
             $result = $zlmClient->startRecord($proxy['vhost'], $proxy['app'], $proxy['stream']);
 
             if ($result) {
-                self::$recordingItems[$workerKey][$vKey] = true;
+                self::$recordingItems[$workerKey][$vKey] = ['recording' => true];
                 $this->getStreamProxyService()->updateProxy($proxy['id'], ['record_status' => 1]);
                 $this->log()->info('[AutoRecord] 流代理开始录制: ' . $vKey);
             } else {
@@ -234,9 +230,9 @@ class AutoRecordProcess
     /**
      * 停止流代理录像
      */
-    protected function tryStopStreamProxyRecording(string $workerKey, string $vKey, array $proxy): void
+    protected function tryStopStreamProxyRecording(string $workerKey, string $vKey, array $proxy) : void
     {
-        if (!empty(self::$recordingItems[$workerKey][$vKey])) {
+        if (!empty(self::$recordingItems[$workerKey][$vKey]['recording'])) {
             try {
                 $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($proxy['media_server_id']);
                 $zlmClient->stopRecord($proxy['vhost'], $proxy['app'], $proxy['stream']);
@@ -254,19 +250,29 @@ class AutoRecordProcess
 
     /**
      * 启动录像：调用 ZLM startRecord
+     *
+     * 前提：云端录像的通道必须开启 auto_live=1，由 AutoLiveStreamTask 负责维持流，
+     * 本进程只负责告知 ZLM 开始/停止写文件，不负责流的生命周期管理。
      */
-    protected function startRecording(string $workerKey, string $vKey, array $channel): void
+    protected function startRecording(string $workerKey, string $vKey, array $channel) : void
     {
         try {
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
+
+            // 流不存在则等待，AutoLiveStreamTask 会负责拉起流
+            if (!$this->checkStreamExists($zlmClient, '__defaultVhost__', 'rtp', $channel['stream_id'])) {
+                $this->loopLog('[AutoRecord] 流不存在，等待 AutoLive 拉起: ' . $vKey);
+                return;
+            }
+
             $result = $zlmClient->startRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
 
             if ($result) {
-                self::$recordingItems[$workerKey][$vKey] = true;
+                self::$recordingItems[$workerKey][$vKey] = ['recording' => true];
                 $this->getDeviceService()->updateChannel($channel['id'], ['record_status' => 1]);
                 $this->log()->info('[AutoRecord] 开始录制: ' . $vKey);
             } else {
-                $this->log()->warning('[AutoRecord] 调用 startRecord 失败: ' . $vKey);
+                $this->log()->warning('[AutoRecord] startRecord 失败: ' . $vKey);
             }
         } catch (\Throwable $e) {
             $this->log()->error('[AutoRecord] 启动录制异常: ' . $vKey . ' ' . $e->getMessage());
@@ -275,8 +281,10 @@ class AutoRecordProcess
 
     /**
      * 停止录像：调用 ZLM stopRecord
+     *
+     * 只停止 ZLM 写文件，流本身由 AutoLiveStreamTask 管理，不在此处处理。
      */
-    protected function tryStopRecording(string $workerKey, string $vKey, array $channel): void
+    protected function tryStopRecording(string $workerKey, string $vKey, array $channel) : void
     {
         if (!isset(self::$recordingItems[$workerKey][$vKey])) {
             return;
@@ -295,9 +303,24 @@ class AutoRecordProcess
     }
 
     /**
+     * 检查流是否存在
+     */
+    protected function checkStreamExists($zlmClient, string $vhost, string $app, string $stream) : bool
+    {
+        try {
+            // ZLMClient 用 getMediaList 检查流是否存在（无 isStreamOnline 方法）
+            $list = $zlmClient->getMediaList($app, $stream);
+            return !empty($list);
+        } catch (\Throwable $e) {
+            $this->log()->error('[AutoRecord] 检查流状态异常: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * 进程退出时清理所有录制
      */
-    protected function clearAllRecording(int $workerId): void
+    protected function clearAllRecording(int $workerId) : void
     {
         $workerKey = 'worker_' . $workerId;
         $items = self::$recordingItems[$workerKey] ?? [];
@@ -319,8 +342,8 @@ class AutoRecordProcess
         $myChannels = $this->splitByWorker($channels, $workerId);
 
         foreach ($myChannels as $channel) {
-            $vKey = $channel['stream_id'] ?: ($channel['device_id'] . '_' . $channel['channel_id']);
-            if (isset(self::$recordingItems[$workerKey][$vKey])) {
+            $vKey = $channel['stream_id'] ? : ($channel['device_id'] . '_' . $channel['channel_id']);
+            if (!empty(self::$recordingItems[$workerKey][$vKey]['recording'])) {
                 $this->tryStopRecording($workerKey, $vKey, $channel);
             }
         }
@@ -328,7 +351,7 @@ class AutoRecordProcess
 
     // ==================== 时间段检查 ====================
 
-    protected function checkTimeRange(array $plan): bool
+    protected function checkTimeRange(array $plan) : bool
     {
         $timeRanges = $plan['time_range_list'] ?? [];
         if (empty($timeRanges)) {
@@ -355,7 +378,7 @@ class AutoRecordProcess
     /**
      * 清理最早一天的文件（天数超限）
      */
-    protected function cleanOldestDateFiles(array $plan, array $fileDateList): void
+    protected function cleanOldestDateFiles(array $plan, array $fileDateList) : void
     {
         $diffCount = count($fileDateList) - $plan['limit_days'];
         for ($i = 0; $i < $diffCount; $i++) {
@@ -369,7 +392,7 @@ class AutoRecordProcess
      * 空间超限处理
      * @return bool 是否需要停止录像
      */
-    protected function handleOverSpace(array $plan, string $vKey): bool
+    protected function handleOverSpace(array $plan, string $vKey) : bool
     {
         $fileDateList = $this->getRecordFileService()->getRecordFileDateListByPlanId($plan['id']);
 
@@ -390,7 +413,7 @@ class AutoRecordProcess
 
     // ==================== 多进程分片 ====================
 
-    protected function splitByWorker(array $channels, int $workerId): array
+    protected function splitByWorker(array $channels, int $workerId) : array
     {
         $limit = (int)ceil(count($channels) / $this->processNum);
         if ($limit <= 0) {
@@ -402,13 +425,13 @@ class AutoRecordProcess
 
     // ==================== 查询 ====================
 
-    protected function getOnlineVideoChannels(array $planIds): array
+    protected function getOnlineVideoChannels(array $planIds) : array
     {
         return $this->getDeviceService()->searchChannels(
             [
-                'status' => DeviceStatusEnum::ONLINE->value,
-                'record_plan_ids' => $planIds,
-                'channel_types' => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value],
+                'status'             => DeviceStatusEnum::ONLINE->value,
+                'record_plan_ids'    => $planIds,
+                'channel_types'      => [ChannelTypeEnum::CAMERA->value, ChannelTypeEnum::IPC->value],
                 'media_server_id_NE' => 'none',
             ],
             [],
@@ -419,7 +442,7 @@ class AutoRecordProcess
 
     // ==================== 日志 ====================
 
-    protected function loopLog(string $message): void
+    protected function loopLog(string $message) : void
     {
         if (!in_array($message, $this->logMessages)) {
             $this->log()->debug($message);
@@ -427,40 +450,41 @@ class AutoRecordProcess
         }
     }
 
-    protected function log(): \Monolog\Logger
+    protected function log() : \Monolog\Logger
     {
         return Log::channel('auto_record');
     }
 
     // ==================== Service getters ====================
 
-    protected function getBfw(): \CoreW\Bfw
+    protected function getBfw() : \CoreW\Bfw
     {
         return Core::instance();
     }
 
-    protected function getDeviceService(): DeviceService
+    protected function getDeviceService() : DeviceService
     {
         return $this->getBfw()->service('Devices:DeviceService');
     }
 
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->getBfw()->offsetGet('gb28181_service');
     }
 
-    protected function getRecordPlanService(): RecordPlanService
+    protected function getRecordPlanService() : RecordPlanService
     {
         return $this->getBfw()->service('Record:RecordPlanService');
     }
 
-    protected function getRecordFileService(): RecordFileService
+    protected function getRecordFileService() : RecordFileService
     {
         return $this->getBfw()->service('RecordFile:RecordFileService');
     }
 
-    protected function getStreamProxyService(): \CoreW\Business\StreamProxy\Service\StreamProxyService
+    protected function getStreamProxyService() : \CoreW\Business\StreamProxy\Service\StreamProxyService
     {
         return $this->getBfw()->service('StreamProxy:StreamProxyService');
     }
+
 }

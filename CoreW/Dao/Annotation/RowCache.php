@@ -11,7 +11,7 @@ class RowCache
     /**
      * 定义哪些字段更新时，需要清除当前Cache条目
      */
-    public $relFields = array();
+    public $relFields = [];
 
     public $primaryQuery = false;
 

@@ -20,7 +20,7 @@ class MediaServerStrategyFactory
      * @return MediaServerStrategyInterface
      * @throws \InvalidArgumentException
      */
-    public static function create(string $type): MediaServerStrategyInterface
+    public static function create(string $type) : MediaServerStrategyInterface
     {
         return self::getStrategy($type);
     }
@@ -32,7 +32,7 @@ class MediaServerStrategyFactory
      * @return MediaServerStrategyInterface
      * @throws \InvalidArgumentException
      */
-    public static function getStrategy(string $type): MediaServerStrategyInterface
+    public static function getStrategy(string $type) : MediaServerStrategyInterface
     {
         // 标准化类型名称
         $type = strtolower($type);
@@ -55,7 +55,7 @@ class MediaServerStrategyFactory
      * @param string $type
      * @return bool
      */
-    public static function isSupported(string $type): bool
+    public static function isSupported(string $type) : bool
     {
         $type = strtolower($type);
 

@@ -21,7 +21,7 @@ class DaoImplTemplate extends BaseTemplate implements TemplateInterface
         $className = "{$daoName}DaoImpl";
         $declares = $this->parseDeclares($args['declares'] ?? [], $tableName);
         $declaresStr = $this->splitDeclares($declares);
-        
+
         // For make-dao scene, we need to adjust the namespace
         $namespace = $this->prefix;
         if (!empty($args['scene']) && $args['scene'] === 'make-dao' && substr_count($this->prefix, '\\') > 2) {
@@ -30,7 +30,7 @@ class DaoImplTemplate extends BaseTemplate implements TemplateInterface
             array_pop($parts); // Remove the last part (business entity name)
             $namespace = implode('\\', $parts);
         }
-        
+
         $phpCode = "<?php\n"
             . "\n"
             . "namespace {$namespace}\\Dao\\Impl;\n"
@@ -62,7 +62,7 @@ class DaoImplTemplate extends BaseTemplate implements TemplateInterface
                 $subStr = "            '{$key}' => ";
                 if (is_string($declare)) {
                     $subStr .= " '{$declares}',\n";
-                } elseif (is_array($declare)) {
+                } else if (is_array($declare)) {
                     $subStr .= "[ \n";
                     foreach ($declare as $sKey => $sVal) {
                         if (is_numeric($sKey)) {

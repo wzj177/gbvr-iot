@@ -10,54 +10,56 @@ use support\utils\TimeMachineToolkit;
 
 class ProductFilter extends Filter
 {
-    protected $publicFields = [
-        'id',
-        'code',
-        'title',
-        'cover',
-        'catalogId',
-        'recommend',
-        'address',
-        'remark',
-        'clickCount',
-        'likeCount',
-        'useIntro',
-        'userId',
-        'type',
-        'createdTime',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'code',
+            'title',
+            'cover',
+            'catalogId',
+            'recommend',
+            'address',
+            'remark',
+            'clickCount',
+            'likeCount',
+            'useIntro',
+            'userId',
+            'type',
+            'createdTime',
+        ];
 
-    protected $simpleFields = [
-        'id',
-        'code',
-        'title',
-        'cover',
-        'catalogId',
-        'catalogTitle',
-        'recommend',
-        'address',
-        'remark',
-        'clickCount',
-        'likeCount',
-        'useIntro',
-        'anonymousShow',
-        'status',
-        'userId',
-        'type',
-        'createdTime',
-        'scenes',
-        'tags',
-        'recommendTagIds',
-        'customTags',
-        'logo',
-        'logoPosition',
-        'brandWebsite',
-        'userName',
-        'password',
-        'coverFull',
-        'logoFull',
-        'configs'
-    ];
+    protected $simpleFields
+        = [
+            'id',
+            'code',
+            'title',
+            'cover',
+            'catalogId',
+            'catalogTitle',
+            'recommend',
+            'address',
+            'remark',
+            'clickCount',
+            'likeCount',
+            'useIntro',
+            'anonymousShow',
+            'status',
+            'userId',
+            'type',
+            'createdTime',
+            'scenes',
+            'tags',
+            'recommendTagIds',
+            'customTags',
+            'logo',
+            'logoPosition',
+            'brandWebsite',
+            'userName',
+            'password',
+            'coverFull',
+            'logoFull',
+            'configs',
+        ];
 
     protected $mode = self::SIMPLE_MODE;
 
@@ -87,7 +89,8 @@ class ProductFilter extends Filter
         }
     }
 
-    private function formatScenes(&$data) {
+    private function formatScenes(&$data)
+    {
         if (empty($data['scenes'])) {
             return;
         }

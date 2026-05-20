@@ -36,7 +36,7 @@ class GenerateAlarmDataCommand extends Command
             ->addOption('create_plan', null, InputOption::VALUE_NONE, '自动创建默认报警计划（如果不存在）');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $biz = Core::initCiBiz();
         $db = $biz['db'];
@@ -110,21 +110,21 @@ class GenerateAlarmDataCommand extends Command
                 $latitude = 25 + rand(0, 150) / 10 + rand(0, 100000) / 100000;
 
                 $data = [
-                    'device_id' => $deviceId,
-                    'channel_id' => $channelId,
-                    'level' => $template['level'],
-                    'method' => $template['method'],
-                    'type' => $template['type'],
-                    'eventtype' => $template['eventtype'] ?? null,
-                    'description' => $this->generateDescription($template),
-                    'longitude' => $longitude,
-                    'latitude' => $latitude,
-                    'alarm_time' => $alarmTime,
-                    'recv_time' => $recvTime,
+                    'device_id'     => $deviceId,
+                    'channel_id'    => $channelId,
+                    'level'         => $template['level'],
+                    'method'        => $template['method'],
+                    'type'          => $template['type'],
+                    'eventtype'     => $template['eventtype'] ?? null,
+                    'description'   => $this->generateDescription($template),
+                    'longitude'     => $longitude,
+                    'latitude'      => $latitude,
+                    'alarm_time'    => $alarmTime,
+                    'recv_time'     => $recvTime,
                     'alarm_plan_id' => $planId,
-                    'raw_payload' => $this->generateRawPayload($template),
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s'),
+                    'raw_payload'   => $this->generateRawPayload($template),
+                    'created_at'    => date('Y-m-d H:i:s'),
+                    'updated_at'    => date('Y-m-d H:i:s'),
                 ];
 
                 try {
@@ -153,7 +153,7 @@ class GenerateAlarmDataCommand extends Command
     /**
      * 获取报警模板
      */
-    private function getAlarmTemplates(string $typeFilter = 'all'): array
+    private function getAlarmTemplates(string $typeFilter = 'all') : array
     {
         $templates = [];
 
@@ -205,7 +205,7 @@ class GenerateAlarmDataCommand extends Command
     /**
      * 生成报警描述
      */
-    private function generateDescription(array $template): string
+    private function generateDescription(array $template) : string
     {
         $descriptions = [
             '检测到异常活动，请及时处理',
@@ -222,7 +222,7 @@ class GenerateAlarmDataCommand extends Command
     /**
      * 生成原始报文
      */
-    private function generateRawPayload(array $template): string
+    private function generateRawPayload(array $template) : string
     {
         $sn = str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
         $deviceId = '34020000001320000109';
@@ -244,7 +244,7 @@ class GenerateAlarmDataCommand extends Command
     /**
      * 显示统计信息
      */
-    private function showStatistics($db, OutputInterface $output, string $deviceId, string $channelId): void
+    private function showStatistics($db, OutputInterface $output, string $deviceId, string $channelId) : void
     {
         $output->writeln('');
         $output->writeln('<info>=== 报警数据统计 ===</info>');
@@ -299,9 +299,9 @@ class GenerateAlarmDataCommand extends Command
             $output->writeln('');
             $output->writeln('<comment>视频报警类型统计:</comment>');
             $videoTypes = [
-                1 => '人工视频报警', 2 => '运动目标检测', 3 => '遗留物检测',
-                4 => '物体移除检测', 5 => '绊线检测', 6 => '入侵检测',
-                7 => '逆行检测', 8 => '徘徊检测', 9 => '流量统计',
+                1  => '人工视频报警', 2 => '运动目标检测', 3 => '遗留物检测',
+                4  => '物体移除检测', 5 => '绊线检测', 6 => '入侵检测',
+                7  => '逆行检测', 8 => '徘徊检测', 9 => '流量统计',
                 10 => '密度检测', 11 => '视频异常检测', 12 => '快速移动',
                 13 => '图像遮挡',
             ];
@@ -317,7 +317,7 @@ class GenerateAlarmDataCommand extends Command
     /**
      * 查找现有的报警计划
      */
-    private function findExistingPlan($db, string $deviceId, string $channelId): ?int
+    private function findExistingPlan($db, string $deviceId, string $channelId) : ?int
     {
         $plan = $db->fetchAssoc(
             "SELECT ap.id FROM gv_alarm_plan ap
@@ -333,7 +333,7 @@ class GenerateAlarmDataCommand extends Command
     /**
      * 获取或创建默认报警计划
      */
-    private function getOrCreateDefaultPlan($db, OutputInterface $output, string $deviceId, string $channelId): int
+    private function getOrCreateDefaultPlan($db, OutputInterface $output, string $deviceId, string $channelId) : int
     {
         // 先查找现有计划
         $existingPlanId = $this->findExistingPlan($db, $deviceId, $channelId);
@@ -347,17 +347,17 @@ class GenerateAlarmDataCommand extends Command
 
         // 创建报警计划
         $planData = [
-            'name' => '默认报警预案-' . substr($deviceId, -8),
-            'status' => 1,
-            'remark' => '自动生成的默认报警预案，匹配所有视频报警',
+            'name'                  => '默认报警预案-' . substr($deviceId, -8),
+            'status'                => 1,
+            'remark'                => '自动生成的默认报警预案，匹配所有视频报警',
             'snapshot_interval_sec' => 10, // 10秒抓拍一次
-            'record_duration_sec' => 60,   // 录像60秒
-            'alarm_level' => json_encode([1, 2, 3, 4]), // 所有级别
-            'alarm_method' => json_encode([5]), // 仅视频报警
-            'alarm_type' => json_encode([]), // 所有类型
-            'alarm_eventtype' => json_encode([]), // 所有事件类型
-            'created_at' => $now,
-            'updated_at' => $now,
+            'record_duration_sec'   => 60,   // 录像60秒
+            'alarm_level'           => json_encode([1, 2, 3, 4]), // 所有级别
+            'alarm_method'          => json_encode([5]), // 仅视频报警
+            'alarm_type'            => json_encode([]), // 所有类型
+            'alarm_eventtype'       => json_encode([]), // 所有事件类型
+            'created_at'            => $now,
+            'updated_at'            => $now,
         ];
 
         $db->insert('gv_alarm_plan', $planData);
@@ -368,11 +368,11 @@ class GenerateAlarmDataCommand extends Command
         // 关联通道
         $channelData = [
             'alarm_plan_id' => $planId,
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'enabled' => 1,
-            'created_at' => $now,
-            'updated_at' => $now,
+            'device_id'     => $deviceId,
+            'channel_id'    => $channelId,
+            'enabled'       => 1,
+            'created_at'    => $now,
+            'updated_at'    => $now,
         ];
 
         $db->insert('gv_alarm_plan_channel', $channelData);

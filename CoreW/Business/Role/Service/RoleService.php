@@ -40,8 +40,8 @@ interface RoleService
 
     public function refreshRoles();
 
-    public function splitRolesTreeNode($tree, &$permissions = array());
+    public function splitRolesTreeNode($tree, &$permissions = []);
 
-    public function getParentRoleCodeArray($code, $nodes, &$parentCodes = array());
+    public function getParentRoleCodeArray($code, $nodes, &$parentCodes = []);
 
 }

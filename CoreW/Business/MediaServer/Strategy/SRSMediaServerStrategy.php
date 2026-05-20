@@ -14,7 +14,7 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getStats(array $serverConfig): array
+    public function getStats(array $serverConfig) : array
     {
         Log::warning('SRS strategy not implemented yet', [
             'host' => $serverConfig['host'] ?? '',
@@ -22,15 +22,15 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
 
         return [
             'running' => false,
-            'status' => 'unknown',
-            'error' => 'SRS strategy not implemented yet',
+            'status'  => 'unknown',
+            'error'   => 'SRS strategy not implemented yet',
         ];
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getConfig(array $serverConfig): array
+    public function getConfig(array $serverConfig) : array
     {
         throw new \RuntimeException('SRS strategy not implemented yet');
     }
@@ -38,7 +38,7 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function setConfig(array $serverConfig, array $config): bool
+    public function setConfig(array $serverConfig, array $config) : bool
     {
         throw new \RuntimeException('SRS strategy not implemented yet');
     }
@@ -46,7 +46,7 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function restart(array $serverConfig): bool
+    public function restart(array $serverConfig) : bool
     {
         throw new \RuntimeException('SRS strategy not implemented yet');
     }
@@ -54,7 +54,7 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isOnline(array $serverConfig): bool
+    public function isOnline(array $serverConfig) : bool
     {
         return false;
     }
@@ -62,7 +62,7 @@ class SRSMediaServerStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getVersion(array $serverConfig): ?array
+    public function getVersion(array $serverConfig) : ?array
     {
         return null;
     }

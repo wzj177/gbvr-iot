@@ -126,7 +126,7 @@ class RoleServiceImpl extends BaseService implements RoleService
     {
         foreach ($tree as &$child) {
             $permissions[$child['code']] = [
-                'code' => $child['code'],
+                'code'   => $child['code'],
                 'parent' => isset($child['parent']) ? $child['parent'] : null,
             ];
             if (isset($child['children'])) {
@@ -206,7 +206,7 @@ class RoleServiceImpl extends BaseService implements RoleService
 
         return [
             'ROLE_PARTER_ADMIN' => array_diff($superAdminRoles, $adminForbidRoles),
-            'ROLE_SUPER_ADMIN' => $superAdminRoles,
+            'ROLE_SUPER_ADMIN'  => $superAdminRoles,
         ];
     }
 
@@ -247,7 +247,7 @@ class RoleServiceImpl extends BaseService implements RoleService
 
         return [
             'ROLE_PARTER_ADMIN' => array_diff($superAdminV2Roles, $adminV2ForbidRoles),
-            'ROLE_SUPER_ADMIN' => $superAdminV2Roles,
+            'ROLE_SUPER_ADMIN'  => $superAdminV2Roles,
         ];
     }
 
@@ -287,7 +287,7 @@ class RoleServiceImpl extends BaseService implements RoleService
     private function initCreateRole($code, $role, $v2Role)
     {
         $userRoles = [
-            'ROLE_SUPER_ADMIN' => ['name' => '超级管理员', 'code' => 'ROLE_SUPER_ADMIN'],
+            'ROLE_SUPER_ADMIN'  => ['name' => '超级管理员', 'code' => 'ROLE_SUPER_ADMIN'],
             'ROLE_PARTER_ADMIN' => ['name' => '合作方', 'code' => 'ROLE_PARTER_ADMIN'],
         ];
         $userRole = $userRoles[$code];

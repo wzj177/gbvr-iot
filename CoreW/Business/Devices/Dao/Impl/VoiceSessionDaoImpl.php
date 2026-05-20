@@ -9,12 +9,12 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
 {
     protected $table = 'gv_voice_sessions';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [],
-            'orderbys' => ['id', 'created_at', 'started_at'],
-            'datetime' => [
+            'orderbys'   => ['id', 'created_at', 'started_at'],
+            'datetime'   => [
                 'created_at',
                 'updated_at',
                 'started_at',
@@ -43,7 +43,6 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
     }
 
 
-
     /**
      * 根据设备和通道获取活跃会话（
      *
@@ -56,7 +55,8 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
         string $deviceId,
         string $channelId,
         int $timeoutSeconds = 300
-    ): array|false {
+    ) : array|false
+    {
         // 计算超时时间点
         $timeoutAt = date('Y-m-d H:i:s', time() - $timeoutSeconds);
         $sql = "SELECT * FROM {$this->table()} 
@@ -75,7 +75,8 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
         string $mode,
         int $timeoutSeconds = 30,
         ?string $excludeSessionId = null
-    ): array {
+    ) : array
+    {
         $timeoutAt = date('Y-m-d H:i:s', time() - $timeoutSeconds);
         $sql = "SELECT * FROM {$this->table()}
             WHERE device_id = ?
@@ -101,14 +102,14 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param string $stream 格式: talk/streamId 或 broadcast/streamId
      * @return array|false
      */
-    public function getByStream(string $stream): array|false
+    public function getByStream(string $stream) : array|false
     {
         $sql = "SELECT * FROM {$this->table()} WHERE stream = ? LIMIT 1";
 
         return $this->db()->fetchAssoc($sql, [$stream]);
     }
 
-    public function getByStreamAndMediaServerId(string $stream, string $mediaServerId): array|false
+    public function getByStreamAndMediaServerId(string $stream, string $mediaServerId) : array|false
     {
         $sql = "SELECT * FROM {$this->table()}
                 WHERE stream = ?
@@ -120,7 +121,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
         return $this->db()->fetchAssoc($sql, [$stream, $mediaServerId]);
     }
 
-    public function getByNoEndedStreamAndMediaServerId(string $stream, string $mediaServerId): array|false
+    public function getByNoEndedStreamAndMediaServerId(string $stream, string $mediaServerId) : array|false
     {
         $sql = "SELECT * FROM {$this->table()}
                 WHERE stream = ?
@@ -138,7 +139,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param string $dialogId
      * @return array|false
      */
-    public function getByDialogId(string $dialogId): array|false
+    public function getByDialogId(string $dialogId) : array|false
     {
         $sql = "SELECT * FROM {$this->table()} WHERE dialog_id = ? LIMIT 1";
 
@@ -151,7 +152,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param string $callId
      * @return array|false
      */
-    public function getByCallId(string $callId): array|false
+    public function getByCallId(string $callId) : array|false
     {
         $sql = "SELECT * FROM {$this->table()} WHERE call_id = ? LIMIT 1";
 
@@ -164,7 +165,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param string|null $deviceId 可选，过滤指定设备
      * @return array
      */
-    public function getActiveSessions(?string $deviceId = null): array
+    public function getActiveSessions(?string $deviceId = null) : array
     {
         if ($deviceId) {
             $sql = "SELECT * FROM {$this->table()} 
@@ -182,15 +183,15 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
         return $this->db()->fetchAll($sql);
     }
 
-    public function getBySessionId(string $sessionId): ?array
+    public function getBySessionId(string $sessionId) : ?array
     {
         return $this->getByFields(['session_id' => $sessionId]);
     }
 
-    public function getByDeviceAndChannel(string $deviceId, string $channelId): ?array
+    public function getByDeviceAndChannel(string $deviceId, string $channelId) : ?array
     {
         return $this->getByFields([
-            'device_id' => $deviceId,
+            'device_id'  => $deviceId,
             'channel_id' => $channelId,
         ]);
     }
@@ -203,7 +204,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
         ]);
     }
 
-    public function updateStatusBySessionId(string $sessionId, string $status): bool
+    public function updateStatusBySessionId(string $sessionId, string $status) : bool
     {
         $session = $this->getBySessionId($sessionId);
         if (!$session) {
@@ -215,7 +216,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
     /**
      * 根据 SSRC 获取会话
      */
-    public function getBySsrc(string $ssrc): array|false
+    public function getBySsrc(string $ssrc) : array|false
     {
         return $this->getByFields(['ssrc' => $ssrc]);
     }
@@ -232,7 +233,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param array $extraFields 额外要更新的字段
      * @return bool 更新成功返回 true
      */
-    public function updStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []): bool
+    public function updStatusIf(int $id, string $expectedStatus, string $newStatus, array $extraFields = []) : bool
     {
         $sql = "UPDATE {$this->table()}
                 SET status = :new_status,
@@ -240,10 +241,10 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
                     updated_at = :updated_at";
 
         $params = [
-            'id' => $id,
+            'id'              => $id,
             'expected_status' => $expectedStatus,
-            'new_status' => $newStatus,
-            'updated_at' => date('Y-m-d H:i:s'),
+            'new_status'      => $newStatus,
+            'updated_at'      => date('Y-m-d H:i:s'),
         ];
 
         // 添加额外字段
@@ -265,7 +266,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param int $limit
      * @return array
      */
-    public function findExpiredSessions(int $limit = 100): array
+    public function findExpiredSessions(int $limit = 100) : array
     {
         $sql = "SELECT * FROM {$this->table()}
                 WHERE status IN ('waiting_stream', 'inviting')
@@ -282,7 +283,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param string $endedReason
      * @return bool
      */
-    public function markAsEnded(int $id, string $endedReason = 'manual'): bool
+    public function markAsEnded(int $id, string $endedReason = 'manual') : bool
     {
         return $this->updStatusIf(
             $id,
@@ -290,7 +291,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
             'ended',
             [
                 'ended_reason' => $endedReason,
-                'ended_at' => date('Y-m-d H:i:s'),
+                'ended_at'     => date('Y-m-d H:i:s'),
             ]
         );
     }
@@ -306,7 +307,7 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
      * @param string $endedReason 结束原因
      * @return bool 更新成功返回 true，已是 ENDED 返回 false
      */
-    public function endSession(int $id, string $endedReason = 'manual'): bool
+    public function endSession(int $id, string $endedReason = 'manual') : bool
     {
         $now = date('Y-m-d H:i:s');
         $sql = "UPDATE {$this->table()}
@@ -319,12 +320,12 @@ class VoiceSessionDaoImpl extends AdvancedDaoImpl implements VoiceSessionDao
                 AND status != :ended_status";
 
         $affectedRows = $this->db()->executeStatement($sql, [
-            'id' => $id,
-            'new_status' => 'ended',
+            'id'           => $id,
+            'new_status'   => 'ended',
             'ended_status' => 'ended',
-            'ended_at' => $now,
+            'ended_at'     => $now,
             'ended_reason' => $endedReason,
-            'updated_at' => $now,
+            'updated_at'   => $now,
         ]);
 
         return $affectedRows > 0;

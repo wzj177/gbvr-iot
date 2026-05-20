@@ -54,7 +54,7 @@ class ZLMClient
      * }
      * @return array|null
      */
-    public function listRtpServer(): ?array
+    public function listRtpServer() : ?array
     {
         $result = $this->request('listRtpServer', []);
 
@@ -79,14 +79,14 @@ class ZLMClient
      * @param string|null $ssrc 平台SSRC (可选)
      * @return array|null ['code' => 0, 'port' => 端口号]
      */
-    public function openRtpServer(string $streamId, int $port = 0, int $tcpMode = 1, ?string $ssrc = null): ?array
+    public function openRtpServer(string $streamId, int $port = 0, int $tcpMode = 1, ?string $ssrc = null) : ?array
     {
         $params = [
-            'vhost' => '__defaultVhost__',
-            'app' => 'rtp',
+            'vhost'     => '__defaultVhost__',
+            'app'       => 'rtp',
             'stream_id' => $streamId,
-            'tcp_mode' => $tcpMode, //tcp模式，0时为不启用tcp监听，1时为启用tcp监听，2时为tcp主动连接模式
-            'port' => $port,
+            'tcp_mode'  => $tcpMode, //tcp模式，0时为不启用tcp监听，1时为启用tcp监听，2时为tcp主动连接模式
+            'port'      => $port,
         ];
 
 
@@ -100,8 +100,8 @@ class ZLMClient
             if ($this->debug) {
                 Log::channel('zlm')->info('RTP Server opened', [
                     'stream_id' => $streamId,
-                    'port' => $result['port'],
-                    'tcp_mode' => $tcpMode,
+                    'port'      => $result['port'],
+                    'tcp_mode'  => $tcpMode,
                 ]);
             }
         }
@@ -115,18 +115,18 @@ class ZLMClient
      * @param string $streamId 流ID
      * @return array|null
      */
-    public function closeRtpServer(string $streamId): ?array
+    public function closeRtpServer(string $streamId) : ?array
     {
         $result = $this->request('closeRtpServer', [
-            'vhost' => '__defaultVhost__',
-            'app' => 'rtp',
+            'vhost'     => '__defaultVhost__',
+            'app'       => 'rtp',
             'stream_id' => $streamId,
         ]);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('RTP Server closed', [
                 'stream_id' => $streamId,
-                'code' => $result['code'],
+                'code'      => $result['code'],
             ]);
         }
 
@@ -136,14 +136,14 @@ class ZLMClient
     public function getRtpInfo(string $streamId)
     {
         $result = $this->request('getRtpInfo', [
-            'vhost' => '__defaultVhost__',
-            'app' => 'rtp',
+            'vhost'     => '__defaultVhost__',
+            'app'       => 'rtp',
             'stream_id' => $streamId,
         ]);
         if ($this->debug && $result) {
             Log::channel('zlm')->info('RTP Server closed', [
                 'stream_id' => $streamId,
-                'code' => $result['code'],
+                'code'      => $result['code'],
             ]);
         }
         return $result;
@@ -157,19 +157,19 @@ class ZLMClient
      * @param string $ssrc 设备SSRC
      * @return array|null
      */
-    public function updateRtpServerSsrc(string $streamId, string $ssrc): ?array
+    public function updateRtpServerSsrc(string $streamId, string $ssrc) : ?array
     {
         $result = $this->request('updateRtpServerSSRC', [
-            'vhost' => '__defaultVhost__',
-            'app' => 'rtp',
+            'vhost'     => '__defaultVhost__',
+            'app'       => 'rtp',
             'stream_id' => $streamId,
-            'ssrc' => $ssrc,
+            'ssrc'      => $ssrc,
         ]);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('RTP Server SSRC updated', [
                 'stream_id' => $streamId,
-                'ssrc' => $ssrc,
+                'ssrc'      => $ssrc,
             ]);
         }
 
@@ -184,7 +184,7 @@ class ZLMClient
      * @param string|null $schema 播放协议 (null=所有)
      * @return array
      */
-    public function getMediaList(?string $app = null, ?string $stream = null, ?string $schema = null): array
+    public function getMediaList(?string $app = null, ?string $stream = null, ?string $schema = null) : array
     {
         $params = [
             'vhost' => '__defaultVhost__',
@@ -200,7 +200,7 @@ class ZLMClient
         if ($schema) {
             $params['schema'] = $schema;
         }
-        $resp =  $this->request('getMediaList', $params);
+        $resp = $this->request('getMediaList', $params);
 
         if ($resp['code'] === 0) {
             return $resp['data'] ?? [];
@@ -216,7 +216,7 @@ class ZLMClient
      * @param string|null $stream 流ID (null=所有)
      * @return array
      */
-    public function getMediaPlayerList(string $schema, string $stream, string $app = 'rtp'): array
+    public function getMediaPlayerList(string $schema, string $stream, string $app = 'rtp') : array
     {
         $params = [
             'vhost' => '__defaultVhost__',
@@ -229,7 +229,7 @@ class ZLMClient
             $params['stream'] = $stream;
         }
 
-        $resp =  $this->request('getMediaPlayerList', $params);
+        $resp = $this->request('getMediaPlayerList', $params);
 
         if ($resp['code'] === 0) {
             return $resp['data'];
@@ -246,18 +246,18 @@ class ZLMClient
      * @param bool $force 是否强制关闭
      * @return array|null
      */
-    public function closeStream(string $app, string $stream, bool $force = false): ?array
+    public function closeStream(string $app, string $stream, bool $force = false) : ?array
     {
         $result = $this->request('close_stream', [
-            'vhost' => '__defaultVhost__',
-            'app' => $app,
+            'vhost'  => '__defaultVhost__',
+            'app'    => $app,
             'stream' => $stream,
-            'force' => $force ? 1 : 0,
+            'force'  => $force ? 1 : 0,
         ]);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('Stream closed', [
-                'app' => $app,
+                'app'    => $app,
                 'stream' => $stream,
             ]);
         }
@@ -273,7 +273,7 @@ class ZLMClient
      * @param string|null $accessDomain 访问地址（nginx反向代理地址，如果提供则使用此地址生成推流URL）
      * @return array
      */
-    public function getPushUrls(string $streamId, string $app = 'talk', ?string $accessDomain = null): array
+    public function getPushUrls(string $streamId, string $app = 'talk', ?string $accessDomain = null) : array
     {
         $domain = !empty($accessDomain) ? $accessDomain : $this->host;
 
@@ -286,11 +286,11 @@ class ZLMClient
             // WebRTC HTTPS 推流地址（浏览器 HTTPS 页面必须用这个）
             'webrtcs' => "https://{$domain}:{$httpsPort}/index/api/webrtc?app={$app}&stream={$streamId}&type=push",
             // RTMP 推流地址（常用）
-            'rtmp' => "rtmp://{$domain}:{$rtmpPort}/{$app}/{$streamId}",
+            'rtmp'    => "rtmp://{$domain}:{$rtmpPort}/{$app}/{$streamId}",
             // RTSP 推流地址
-            'rtsp' => "rtsp://{$domain}:{$rtspPort}/{$app}/{$streamId}",
+            'rtsp'    => "rtsp://{$domain}:{$rtspPort}/{$app}/{$streamId}",
             // SRT 推流地址（低延迟）
-            'srt' => "srt://{$domain}:{$srtPort}?streamid=#!::r={$app}/{$streamId},m=publish",
+            'srt'     => "srt://{$domain}:{$srtPort}?streamid=#!::r={$app}/{$streamId},m=publish",
         ];
     }
 
@@ -302,21 +302,21 @@ class ZLMClient
      * @param string|null $accessUrl 访问地址（nginx反向代理地址，如果提供则使用此地址生成播放URL）
      * @return array ['rtsp' => '', 'http_flv' => '', 'hls' => '', 'ws_flv' => '']
      */
-    public function getPlayUrls(string $streamId, string $app = 'rtp', ?string $accessDomain = null): array
+    public function getPlayUrls(string $streamId, string $app = 'rtp', ?string $accessDomain = null) : array
     {
         // TODO: 读取 zlm config
         $vhost = '__defaultVhost__';
         $domain = !empty($accessDomain) ? $accessDomain : $this->host;
 
         return [
-//            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}?vhost={$vhost}",
-            'http_flv' => "http://{$domain}:{$this->port}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'https_flv' => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'ws_flv' => "ws://{$domain}:{$this->port}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'wss_flv' => "wss://{$domain}:{$this->httpsPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
-            'hls' => "http://{$domain}:{$this->port}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
-            "https_hls" => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
-            'hls_fmp4' => "http://{$domain}:{$this->port}/{$app}/{$streamId}/hls.fmp4.m3u8?vhost={$vhost}",
+            //            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}?vhost={$vhost}",
+            'http_flv'       => "http://{$domain}:{$this->port}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'https_flv'      => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'ws_flv'         => "ws://{$domain}:{$this->port}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'wss_flv'        => "wss://{$domain}:{$this->httpsPort}/{$app}/{$streamId}.live.flv?vhost={$vhost}",
+            'hls'            => "http://{$domain}:{$this->port}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
+            "https_hls"      => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}/hls.m3u8?vhost={$vhost}",
+            'hls_fmp4'       => "http://{$domain}:{$this->port}/{$app}/{$streamId}/hls.fmp4.m3u8?vhost={$vhost}",
             "https_hls_fmp4" => "https://{$domain}:{$this->httpsPort}/{$app}/{$streamId}/hls_fmp4.m3u8?vhost={$vhost}",
         ];
     }
@@ -326,9 +326,9 @@ class ZLMClient
      *
      * @return array|null
      */
-    public function getServerConfig(bool $flat = false): ?array
+    public function getServerConfig(bool $flat = false) : ?array
     {
-        $result =  $this->request('getServerConfig');
+        $result = $this->request('getServerConfig');
         if ($result && ($result['code'] ?? -1) === 0) {
             if (!$flat) {
                 return $result['data'][0];
@@ -345,7 +345,7 @@ class ZLMClient
         return null;
     }
 
-    public function setServerConfig(array $params): ?array
+    public function setServerConfig(array $params) : ?array
     {
         $config = [];
         foreach ($params as $key => $value) {
@@ -362,7 +362,7 @@ class ZLMClient
      *
      * @return array|null
      */
-    public function restartServer(): ?array
+    public function restartServer() : ?array
     {
         return $this->request('restartServer');
     }
@@ -380,7 +380,7 @@ class ZLMClient
      *     }>
      * } |  null |array
      */
-    public function getThreadsLoad(): ?array
+    public function getThreadsLoad() : ?array
     {
         return $this->request('getThreadsLoad');
     }
@@ -398,7 +398,7 @@ class ZLMClient
      *     }>
      * } |  null |array
      */
-    public function getWorkThreadsLoad(): ?array
+    public function getWorkThreadsLoad() : ?array
     {
         return $this->request('getWorkThreadsLoad');
     }
@@ -412,7 +412,7 @@ class ZLMClient
      *     data: array<string, int>
      * } | null
      */
-    public function getStatistic(): ?array
+    public function getStatistic() : ?array
     {
         return $this->request('getStatistic');
     }
@@ -422,7 +422,7 @@ class ZLMClient
      *
      * @return array ['start' => 开始端口, 'end' => 结束端口]
      */
-    public function getRtpPortRange(): array
+    public function getRtpPortRange() : array
     {
         $config = $this->getServerConfig();
 
@@ -432,13 +432,13 @@ class ZLMClient
 
             return [
                 'start' => (int)$start,
-                'end' => (int)$end,
+                'end'   => (int)$end,
             ];
         }
 
         return [
             'start' => 30000,
-            'end' => 40000,
+            'end'   => 40000,
         ];
     }
 
@@ -453,13 +453,13 @@ class ZLMClient
      * @param int $maxSecond mp4录像切片时间大小,单位秒 (可选)
      * @return bool 成功与否
      */
-    public function startRecord(string $vhost, string $app, string $stream, int $type = 1, string $customizedPath = '', int $maxSecond = 0): bool
+    public function startRecord(string $vhost, string $app, string $stream, int $type = 1, string $customizedPath = '', int $maxSecond = 0) : bool
     {
         $params = [
-            'vhost' => $vhost,
-            'app' => $app,
+            'vhost'  => $vhost,
+            'app'    => $app,
             'stream' => $stream,
-            'type' => $type,
+            'type'   => $type,
         ];
 
         if ($customizedPath) {
@@ -474,10 +474,10 @@ class ZLMClient
 
         if ($this->debug) {
             Log::channel('zlm')->info('Start record', [
-                'vhost' => $vhost,
-                'app' => $app,
+                'vhost'  => $vhost,
+                'app'    => $app,
                 'stream' => $stream,
-                'type' => $type,
+                'type'   => $type,
                 'result' => $result,
             ]);
         }
@@ -494,24 +494,24 @@ class ZLMClient
      * @param int $type 0为hls，1为mp4
      * @return bool 成功与否
      */
-    public function stopRecord(string $vhost, string $app, string $stream, int $type = 1): bool
+    public function stopRecord(string $vhost, string $app, string $stream, int $type = 1) : bool
     {
         $params = [
-            'vhost' => $vhost,
-            'app' => $app,
+            'vhost'  => $vhost,
+            'app'    => $app,
             'stream' => $stream,
-            'type' => $type,
+            'type'   => $type,
         ];
 
         $result = $this->request('stopRecord', $params);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('Stop record', [
-                'vhost' => $vhost,
-                'app' => $app,
+                'vhost'  => $vhost,
+                'app'    => $app,
                 'stream' => $stream,
-                'type' => $type,
-                'code' => $result['code'] ?? null,
+                'type'   => $type,
+                'code'   => $result['code'] ?? null,
             ]);
         }
 
@@ -527,23 +527,23 @@ class ZLMClient
      * @param int $type 0为hls，1为mp4
      * @return bool|null false:未录制,true:正在录制
      */
-    public function isRecording(string $vhost, string $app, string $stream, int $type = 1): ?bool
+    public function isRecording(string $vhost, string $app, string $stream, int $type = 1) : ?bool
     {
         $params = [
-            'vhost' => $vhost,
-            'app' => $app,
+            'vhost'  => $vhost,
+            'app'    => $app,
             'stream' => $stream,
-            'type' => $type,
+            'type'   => $type,
         ];
 
         $result = $this->request('isRecording', $params);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('Check recording status', [
-                'vhost' => $vhost,
-                'app' => $app,
+                'vhost'  => $vhost,
+                'app'    => $app,
                 'stream' => $stream,
-                'type' => $type,
+                'type'   => $type,
                 'status' => $result['status'] ?? null,
             ]);
         }
@@ -561,11 +561,11 @@ class ZLMClient
      * @param string $customizedPath 自定义搜索路径 (可选)
      * @return array|null ['paths' => [], 'rootPath' => '']
      */
-    public function getMp4RecordFile(string $vhost, string $app, string $stream, string $period = '', string $customizedPath = ''): ?array
+    public function getMp4RecordFile(string $vhost, string $app, string $stream, string $period = '', string $customizedPath = '') : ?array
     {
         $params = [
-            'vhost' => $vhost,
-            'app' => $app,
+            'vhost'  => $vhost,
+            'app'    => $app,
             'stream' => $stream,
         ];
 
@@ -581,11 +581,11 @@ class ZLMClient
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('Get MP4 record files', [
-                'vhost' => $vhost,
-                'app' => $app,
+                'vhost'  => $vhost,
+                'app'    => $app,
                 'stream' => $stream,
                 'period' => $period,
-                'code' => $result['code'] ?? null,
+                'code'   => $result['code'] ?? null,
             ]);
         }
 
@@ -593,7 +593,7 @@ class ZLMClient
     }
 
 
-    public function getVersion(): ?array
+    public function getVersion() : ?array
     {
         $resp = $this->request('version');
 
@@ -623,18 +623,18 @@ class ZLMClient
      * @param int|null $close_delay_ms 关闭延迟毫秒（可选）
      * @return array|null
      */
-    public function startSendRtp(string $vhost, string $app, string $stream, string $ssrc, string $dst_url, string $dst_port, bool $is_udp = false, ?int $src_port = null, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, bool $rtcp = false, ?int $close_delay_ms = null): ?array
+    public function startSendRtp(string $vhost, string $app, string $stream, string $ssrc, string $dst_url, string $dst_port, bool $is_udp = false, ?int $src_port = null, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, bool $rtcp = false, ?int $close_delay_ms = null) : ?array
     {
         $params = [
-            'vhost' => '__defaultVhost__',
-            'app' => $app,
-            'stream' => $stream,
-            'ssrc' => $ssrc,
-            'dst_url' => $dst_url,
-            'dst_port' => $dst_port,
-            'is_udp' => $is_udp ? '1' : '0',
-            'use_ps' => $use_ps ? '1' : '0',
-            'only_audio' => $only_audio ? '1' : '0',
+            'vhost'                    => '__defaultVhost__',
+            'app'                      => $app,
+            'stream'                   => $stream,
+            'ssrc'                     => $ssrc,
+            'dst_url'                  => $dst_url,
+            'dst_port'                 => $dst_port,
+            'is_udp'                   => $is_udp ? '1' : '0',
+            'use_ps'                   => $use_ps ? '1' : '0',
+            'only_audio'               => $only_audio ? '1' : '0',
             'enable_origin_recv_limit' => '1',
         ];
 
@@ -656,7 +656,7 @@ class ZLMClient
         }
 
         $this->debugLog('ZLM API Request', [
-            'api' => 'startSendRtp',
+            'api'    => 'startSendRtp',
             'params' => $params,
         ]);
 
@@ -688,16 +688,16 @@ class ZLMClient
      * @param int|null $close_delay_ms 关闭延迟毫秒（可选）
      * @return array|null ['code' => 0, 'local_port' => 端口号]
      */
-    public function startSendRtpPassive(string $vhost, string $app, string $stream, string $ssrc, ?int $src_port = null, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, bool $is_tcp = true, bool $rtcp = false, ?string $recv_stream_id = null, ?int $close_delay_ms = null): ?array
+    public function startSendRtpPassive(string $vhost, string $app, string $stream, string $ssrc, ?int $src_port = null, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, bool $is_tcp = true, bool $rtcp = false, ?string $recv_stream_id = null, ?int $close_delay_ms = null) : ?array
     {
         $params = [
-            'vhost' => $vhost ? $vhost : '__defaultVhost__',
-            'app' => $app,
-            'stream' => $stream,
-            'ssrc' => $ssrc,
-            'use_ps' => $use_ps ? '1' : '0',
-            'only_audio' => $only_audio ? '1' : '0',
-            'is_udp' => $is_tcp ? '0' : '1',
+            'vhost'                    => $vhost ? $vhost : '__defaultVhost__',
+            'app'                      => $app,
+            'stream'                   => $stream,
+            'ssrc'                     => $ssrc,
+            'use_ps'                   => $use_ps ? '1' : '0',
+            'only_audio'               => $only_audio ? '1' : '0',
+            'is_udp'                   => $is_tcp ? '0' : '1',
             'enable_origin_recv_limit' => '1',
         ];
 
@@ -723,7 +723,7 @@ class ZLMClient
         }
 
         $this->debugLog('ZLM API Request', [
-            'api' => 'startSendRtpPassive',
+            'api'    => 'startSendRtpPassive',
             'params' => $params,
         ]);
 
@@ -751,15 +751,15 @@ class ZLMClient
      * @param int|null $close_delay_ms 关闭延迟毫秒（可选）
      * @return array|null ['code' => 0, 'local_port' => 端口号]
      */
-    public function startSendRtpTalk(string $vhost, string $app, string $stream, string $ssrc, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, ?string $recv_stream_id = null, ?int $close_delay_ms = null): ?array
+    public function startSendRtpTalk(string $vhost, string $app, string $stream, string $ssrc, ?int $pt = null, bool $use_ps = true, bool $only_audio = false, ?string $recv_stream_id = null, ?int $close_delay_ms = null) : ?array
     {
         $params = [
-            'vhost' => '__defaultVhost__',
-            'app' => $app,
-            'stream' => $stream,
-            'ssrc' => $ssrc,
-            'type' => $use_ps ? '1' : '0',  // 注意：talk接口使用type而不是use_ps
-            'only_audio' => $only_audio ? '1' : '0',
+            'vhost'                    => '__defaultVhost__',
+            'app'                      => $app,
+            'stream'                   => $stream,
+            'ssrc'                     => $ssrc,
+            'type'                     => $use_ps ? '1' : '0',  // 注意：talk接口使用type而不是use_ps
+            'only_audio'               => $only_audio ? '1' : '0',
             'enable_origin_recv_limit' => '1',
         ];
 
@@ -776,7 +776,7 @@ class ZLMClient
         }
 
         $this->debugLog('ZLM API Request', [
-            'api' => 'startSendRtpTalk',
+            'api'    => 'startSendRtpTalk',
             'params' => $params,
         ]);
 
@@ -788,6 +788,7 @@ class ZLMClient
 
         return null;
     }
+
     /**
      * 停止发送RTP
      * @param string $vhost
@@ -796,16 +797,16 @@ class ZLMClient
      * @param string $ssrc
      * @return bool|null
      */
-    public function stopSendRtp(string $vhost, string $app, string $stream, string $ssrc): ?bool
+    public function stopSendRtp(string $vhost, string $app, string $stream, string $ssrc) : ?bool
     {
         $params = [
-            'vhost' => $vhost,
-            'app' => $app,
+            'vhost'  => $vhost,
+            'app'    => $app,
             'stream' => $stream,
-            'ssrc' => $ssrc,
+            'ssrc'   => $ssrc,
         ];
         $this->debugLog('ZLM API Request', [
-            'api' => 'stopSendRtp',
+            'api'    => 'stopSendRtp',
             'params' => $params,
         ]);
         $result = $this->request('stopSendRtp', $params);
@@ -819,7 +820,7 @@ class ZLMClient
      * @param SendRtpDo $do
      * @return array|null
      */
-    public function startSendRtpWithDo(SendRtpDo $do): ?array
+    public function startSendRtpWithDo(SendRtpDo $do) : ?array
     {
         return $this->startSendRtp(
             $do->getVhost(),
@@ -844,7 +845,7 @@ class ZLMClient
      * @param SendRtpDo $do
      * @return array|null
      */
-    public function startSendRtpPassiveWithDo(SendRtpDo $do): ?array
+    public function startSendRtpPassiveWithDo(SendRtpDo $do) : ?array
     {
         return $this->startSendRtpPassive(
             $do->getVhost(),
@@ -868,7 +869,7 @@ class ZLMClient
      * @param SendRtpDo $do
      * @return array|null
      */
-    public function startSendRtpTalkWithDo(SendRtpDo $do): ?array
+    public function startSendRtpTalkWithDo(SendRtpDo $do) : ?array
     {
         return $this->startSendRtpTalk(
             $do->getVhost(),
@@ -907,29 +908,30 @@ class ZLMClient
         int $timeoutSec = 10,
         bool $enableHls = true,
         bool $enableMp4 = false
-    ): ?array {
+    ) : ?array
+    {
         $params = [
-            'vhost' => $vhost,
-            'app' => $app,
-            'stream' => $stream,
-            'url' => $url,
+            'vhost'       => $vhost,
+            'app'         => $app,
+            'stream'      => $stream,
+            'url'         => $url,
             'retry_count' => $retryCount,
-            'rtp_type' => $rtpType,
+            'rtp_type'    => $rtpType,
             'timeout_sec' => $timeoutSec,
-            'enable_hls' => $enableHls ? 1 : 0,
-            'enable_mp4' => $enableMp4 ? 1 : 0,
+            'enable_hls'  => $enableHls ? 1 : 0,
+            'enable_mp4'  => $enableMp4 ? 1 : 0,
         ];
 
         $result = $this->request('addStreamProxy', $params);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('Add stream proxy', [
-                'vhost' => $vhost,
-                'app' => $app,
+                'vhost'  => $vhost,
+                'app'    => $app,
                 'stream' => $stream,
-                'url' => $url,
-                'code' => $result['code'] ?? null,
-                'key' => $result['data']['key'] ?? null,
+                'url'    => $url,
+                'code'   => $result['code'] ?? null,
+                'key'    => $result['data']['key'] ?? null,
             ]);
         }
 
@@ -942,14 +944,14 @@ class ZLMClient
      * @param string $key 流代理的唯一标识（addStreamProxy返回的key）
      * @return array|null ['code' => 0, 'data' => ['flag' => true]]
      */
-    public function delStreamProxy(string $key): ?array
+    public function delStreamProxy(string $key) : ?array
     {
         $params = ['key' => $key];
         $result = $this->request('delStreamProxy', $params);
 
         if ($this->debug && $result) {
             Log::channel('zlm')->info('Delete stream proxy', [
-                'key' => $key,
+                'key'  => $key,
                 'code' => $result['code'] ?? null,
             ]);
         }
@@ -962,7 +964,7 @@ class ZLMClient
      *
      * @return array|null ['code' => 0, 'data' => [['key' => '', 'url' => '', ...]]]
      */
-    public function getProxyList(): ?array
+    public function getProxyList() : ?array
     {
         $result = $this->request('getProxyList', []);
 
@@ -987,7 +989,7 @@ class ZLMClient
      * @param string $method 请求方法
      * @return array|null
      */
-    private function request(string $api, array $params = [], string $method = 'GET'): ?array
+    private function request(string $api, array $params = [], string $method = 'GET') : ?array
     {
         if ($this->secret) {
             $params['secret'] = $this->secret;
@@ -997,7 +999,7 @@ class ZLMClient
 
         if ($api !== 'getMediaList') {
             $this->debugLog('ZLM API Request', [
-                'api' => $api,
+                'api'    => $api,
                 'params' => $params,
             ]);
         }
@@ -1009,7 +1011,7 @@ class ZLMClient
 
         if ($api !== 'getMediaList') {
             $this->debugLog('ZLM API Response', [
-                'api' => $api,
+                'api'    => $api,
                 'result' => $result,
             ]);
         }
@@ -1022,13 +1024,13 @@ class ZLMClient
         $ch = curl_init();
 
         curl_setopt_array($ch, $options + [
-                CURLOPT_URL => $url,
+                CURLOPT_URL            => $url,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 10,
+                CURLOPT_TIMEOUT        => 10,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_SSL_VERIFYHOST => false,
-                CURLOPT_HTTPHEADER => [
+                CURLOPT_HTTPHEADER     => [
                     'Content-Type: application/x-www-form-urlencoded',
                 ],
             ]);
@@ -1041,10 +1043,10 @@ class ZLMClient
 
         if ($error || $httpCode !== 200) {
             Log::channel('zlm')->error('ZLM API HTTP Error', [
-                'url' => $url,
-                'error' => $error,
+                'url'       => $url,
+                'error'     => $error,
                 'http_code' => $httpCode,
-                'response' => $response,
+                'response'  => $response,
             ]);
             return null;
         }
@@ -1055,7 +1057,7 @@ class ZLMClient
     private function __PostRequest(string $url, array $params = [])
     {
         return $this->curlRequest($url, [
-            CURLOPT_POST => true,
+            CURLOPT_POST       => true,
             CURLOPT_POSTFIELDS => http_build_query($params),
         ]);
     }
@@ -1068,7 +1070,7 @@ class ZLMClient
         );
     }
 
-    private function debugLog(string $msg, array $context = []): void
+    private function debugLog(string $msg, array $context = []) : void
     {
         if ($this->debug) {
             Log::channel('zlm')->info($msg, $context);

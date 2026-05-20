@@ -60,7 +60,7 @@ class MenuCommand extends Command
     /**
      * @return MenuService
      */
-    protected function getMenuService(): MenuService
+    protected function getMenuService() : MenuService
     {
         return $this->getBiz()->service('Menu:MenuService');
     }

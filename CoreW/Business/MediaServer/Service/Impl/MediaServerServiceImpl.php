@@ -24,11 +24,11 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $this->getMediaServerDao()->get($id);
     }
 
-    public function getMediaServerByServerId(string $serverId): ?array
+    public function getMediaServerByServerId(string $serverId) : ?array
     {
         $result = $this->getMediaServerDao()->getByServerId($serverId);
 
-        return $result ?: null;
+        return $result ? : null;
     }
 
     public function findServersByIds(array $ids)
@@ -51,7 +51,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $this->getMediaServerDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
 
-    public function getSimpleList(): array
+    public function getSimpleList() : array
     {
         return $this->searchMediaServers([], [], 0, 100, ['id', 'server_id', 'name', 'type', 'status']);
     }
@@ -78,19 +78,19 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         if (!empty($row)) {
             $this->getSSRCFactory()->initMediaServerSSRC($row['server_id']);
             Client::send('sync_media_server_status_job', [
-                'mediaServerId' => $row['id']
+                'mediaServerId' => $row['id'],
             ]);
         }
 
         return $row;
     }
 
-    protected function getSSRCFactory():SSRCFactory
+    protected function getSSRCFactory() : SSRCFactory
     {
         return $this->bfw['SSRCFactory'];
     }
 
-    protected function generateServerId(): string
+    protected function generateServerId() : string
     {
         while (true) {
             $serverId = Uuid::uuid4();
@@ -132,7 +132,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $this->getMediaServerDao()->delete($id);
     }
 
-    public function getStats(int $id): array
+    public function getStats(int $id) : array
     {
         $server = $this->getMediaServerById($id);
 
@@ -145,19 +145,19 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
         // 更新缓存的统计数据
         $this->updateMediaServer($id, [
-            'status' => $stats['status'] ?? ServerStatusEnum::UNKNOWN->value,
-            'cpu_usage' => $stats['cpu_usage'] ?? 0,
+            'status'       => $stats['status'] ?? ServerStatusEnum::UNKNOWN->value,
+            'cpu_usage'    => $stats['cpu_usage'] ?? 0,
             'memory_usage' => $stats['memory_usage'] ?? 0,
             'stream_count' => $stats['stream_count'] ?? 0,
             'player_count' => $stats['total_connection_count'] ?? 0,
-            'uptime' => $stats['uptime'] ?? 0,
+            'uptime'       => $stats['uptime'] ?? 0,
             'last_sync_at' => date('Y-m-d H:i:s'),
         ]);
 
         return $stats;
     }
 
-    public function getConfig(int $id): array
+    public function getConfig(int $id) : array
     {
         $server = $this->getMediaServerById($id);
 
@@ -170,7 +170,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $strategy->getConfig($server);
     }
 
-    public function setConfig(int $id, array $config): bool
+    public function setConfig(int $id, array $config) : bool
     {
         $server = $this->getMediaServerById($id);
 
@@ -192,7 +192,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $result;
     }
 
-    public function restart(int $id): bool
+    public function restart(int $id) : bool
     {
         $server = $this->getMediaServerById($id);
 
@@ -202,7 +202,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
 
         $strategy = $this->getStrategy($server['type']);
 
-        $resp =  $strategy->restart($server);
+        $resp = $strategy->restart($server);
         // 重启完成，重置流媒体保存的ssrc
         if ($resp && $server['type'] === MediaServerType::ZLM->value) {
             $this->getSSRCFactory()->reset($server['server_id']);
@@ -211,7 +211,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         return $resp;
     }
 
-    public function syncStatus(int $id): bool
+    public function syncStatus(int $id) : bool
     {
         $server = $this->getMediaServerById($id);
 
@@ -223,14 +223,14 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
         $isOnline = $strategy->isOnline($server);
 
         $this->updateMediaServer($id, [
-            'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
+            'status'       => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
             'last_sync_at' => date('Y-m-d H:i:s'),
         ]);
 
         return $isOnline;
     }
 
-    public function getStrategy(string $type): MediaServerStrategyInterface
+    public function getStrategy(string $type) : MediaServerStrategyInterface
     {
         return MediaServerStrategyFactory::getStrategy($type);
     }
@@ -238,7 +238,7 @@ class MediaServerServiceImpl extends BaseService implements MediaServerService
     /**
      * @return MediaServerDao|DaoProxy
      */
-    protected function getMediaServerDao(): MediaServerDao | DaoProxy
+    protected function getMediaServerDao() : MediaServerDao|DaoProxy
     {
         return $this->createDao('MediaServer:MediaServerDao');
     }

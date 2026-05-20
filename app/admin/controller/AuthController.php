@@ -29,10 +29,10 @@ class AuthController extends BaseController
         // 获取用户名和密码
         $username = $request->post('username');
         $password = $request->post('password');
-        
+
         // 校验用户
         $user = $this->validateUser($request, $username, $password);
-        
+
         $type = $request->get('type', BizEnum::TOKEN_TYPE_ADMIN_LOGIN);
         $authConfig = $this->getSettingService()->get('auth', []);
         $currentIp = $request->getRealIp();
@@ -48,7 +48,7 @@ class AuthController extends BaseController
         }
 
         $token = $this->makeAuthToken($type, $user['id'], config('app.admin.auth_ttl'));
-//            $this->getUserService()->markLoginInfo($user, $type);
+        //            $this->getUserService()->markLoginInfo($user, $type);
         // 设备终端登录限制:开启后，同一帐号同时只能在APP或WEB一个设备终端上进行登录
         $clientLoginLimit = isset($authConfig['login_connect_client_login_limit']) && $authConfig['login_connect_client_login_limit'];
         if ($clientLoginLimit) {
@@ -58,13 +58,13 @@ class AuthController extends BaseController
                     if ($delToken['token'] != $token['md5_token']) {
                         $this->getTokenHandler()->destroyToken($delToken['token']);
                     }
-                } elseif ($delToken['token'] != $token['token']) {
+                } else if ($delToken['token'] != $token['token']) {
                     $this->getTokenHandler()->destroyToken($delToken['token']);
                 }
             }
         }
 
-        $roles = $this->getRoleService()->findRolesByCodes($user['roles']) ;
+        $roles = $this->getRoleService()->findRolesByCodes($user['roles']);
         $roleMap = [];
         foreach ($roles as $role) {
             $roleMap[] = [
@@ -79,10 +79,10 @@ class AuthController extends BaseController
         $data = [
             'token' => [
                 'value' => $token['token'],
-                'type' => $token['type'],
-                'key' => $token['key']
+                'type'  => $token['type'],
+                'key'   => $token['key'],
             ],
-            'user' => $user,
+            'user'  => $user,
         ];
 
 
@@ -104,8 +104,8 @@ class AuthController extends BaseController
     {
         $user = $this->getCurrentUser()->toArray();
         $this->getLogService()->info('admin', 'user_logout', '用户退出', [
-            'user' => $user,
-            'currentIp' => $request->getRealIp()
+            'user'      => $user,
+            'currentIp' => $request->getRealIp(),
         ]);
         $this->getTokenHandler()->destroyToken($user['loginToken']);
         $this->getBiz()->offsetSet('user', null);
@@ -113,7 +113,7 @@ class AuthController extends BaseController
         return $this->createSuccessJsonResponse(null, '登出成功');
     }
 
-    public function captcha(Request $request): Response
+    public function captcha(Request $request) : Response
     {
         // 初始化验证码类
         $builder = new CaptchaBuilder;
@@ -127,7 +127,7 @@ class AuthController extends BaseController
         return response($imgContent)->header('Content-Type', 'image/jpeg');
     }
 
-    protected function makeAuthToken($type, $userId, $duration = 0, $data = null, $args = []): array
+    protected function makeAuthToken($type, $userId, $duration = 0, $data = null, $args = []) : array
     {
         $token = [];
         $token['userId'] = $userId ? (int)$userId : 0;
@@ -194,7 +194,7 @@ class AuthController extends BaseController
     /**
      * @return TokenHandlerInterface
      */
-    protected function getTokenHandler(): TokenHandlerInterface
+    protected function getTokenHandler() : TokenHandlerInterface
     {
         return $this->getBiz()->offsetGet('admin_auth')();
     }
@@ -202,7 +202,7 @@ class AuthController extends BaseController
     /**
      * @return RoleService
      */
-    protected function getRoleService(): RoleService
+    protected function getRoleService() : RoleService
     {
         return $this->createService('Role:RoleService');
     }

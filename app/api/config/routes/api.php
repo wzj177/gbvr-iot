@@ -21,7 +21,7 @@ Route::group('/api', function () {
             Route::post('/register', [AuthController::class, 'register'])->name('api.register');
             Route::post('/login', [AuthController::class, 'login'])->name('api.login');
             Route::post('/email-login', [AuthController::class, 'emailLogin'])->name('api.email-login');
-//            Route::get('/captcha', [AuthController::class, 'captcha'])->name('api.captcha');
+            //            Route::get('/captcha', [AuthController::class, 'captcha'])->name('api.captcha');
             Route::post('/send-email-code', [AuthController::class, 'sendEmailLoginCode'])->name('api.send-login-email-code');
             Route::get('/config', [AuthController::class, 'config'])->name('api.auth-config');
             Route::post('/oauth2-qq-url', [AuthController::class, 'qqAuthUrl'])->name('api.auth-oauth2-qq-auth-url');
@@ -33,7 +33,7 @@ Route::group('/api', function () {
 
         // 退出
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout')->middleware([
-            AuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 会员中心
@@ -49,7 +49,7 @@ Route::group('/api', function () {
             Route::put('/edit/{id}', [VIPController::class, 'edit'])->name('api.vip.edit');
             Route::get('/products', [ProductController::class, 'myList'])->name('api.vip.products');
         })->middleware([
-            AuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 作品
@@ -87,16 +87,16 @@ Route::group('/api', function () {
             Route::put('/config/{id:\d+}', [ProductController::class, 'setConfig'])->name('api.product-set-config');
             Route::get('/config/{id:\d+}/{key:\w+}', [ProductController::class, 'getConfig'])->name('api.product-get-config');
         })->middleware([
-            AuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 物联网
-        Route::group('/iot', function() {
+        Route::group('/iot', function () {
             Route::get('/device/catalogs', [IotController::class, 'getDeviceCatalogs'])->name('iot.device.catalogs');
-           Route::get('/device/list', [IotController::class, 'getDeviceList'])->name('iot.device.list');
+            Route::get('/device/list', [IotController::class, 'getDeviceList'])->name('iot.device.list');
         })->middleware([
-//            XAuthTokenIdentityMiddleware::class,
-//            CompanyIotMiddleware::class
+            //            XAuthTokenIdentityMiddleware::class,
+            //            CompanyIotMiddleware::class
         ]);
 
         // 作品:无需认证,游客也可访问
@@ -115,12 +115,12 @@ Route::group('/api', function () {
             Route::get('/iot/camera/live-url/{deviceCode}', [IotController::class, 'getCameraLiveUrl'])->name('iot.camera.live-url');
             Route::get('/iot/gis/tiles-url', [IotController::class, 'getGisTilesUrl'])->name('iot.gis.tiles-url');
         })->middleware([
-            ProductAnonymousVisitMiddleware::class
+            ProductAnonymousVisitMiddleware::class,
         ]);
 
         // 上传
         Route::post('/upload/file', [\app\api\v1\controller\UploadController::class, 'singleFile'])->name('api.common.upload.file')->middleware([
-            AuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 邮箱验证
@@ -137,13 +137,14 @@ Route::group('/api', function () {
     Route::group('/v2', function () {
         Route::group('/gb', function () {
             Route::post('/server/hook', [\app\api\v2\controller\GBServerHookController::class, 'index'])->middleware([
-                \app\middleware\GBHook::class
+                \app\middleware\GBHook::class,
             ]);
             Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pushOnLineList']);
 
-            // Gateway config pull + heartbeat
+            // Gateway config pull + heartbeat + register
             Route::get('/gateway/config', [\app\api\v2\controller\GBGatewayConfigController::class, 'getConfig']);
             Route::post('/gateway/heartbeat', [\app\api\v2\controller\GBGatewayConfigController::class, 'heartbeat']);
+            Route::post('/gateway/register', [\app\api\v2\controller\GBGatewayConfigController::class, 'register']);
         });
 
         Route::group('/zlm_hook', function () {
@@ -196,7 +197,7 @@ Route::group('/api', function () {
             // RTP 超时事件
             Route::post('/on_rtp_server_timeout', [\app\api\v2\controller\ZLMHookController::class, 'onRtpServerTimeout'])->name('api.zlm_hook.on_rtp_server_timeout');
         })->middleware([
-            \app\middleware\ZLMHook::class
+            \app\middleware\ZLMHook::class,
         ]);
     });
 });

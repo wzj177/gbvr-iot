@@ -77,7 +77,7 @@ class LiveProviderStrategy
      * @param null $currentThirdParty
      * @return LiveProviderStrategy
      */
-    public function setCurrentThirdParty($currentThirdParty = null): LiveProviderStrategy
+    public function setCurrentThirdParty($currentThirdParty = null) : LiveProviderStrategy
     {
         $this->currentThirdParty = $currentThirdParty;
 

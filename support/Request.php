@@ -69,7 +69,7 @@ class Request extends \Webman\Http\Request
     }
 
 
-    protected function parseFile(array $file): UploadFile
+    protected function parseFile(array $file) : UploadFile
     {
         return new UploadFile($file['tmp_name'], $file['name'], $file['type'], $file['error']);
     }

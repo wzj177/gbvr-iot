@@ -10,12 +10,12 @@ class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
     protected string $tableName = 'gv_record_file';
     protected string $primaryKey = 'id';
 
-    public function getByMainId(string $mainId): ?array
+    public function getByMainId(string $mainId) : ?array
     {
         return $this->get(['main_id' => $mainId]);
     }
 
-    public function countByDate(string $date): int
+    public function countByDate(string $date) : int
     {
         $sql = "SELECT COUNT(*) as count FROM {$this->tableName} WHERE record_date = ?";
         $result = $this->db->fetchOne($sql, [$date]);
@@ -23,7 +23,7 @@ class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
     }
 
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [

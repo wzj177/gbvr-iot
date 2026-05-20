@@ -27,7 +27,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 
 class ExtensionsProvider implements ServiceProviderInterface
 {
-    public function register(Container $biz): void
+    public function register(Container $biz) : void
     {
         $biz['ip2region'] = function () {
             return new Ip2Region();
@@ -62,10 +62,10 @@ class ExtensionsProvider implements ServiceProviderInterface
             $handler->setFormatter(new LineFormatter(null, 'Y-m-d H:i:s', true));
 
             return FFMpeg::create([
-                'ffmpeg.binaries' => $config['ffmpeg_bin'],
+                'ffmpeg.binaries'  => $config['ffmpeg_bin'],
                 'ffprobe.binaries' => $config['ffprobe_bin'],
-                'timeout' => $config['timeout'], // The timeout for the underlying process
-                'ffmpeg.threads' => $config['threads'],   // The number of threads that FFMpeg should use
+                'timeout'          => $config['timeout'], // The timeout for the underlying process
+                'ffmpeg.threads'   => $config['threads'],   // The number of threads that FFMpeg should use
             ], new Logger('ffmpeg', [$handler]));
         };
 
@@ -79,10 +79,10 @@ class ExtensionsProvider implements ServiceProviderInterface
             $handler->setFormatter(new LineFormatter(null, 'Y-m-d H:i:s', true));
 
             return FFProbe::create([
-                'ffmpeg.binaries' => $config['ffmpeg_bin'],
+                'ffmpeg.binaries'  => $config['ffmpeg_bin'],
                 'ffprobe.binaries' => $config['ffprobe_bin'],
-                'timeout' => $config['timeout'], // The timeout for the underlying process
-                'ffmpeg.threads' => $config['threads'],   // The number of threads that FFMpeg should use
+                'timeout'          => $config['timeout'], // The timeout for the underlying process
+                'ffmpeg.threads'   => $config['threads'],   // The number of threads that FFMpeg should use
             ], new Logger('ffprobe', [$handler]));
         };
 
@@ -91,7 +91,19 @@ class ExtensionsProvider implements ServiceProviderInterface
         };
 
         $biz['gb28181_gateway_sdk'] = function ($app) {
-            return new Gb28181Client(Redis::connection('gb_gateway'), config('gb28181'));
+            $client = new Gb28181Client(Redis::connection('gb_gateway'), config('gb28181'));
+
+            // 设置 gateway_id 自动解析器：根据 device_id 查找绑定的网关
+            $client->setGatewayIdResolver(function (string $deviceId) use ($app) {
+                try {
+                    $device = $app->service('Devices:DeviceService')->getDeviceByDeviceId($deviceId);
+                    return $device['gateway_id'] ?? null;
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            });
+
+            return $client;
         };
 
         $biz['gb28181_send_rtp_port_service'] = function ($app) {
@@ -124,20 +136,32 @@ class ExtensionsProvider implements ServiceProviderInterface
 
         $biz['sip.le_change_sdk'] = function () {
             return function ($params, $debug) {
-                return new LeChangeSdk($params['appKey'], $params['appSecret'], $debug, $params['apiUrl'] ??  null);
+                return new LeChangeSdk($params['appKey'], $params['appSecret'], $debug, $params['apiUrl'] ?? null);
             };
+        };
+
+        $biz['sip_gateway_service'] = function ($app) {
+            return new \CoreW\Business\SipGateway\Service\Impl\SipGatewayServiceImpl($app);
         };
 
         $biz['zlm_sdk'] = function () {
             return function ($params) {
                 return new ZLMClient([
-                    'host' => $params['host'],
-                    'port' => $params['port'],
+                    'host'       => $params['host'],
+                    'port'       => $params['port'],
                     'https_port' => $params['https_port'],
-                    'secret' => $params['secret'],
-                    'debug' => $params['debug'] ?? config('app.debug'),
+                    'secret'     => $params['secret'],
+                    'debug'      => $params['debug'] ?? config('app.debug'),
                 ]);
             };
+        };
+
+        $biz['lock.redis'] = function () {
+            return new \CoreW\Business\Lock\RedisLock();
+        };
+
+        $biz['lock.file'] = function () {
+            return new \CoreW\Business\Lock\FileLock();
         };
     }
 }

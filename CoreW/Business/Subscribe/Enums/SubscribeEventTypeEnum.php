@@ -8,26 +8,26 @@ enum SubscribeEventTypeEnum: string
     case ALARM = 'alarm';
     case MOBILE_POSITION = 'mobile_position';
 
-    public function label(): string
+    public function label() : string
     {
-        return match($this) {
+        return match ($this) {
             self::CATALOG => '目录变更',
             self::ALARM => '报警',
             self::MOBILE_POSITION => '移动位置',
         };
     }
 
-    public static function getItems(): array
+    public static function getItems() : array
     {
         return array_map(fn($item) => [
-            'key' => $item->value,
+            'key'   => $item->value,
             'value' => $item->label(),
         ], self::cases());
     }
 
-    public static function fromGb28181(string $gbType): ?self
+    public static function fromGb28181(string $gbType) : ?self
     {
-        return match($gbType) {
+        return match ($gbType) {
             'Catalog' => self::CATALOG,
             'Alarm' => self::ALARM,
             'MobilePosition' => self::MOBILE_POSITION,
@@ -35,9 +35,9 @@ enum SubscribeEventTypeEnum: string
         };
     }
 
-    public function toGb28181(): string
+    public function toGb28181() : string
     {
-        return match($this) {
+        return match ($this) {
             self::CATALOG => 'Catalog',
             self::ALARM => 'Alarm',
             self::MOBILE_POSITION => 'MobilePosition',

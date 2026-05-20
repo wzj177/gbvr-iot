@@ -106,7 +106,7 @@ class Response
             if (false === strpos($line, ': ')) {
                 $this->setHttpResponseCodeFromHeader($line);
             } else {
-                list($key, $value) = explode(': ', $line, 2);
+                [$key, $value] = explode(': ', $line, 2);
                 $this->headers[$key] = $value;
             }
         }

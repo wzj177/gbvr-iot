@@ -6,7 +6,7 @@ namespace CoreW\Business\User\Token\Storage;
 
 interface TokenStorageInterface
 {
-    public function get($id, array $options = array());
+    public function get($id, array $options = []);
 
     public function getByToken(string $token);
 

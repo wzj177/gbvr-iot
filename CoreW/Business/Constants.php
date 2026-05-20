@@ -13,7 +13,7 @@ class Constants
     {
         $items = [
             self::IOT_DEVICE_USED_STATUS_YES => '已使用',
-            self::IOT_DEVICE_USED_STATUS_NO => '未使用',
+            self::IOT_DEVICE_USED_STATUS_NO  => '未使用',
         ];
         return self::getItems($items, $key);
     }
@@ -35,9 +35,9 @@ class Constants
     public static function getIotDeviceStatusItems($key = null)
     {
         $items = [
-            self::IOT_DEVICE_STATUS_DISABLED => '禁用',
+            self::IOT_DEVICE_STATUS_DISABLED    => '禁用',
             self::IOT_DEVICE_STATUS_UNACTIVATED => '未激活',
-            self::IOT_DEVICE_STATUS_ENABLED => '正常',
+            self::IOT_DEVICE_STATUS_ENABLED     => '正常',
         ];
         return self::getItems($items, $key);
     }
@@ -51,8 +51,8 @@ class Constants
     {
         $items = [
             self::IOT_DEVICE_CONN_STATUS_OFFLINE => '离线',
-            self::IOT_DEVICE_CONN_STATUS_NONE => '未连接',
-            self::IOT_DEVICE_CONN_STATUS_ONLINE => '在线',
+            self::IOT_DEVICE_CONN_STATUS_NONE    => '未连接',
+            self::IOT_DEVICE_CONN_STATUS_ONLINE  => '在线',
         ];
         return self::getItems($items, $key);
     }
@@ -64,8 +64,8 @@ class Constants
     public static function getVideoChannelRecordStatusItems($key = null)
     {
         $items = [
-            self::VIDEO_CHANNEL_RECORD_STATUS_NONE => '未录像',
-            self::VIDEO_CHANNEL_RECORD_STATUS_ING => '录像中',
+            self::VIDEO_CHANNEL_RECORD_STATUS_NONE  => '未录像',
+            self::VIDEO_CHANNEL_RECORD_STATUS_ING   => '录像中',
             self::VIDEO_CHANNEL_RECORD_STATUS_CLOSE => '关闭录像',
         ];
         return self::getItems($items, $key);
@@ -78,7 +78,7 @@ class Constants
     {
         $items = [
             self::YES => '是',
-            self::NO => '否',
+            self::NO  => '否',
         ];
 
         return self::getItems($items, $key);
@@ -90,7 +90,7 @@ class Constants
     public static function getEnableOrDisableItems($key = null)
     {
         $items = [
-            self::ENABLED => '启用',
+            self::ENABLED  => '启用',
             self::DISABLED => '禁用',
         ];
 
@@ -111,10 +111,10 @@ class Constants
     public static function getLoginTypeItems($key = null)
     {
         $items = [
-            self::TOKEN_TYPE_ADMIN_LOGIN => '后台登录',
-            self::TOKEN_TYPE_H5_LOGIN => 'H5登录',
+            self::TOKEN_TYPE_ADMIN_LOGIN     => '后台登录',
+            self::TOKEN_TYPE_H5_LOGIN        => 'H5登录',
             self::TOKEN_TYPE_MP_WEIXIN_LOGIN => '微信小程序登录',
-            self::TOKEN_TYPE_APP_LOGIN => '手机app登录',
+            self::TOKEN_TYPE_APP_LOGIN       => '手机app登录',
         ];
 
         return self::getItems($items, $key);
@@ -130,10 +130,10 @@ class Constants
     public static function getLiveProviderItems($key = null)
     {
         $items = [
-            self::LIVE_PROVIDER_OPEN_YS7 => '萤石云',
-            self::LIVE_PROVIDER_OPEN_LE_CHANGE => '乐橙',
-            self::LIVE_PROVIDER_OPEN_LE_YS7_CHANGE => '萤石云+乐橙',
-            self::LIVE_PROVIDER_OPEN_ISECURE_CENTER => '综合安防管理平台',
+            self::LIVE_PROVIDER_OPEN_YS7             => '萤石云',
+            self::LIVE_PROVIDER_OPEN_LE_CHANGE       => '乐橙',
+            self::LIVE_PROVIDER_OPEN_LE_YS7_CHANGE   => '萤石云+乐橙',
+            self::LIVE_PROVIDER_OPEN_ISECURE_CENTER  => '综合安防管理平台',
             self::LIVE_PROVIDER_OPEN_PRIVATE_GB28181 => '国标-私有云',
         ];
 
@@ -152,14 +152,14 @@ class Constants
     public static function getBLiveStreamProtocolItems($key = null)
     {
         $items = [
-            self::BLIVE_STREAM_PROTOCOL_HLS => 'HLS',
+            self::BLIVE_STREAM_PROTOCOL_HLS    => 'HLS',
             self::BLIVE_STREAM_PROTOCOL_WS_HLS => 'WS HLS',
-            self::BLIVE_STREAM_PROTOCOL_FLV => 'HTTP FLV',
+            self::BLIVE_STREAM_PROTOCOL_FLV    => 'HTTP FLV',
             self::BLIVE_STREAM_PROTOCOL_WS_FLV => 'WS FLV',
-            self::BLIVE_STREAM_PROTOCOL_MP4 => 'MP4',
+            self::BLIVE_STREAM_PROTOCOL_MP4    => 'MP4',
             self::BLIVE_STREAM_PROTOCOL_WS_MP4 => 'WS MP4',
-            self::BLIVE_STREAM_PROTOCOL_RTSP => 'RTSP',
-            self::BLIVE_STREAM_PROTOCOL_RTMP => 'RTMP',
+            self::BLIVE_STREAM_PROTOCOL_RTSP   => 'RTSP',
+            self::BLIVE_STREAM_PROTOCOL_RTMP   => 'RTMP',
         ];
 
         return self::getItems($items, $key);
@@ -181,7 +181,7 @@ class Constants
         $items = [
             self::DEVICE_STATUS_UNKNOWN => '未知',
             self::DEVICE_STATUS_OFFLINE => '离线',
-            self::DEVICE_STATUS_ONLINE => '在线',
+            self::DEVICE_STATUS_ONLINE  => '在线',
         ];
 
         return self::getItems($items, $key);
@@ -199,7 +199,7 @@ class Constants
     public static function getDeviceEnableStatusItems($key = null)
     {
         $items = [
-            self::DEVICE_ACTIVE => '已激活',
+            self::DEVICE_ACTIVE    => '已激活',
             self::DEVICE_UN_ACTIVE => '未激活',
         ];
 
@@ -212,7 +212,7 @@ class Constants
     public static function getDevicePushStatusItems($key = null)
     {
         $items = [
-            self::DEVICE_PUSH_REGISTERED => '注册上报',
+            self::DEVICE_PUSH_REGISTERED    => '注册上报',
             self::DEVICE_PUSH_UN_REGISTERED => '注销上报',
         ];
 
@@ -260,6 +260,6 @@ class Constants
      */
     public static function getValue(array $items, $key = null, string $defaultValue = '')
     {
-        return $items[$key] ?: $defaultValue;
+        return $items[$key] ? : $defaultValue;
     }
 }

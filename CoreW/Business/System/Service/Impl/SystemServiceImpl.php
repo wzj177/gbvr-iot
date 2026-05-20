@@ -12,20 +12,20 @@ class SystemServiceImpl implements SystemService
     /**
      * 获取系统资源使用情况
      */
-    public function getSystemStats(): array
+    public function getSystemStats() : array
     {
         return [
-            'cpu' => $this->getCpuUsage(),
-            'memory' => $this->getMemoryUsage(),
+            'cpu'     => $this->getCpuUsage(),
+            'memory'  => $this->getMemoryUsage(),
             'network' => $this->getNetworkStats(),
-            'disk' => $this->getDiskUsage(),
+            'disk'    => $this->getDiskUsage(),
         ];
     }
 
     /**
      * 获取CPU使用情况
      */
-    public function getCpuUsage(): array
+    public function getCpuUsage() : array
     {
         $usage = 0;
         $cores = 0;
@@ -55,7 +55,7 @@ class SystemServiceImpl implements SystemService
 
                 $usage = $totalDiff > 0 ? round(100 * ($totalDiff - $idleDiff) / $totalDiff, 2) : 0;
             }
-        } elseif (PHP_OS_FAMILY === 'Darwin') {
+        } else if (PHP_OS_FAMILY === 'Darwin') {
             // macOS: 使用 top 命令直接获取 CPU 使用率
             $cores = (int)shell_exec('sysctl -n hw.ncpu');
             $model = shell_exec('sysctl -n machdep.cpu.brand_string');
@@ -94,17 +94,17 @@ class SystemServiceImpl implements SystemService
         }
 
         return [
-            'usage' => $usage,
-            'cores' => $cores ?: 0,
-            'model' => $model,
-            'load_average' => sys_getloadavg()
+            'usage'        => $usage,
+            'cores'        => $cores ? : 0,
+            'model'        => $model,
+            'load_average' => sys_getloadavg(),
         ];
     }
 
     /**
      * 获取内存使用情况
      */
-    public function getMemoryUsage(): array
+    public function getMemoryUsage() : array
     {
         if (PHP_OS_FAMILY === 'Linux') {
             if (file_exists('/proc/meminfo')) {
@@ -118,9 +118,9 @@ class SystemServiceImpl implements SystemService
                 foreach ($lines as $line) {
                     if (preg_match('/^MemTotal:\s+(\d+)\s+kB$/', $line, $matches)) {
                         $memTotal = (int)$matches[1] * 1024; // Convert to bytes
-                    } elseif (preg_match('/^MemFree:\s+(\d+)\s+kB$/', $line, $matches)) {
+                    } else if (preg_match('/^MemFree:\s+(\d+)\s+kB$/', $line, $matches)) {
                         $memFree = (int)$matches[1] * 1024; // Convert to bytes
-                    } elseif (preg_match('/^MemAvailable:\s+(\d+)\s+kB$/', $line, $matches)) {
+                    } else if (preg_match('/^MemAvailable:\s+(\d+)\s+kB$/', $line, $matches)) {
                         $memAvailable = (int)$matches[1] * 1024; // Convert to bytes
                     }
                 }
@@ -129,51 +129,51 @@ class SystemServiceImpl implements SystemService
                 $usagePercent = $memTotal > 0 ? round(($used / $memTotal) * 100, 2) : 0;
 
                 return [
-                    'total' => $memTotal,
-                    'used' => $used,
-                    'available' => $memAvailable,
-                    'usage_percent' => $usagePercent
+                    'total'         => $memTotal,
+                    'used'          => $used,
+                    'available'     => $memAvailable,
+                    'usage_percent' => $usagePercent,
                 ];
             }
-        } elseif (PHP_OS_FAMILY === 'Darwin') {
+        } else if (PHP_OS_FAMILY === 'Darwin') {
             // On macOS, use system commands
             $memTotal = (int)shell_exec('sysctl -n hw.memsize');
             $vmStat = shell_exec('vm_stat');
             $pageSize = 4096; // Standard page size
-            
+
             preg_match('/Pages free:\s+(\d+)/', $vmStat, $matches);
             $freePages = isset($matches[1]) ? (int)$matches[1] : 0;
-            
+
             preg_match('/Pages active:\s+(\d+)/', $vmStat, $matches);
             $activePages = isset($matches[1]) ? (int)$matches[1] : 0;
-            
+
             preg_match('/Pages inactive:\s+(\d+)/', $vmStat, $matches);
             $inactivePages = isset($matches[1]) ? (int)$matches[1] : 0;
-            
+
             $used = ($activePages + $inactivePages) * $pageSize;
             $available = $freePages * $pageSize;
             $usagePercent = $memTotal > 0 ? round(($used / $memTotal) * 100, 2) : 0;
-            
+
             return [
-                'total' => $memTotal,
-                'used' => $used,
-                'available' => $available,
-                'usage_percent' => $usagePercent
+                'total'         => $memTotal,
+                'used'          => $used,
+                'available'     => $available,
+                'usage_percent' => $usagePercent,
             ];
         }
 
         return [
-            'total' => 0,
-            'used' => 0,
-            'available' => 0,
-            'usage_percent' => 0
+            'total'         => 0,
+            'used'          => 0,
+            'available'     => 0,
+            'usage_percent' => 0,
         ];
     }
 
     /**
      * 获取网络统计信息
      */
-    public function getNetworkStats(): array
+    public function getNetworkStats() : array
     {
         $netStats1 = $this->getNetworkBytes();
         usleep(100000); // 延迟100ms获取差值
@@ -200,9 +200,9 @@ class SystemServiceImpl implements SystemService
         }
 
         return [
-            'in_speed' => $inSpeed,      // Bytes per second
+            'in_speed'  => $inSpeed,      // Bytes per second
             'out_speed' => $outSpeed,    // Bytes per second
-            'in_total' => $inTotal,      // Total bytes received
+            'in_total'  => $inTotal,      // Total bytes received
             'out_total' => $outTotal,    // Total bytes sent
         ];
     }
@@ -210,7 +210,7 @@ class SystemServiceImpl implements SystemService
     /**
      * 获取磁盘使用情况
      */
-    public function getDiskUsage(): array
+    public function getDiskUsage() : array
     {
         $total = disk_total_space('/');
         $free = disk_free_space('/');
@@ -218,64 +218,64 @@ class SystemServiceImpl implements SystemService
         $usagePercent = $total > 0 ? round(($used / $total) * 100, 2) : 0;
 
         return [
-            'total' => $total,
-            'used' => $used,
-            'free' => $free,
-            'usage_percent' => $usagePercent
+            'total'         => $total,
+            'used'          => $used,
+            'free'          => $free,
+            'usage_percent' => $usagePercent,
         ];
     }
 
     /**
      * 获取系统进程信息
      */
-    public function getProcessInfo(): array
+    public function getProcessInfo() : array
     {
         $processes = [];
-        
+
         if (PHP_OS_FAMILY === 'Linux') {
             $output = shell_exec('ps aux --no-headers');
             $lines = explode("\n", $output);
-            
+
             foreach ($lines as $line) {
                 $parts = preg_split('/\s+/', trim($line));
                 if (count($parts) >= 10) {
                     $processes[] = [
-                        'user' => $parts[0],
-                        'pid' => (int)$parts[1],
-                        'cpu' => floatval($parts[2]),
-                        'mem' => floatval($parts[3]),
-                        'command' => implode(' ', array_slice($parts, 10))
+                        'user'    => $parts[0],
+                        'pid'     => (int)$parts[1],
+                        'cpu'     => floatval($parts[2]),
+                        'mem'     => floatval($parts[3]),
+                        'command' => implode(' ', array_slice($parts, 10)),
                     ];
                 }
             }
-        } elseif (PHP_OS_FAMILY === 'Darwin') {
+        } else if (PHP_OS_FAMILY === 'Darwin') {
             $output = shell_exec('ps aux -ww');
             $lines = explode("\n", $output);
-            
+
             foreach ($lines as $line) {
                 $parts = preg_split('/\s+/', trim($line));
                 if (count($parts) >= 10) {
                     $processes[] = [
-                        'user' => $parts[0],
-                        'pid' => (int)$parts[1],
-                        'cpu' => floatval($parts[2]),
-                        'mem' => floatval($parts[3]),
-                        'command' => implode(' ', array_slice($parts, 10))
+                        'user'    => $parts[0],
+                        'pid'     => (int)$parts[1],
+                        'cpu'     => floatval($parts[2]),
+                        'mem'     => floatval($parts[3]),
+                        'command' => implode(' ', array_slice($parts, 10)),
                     ];
                 }
             }
         }
-        
+
         return [
             'processes' => $processes,
-            'count' => count($processes)
+            'count'     => count($processes),
         ];
     }
 
     /**
      * Get CPU stats from /proc/stat or macOS top command
      */
-    private function getCpuStats(): ?array
+    private function getCpuStats() : ?array
     {
         if (PHP_OS_FAMILY === 'Darwin') {
             // On macOS, use top command to get CPU usage
@@ -286,16 +286,20 @@ class SystemServiceImpl implements SystemService
                 $idle = (float)$matches[3];
                 $total = 100; // top command returns percentages, so total is 100
 
-                return [[
-                    'total' => $total,
-                    'idle' => $idle
-                ]];
+                return [
+                    [
+                        'total' => $total,
+                        'idle'  => $idle,
+                    ],
+                ];
             }
             // Fallback to mock data if top command fails
-            return [[
-                'total' => 100,
-                'idle' => 0
-            ]];
+            return [
+                [
+                    'total' => 100,
+                    'idle'  => 0,
+                ],
+            ];
         }
 
         if (!file_exists('/proc/stat')) {
@@ -322,7 +326,7 @@ class SystemServiceImpl implements SystemService
                     $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq + $steal;
                     $stats[] = [
                         'total' => $total,
-                        'idle' => $idle
+                        'idle'  => $idle,
                     ];
                 }
             }
@@ -345,18 +349,18 @@ class SystemServiceImpl implements SystemService
                 $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq + $steal;
                 $stats[] = [
                     'total' => $total,
-                    'idle' => $idle
+                    'idle'  => $idle,
                 ];
             }
         }
 
-        return $stats ?: null;
+        return $stats ? : null;
     }
 
     /**
      * Get network interface byte counts
      */
-    private function getNetworkBytes(): ?array
+    private function getNetworkBytes() : ?array
     {
         $result = [];
 
@@ -376,12 +380,12 @@ class SystemServiceImpl implements SystemService
                     if ($interface !== 'lo') {
                         $result[$interface] = [
                             'rx_bytes' => $rxBytes,
-                            'tx_bytes' => $txBytes
+                            'tx_bytes' => $txBytes,
                         ];
                     }
                 }
             }
-        } elseif (PHP_OS_FAMILY === 'Darwin') {
+        } else if (PHP_OS_FAMILY === 'Darwin') {
             // macOS: 使用 netstat -I 获取网络接口统计
             // netstat -I 输出格式更清晰
             $output = shell_exec('netstat -I -b 2>/dev/null');
@@ -419,7 +423,7 @@ class SystemServiceImpl implements SystemService
                         if ($rxBytes > 0 || $txBytes > 0) {
                             $result[$interface] = [
                                 'rx_bytes' => $rxBytes,
-                                'tx_bytes' => $txBytes
+                                'tx_bytes' => $txBytes,
                             ];
                         }
                     }
@@ -449,7 +453,7 @@ class SystemServiceImpl implements SystemService
 
                                 $result[$interface] = [
                                     'rx_bytes' => $rxBytes,
-                                    'tx_bytes' => $txBytes
+                                    'tx_bytes' => $txBytes,
                                 ];
                             }
                         }

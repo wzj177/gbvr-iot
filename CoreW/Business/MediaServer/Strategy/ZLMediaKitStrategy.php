@@ -15,7 +15,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getStats(array $serverConfig): array
+    public function getStats(array $serverConfig) : array
     {
         $client = $this->getClient($serverConfig);
         $timestamp = time();
@@ -53,12 +53,12 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             if ($loadResp && ($loadResp['code'] ?? -1) === 0 && !empty($loadResp['data'])) {
                 foreach ($loadResp['data'] as $index => $thread) {
                     $threadLoadData[] = [
-                        'timestamp' => $timestamp,
+                        'timestamp'    => $timestamp,
                         'thread_index' => $index,
-                        'thread_name' => $thread['name'] ?? "thread_{$index}",
-                        'load' => $thread['load'] ?? 0,
-                        'delay' => $thread['delay'] ?? 0,
-                        'fd_count' => $thread['fd_count'] ?? 0,
+                        'thread_name'  => $thread['name'] ?? "thread_{$index}",
+                        'load'         => $thread['load'] ?? 0,
+                        'delay'        => $thread['delay'] ?? 0,
+                        'fd_count'     => $thread['fd_count'] ?? 0,
                     ];
                 }
             }
@@ -68,12 +68,12 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             if ($workResp && ($workResp['code'] ?? -1) === 0 && !empty($workResp['data'])) {
                 foreach ($workResp['data'] as $index => $thread) {
                     $workThreadLoadData[] = [
-                        'timestamp' => $timestamp,
+                        'timestamp'    => $timestamp,
                         'thread_index' => $index,
-                        'thread_name' => $thread['name'] ?? "work_thread_{$index}",
-                        'load' => $thread['load'] ?? 0,
-                        'delay' => $thread['delay'] ?? 0,
-                        'fd_count' => $thread['fd_count'] ?? 0,
+                        'thread_name'  => $thread['name'] ?? "work_thread_{$index}",
+                        'load'         => $thread['load'] ?? 0,
+                        'delay'        => $thread['delay'] ?? 0,
+                        'fd_count'     => $thread['fd_count'] ?? 0,
                     ];
                 }
             }
@@ -111,49 +111,49 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             $rtpCount = count($rtpList);
             return [
                 // 服务状态
-                'running' => $running,
-                'status' => $running ? 'running' : 'stopped',
-                'version' => $branchName,
-                'build_date' => $buildDate,
-                'git_hash' => $gitHash,
+                'running'          => $running,
+                'status'           => $running ? 'running' : 'stopped',
+                'version'          => $branchName,
+                'build_date'       => $buildDate,
+                'git_hash'         => $gitHash,
 
                 // 当前快照数据（用于仪表盘显示）
-                'snapshot' => [
-                    'cpu_usage' => max($avgThreadLoad, $avgWorkThreadLoad), // 使用线程负载作为 CPU 使用率参考
-                    'memory_usage' => 0, // ZLM 不直接提供内存使用率，需要从系统获取
-                    'stream_count' => $streamCount,
+                'snapshot'         => [
+                    'cpu_usage'              => max($avgThreadLoad, $avgWorkThreadLoad), // 使用线程负载作为 CPU 使用率参考
+                    'memory_usage'           => 0, // ZLM 不直接提供内存使用率，需要从系统获取
+                    'stream_count'           => $streamCount,
                     'total_connection_count' => $totalReaderCount,
-                    'rtp_count' => $rtpCount,
-                    'bytes_speed' => $totalBytesSpeed,
-                    'network_thread_count' => count($threadLoadData),
-                    'work_thread_count' => count($workThreadLoadData),
+                    'rtp_count'              => $rtpCount,
+                    'bytes_speed'            => $totalBytesSpeed,
+                    'network_thread_count'   => count($threadLoadData),
+                    'work_thread_count'      => count($workThreadLoadData),
                 ],
 
                 // 网络线程负载数据（用于 Echart 折线图）
-                'thread_load' => [
-                    'data' => $threadLoadData,
+                'thread_load'      => [
+                    'data'      => $threadLoadData,
                     'timestamp' => $timestamp,
                 ],
 
                 // 工作线程负载数据（用于 Echart 折线图）
                 'work_thread_load' => [
-                    'data' => $workThreadLoadData,
+                    'data'      => $workThreadLoadData,
                     'timestamp' => $timestamp,
                 ],
 
                 // 对象统计
-                'statistics' => $statistics,
+                'statistics'       => $statistics,
             ];
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to get ZLM stats', [
-                'host' => $serverConfig['host'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
             return [
                 'running' => false,
-                'status' => 'unknown',
-                'error' => $e->getMessage(),
+                'status'  => 'unknown',
+                'error'   => $e->getMessage(),
             ];
         }
     }
@@ -161,7 +161,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getConfig(array $serverConfig): array
+    public function getConfig(array $serverConfig) : array
     {
         $client = $this->getClient($serverConfig);
 
@@ -174,7 +174,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             throw new \RuntimeException('Failed to get server config');
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to get ZLM config', [
-                'host' => $serverConfig['host'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
@@ -185,7 +185,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function setConfig(array $serverConfig, array $config): bool
+    public function setConfig(array $serverConfig, array $config) : bool
     {
         $client = $this->getClient($serverConfig);
 
@@ -195,7 +195,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             return $result && ($result['code'] ?? -1) === 0;
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to set ZLM config', [
-                'host' => $serverConfig['host'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
@@ -206,7 +206,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function restart(array $serverConfig): bool
+    public function restart(array $serverConfig) : bool
     {
         $client = $this->getClient($serverConfig);
 
@@ -216,7 +216,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             return $result && ($result['code'] ?? -1) === 0;
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to restart ZLM server', [
-                'host' => $serverConfig['host'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
@@ -227,7 +227,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isOnline(array $serverConfig): bool
+    public function isOnline(array $serverConfig) : bool
     {
         $client = $this->getClient($serverConfig);
 
@@ -243,7 +243,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getVersion(array $serverConfig): ?array
+    public function getVersion(array $serverConfig) : ?array
     {
         $client = $this->getClient($serverConfig);
 
@@ -257,7 +257,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function addStreamProxy(array $serverConfig, array $proxyConfig): array
+    public function addStreamProxy(array $serverConfig, array $proxyConfig) : array
     {
         $client = $this->getClient($serverConfig);
 
@@ -277,26 +277,26 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             if ($result && ($result['code'] ?? -1) === 0) {
                 return [
                     'success' => true,
-                    'key' => $result['data']['key'] ?? '',
+                    'key'     => $result['data']['key'] ?? '',
                     'message' => 'Stream proxy added successfully',
                 ];
             }
 
             return [
                 'success' => false,
-                'key' => '',
+                'key'     => '',
                 'message' => $result['msg'] ?? 'Failed to add stream proxy',
             ];
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to add stream proxy', [
-                'host' => $serverConfig['host'] ?? '',
-                'url' => $proxyConfig['url'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
+                'url'   => $proxyConfig['url'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'key' => '',
+                'key'     => '',
                 'message' => $e->getMessage(),
             ];
         }
@@ -305,7 +305,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function delStreamProxy(array $serverConfig, string $key): bool
+    public function delStreamProxy(array $serverConfig, string $key) : bool
     {
         $client = $this->getClient($serverConfig);
 
@@ -315,8 +315,8 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             return $result && ($result['code'] ?? -1) === 0;
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to delete stream proxy', [
-                'host' => $serverConfig['host'] ?? '',
-                'key' => $key,
+                'host'  => $serverConfig['host'] ?? '',
+                'key'   => $key,
                 'error' => $e->getMessage(),
             ]);
 
@@ -327,7 +327,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__'): bool
+    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__') : bool
     {
         $client = $this->getClient($serverConfig);
 
@@ -343,10 +343,10 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
             return false;
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to check stream status', [
-                'host' => $serverConfig['host'] ?? '',
-                'app' => $app,
+                'host'   => $serverConfig['host'] ?? '',
+                'app'    => $app,
                 'stream' => $stream,
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
 
             return false;
@@ -359,14 +359,14 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
      * @param array $serverConfig
      * @return ZLMClient
      */
-    private function getClient(array $serverConfig): ZLMClient
+    private function getClient(array $serverConfig) : ZLMClient
     {
         if ($this->client === null) {
             $this->client = new ZLMClient([
-                'host' => $serverConfig['host'],
-                'port' => $serverConfig['port'],
+                'host'   => $serverConfig['host'],
+                'port'   => $serverConfig['port'],
                 'secret' => $serverConfig['secret'] ?? '',
-                'debug' => $serverConfig['debug'] ?? false,
+                'debug'  => $serverConfig['debug'] ?? false,
             ]);
         }
 

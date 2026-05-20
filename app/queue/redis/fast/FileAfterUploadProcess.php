@@ -54,7 +54,7 @@ class FileAfterUploadProcess implements Consumer
                 // 图片高度
                 $height = $imageSize[1];
                 $this->getAttachmentService()->updateAttachment($file['id'], [
-                    'imgSize' => json_encode(['width' => $width, 'height' => $height])
+                    'imgSize' => json_encode(['width' => $width, 'height' => $height]),
                 ]);
                 return 1;
             }
@@ -87,15 +87,15 @@ class FileAfterUploadProcess implements Consumer
                 // TODO: 增加转码状态
                 if (empty($file['transcodePath']) && !empty($attachmentSetting['allow_transcode_video']) && 1 == $attachmentSetting['allow_transcode_video']) {
                     // TODO： 消耗cpu，而且会影响后面的修改数据库，应当使用命令行处理，传递文件id;
-//                    if ($file['ext'] === 'mov') {
-//                        $transcodeFile = $dirPath . '/' . $fileInfo[0] . '_transcode.mp4';
-//                        $this->movToMp4($filepath, $transcodeFile);
-//                        $transcodePath = str_replace($uploadPath, 'uploads/', $transcodeFile);
-//                    } elseif ($file['ext'] === 'mp4') {
-//                        $transcodeDir = $dirPath . '/' . $fileInfo[0] . '_hls/';
-//                        $this->mp4ToHls($filepath, $transcodeDir);
-//                        $transcodePath = str_replace($uploadPath, 'uploads/', $transcodeDir) . 'playlist.m3u8';
-//                    }
+                    //                    if ($file['ext'] === 'mov') {
+                    //                        $transcodeFile = $dirPath . '/' . $fileInfo[0] . '_transcode.mp4';
+                    //                        $this->movToMp4($filepath, $transcodeFile);
+                    //                        $transcodePath = str_replace($uploadPath, 'uploads/', $transcodeFile);
+                    //                    } elseif ($file['ext'] === 'mp4') {
+                    //                        $transcodeDir = $dirPath . '/' . $fileInfo[0] . '_hls/';
+                    //                        $this->mp4ToHls($filepath, $transcodeDir);
+                    //                        $transcodePath = str_replace($uploadPath, 'uploads/', $transcodeDir) . 'playlist.m3u8';
+                    //                    }
                 }
             } else {
                 // 获取音频时长
@@ -103,15 +103,15 @@ class FileAfterUploadProcess implements Consumer
             }
 
             $this->getAttachmentService()->updateAttachment($file['id'], [
-                'videoCover' => $videoCover,
+                'videoCover'    => $videoCover,
                 'transcodePath' => $transcodePath,
-                'length' => $length
+                'length'        => $length,
             ]);
 
             $file = null;
             return 1;
         } catch (\Throwable $e) {
-//            var_dump($e->getMessage(), $e->getTraceAsString());
+            //            var_dump($e->getMessage(), $e->getTraceAsString());
             return 0;
         }
     }
@@ -122,7 +122,7 @@ class FileAfterUploadProcess implements Consumer
         $video = $this->getFFmpeg()->open($inputFile);
         // 转换视频为 mp4 格式，并保存到指定位置
         $format = new X264('aac', 'libx264');
-//        $format->setAudioCodec("libmp3lame");
+        //        $format->setAudioCodec("libmp3lame");
         $video->save($format, $outputFile);
     }
 

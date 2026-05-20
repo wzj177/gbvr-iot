@@ -13,7 +13,7 @@ class AlarmEventController extends BaseController
      * 查询报警事件列表
      * GET /api/v2/alarm/events
      */
-    public function index(Request $request): Response
+    public function index(Request $request) : Response
     {
         $conditions = $request->get();
         $start = (int)$request->get('start', 0);
@@ -24,7 +24,7 @@ class AlarmEventController extends BaseController
             $total = $this->getAlarmEventService()->countAlarmEvents($conditions);
 
             return $this->createSuccessJsonResponse([
-                'list' => $list,
+                'list'  => $list,
                 'total' => $total,
             ]);
         } catch (\Exception $e) {
@@ -36,7 +36,7 @@ class AlarmEventController extends BaseController
      * 查询单个报警事件详情
      * GET /api/v2/alarm/events/:id
      */
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
         $id = (int)$id;
 
@@ -53,7 +53,7 @@ class AlarmEventController extends BaseController
         }
     }
 
-    private function getAlarmEventService(): AlarmEventService
+    private function getAlarmEventService() : AlarmEventService
     {
         return $this->createService('Alarm:AlarmEventService');
     }

@@ -10,16 +10,16 @@ class AlarmDaoImpl extends AdvancedDaoImpl implements AlarmDao
 
     protected $table = 'gv_alarm_event';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'alarm_level' => 'json',
-                'alarm_method' => 'json',
-                'alarm_type' => 'json',
+                'alarm_level'     => 'json',
+                'alarm_method'    => 'json',
+                'alarm_type'      => 'json',
                 'alarm_eventtype' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'alarm_time',
                 'recv_time',
@@ -29,7 +29,7 @@ class AlarmDaoImpl extends AdvancedDaoImpl implements AlarmDao
                 'created_at',
                 'updated_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'alarm_time',
                 'recv_time',
                 'created_at',

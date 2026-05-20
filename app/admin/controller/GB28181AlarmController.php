@@ -50,12 +50,12 @@ class GB28181AlarmController extends BaseController
         // 时间范围筛选 - 兼容前端 start_time/end_time 参数
         if ($request->get('start_time')) {
             $conditions['start_time'] = $request->get('start_time');
-        } elseif ($request->get('alarm_time_gte')) {
+        } else if ($request->get('alarm_time_gte')) {
             $conditions['alarm_time_gte'] = $request->get('alarm_time_gte');
         }
         if ($request->get('end_time')) {
             $conditions['end_time'] = $request->get('end_time');
-        } elseif ($request->get('alarm_time_lte')) {
+        } else if ($request->get('alarm_time_lte')) {
             $conditions['alarm_time_lte'] = $request->get('alarm_time_lte');
         }
 
@@ -65,7 +65,7 @@ class GB28181AlarmController extends BaseController
         }
 
         $total = $this->getAlarmEventService()->countAlarmEvents($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $list = $this->getAlarmEventService()->searchAlarmEvents($conditions, ['alarm_time' => 'DESC'], $offset, $limit);
 
@@ -73,8 +73,8 @@ class GB28181AlarmController extends BaseController
         $summary = $this->getAlarmEventService()->getSummary();
 
         return $this->createSuccessJsonResponse([
-            'list' => AlarmEventFilter::publicList($list),
-            'total' => $total,
+            'list'    => AlarmEventFilter::publicList($list),
+            'total'   => $total,
             'summary' => $summary,
         ]);
     }
@@ -85,20 +85,20 @@ class GB28181AlarmController extends BaseController
      */
     public function show(Request $request, $id)
     {
-        $event = $this->getAlarmEventService()->getAlarmEvent((int) $id);
+        $event = $this->getAlarmEventService()->getAlarmEvent((int)$id);
 
         if (!$event) {
             return $this->createErrorJsonResponse('报警事件不存在', null, 404);
         }
 
         // 获取关联的快照和录像
-        $snapshots = $this->getAlarmEventService()->getAlarmSnapshots((int) $id);
-        $records = $this->getAlarmEventService()->getAlarmRecords((int) $id);
+        $snapshots = $this->getAlarmEventService()->getAlarmSnapshots((int)$id);
+        $records = $this->getAlarmEventService()->getAlarmRecords((int)$id);
 
         $data = AlarmEventFilter::one($event);
         $data['assets'] = [
             'snapshots' => $snapshots,
-            'records' => $records,
+            'records'   => $records,
         ];
 
         return $this->createSuccessJsonResponse($data);
@@ -115,7 +115,7 @@ class GB28181AlarmController extends BaseController
         // 只保留允许更新的字段
         $fields = ArrayToolkit::parts($data, ['status', 'remark', 'handled_by', 'handled_time']);
 
-        $event = $this->getAlarmEventService()->updateAlarmEvent((int) $id, $fields);
+        $event = $this->getAlarmEventService()->updateAlarmEvent((int)$id, $fields);
 
         return $this->createSuccessJsonResponse(AlarmEventFilter::one($event));
     }
@@ -123,7 +123,7 @@ class GB28181AlarmController extends BaseController
     /**
      * @return AlarmEventService
      */
-    private function getAlarmEventService(): AlarmEventService
+    private function getAlarmEventService() : AlarmEventService
     {
         return $this->createService('Alarm:AlarmEventService');
     }

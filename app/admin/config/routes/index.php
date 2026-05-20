@@ -13,6 +13,7 @@ use app\admin\controller\GB28181DevicePositionController;
 use app\admin\controller\GB28181MapController;
 use app\admin\controller\GB28181PTZController;
 use app\admin\controller\GB28181RecordPlanController;
+use app\admin\controller\GB28181RecordMergeController;
 use app\admin\controller\GB28181RecordTaskController;
 use app\admin\controller\GB28181RecordingController;
 use app\admin\controller\GB28181StreamController;
@@ -29,6 +30,8 @@ use app\admin\controller\UserController;
 use app\middleware\admin\AuthIdentityMiddleware;
 use app\middleware\admin\PermissionCheckMiddleware;
 use CoreW\CustomRoute as Route;
+use app\admin\controller\StreamProxyController;
+use app\admin\controller\SipGatewayController;
 
 Route::group('/api/admin', function () {
     // 登录认证
@@ -37,7 +40,7 @@ Route::group('/api/admin', function () {
         Route::post('/login', [AuthController::class, 'login'])->name('admin.login');
         Route::get('/captcha', [AuthController::class, 'captcha'])->name('admin.captcha');
         Route::post('/logout', [AuthController::class, 'logout'])->name('admin.logout')->middleware([
-            AuthIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
     });
 
@@ -60,9 +63,9 @@ Route::group('/api/admin', function () {
         Route::get('/network-stats', [SystemMonitoringController::class, 'getNetworkStats'])->name('system.network-stats');
         Route::get('/disk-stats', [SystemMonitoringController::class, 'getDiskStats'])->name('system.disk-stats');
     })->middleware([
-//        BasicAuthIdentity::class,
+        //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // 菜单
@@ -78,9 +81,9 @@ Route::group('/api/admin', function () {
         Route::post('/batch-delete', [MenuController::class, 'batchDelete'])->name('admin.menu.batch-delete');
         Route::get('/type-options', [MenuController::class, 'typeOptions'])->name('admin.menu.type-options');
     })->middleware([
-//        BasicAuthIdentity::class,
+        //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // 管理员
@@ -96,11 +99,11 @@ Route::group('/api/admin', function () {
         Route::post('/{id:\d+}/toggle-lock', [UserController::class, 'toggleLock'])->name('admin.user.toggle-lock');
         Route::post('/batch-delete', [UserController::class, 'batchDelete'])->name('admin.user.batch-delete');
         Route::get('/role-options', [UserController::class, 'roleOptions'])->name('admin.user.role-options');
-//        Route::get('/menus', [UserController::class, 'getMenuAdmin'])->name('user.menus');
+        //        Route::get('/menus', [UserController::class, 'getMenuAdmin'])->name('user.menus');
     })->middleware([
-//        BasicAuthIdentity::class,
+        //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // 角色权限
@@ -115,16 +118,16 @@ Route::group('/api/admin', function () {
         Route::post('/batch-delete', [RoleController::class, 'batchDelete'])->name('admin.role.batch-delete');
         Route::get('/options', [RoleController::class, 'options'])->name('admin.role.options');
     })->middleware([
-//        BasicAuthIdentity::class,
+        //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
     // 会员
     Route::group('/vip', function () {
 
     })->middleware([
-//        BasicAuthIdentity::class,
-        AuthIdentityMiddleware::class
+        //        BasicAuthIdentity::class,
+        AuthIdentityMiddleware::class,
     ]);
 
     // 作品
@@ -132,20 +135,20 @@ Route::group('/api/admin', function () {
         Route::get('/catalog/tree', [ProductCatalogController::class, 'tree'])->name('product.catalog-tree');
 
         Route::resource('/catalog', ProductCatalogController::class, [
-            'index', 'store', 'show', 'update', 'destroy'
+            'index', 'store', 'show', 'update', 'destroy',
         ], 'product-catalog');
         Route::post('/catalog/upd-sort/{id}', [ProductCatalogController::class, 'updateSort'])->name('product-catalog.upd-sort');
         Route::post('/catalog/upd-status/{id}', [ProductCatalogController::class, 'updateStatus'])->name('product-catalog.upd-status');
-//        Route::post('/catalog/batch-delete', [ProductCatalogController::class, 'batchDestroy'])->name('product-catalog.batch-delete');
+        //        Route::post('/catalog/batch-delete', [ProductCatalogController::class, 'batchDestroy'])->name('product-catalog.batch-delete');
         Route::post('/tag/add', [ProductTagController::class, 'addTags'])->name('product.tag-add');
         Route::get('/tags', [ProductTagController::class, 'index'])->name('product.tags');
         Route::get('/tag/options', [ProductTagController::class, 'tagOptions'])->name('product.tag-options');
         Route::delete('/tag/{id}', [ProductTagController::class, 'destroy'])->name('product.tag-remove');
         Route::post('/tag/batch-delete', [ProductTagController::class, 'batchDestroy'])->name('product.tag-batch-delete');
     })->middleware([
-//        BasicAuthIdentity::class,
+        //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
 
@@ -153,7 +156,7 @@ Route::group('/api/admin', function () {
     Route::group('/attachment', function () {
         Route::get('/group/trees', [AttachmentGroupController::class, 'trees'])->name('attachment-group.trees');
         Route::resource('/group', AttachmentGroupController::class, [
-            'index', 'store', 'show', 'update', 'destroy'
+            'index', 'store', 'show', 'update', 'destroy',
         ], 'attachment-group');
         Route::post('/group/removes', [AttachmentGroupController::class, 'destroyMore'])->name('attachment-group.removes');
         Route::post('/upload', [AttachmentController::class, 'uploadOne'])->name('attachment.upload');
@@ -173,7 +176,7 @@ Route::group('/api/admin', function () {
         Route::post('/deletes', [AttachmentController::class, 'deletes'])->name('attachment.deletes');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // 系统设置
@@ -190,9 +193,9 @@ Route::group('/api/admin', function () {
         Route::get('/attachment/options', [SettingController::class, 'attachmentOptions'])->name('setting.attachment.options');
         Route::post('/vr', [SettingController::class, 'setVR'])->name('setting.vr');
     })->middleware([
-//        BasicAuthIdentity::class,
+        //        BasicAuthIdentity::class,
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // 报警计划管理
@@ -207,7 +210,7 @@ Route::group('/api/admin', function () {
         Route::delete('/{id:\d+}/channels/{channelId:\w+}', [AlarmPlanController::class, 'unbindChannel'])->name('admin.alarm-plan.unbind-channel');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     Route::group('/gb28181', function () {
@@ -273,7 +276,7 @@ Route::group('/api/admin', function () {
         Route::group('/streams', function () {
             Route::post('/start-live', [GB28181StreamController::class, 'startLive'])->name('admin.gb28181.streams.start-live');
             Route::post('/stop-live', [GB28181StreamController::class, 'stopLive'])->name('admin.gb28181.streams.stop-live');
-//            Route::get('/play-urls', [GB28181StreamController::class, 'getPlayUrls'])->name('admin.gb28181.streams.play-urls');
+            //            Route::get('/play-urls', [GB28181StreamController::class, 'getPlayUrls'])->name('admin.gb28181.streams.play-urls');
             Route::post('/playback/start', [GB28181StreamController::class, 'startPlayback'])->name('admin.gb28181.streams.start-playback');
             Route::post('/playback/stop', [GB28181StreamController::class, 'stopPlayback'])->name('admin.gb28181.streams.stop-playback');
         });
@@ -311,6 +314,15 @@ Route::group('/api/admin', function () {
             Route::get('/{id:\d+}', [GB28181RecordingController::class, 'show'])->name('admin.gb28181.recordings.show');
         });
 
+        // 录像合并任务
+        Route::group('/record-merge-tasks', function () {
+            Route::get('', [GB28181RecordMergeController::class, 'index'])->name('admin.gb28181.record-merge-tasks.index');
+            Route::get('/{id:\d+}', [GB28181RecordMergeController::class, 'show'])->name('admin.gb28181.record-merge-tasks.show');
+            Route::post('', [GB28181RecordMergeController::class, 'store'])->name('admin.gb28181.record-merge-tasks.store');
+            Route::post('/{id:\d+}/cancel', [GB28181RecordMergeController::class, 'cancel'])->name('admin.gb28181.record-merge-tasks.cancel');
+            Route::delete('/{id:\d+}', [GB28181RecordMergeController::class, 'destroy'])->name('admin.gb28181.record-merge-tasks.destroy');
+        });
+
         // 设备位置管理
         Route::group('/device-positions', function () {
             Route::get('', [GB28181DevicePositionController::class, 'index'])->name('admin.gb28181.device-positions.index');
@@ -344,7 +356,7 @@ Route::group('/api/admin', function () {
         Route::get('/device-stats', [GB28181SystemMonitoringController::class, 'getDeviceStats'])->name('admin.gb28181.system.device-stats');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     Route::group('/media-server', function () {
@@ -360,7 +372,7 @@ Route::group('/api/admin', function () {
         Route::get('/{id}', [MediaServerController::class, 'show'])->name('media-server.show');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // 流代理管理
@@ -392,7 +404,7 @@ Route::group('/api/admin', function () {
         Route::get('/{id:\d+}/logs', [StreamProxyController::class, 'logs'])->name('admin.stream-proxies.logs');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // Stream Proxy Logs (standalone routes)
@@ -401,7 +413,7 @@ Route::group('/api/admin', function () {
         Route::post('/cleanup', [StreamProxyController::class, 'cleanupLogs'])->name('admin.stream-proxy-logs.cleanup');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 
     // SIP Gateway management
@@ -412,8 +424,10 @@ Route::group('/api/admin', function () {
         Route::put('/{id:\d+}', [SipGatewayController::class, 'update'])->name('admin.sip-gateways.update');
         Route::delete('/{id:\d+}', [SipGatewayController::class, 'destroy'])->name('admin.sip-gateways.destroy');
         Route::post('/{id:\d+}/toggle', [SipGatewayController::class, 'toggle'])->name('admin.sip-gateways.toggle');
+        Route::post('/bind', [SipGatewayController::class, 'bindDevices'])->name('admin.sip-gateways.bind');
+        Route::post('/unbind', [SipGatewayController::class, 'unbindDevices'])->name('admin.sip-gateways.unbind');
     })->middleware([
         AuthIdentityMiddleware::class,
-        PermissionCheckMiddleware::class
+        PermissionCheckMiddleware::class,
     ]);
 });

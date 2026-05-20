@@ -28,7 +28,7 @@ class RateLimiterServiceProvider implements ServiceProviderInterface
 
         $container['ratelimiter.storage.mysql'] = function ($container) {
             /** @var $db \CoreW\Dao\Connection */
-            $db =  $container['db'];
+            $db = $container['db'];
             $pdo = $db->getNativeConnection();
 
             return new MySQLPDOStorage($pdo);
@@ -44,7 +44,7 @@ class RateLimiterServiceProvider implements ServiceProviderInterface
             return new LoginSendSmsRateLimiter($bfw);
         };
 
-        $container['login_send_email_code_rate_limiter'] = function($bfw) {
+        $container['login_send_email_code_rate_limiter'] = function ($bfw) {
             return new LoginSendEmailCodeRateLimiter($bfw);
         };
     }

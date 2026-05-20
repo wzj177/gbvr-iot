@@ -11,29 +11,29 @@ class VIPBindDaoImpl extends GeneralDaoImpl implements VIPBindDao
 
     public function getByFromId($fromId)
     {
-        return $this->getByFields(array('fromId' => $fromId));
+        return $this->getByFields(['fromId' => $fromId]);
     }
 
     public function getByTypeAndFromId($type, $fromId)
     {
-        return $this->getByFields(array('fromId' => $fromId, 'type' => $type));
+        return $this->getByFields(['fromId' => $fromId, 'type' => $type]);
     }
 
     public function getByToIdAndType($type, $toId)
     {
-        return $this->getByFields(array('toId' => $toId, 'type' => $type));
+        return $this->getByFields(['toId' => $toId, 'type' => $type]);
     }
 
     public function getByToken($token)
     {
-        return $this->getByFields(array('token' => $token));
+        return $this->getByFields(['token' => $token]);
     }
 
     public function findByToId($toId)
     {
         $sql = "SELECT * FROM {$this->table} WHERE toId = ? ORDER BY createdTime DESC";
 
-        return $this->db()->fetchAll($sql, array($toId));
+        return $this->db()->fetchAll($sql, [$toId]);
     }
 
     public function findByTypeAndFromIds($type, $fromIds)
@@ -44,7 +44,7 @@ class VIPBindDaoImpl extends GeneralDaoImpl implements VIPBindDao
         $marks = str_repeat('?,', count($fromIds) - 1) . '?';
         $sql = "SELECT * FROM {$this->table} WHERE type = ? AND fromId IN ({$marks})";
 
-        return $this->db()->fetchAll($sql, array_merge(array($type), $fromIds)) ?: [];
+        return $this->db()->fetchAll($sql, array_merge([$type], $fromIds)) ? : [];
     }
 
     public function findByTypeAndToIds($type, $toIds)
@@ -55,34 +55,34 @@ class VIPBindDaoImpl extends GeneralDaoImpl implements VIPBindDao
         $marks = str_repeat('?,', count($toIds) - 1) . '?';
         $sql = "SELECT * FROM {$this->table} WHERE type = ? AND toId IN ({$marks})";
 
-        return $this->db()->fetchAll($sql, array_merge(array($type), $toIds)) ?: [];
+        return $this->db()->fetchAll($sql, array_merge([$type], $toIds)) ? : [];
     }
 
     public function findByToIdAndType($type, $toId)
     {
         $sql = "SELECT * FROM {$this->table} WHERE toId = ? AND type = ? ORDER BY createdTime DESC";
 
-        return $this->db()->fetchAll($sql, array($toId, $type));
+        return $this->db()->fetchAll($sql, [$toId, $type]);
     }
 
     public function deleteByTypeAndToId($type, $toId)
     {
-        return $this->db()->delete($this->table, array('type' => $type, 'toId' => $toId));
+        return $this->db()->delete($this->table, ['type' => $type, 'toId' => $toId]);
     }
 
     public function deleteByToId($toId)
     {
-        return $this->db()->delete($this->table, array('toId' => $toId));
+        return $this->db()->delete($this->table, ['toId' => $toId]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
-        return array(
-            'conditions' => array(
+        return [
+            'conditions' => [
                 'fromId = :fromId',
                 'toId = :toId',
                 'type = :type',
-            ),
-        );
+            ],
+        ];
     }
 }

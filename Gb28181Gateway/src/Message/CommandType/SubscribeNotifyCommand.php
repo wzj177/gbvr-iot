@@ -25,45 +25,48 @@ class SubscribeNotifyCommand extends BaseCommand
     /**
      * 报警方法映射
      */
-    private const ALARM_METHOD_MAP = [
-        '1' => '电话报警',
-        '2' => '设备报警',
-        '3' => '短信报警',
-        '4' => 'GPS报警',
-        '5' => '视频报警',
-        '6' => '设备故障报警',
-        '7' => '其他报警',
-    ];
+    private const ALARM_METHOD_MAP
+        = [
+            '1' => '电话报警',
+            '2' => '设备报警',
+            '3' => '短信报警',
+            '4' => 'GPS报警',
+            '5' => '视频报警',
+            '6' => '设备故障报警',
+            '7' => '其他报警',
+        ];
 
     /**
      * 报警优先级映射
      */
-    private const ALARM_PRIORITY_MAP = [
-        '1' => '一级警情(最高)',
-        '2' => '二级警情',
-        '3' => '三级警情',
-        '4' => '四级警情(最低)',
-    ];
+    private const ALARM_PRIORITY_MAP
+        = [
+            '1' => '一级警情(最高)',
+            '2' => '二级警情',
+            '3' => '三级警情',
+            '4' => '四级警情(最低)',
+        ];
 
     /**
      * 目录变更事件类型
      */
-    private const CATALOG_EVENT_TYPES = [
-        'ON' => '设备上线',
-        'OFF' => '设备下线',
-        'VLOST' => '视频丢失',
-        'DEFECT' => '故障',
-        'ADD' => '增加',
-        'DEL' => '删除',
-        'UPDATE' => '更新',
-    ];
+    private const CATALOG_EVENT_TYPES
+        = [
+            'ON'     => '设备上线',
+            'OFF'    => '设备下线',
+            'VLOST'  => '视频丢失',
+            'DEFECT' => '故障',
+            'ADD'    => '增加',
+            'DEL'    => '删除',
+            'UPDATE' => '更新',
+        ];
 
     /**
      * 获取命令类型
      * 注意：NOTIFY 不是通过 CmdType 分发，而是通过 Event 头
      * 这里返回特殊值用于标识
      */
-    public function getCommandType(): string
+    public function getCommandType() : string
     {
         return 'SubscribeNotify';
     }
@@ -79,38 +82,38 @@ class SubscribeNotifyCommand extends BaseCommand
      *   - sip_event: \SipEvent 对象（可选）
      * @return array 处理结果
      */
-    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []): mixed
+    public function handle(SimpleXMLElement $xml, string $deviceId, array $options = []) : mixed
     {
         $eventType = strtolower($options['event_type'] ?? '');
         $subscriptionState = $options['subscription_state'] ?? '';
-        
+
         // 检查订阅是否终止
         $isTerminated = stripos($subscriptionState, 'terminated') !== false;
-        
+
         // 基础结果
         $result = [
-            'device_id' => $deviceId,
-            'cmd_type' => 'SubscribeNotify',
-            'event_type' => $eventType,
+            'device_id'          => $deviceId,
+            'cmd_type'           => 'SubscribeNotify',
+            'event_type'         => $eventType,
             'subscription_state' => $subscriptionState,
-            'is_terminated' => $isTerminated,
-            'sn' => (string)($xml->SN ?? ''),
-            'notify_device_id' => (string)($xml->DeviceID ?? $deviceId),
-            'timestamp' => time(),
+            'is_terminated'      => $isTerminated,
+            'sn'                 => (string)($xml->SN ?? ''),
+            'notify_device_id'   => (string)($xml->DeviceID ?? $deviceId),
+            'timestamp'          => time(),
         ];
-        
+
         // 根据事件类型分发处理
         switch ($eventType) {
             case 'catalog':
                 return $this->handleCatalog($xml, $deviceId, $result);
-                
+
             case 'alarm':
                 return $this->handleAlarm($xml, $deviceId, $result);
-                
+
             case 'mobileposition':
             case 'presence':
                 return $this->handleMobilePosition($xml, $deviceId, $result);
-                
+
             default:
                 // 未知事件类型，返回基础信息
                 $result['raw_xml'] = $xml->asXML();
@@ -126,44 +129,44 @@ class SubscribeNotifyCommand extends BaseCommand
      * @param array $result 基础结果
      * @return array 处理结果
      */
-    private function handleCatalog(SimpleXMLElement $xml, string $deviceId, array $result): array
+    private function handleCatalog(SimpleXMLElement $xml, string $deviceId, array $result) : array
     {
         $result['notify_type'] = 'catalog';
         $result['sum_num'] = (int)($xml->SumNum ?? 0);
         $result['event'] = (string)($xml->Event ?? '');
         $result['event_desc'] = self::CATALOG_EVENT_TYPES[$result['event']] ?? $result['event'];
-        
+
         // 解析设备列表
         $deviceList = [];
         if (isset($xml->DeviceList) && isset($xml->DeviceList->Item)) {
             foreach ($xml->DeviceList->Item as $item) {
                 $channelInfo = [
-                    'device_id' => (string)($item->DeviceID ?? ''),
-                    'name' => (string)($item->Name ?? ''),
+                    'device_id'    => (string)($item->DeviceID ?? ''),
+                    'name'         => (string)($item->Name ?? ''),
                     'manufacturer' => (string)($item->Manufacturer ?? ''),
-                    'model' => (string)($item->Model ?? ''),
-                    'owner' => (string)($item->Owner ?? ''),
-                    'civil_code' => (string)($item->CivilCode ?? ''),
-                    'address' => (string)($item->Address ?? ''),
-                    'parental' => (string)($item->Parental ?? ''),
-                    'parent_id' => (string)($item->ParentID ?? ''),
-                    'safety_way' => (string)($item->SafetyWay ?? ''),
+                    'model'        => (string)($item->Model ?? ''),
+                    'owner'        => (string)($item->Owner ?? ''),
+                    'civil_code'   => (string)($item->CivilCode ?? ''),
+                    'address'      => (string)($item->Address ?? ''),
+                    'parental'     => (string)($item->Parental ?? ''),
+                    'parent_id'    => (string)($item->ParentID ?? ''),
+                    'safety_way'   => (string)($item->SafetyWay ?? ''),
                     'register_way' => (string)($item->RegisterWay ?? ''),
-                    'secrecy' => (string)($item->Secrecy ?? ''),
-                    'status' => (string)($item->Status ?? ''),
-                    'longitude' => (string)($item->Longitude ?? ''),
-                    'latitude' => (string)($item->Latitude ?? ''),
-                    'ptz_type' => (string)($item->PTZType ?? ''),
+                    'secrecy'      => (string)($item->Secrecy ?? ''),
+                    'status'       => (string)($item->Status ?? ''),
+                    'longitude'    => (string)($item->Longitude ?? ''),
+                    'latitude'     => (string)($item->Latitude ?? ''),
+                    'ptz_type'     => (string)($item->PTZType ?? ''),
                     // 目录变更事件类型（可能在 Item 中）
-                    'event' => (string)($item->Event ?? $result['event']),
+                    'event'        => (string)($item->Event ?? $result['event']),
                 ];
                 $deviceList[] = $channelInfo;
             }
         }
-        
+
         $result['device_list'] = $deviceList;
         $result['device_count'] = count($deviceList);
-        
+
         return $result;
     }
 
@@ -175,14 +178,14 @@ class SubscribeNotifyCommand extends BaseCommand
      * @param array $result 基础结果
      * @return array 处理结果
      */
-    private function handleAlarm(SimpleXMLElement $xml, string $deviceId, array $result): array
+    private function handleAlarm(SimpleXMLElement $xml, string $deviceId, array $result) : array
     {
         $result['notify_type'] = 'alarm';
-        
+
         // 报警基本信息
         $alarmPriority = (string)($xml->AlarmPriority ?? '');
         $alarmMethod = (string)($xml->AlarmMethod ?? '');
-        
+
         $result['alarm_device_id'] = (string)($xml->DeviceID ?? $deviceId);
         $result['alarm_priority'] = $alarmPriority;
         $result['alarm_priority_desc'] = self::ALARM_PRIORITY_MAP[$alarmPriority] ?? "未知({$alarmPriority})";
@@ -191,26 +194,26 @@ class SubscribeNotifyCommand extends BaseCommand
         $result['alarm_type'] = (string)($xml->AlarmType ?? '');
         $result['alarm_time'] = (string)($xml->AlarmTime ?? '');
         $result['alarm_description'] = (string)($xml->AlarmDescription ?? '');
-        
+
         // 位置信息（部分设备会提供）
         $result['longitude'] = (string)($xml->Longitude ?? '');
         $result['latitude'] = (string)($xml->Latitude ?? '');
-        
+
         // GB28181-2022 扩展字段
         $result['alarm_level'] = (string)($xml->AlarmLevel ?? '');
-        
+
         // 报警扩展信息（如果有）
         if (isset($xml->Info)) {
             $result['alarm_info'] = [];
             foreach ($xml->Info as $info) {
                 $result['alarm_info'][] = [
-                    'alarm_type' => (string)($info->AlarmType ?? ''),
+                    'alarm_type'       => (string)($info->AlarmType ?? ''),
                     'alarm_type_param' => (string)($info->AlarmTypeParam ?? ''),
-                    'event_type' => (string)($info->EventType ?? ''),
+                    'event_type'       => (string)($info->EventType ?? ''),
                 ];
             }
         }
-        
+
         return $result;
     }
 
@@ -222,10 +225,10 @@ class SubscribeNotifyCommand extends BaseCommand
      * @param array $result 基础结果
      * @return array 处理结果
      */
-    private function handleMobilePosition(SimpleXMLElement $xml, string $deviceId, array $result): array
+    private function handleMobilePosition(SimpleXMLElement $xml, string $deviceId, array $result) : array
     {
         $result['notify_type'] = 'mobile_position';
-        
+
         // 位置信息
         $result['position_device_id'] = (string)($xml->DeviceID ?? $deviceId);
         $result['time'] = (string)($xml->Time ?? '');
@@ -234,7 +237,7 @@ class SubscribeNotifyCommand extends BaseCommand
         $result['speed'] = (string)($xml->Speed ?? '');
         $result['direction'] = (string)($xml->Direction ?? '');
         $result['altitude'] = (string)($xml->Altitude ?? '');
-        
+
         return $result;
     }
 
@@ -245,15 +248,15 @@ class SubscribeNotifyCommand extends BaseCommand
      * @param int $sn 序列号
      * @return string XML 响应
      */
-    public function generateResponse(array $data, int $sn): string
+    public function generateResponse(array $data, int $sn) : string
     {
         // NOTIFY 响应通常是空的 200 OK
         // 如果需要 XML 响应体（较少见），可以生成
         return $this->generateXml('Response', [
-            'CmdType' => 'SubscribeNotify',
-            'SN' => $sn,
+            'CmdType'  => 'SubscribeNotify',
+            'SN'       => $sn,
             'DeviceID' => $data['device_id'] ?? '',
-            'Result' => 'OK'
+            'Result'   => 'OK',
         ]);
     }
 
@@ -263,7 +266,7 @@ class SubscribeNotifyCommand extends BaseCommand
      * @param string $eventType Event 头的值
      * @return bool 是否支持
      */
-    public static function isSupportedEvent(string $eventType): bool
+    public static function isSupportedEvent(string $eventType) : bool
     {
         $supported = ['catalog', 'alarm', 'mobileposition', 'mobile_position', 'presence'];
         return in_array(strtolower($eventType), $supported);
@@ -275,13 +278,13 @@ class SubscribeNotifyCommand extends BaseCommand
      * @param string $eventType Event 头的值
      * @return string 中文描述
      */
-    public static function getEventTypeDesc(string $eventType): string
+    public static function getEventTypeDesc(string $eventType) : string
     {
         $map = [
-            'catalog' => '目录变更',
-            'alarm' => '报警事件',
+            'catalog'        => '目录变更',
+            'alarm'          => '报警事件',
             'mobileposition' => '移动设备位置',
-            'presence' => '移动设备位置(旧版)',
+            'presence'       => '移动设备位置(旧版)',
         ];
         return $map[strtolower($eventType)] ?? $eventType;
     }

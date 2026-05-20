@@ -41,7 +41,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param array $ids
      * @return bool
      */
-    public function batchUpdateDeleteByIds(array $ids): bool
+    public function batchUpdateDeleteByIds(array $ids) : bool
     {
         if (empty($ids)) {
             return false;
@@ -62,7 +62,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
         return $this->getProductCatalogDao()->batchDelete(['ids' => $removeIds]);
     }
 
-    public function batchUpdateStatus(array $fields): bool
+    public function batchUpdateStatus(array $fields) : bool
     {
         $fields = ArrayToolkit::parts($fields, ['ids', 'status']);
         if (empty($fields['ids']) || !is_array($fields['ids']) || !isset($fields['status'])) {
@@ -83,7 +83,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param array $conditions
      * @return int
      */
-    public function countProductCatalog(array $conditions): int
+    public function countProductCatalog(array $conditions) : int
     {
         return $this->getProductCatalogDao->count($conditions);
     }
@@ -96,7 +96,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param array $columns
      * @return array
      */
-    public function searchProductCatalogs(array $conditions, array $orderBys, int $start, int $limit, array $columns = []): array
+    public function searchProductCatalogs(array $conditions, array $orderBys, int $start, int $limit, array $columns = []) : array
     {
         return $this->getProductCatalogDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
@@ -106,11 +106,11 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param string $type
      * @return array
      */
-    public function getTree(array $conditions, $type = 'infinite_limit'): array
+    public function getTree(array $conditions, $type = 'infinite_limit') : array
     {
         $orderBys = $type === 'infinite_limit' ? ['sort' => 'ASC', 'id' => 'DESC'] : [
             'parentId' => 'ASC',
-            'id' => 'DESC'
+            'id'       => 'DESC',
         ];
         $items = array_map(function ($item) {
             return $this->mapCatalog($item);
@@ -133,15 +133,15 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
 
 
         $root = [
-            'id' => 0,
-            'path' => '',
-            'name' => '顶级分类',
-            'treeName' => '顶级分类',
-            'parentId' => 0,
-            'sort' => 0,
-            'icon' => '',
-            'code' => 'root',
-            'status' => 1,
+            'id'          => 0,
+            'path'        => '',
+            'name'        => '顶级分类',
+            'treeName'    => '顶级分类',
+            'parentId'    => 0,
+            'sort'        => 0,
+            'icon'        => '',
+            'code'        => 'root',
+            'status'      => 1,
             'createdTime' => time(),
         ];
 
@@ -179,23 +179,23 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
         })->setTemplate('分类编码已存在');
         !isset($fields['sort']) && $fields['sort'] = 0;
         $fields = v::input($fields, [
-            'name' => v::notEmpty()->addRule($nameExistRule)->setName('分类名称'),
-            'code' => $codeExistRule,
-            'parentId' => v::callback(function ($value) {
+            'name'          => v::notEmpty()->addRule($nameExistRule)->setName('分类名称'),
+            'code'          => $codeExistRule,
+            'parentId'      => v::callback(function ($value) {
                 if ($value === '' || $value === null) {
                     return true;
                 }
 
                 return is_numeric($value);
             })->setTemplate('父级id必须是数字'),
-            'status' => v::intVal()->setName('状态'),
-            'remark' => v::stringVal()->setName('备注'),
-            'icon' => v::stringVal()->setName('图标'),
-            'cover' => v::stringVal()->setName('封面图'),
+            'status'        => v::intVal()->setName('状态'),
+            'remark'        => v::stringVal()->setName('备注'),
+            'icon'          => v::stringVal()->setName('图标'),
+            'cover'         => v::stringVal()->setName('封面图'),
             'recommendTags' => v::arrayVal()->setName('推荐标签'),
             'currentUserId' => v::notEmpty()->setName('创建人'),
             'currentUserIp' => v::stringVal()->setName('用户IP'),
-            'sort' => v::intVal()->setName('排序')
+            'sort'          => v::intVal()->setName('排序'),
         ]);
         $recommendTags = $fields['recommendTags'] ?? [];
         $fields = ArrayToolkit::parts($fields, ['name', 'code', 'parentId', 'status', 'remark', 'icon', 'cover', 'sort']);
@@ -206,8 +206,8 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             $this->setCatalogPath($fields['parentId'] ?? 0, $catalog['id']);
             $this->makeRecommendCatalogTags($catalog, $recommendTags);
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT_CATALOG, 'add', '添加作品分类成功', $catalog, [
-                'userId' => $fields['currentUserId'] ?? null,
-                'currentIp' => $fields['currentUserIp'] ?? ''
+                'userId'    => $fields['currentUserId'] ?? null,
+                'currentIp' => $fields['currentUserIp'] ?? '',
             ]);
             $this->commit();
 
@@ -295,7 +295,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             $this->makeRecommendCatalogTags($catalog, $recommendTags);
             $this->getLogService()->info(LogEnum::MODULE_PRODUCT_CATALOG, 'update', '更新作品分类成功', [
                 'old' => $oldCatalog,
-                'new' => $catalog
+                'new' => $catalog,
             ]);
             $this->commit();
 
@@ -338,7 +338,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param int $id
      * @return array|null
      */
-    public function getProductCatalogById(int $id): ?array
+    public function getProductCatalogById(int $id) : ?array
     {
         $catalog = $this->getProductCatalogDao()->get($id);
         if (empty($catalog)) {
@@ -354,7 +354,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param int $id
      * @return bool
      */
-    public function deleteProductCatalogById(int $id): bool
+    public function deleteProductCatalogById(int $id) : bool
     {
         if ($this->getProductCatalogDao()->count(['parentId' => $id])) {
             throw ProductException::CATALOG_HAS_CHILD();
@@ -369,7 +369,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param string $name
      * @return array|null
      */
-    public function getProductCatalogByName(string $name): ?array
+    public function getProductCatalogByName(string $name) : ?array
     {
         return $this->getProductCatalogDao()->getByName($name);
     }
@@ -380,7 +380,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
      * @param string $code
      * @return array|null
      */
-    public function getProductCatalogByCode(string $code): ?array
+    public function getProductCatalogByCode(string $code) : ?array
     {
         return $this->getProductCatalogDao()->getByCode($code);
     }
@@ -419,7 +419,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             return false;
         }
 
-//        $tags = $this->getProductTagDao()->getAllByIds($recommendTags);
+        //        $tags = $this->getProductTagDao()->getAllByIds($recommendTags);
         $dbCatalogTags = ArrayToolkit::column($this->getProductCatalogTagDao()->getAllByCatalogId($catalog['id']), 'tagId');
         $addTags = array_diff($recommendTags, $dbCatalogTags);
         $removeTags = array_diff($dbCatalogTags, $recommendTags);
@@ -433,7 +433,7 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
             foreach ($addTags as $tag) {
                 $items[] = [
                     'catalogId' => $catalog['id'],
-                    'tagId' => $tag
+                    'tagId'     => $tag,
                 ];
             }
 
@@ -441,8 +441,10 @@ class ProductCatalogServiceImpl extends BaseService implements ProductCatalogSer
         }
 
         if (!empty($removeTags)) {
-            $this->getProductCatalogTagDao()->batchDelete(['catalogId' => $catalog['id'],
-                'tagIds' => $removeTags]);
+            $this->getProductCatalogTagDao()->batchDelete([
+                'catalogId' => $catalog['id'],
+                'tagIds'    => $removeTags,
+            ]);
         }
     }
 

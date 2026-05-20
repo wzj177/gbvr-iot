@@ -31,13 +31,13 @@ class AlarmPlanController extends BaseController
         }
 
         $total = $this->getAlarmPlanService()->countPlans($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $list = $this->getAlarmPlanService()->searchPlans($conditions, $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => AlarmPlanFilter::publicList($list),
+            'list'      => AlarmPlanFilter::publicList($list),
             'paginator' => Paginator::toArray($paginator),
         ]);
     }
@@ -47,14 +47,14 @@ class AlarmPlanController extends BaseController
      */
     public function show(Request $request, $id)
     {
-        $plan = $this->getAlarmPlanService()->getPlan((int) $id);
+        $plan = $this->getAlarmPlanService()->getPlan((int)$id);
 
         if (!$plan) {
             return $this->createErrorJsonResponse('报警计划不存在', null, 404);
         }
 
         // 获取绑定的通道列表
-        $plan['bound_channels'] = $this->getAlarmPlanService()->getBoundChannels((int) $id);
+        $plan['bound_channels'] = $this->getAlarmPlanService()->getBoundChannels((int)$id);
 
         return $this->createSuccessJsonResponse($plan);
     }
@@ -82,7 +82,7 @@ class AlarmPlanController extends BaseController
         $data = $request->post();
 
         try {
-            $plan = $this->getAlarmPlanService()->updatePlan((int) $id, $data);
+            $plan = $this->getAlarmPlanService()->updatePlan((int)$id, $data);
             return $this->createSuccessJsonResponse($plan, '更新成功');
         } catch (\Exception $e) {
             return $this->createErrorJsonResponse($e->getMessage());
@@ -95,7 +95,7 @@ class AlarmPlanController extends BaseController
     public function destroy(Request $request, $id)
     {
         try {
-            $result = $this->getAlarmPlanService()->deletePlan((int) $id);
+            $result = $this->getAlarmPlanService()->deletePlan((int)$id);
             if (!$result) {
                 return $this->createErrorJsonResponse('报警计划不存在', null, 404);
             }
@@ -122,7 +122,7 @@ class AlarmPlanController extends BaseController
         }
 
         try {
-            $this->getAlarmPlanService()->bindChannels((int) $id, $deviceId, $channelIds);
+            $this->getAlarmPlanService()->bindChannels((int)$id, $deviceId, $channelIds);
             return $this->createSuccessJsonResponse(null, '绑定成功');
         } catch (\Exception $e) {
             return $this->createErrorJsonResponse($e->getMessage());
@@ -135,7 +135,7 @@ class AlarmPlanController extends BaseController
     public function unbindChannel(Request $request, $id, $channelId)
     {
         try {
-            $result = $this->getAlarmPlanService()->unbindChannel((int) $id, $channelId);
+            $result = $this->getAlarmPlanService()->unbindChannel((int)$id, $channelId);
             if (!$result) {
                 return $this->createErrorJsonResponse('解绑失败', null, 404);
             }
@@ -151,7 +151,7 @@ class AlarmPlanController extends BaseController
     public function boundChannels(Request $request, $id)
     {
         try {
-            $channels = $this->getAlarmPlanService()->getBoundChannels((int) $id);
+            $channels = $this->getAlarmPlanService()->getBoundChannels((int)$id);
             return $this->createSuccessJsonResponse($channels);
         } catch (\Exception $e) {
             return $this->createErrorJsonResponse($e->getMessage());
@@ -161,7 +161,7 @@ class AlarmPlanController extends BaseController
     /**
      * @return AlarmPlanService
      */
-    private function getAlarmPlanService(): AlarmPlanService
+    private function getAlarmPlanService() : AlarmPlanService
     {
         return $this->createService('Alarm:AlarmPlanService');
     }

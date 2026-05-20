@@ -28,7 +28,7 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
 
     }
 
-    public function searchCameras($offset, $limit, array $conditions = [], $sort = null, $columns = []): array
+    public function searchCameras($offset, $limit, array $conditions = [], $sort = null, $columns = []) : array
     {
         $offset === 0 && $offset = 1;
         $limit > 50 && $limit = 50;
@@ -61,7 +61,7 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
             $streams = $queryResult['data']['streams'] ?? [];
             if (empty($streams)) {
                 $result = $this->getLeChangeSdk()->bindDeviceLive($code, (int)$channelId, [
-                    'streamId' => $streamId
+                    'streamId' => $streamId,
                 ]);
                 $streams = $result['data']['streams'] ?? [];
             }
@@ -77,7 +77,7 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
             }
 
             $result = $this->getLeChangeSdk()->createDeviceFlvLive($code, (int)$channelId, [
-                'streamId' => $streamId
+                'streamId' => $streamId,
             ]);
             if (!empty($result['data'])) {
                 $stream = $result['data'];
@@ -93,7 +93,7 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
             }
 
             $result = $this->getLeChangeSdk()->createDeviceRtmpLive($code, (int)$channelId, [
-                'streamId' => $streamId
+                'streamId' => $streamId,
             ]);
             if (!empty($result['data'])) {
                 $stream = $result['data'];
@@ -158,26 +158,26 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
      * @param $device
      * @return array
      */
-    protected function mapChannels($device): array
+    protected function mapChannels($device) : array
     {
         $channels = [];
         foreach ($device['channelList'] as $channel) {
             $lastOffLineTime = DateTime::createFromFormat('Ymd\THis\Z', $channel['lastOffLineTime'], new DateTimeZone('UTC'));
             $channels[] = [
-                'code' => $channel['channelId'],
-                'name' => $channel['channelName'],
-                'deviceId' => $device['deviceId'],
-                'deviceName' => $device['deviceName'],
-                'deviceStatus' => $device['deviceStatus'],
-                'deviceModel' => $device['deviceModel'],
-                'deviceCatalog' => $device['catalog'],
+                'code'             => $channel['channelId'],
+                'name'             => $channel['channelName'],
+                'deviceId'         => $device['deviceId'],
+                'deviceName'       => $device['deviceName'],
+                'deviceStatus'     => $device['deviceStatus'],
+                'deviceModel'      => $device['deviceModel'],
+                'deviceCatalog'    => $device['catalog'],
                 'deviceChannelNum' => $device['channelNum'],
-                'channelNo' => $channel['channelId'],
-                'channelName' => $channel['channelName'],
-                'channelId' => $device['deviceId'] . $channel['channelId'],
-                'channelStatus' => $channel['channelStatus'],
-                'lastOffLineTime' => $lastOffLineTime->getTimestamp(),
-                'picUrl' => $channel['channelPicUrl'],
+                'channelNo'        => $channel['channelId'],
+                'channelName'      => $channel['channelName'],
+                'channelId'        => $device['deviceId'] . $channel['channelId'],
+                'channelStatus'    => $channel['channelStatus'],
+                'lastOffLineTime'  => $lastOffLineTime->getTimestamp(),
+                'picUrl'           => $channel['channelPicUrl'],
             ];
         }
 
@@ -258,20 +258,20 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
         return $this->getLeChangeSdk()->getKitToken($options['code'], $options['channelNo']);
     }
 
-    protected function gbPtzDirectionToLeChangeDire($gbDire): int
+    protected function gbPtzDirectionToLeChangeDire($gbDire) : int
     {
         //gb 指令：1=上;2=左上;3=右上;4=下;5=左下;6=右下;7=左;8=右;9=聚焦+;10=聚焦-;11=变倍+;12=变倍-;13=光圈开;14=光圈关;
         //乐橙指令：0-上，1-下，2-左，3-右，4-左上，5-左下，6-右上，7-右下，8-放大，9-缩小，10-停止
         $items = [
-            1 => 0,  // 上 -> 上
-            2 => 4,  // 左上 -> 左上
-            3 => 6,  // 右上 -> 右上
-            4 => 1,  // 下 -> 下
-            5 => 5,  // 左下 -> 左下
-            6 => 7,  // 右下 -> 右下
-            7 => 2,  // 左 -> 左
-            8 => 3,  // 右 -> 右
-            9 => 11, // 聚焦+ -> 未定义（暂定为 11）
+            1  => 0,  // 上 -> 上
+            2  => 4,  // 左上 -> 左上
+            3  => 6,  // 右上 -> 右上
+            4  => 1,  // 下 -> 下
+            5  => 5,  // 左下 -> 左下
+            6  => 7,  // 右下 -> 右下
+            7  => 2,  // 左 -> 左
+            8  => 3,  // 右 -> 右
+            9  => 11, // 聚焦+ -> 未定义（暂定为 11）
             10 => 10,// 聚焦- -> 停止（暂定为 10）
             11 => 8, // 变倍+ -> 放大
             12 => 9, // 变倍- -> 缩小
@@ -285,7 +285,7 @@ class LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
     /**
      * @return LeChangeSdk
      */
-    protected function getLeChangeSdk(): LeChangeSdk
+    protected function getLeChangeSdk() : LeChangeSdk
     {
         $params = $this->currentThirdParty['params'] ?? [];
         if ($this->currentThirdParty['live_providers'] === Constants::LIVE_PROVIDER_OPEN_LE_YS7_CHANGE) {

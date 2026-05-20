@@ -16,7 +16,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getStats(array $serverConfig): array
+    public function getStats(array $serverConfig) : array
     {
         try {
             $baseUrl = "http://{$serverConfig['host']}:{$serverConfig['port']}";
@@ -32,29 +32,29 @@ class SRSStrategy implements MediaServerStrategyInterface
 
             return [
                 'running' => !empty($summaries),
-                'status' => !empty($summaries) ? 'running' : 'stopped',
+                'status'  => !empty($summaries) ? 'running' : 'stopped',
                 'version' => $summaries['data']['version'] ?? '',
 
                 'snapshot' => [
-                    'stream_count' => count($streams['streams'] ?? []),
+                    'stream_count'           => count($streams['streams'] ?? []),
                     'total_connection_count' => count($clients['clients'] ?? []),
-                    'bytes_speed' => 0, // SRS不直接提供
+                    'bytes_speed'            => 0, // SRS不直接提供
                 ],
 
                 'summaries' => $summaries['data'] ?? [],
-                'streams' => $streams['streams'] ?? [],
-                'clients' => $clients['clients'] ?? [],
+                'streams'   => $streams['streams'] ?? [],
+                'clients'   => $clients['clients'] ?? [],
             ];
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to get SRS stats', [
-                'host' => $serverConfig['host'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
             return [
                 'running' => false,
-                'status' => 'unknown',
-                'error' => $e->getMessage(),
+                'status'  => 'unknown',
+                'error'   => $e->getMessage(),
             ];
         }
     }
@@ -62,7 +62,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getConfig(array $serverConfig): array
+    public function getConfig(array $serverConfig) : array
     {
         // SRS 不支持通过HTTP API获取配置
         throw new \RuntimeException('SRS does not support getting config via HTTP API');
@@ -71,7 +71,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function setConfig(array $serverConfig, array $config): bool
+    public function setConfig(array $serverConfig, array $config) : bool
     {
         // SRS 不支持通过HTTP API设置配置
         throw new \RuntimeException('SRS does not support setting config via HTTP API');
@@ -80,7 +80,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function restart(array $serverConfig): bool
+    public function restart(array $serverConfig) : bool
     {
         // SRS 支持reload配置
         try {
@@ -90,7 +90,7 @@ class SRSStrategy implements MediaServerStrategyInterface
             return isset($result['code']) && $result['code'] == 0;
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to reload SRS config', [
-                'host' => $serverConfig['host'] ?? '',
+                'host'  => $serverConfig['host'] ?? '',
                 'error' => $e->getMessage(),
             ]);
 
@@ -101,7 +101,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isOnline(array $serverConfig): bool
+    public function isOnline(array $serverConfig) : bool
     {
         try {
             $baseUrl = "http://{$serverConfig['host']}:{$serverConfig['port']}";
@@ -116,7 +116,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function getVersion(array $serverConfig): ?array
+    public function getVersion(array $serverConfig) : ?array
     {
         try {
             $baseUrl = "http://{$serverConfig['host']}:{$serverConfig['port']}";
@@ -124,11 +124,11 @@ class SRSStrategy implements MediaServerStrategyInterface
 
             if ($result && isset($result['data'])) {
                 return [
-                    'version' => $result['data']['major'] . '.' . $result['data']['minor'] . '.' . $result['data']['revision'],
-                    'major' => $result['data']['major'],
-                    'minor' => $result['data']['minor'],
+                    'version'  => $result['data']['major'] . '.' . $result['data']['minor'] . '.' . $result['data']['revision'],
+                    'major'    => $result['data']['major'],
+                    'minor'    => $result['data']['minor'],
                     'revision' => $result['data']['revision'],
-                    'build' => $result['data']['build'] ?? '',
+                    'build'    => $result['data']['build'] ?? '',
                 ];
             }
 
@@ -144,11 +144,11 @@ class SRSStrategy implements MediaServerStrategyInterface
      * 注意：SRS不支持通过HTTP API动态添加流代理
      * 流代理需要在配置文件中配置ingest，然后调用reload
      */
-    public function addStreamProxy(array $serverConfig, array $proxyConfig): array
+    public function addStreamProxy(array $serverConfig, array $proxyConfig) : array
     {
         return [
             'success' => false,
-            'key' => '',
+            'key'     => '',
             'message' => 'SRS does not support adding stream proxy via HTTP API. Please use ingest configuration in config file and reload.',
         ];
     }
@@ -158,7 +158,7 @@ class SRSStrategy implements MediaServerStrategyInterface
      *
      * 注意：SRS不支持通过HTTP API删除流代理
      */
-    public function delStreamProxy(array $serverConfig, string $key): bool
+    public function delStreamProxy(array $serverConfig, string $key) : bool
     {
         // SRS不支持动态删除流代理
         return false;
@@ -167,7 +167,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__'): bool
+    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__') : bool
     {
         try {
             $baseUrl = "http://{$serverConfig['host']}:{$serverConfig['port']}";
@@ -189,10 +189,10 @@ class SRSStrategy implements MediaServerStrategyInterface
             return false;
         } catch (\Exception $e) {
             Log::channel('zlm')->error('Failed to check SRS stream status', [
-                'host' => $serverConfig['host'] ?? '',
-                'app' => $app,
+                'host'   => $serverConfig['host'] ?? '',
+                'app'    => $app,
                 'stream' => $stream,
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
 
             return false;
@@ -202,15 +202,15 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * 发送HTTP请求到SRS
      */
-    private function request(string $baseUrl, string $path): ?array
+    private function request(string $baseUrl, string $path) : ?array
     {
         $url = $baseUrl . $path;
 
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
+            CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 5,
+            CURLOPT_TIMEOUT        => 5,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => false,

@@ -10,9 +10,9 @@ class LoginFormDto
 
     public $userId;
 
-    public  $username;
+    public $username;
 
-    public  $password;
+    public $password;
 
     public $rememberMe = false;
 

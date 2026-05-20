@@ -13,9 +13,9 @@ class PresetDaoImpl extends AdvancedDaoImpl implements PresetDao
     public function getByDeviceAndChannelAndValue(string $deviceId, string $channelId, int $value)
     {
         return $this->getByFields([
-            'device_id' => $deviceId,
+            'device_id'  => $deviceId,
             'channel_id' => $channelId,
-            'value' => $value,
+            'value'      => $value,
         ]);
     }
 
@@ -23,7 +23,7 @@ class PresetDaoImpl extends AdvancedDaoImpl implements PresetDao
     {
         return $this->search(
             [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
             ],
             ['value' => 'ASC'],
@@ -32,10 +32,10 @@ class PresetDaoImpl extends AdvancedDaoImpl implements PresetDao
         );
     }
 
-    public function deleteByDeviceAndChannel(string $deviceId, string $channelId, ?int $value = null): int
+    public function deleteByDeviceAndChannel(string $deviceId, string $channelId, ?int $value = null) : int
     {
         $conditions = [
-            'device_id' => $deviceId,
+            'device_id'  => $deviceId,
             'channel_id' => $channelId,
         ];
 
@@ -46,16 +46,16 @@ class PresetDaoImpl extends AdvancedDaoImpl implements PresetDao
         return $this->db()->delete($this->table, $conditions);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'value',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],

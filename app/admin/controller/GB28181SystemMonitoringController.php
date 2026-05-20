@@ -21,11 +21,11 @@ class GB28181SystemMonitoringController extends BaseController
      * @param Request $request
      * @return Response
      */
-    public function getDeviceStats(Request $request): Response
+    public function getDeviceStats(Request $request) : Response
     {
         try {
             // 设备概览统计
-            list('total_count' => $totalCount, 'online_count' => $onlineCount, 'unregister_count' => $unRegisterCount, 'expired_count' => $expiredCount) = $this->getDeviceService()->summaryDevices([]);
+            ['total_count' => $totalCount, 'online_count' => $onlineCount, 'unregister_count' => $unRegisterCount, 'expired_count' => $expiredCount] = $this->getDeviceService()->summaryDevices([]);
 
             // 获取所有设备用于详细统计
             $allDevices = $this->getDeviceService()->searchDevices([], [], 0, 1000);
@@ -60,27 +60,27 @@ class GB28181SystemMonitoringController extends BaseController
 
             return $this->createSuccessJsonResponse([
                 // 设备概览
-                'total_count' => $totalCount,
-                'online_count' => $onlineCount,
-                'unregister_count' => $unRegisterCount,
-                'expired_count' => $expiredCount,
+                'total_count'               => $totalCount,
+                'online_count'              => $onlineCount,
+                'unregister_count'          => $unRegisterCount,
+                'expired_count'             => $expiredCount,
 
                 // 通道统计
-                'total_channels' => $totalChannels,
-                'online_channels' => $onlineChannels,
-                'offline_channels' => $offlineChannels,
+                'total_channels'            => $totalChannels,
+                'online_channels'           => $onlineChannels,
+                'offline_channels'          => $offlineChannels,
 
                 // 设备类型分布
-                'type_distribution' => $typeDistribution,
+                'type_distribution'         => $typeDistribution,
 
                 // 厂商分布
                 'manufacturer_distribution' => $manufacturerDistribution,
 
                 // 最近活动设备
-                'recent_activities' => $recentActivities,
+                'recent_activities'         => $recentActivities,
 
                 // 24小时在线趋势
-                'hourly_stats' => $hourlyStats,
+                'hourly_stats'              => $hourlyStats,
             ]);
         } catch (\Exception $e) {
             return $this->createErrorJsonResponse($e->getMessage());
@@ -93,7 +93,7 @@ class GB28181SystemMonitoringController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function getSystemStats(Request $request): \support\Response
+    public function getSystemStats(Request $request) : \support\Response
     {
         try {
             $stats = $this->getSystemService()->getSystemStats();
@@ -111,13 +111,13 @@ class GB28181SystemMonitoringController extends BaseController
      * @param array $devices
      * @return array
      */
-    private function calculateDeviceTypeDistribution(array $devices): array
+    private function calculateDeviceTypeDistribution(array $devices) : array
     {
         $typeMap = [
-            'IPC' => 'ipc',
-            'NVR' => 'nvr',
-            'DVR' => 'dvr',
-            'HCVR' => 'dvr',
+            'IPC'      => 'ipc',
+            'NVR'      => 'nvr',
+            'DVR'      => 'dvr',
+            'HCVR'     => 'dvr',
             '中心平台' => 'platform',
         ];
 
@@ -129,9 +129,9 @@ class GB28181SystemMonitoringController extends BaseController
 
             if (!isset($distribution[$typeKey])) {
                 $distribution[$typeKey] = [
-                    'type' => $typeKey,
+                    'type'      => $typeKey,
                     'type_name' => $typeName,
-                    'count' => 0,
+                    'count'     => 0,
                 ];
             }
             $distribution[$typeKey]['count']++;
@@ -146,7 +146,7 @@ class GB28181SystemMonitoringController extends BaseController
      * @param array $devices
      * @return array
      */
-    private function calculateManufacturerDistribution(array $devices): array
+    private function calculateManufacturerDistribution(array $devices) : array
     {
         $manufacturerMap = [];
 
@@ -157,8 +157,8 @@ class GB28181SystemMonitoringController extends BaseController
             if (!isset($manufacturerMap[$manufacturer])) {
                 $manufacturerMap[$manufacturer] = [
                     'manufacturer' => $manufacturer,
-                    'count' => 0,
-                    'models' => [],
+                    'count'        => 0,
+                    'models'       => [],
                 ];
             }
             $manufacturerMap[$manufacturer]['count']++;
@@ -177,7 +177,7 @@ class GB28181SystemMonitoringController extends BaseController
      * @param int $limit
      * @return array
      */
-    private function getRecentActivities(array $devices, int $limit = 5): array
+    private function getRecentActivities(array $devices, int $limit = 5) : array
     {
         // 按最后心跳时间排序
         usort($devices, function ($a, $b) {
@@ -191,9 +191,9 @@ class GB28181SystemMonitoringController extends BaseController
             $device = $devices[$i];
             $activities[] = [
                 'device_name' => $device['device_name'] ?? $device['device_id'] ?? '',
-                'device_id' => $device['device_id'] ?? '',
-                'status' => $device['status'] ?? 'offline',
-                'last_seen' => $device['last_heartbeat_at'] ?? $device['updated_at'] ?? '',
+                'device_id'   => $device['device_id'] ?? '',
+                'status'      => $device['status'] ?? 'offline',
+                'last_seen'   => $device['last_heartbeat_at'] ?? $device['updated_at'] ?? '',
             ];
         }
 
@@ -206,7 +206,7 @@ class GB28181SystemMonitoringController extends BaseController
      * @param array $devices
      * @return array
      */
-    private function getHourlyStats(array $devices): array
+    private function getHourlyStats(array $devices) : array
     {
         $hourlyStats = [];
         $currentHour = (int)date('H');
@@ -214,10 +214,10 @@ class GB28181SystemMonitoringController extends BaseController
         for ($i = 0; $i < 24; $i++) {
             $hour = ($currentHour - $i + 24) % 24;
             $hourlyStats[] = [
-                'hour' => $hour,
+                'hour'         => $hour,
                 'online_count' => 0,  // 实际应从历史数据获取
-                'total_count' => count($devices),
-                'online_rate' => 0,
+                'total_count'  => count($devices),
+                'online_rate'  => 0,
             ];
         }
 
@@ -238,7 +238,7 @@ class GB28181SystemMonitoringController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -246,7 +246,7 @@ class GB28181SystemMonitoringController extends BaseController
     /**
      * @return SystemService
      */
-    private function getSystemService(): SystemService
+    private function getSystemService() : SystemService
     {
         return $this->createService('System:SystemService');
     }

@@ -10,7 +10,7 @@ use support\Log;
 
 class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
 {
-    public function captureAlarmSnapshot(string $deviceId, string $channelId, int $alarmEventId, string $imageFormat = 'JPEG'): array
+    public function captureAlarmSnapshot(string $deviceId, string $channelId, int $alarmEventId, string $imageFormat = 'JPEG') : array
     {
         // 检查设备和通道
         $channel = $this->getDeviceService()->getChannel($deviceId, $channelId);
@@ -32,7 +32,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
         return $this->captureAfterInvite($deviceId, $channelId, 'alarm', $alarmEventId) ?? [];
     }
 
-    public function captureFromStream(string $deviceId, string $channelId, string $streamId, string $sourceType = 'manual', ?int $sourceId = null, int $timeoutSec = 5): ?array
+    public function captureFromStream(string $deviceId, string $channelId, string $streamId, string $sourceType = 'manual', ?int $sourceId = null, int $timeoutSec = 5) : ?array
     {
         try {
             // 获取流信息
@@ -54,49 +54,49 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
             if (!$snapResult || !isset($snapResult['snap_path'])) {
                 Log::channel('sip')->warning('Snapshot failed', [
                     'stream_id' => $streamId,
-                    'result' => $snapResult,
+                    'result'    => $snapResult,
                 ]);
                 return null;
             }
 
             // 保存快照记录
             $snapshot = [
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'channel_name' => $this->getChannelName($deviceId, $channelId),
-                'source_type' => $sourceType,
-                'source_id' => $sourceId,
-                'source_desc' => $this->getSourceDesc($sourceType, $sourceId),
-                'shot_time' => date('Y-m-d H:i:s.v'),
-                'file_path' => $snapResult['snap_path'],
-                'file_url' => $snapResult['snap_url'] ?? null,
-                'file_size' => $snapResult['file_size'] ?? 0,
-                'format' => $this->getImageFormat($snapResult['snap_path']),
-                'width' => $snapResult['width'] ?? null,
-                'height' => $snapResult['height'] ?? null,
+                'device_id'       => $deviceId,
+                'channel_id'      => $channelId,
+                'channel_name'    => $this->getChannelName($deviceId, $channelId),
+                'source_type'     => $sourceType,
+                'source_id'       => $sourceId,
+                'source_desc'     => $this->getSourceDesc($sourceType, $sourceId),
+                'shot_time'       => date('Y-m-d H:i:s.v'),
+                'file_path'       => $snapResult['snap_path'],
+                'file_url'        => $snapResult['snap_url'] ?? null,
+                'file_size'       => $snapResult['file_size'] ?? 0,
+                'format'          => $this->getImageFormat($snapResult['snap_path']),
+                'width'           => $snapResult['width'] ?? null,
+                'height'          => $snapResult['height'] ?? null,
                 'media_server_id' => $snapResult['media_server_id'] ?? null,
                 'media_server_ip' => $snapResult['media_server_ip'] ?? null,
-                'vhost' => $vhost,
-                'app' => $app,
-                'stream_id' => $streamId,
-                'asset_id' => $this->generateAssetId(),
-                'index_status' => 'none',
+                'vhost'           => $vhost,
+                'app'             => $app,
+                'stream_id'       => $streamId,
+                'asset_id'        => $this->generateAssetId(),
+                'index_status'    => 'none',
             ];
 
             return $this->getSnapshotFileDao()->create($snapshot);
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Capture from stream failed', [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
-                'stream_id' => $streamId,
-                'error' => $e->getMessage(),
+                'stream_id'  => $streamId,
+                'error'      => $e->getMessage(),
             ]);
             return null;
         }
     }
 
-    public function captureAfterInvite(string $deviceId, string $channelId, string $sourceType = 'manual', ?int $sourceId = null, int $timeoutSec = 5): ?array
+    public function captureAfterInvite(string $deviceId, string $channelId, string $sourceType = 'manual', ?int $sourceId = null, int $timeoutSec = 5) : ?array
     {
         try {
             // 发起 INVITE
@@ -104,7 +104,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
 
             if (!$result || !isset($result['stream_id'])) {
                 Log::channel('sip')->warning('INVITE failed for snapshot', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
                 return null;
@@ -130,7 +130,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
                 // 清理：发送 BYE
                 $this->getGb28181Service()->stopLiveVideo($deviceId, $channelId, $streamId);
                 Log::channel('sip')->warning('Stream not ready for snapshot', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
                 return null;
@@ -146,25 +146,25 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
 
         } catch (\Exception $e) {
             Log::channel('sip')->error('Capture after INVITE failed', [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
             return null;
         }
     }
 
-    public function searchSnapshots(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    public function searchSnapshots(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
         return $this->getSnapshotFileDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countSnapshots(array $conditions): int
+    public function countSnapshots(array $conditions) : int
     {
         return $this->getSnapshotFileDao()->count($conditions);
     }
 
-    public function getSnapshot(int $id): ?array
+    public function getSnapshot(int $id) : ?array
     {
         return $this->getSnapshotFileDao()->get($id);
     }
@@ -172,7 +172,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
     /**
      * 获取通道名称
      */
-    private function getChannelName(string $deviceId, string $channelId): ?string
+    private function getChannelName(string $deviceId, string $channelId) : ?string
     {
         $channel = $this->getDeviceService()->getChannel($deviceId, $channelId);
         return $channel['channel_name'] ?? null;
@@ -181,9 +181,9 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
     /**
      * 获取来源描述
      */
-    private function getSourceDesc(string $sourceType, ?int $sourceId): ?string
+    private function getSourceDesc(string $sourceType, ?int $sourceId) : ?string
     {
-        return match($sourceType) {
+        return match ($sourceType) {
             'alarm' => '报警事件',
             'plan' => '预案',
             'manual' => '手动抓拍',
@@ -195,14 +195,14 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
     /**
      * 从文件路径获取图片格式
      */
-    private function getImageFormat(?string $filePath): string
+    private function getImageFormat(?string $filePath) : string
     {
         if (!$filePath) {
             return 'jpg';
         }
 
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        return match($ext) {
+        return match ($ext) {
             'png', 'jpeg', 'webp' => $ext,
             default => 'jpg',
         };
@@ -211,7 +211,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
     /**
      * 生成资产ID（UUID）
      */
-    private function generateAssetId(): string
+    private function generateAssetId() : string
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
@@ -226,7 +226,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
         );
     }
 
-    protected function getSnapshotFileDao(): SnapshotFileDao|DaoProxy
+    protected function getSnapshotFileDao() : SnapshotFileDao|DaoProxy
     {
         return $this->createDao('Snapshot:SnapshotFileDao');
     }
@@ -238,7 +238,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
 
     protected function getGb28181Service()
     {
-        return $this->createService('GB:Gb28181Service');
+        return $this->getBiz()->offsetGet('gb28181_service');
     }
 
     protected function getZlmClient()

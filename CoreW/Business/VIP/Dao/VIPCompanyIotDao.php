@@ -7,6 +7,7 @@ use CoreW\Dao\AdvancedDaoInterface;
 interface VIPCompanyIotDao extends AdvancedDaoInterface
 {
     public function getByCompanyId(int $companyId);
+
     public function getByUserId(int $userId);
 
     public function getByAppId(string $appId);

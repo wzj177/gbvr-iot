@@ -17,9 +17,9 @@ class QQOauthClient extends AbstractOAuthClient
     {
         $params = [
             'response_type' => $response_type,
-            'client_id' => $this->config['key'],
-            'redirect_uri' => $redirect_uri,
-            'state' => 'wanzi'
+            'client_id'     => $this->config['key'],
+            'redirect_uri'  => $redirect_uri,
+            'state'         => 'wanzi',
         ];
 
         return self::AUTHORIZE_URL . http_build_query($params);
@@ -28,11 +28,11 @@ class QQOauthClient extends AbstractOAuthClient
     public function getAccessToken(string $code, string $redirect_uri)
     {
         $params = [
-            'grant_type' => 'authorization_code',
-            'client_id' => $this->config['key'],
-            'redirect_uri' => $redirect_uri,
+            'grant_type'    => 'authorization_code',
+            'client_id'     => $this->config['key'],
+            'redirect_uri'  => $redirect_uri,
             'client_secret' => $this->config['secret'],
-            'code' => $code,
+            'code'          => $code,
         ];
 
         $jsonResult = $this->cache()->get($this->config['key']);
@@ -43,7 +43,7 @@ class QQOauthClient extends AbstractOAuthClient
                 throw new Oauth2Exception("oauth2接口请求失败，{$jsonResult['error_description']}");
             }
 
-            $this->cache()->setex($this->config['key'],  $jsonResult['expires_in'] - 3600, serialize($jsonResult));
+            $this->cache()->setex($this->config['key'], $jsonResult['expires_in'] - 3600, serialize($jsonResult));
         } else {
             $jsonResult = unserialize($jsonResult);
         }
@@ -51,10 +51,10 @@ class QQOauthClient extends AbstractOAuthClient
         $userInfo = $this->getUserInfo($jsonResult);
 
         return [
-            'userInfo' => $userInfo,
+            'userInfo'    => $userInfo,
             'expiredTime' => $jsonResult['expires_in'],
             'accessToken' => $jsonResult['access_token'],
-            'token' => $jsonResult['access_token'],
+            'token'       => $jsonResult['access_token'],
         ];
     }
 
@@ -72,9 +72,9 @@ class QQOauthClient extends AbstractOAuthClient
         $token['id'] = $user->openid;
         $params = [
             'oauth_consumer_key' => $token['key'] ?? $this->config['key'], // 因为移动端第三方登录会走此接口，移动端的key和网站的key是不一样的
-            'openid' => $token['id'],
-            'format' => 'json',
-            'access_token' => $token['access_token'],
+            'openid'             => $token['id'],
+            'format'             => 'json',
+            'access_token'       => $token['access_token'],
         ];
         $result = $this->getRequest(self::USERINFO_URL, $params);
         $info = json_decode($result, true);
@@ -85,13 +85,13 @@ class QQOauthClient extends AbstractOAuthClient
 
     protected function convertUserInfo($info)
     {
-        $userInfo = array();
+        $userInfo = [];
         $userInfo['id'] = $info['id'];
         $userInfo['name'] = $info['nickname'];
         $userInfo['avatar'] = empty($info['figureurl_qq_2']) ? $info['figureurl_qq_1'] : $info['figureurl_qq_2'];
         if ('男' == $info['gender']) {
             $userInfo['gender'] = 'male';
-        } elseif ('女' == $info['gender']) {
+        } else if ('女' == $info['gender']) {
             $userInfo['gender'] = 'female';
         } else {
             $userInfo['gender'] = 'secret';
@@ -108,15 +108,15 @@ class QQOauthClient extends AbstractOAuthClient
     {
         $result = str_replace([
             'callback( ',
-            " );\n"
+            " );\n",
         ], '', $result);
         $json = json_decode($result, true);
         if ($json === null) {
             parse_str($result, $json);
-           if (!empty($json['access_token'])) {
-               $json['error'] = 0;
-               return $json;
-           }
+            if (!empty($json['access_token'])) {
+                $json['error'] = 0;
+                return $json;
+            }
         }
 
         return $json ? $json : ["error" => -1, "error_description" => '未知错误'];

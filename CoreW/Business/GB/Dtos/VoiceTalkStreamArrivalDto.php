@@ -31,7 +31,8 @@ class VoiceTalkStreamArrivalDto
         string $ssrc,
         ?int $rtpPort = null,
         ?string $receiveStreamId = null
-    ) {
+    )
+    {
         $this->app = $app;
         $this->stream = $stream;
         $this->mediaServerId = $mediaServerId;
@@ -46,41 +47,42 @@ class VoiceTalkStreamArrivalDto
         string $mediaServerId,
         string $ssrc,
         ?int $rtpPort = null
-    ): self {
+    ) : self
+    {
         return new self($app, $stream, $mediaServerId, $ssrc, $rtpPort);
     }
 
-    public function getApp(): string
+    public function getApp() : string
     {
         return $this->app;
     }
 
-    public function getStream(): string
+    public function getStream() : string
     {
         return $this->stream;
     }
 
-    public function getMediaServerId(): string
+    public function getMediaServerId() : string
     {
         return $this->mediaServerId;
     }
 
-    public function getSsrc(): string
+    public function getSsrc() : string
     {
         return $this->ssrc;
     }
 
-    public function getRtpPort(): ?int
+    public function getRtpPort() : ?int
     {
         return $this->rtpPort;
     }
 
-    public function getReceiveStreamId(): ?string
+    public function getReceiveStreamId() : ?string
     {
         return $this->receiveStreamId;
     }
 
-    public function setReceiveStreamId(?string $receiveStreamId): self
+    public function setReceiveStreamId(?string $receiveStreamId) : self
     {
         $this->receiveStreamId = $receiveStreamId;
         return $this;
@@ -88,62 +90,62 @@ class VoiceTalkStreamArrivalDto
 
     // RTP 参数 getters/setters
 
-    public function getPt(): int
+    public function getPt() : int
     {
         return $this->pt;
     }
 
-    public function setPt(int $pt): self
+    public function setPt(int $pt) : self
     {
         $this->pt = $pt;
         return $this;
     }
 
-    public function isUsePs(): bool
+    public function isUsePs() : bool
     {
         return $this->usePs;
     }
 
-    public function setUsePs(bool $usePs): self
+    public function setUsePs(bool $usePs) : self
     {
         $this->usePs = $usePs;
         return $this;
     }
 
-    public function isOnlyAudio(): bool
+    public function isOnlyAudio() : bool
     {
         return $this->onlyAudio;
     }
 
-    public function setOnlyAudio(bool $onlyAudio): self
+    public function setOnlyAudio(bool $onlyAudio) : self
     {
         $this->onlyAudio = $onlyAudio;
         return $this;
     }
 
-    public function isTcp(): bool
+    public function isTcp() : bool
     {
         return $this->isTcp;
     }
 
-    public function setIsTcp(bool $isTcp): self
+    public function setIsTcp(bool $isTcp) : self
     {
         $this->isTcp = $isTcp;
         return $this;
     }
 
-    public function toArray(): array
+    public function toArray() : array
     {
         return [
-            'app' => $this->app,
-            'stream' => $this->stream,
-            'mediaServerId' => $this->mediaServerId,
-            'ssrc' => $this->ssrc,
-            'rtpPort' => $this->rtpPort,
+            'app'             => $this->app,
+            'stream'          => $this->stream,
+            'mediaServerId'   => $this->mediaServerId,
+            'ssrc'            => $this->ssrc,
+            'rtpPort'         => $this->rtpPort,
             'receiveStreamId' => $this->receiveStreamId,
-            'pt' => $this->pt,
-            'usePs' => $this->usePs,
-            'onlyAudio' => $this->onlyAudio,
+            'pt'              => $this->pt,
+            'usePs'           => $this->usePs,
+            'onlyAudio'       => $this->onlyAudio,
         ];
     }
 }

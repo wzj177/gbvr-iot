@@ -91,7 +91,7 @@ class AMapClient
         $this->client->setConfig([
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_SSL_VERIFYPEER => 0,
-            CURLOPT_HEADER => true
+            CURLOPT_HEADER         => true,
         ]);
 
         $this->client->setConnectionTimeoutInMillis($this->connectTimeout * 1000);
@@ -126,7 +126,7 @@ class AMapClient
     /**
      * @param int $connectTimeout
      */
-    public function setConnectTimeout(int $connectTimeout): void
+    public function setConnectTimeout(int $connectTimeout) : void
     {
         $this->connectTimeout = $connectTimeout;
     }
@@ -134,7 +134,7 @@ class AMapClient
     /**
      * @param int $timeout
      */
-    public function setTimeout(int $timeout): void
+    public function setTimeout(int $timeout) : void
     {
         $this->timeout = $timeout;
     }
@@ -156,7 +156,7 @@ class AMapClient
         $this->log('Query Params:', $params);
         try {
             $rawResponse = $this->client->get($url, $params, $headers);
-            list($rawHeaders, $rawBody) = $this->extractResponseHeadersAndBody($rawResponse);
+            [$rawHeaders, $rawBody] = $this->extractResponseHeadersAndBody($rawResponse);
 
             $response = new Response($rawHeaders, $rawBody);
             $this->log("[{$uri}] RESPONSE_BODY {$response->getBody()}", [], 'debug');
@@ -189,13 +189,13 @@ class AMapClient
         try {
             $json = is_array($data) ? json_encode($data) : $data;
             $rawResponse = $this->client->post($url, $json, $params, $headers);
-            list($rawHeaders, $rawBody) = $this->extractResponseHeadersAndBody($rawResponse);
+            [$rawHeaders, $rawBody] = $this->extractResponseHeadersAndBody($rawResponse);
             $response = new Response($rawHeaders, $rawBody);
 
             $this->log('HTTP response.', [
                 'statusCode' => $response->getHttpResponseCode(),
-                'headers' => $response->getHeaders(),
-                'body' => strpos($uri, 'GetStreamSnap') !== false ? 'img base64' : $response->getBody(),
+                'headers'    => $response->getHeaders(),
+                'body'       => strpos($uri, 'GetStreamSnap') !== false ? 'img base64' : $response->getBody(),
             ], $response->getHttpResponseCode() >= 400 ? 'error' : 'debug');
 
             return $this->parseResponse($response);
@@ -247,7 +247,7 @@ class AMapClient
         $rawBody = array_pop($parts);
         $rawHeaders = implode("\r\n\r\n", $parts);
 
-        return array(trim($rawHeaders), trim($rawBody));
+        return [trim($rawHeaders), trim($rawBody)];
     }
 
     protected function parseResponse(Response $response)
@@ -256,7 +256,7 @@ class AMapClient
             return [
                 'code' => self::FAILED_CODE,
                 'data' => null,
-                'msg' => '请求失败'
+                'msg'  => '请求失败',
             ];
         }
         $body = $response->getBody();
@@ -264,7 +264,7 @@ class AMapClient
             return [
                 'code' => self::FAILED_CODE,
                 'data' => null,
-                'msg' => '请求失败'
+                'msg'  => '请求失败',
             ];
         }
         $context = json_decode($body, true);
@@ -272,7 +272,7 @@ class AMapClient
             return [
                 'code' => self::FAILED_CODE,
                 'data' => null,
-                'msg' => '请求失败'
+                'msg'  => '请求失败',
             ];
         }
 
@@ -280,14 +280,14 @@ class AMapClient
             return [
                 'code' => self::SUCCESS_CODE,
                 'data' => $context,
-                'msg' => 'ok'
+                'msg'  => 'ok',
             ];
         }
 
         return [
             'code' => self::FAILED_CODE,
             'data' => null,
-            'msg' => 'ok'
+            'msg'  => 'ok',
         ];
     }
 }

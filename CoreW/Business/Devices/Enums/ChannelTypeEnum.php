@@ -56,7 +56,7 @@ enum ChannelTypeEnum: int
     case VIRTUAL_ORG = 216; // 虚拟组织
 
     // =============== 方法 ===============
-    public function label(): string
+    public function label() : string
     {
         return match ($this) {
             // 前端主设备
@@ -113,7 +113,7 @@ enum ChannelTypeEnum: int
     /**
      * 是否为前端主设备（可挂子设备）
      */
-    public function isMainDevice(): bool
+    public function isMainDevice() : bool
     {
         return $this->value >= 111 && $this->value <= 130;
     }
@@ -121,7 +121,7 @@ enum ChannelTypeEnum: int
     /**
      * 是否为前端外围设备（叶子节点，如 IPC、报警）
      */
-    public function isPeripheral(): bool
+    public function isPeripheral() : bool
     {
         return $this->value >= 131 && $this->value <= 199;
     }
@@ -129,7 +129,7 @@ enum ChannelTypeEnum: int
     /**
      * 是否为平台设备
      */
-    public function isPlatform(): bool
+    public function isPlatform() : bool
     {
         return $this->value >= 200 && $this->value <= 299;
     }
@@ -137,7 +137,7 @@ enum ChannelTypeEnum: int
     /**
      * 是否为报警类设备（输入/输出）
      */
-    public function isAlarm(): bool
+    public function isAlarm() : bool
     {
         return in_array($this, [
             self::ALARM_INPUT,
@@ -151,7 +151,7 @@ enum ChannelTypeEnum: int
     /**
      * 是否为视频源（可用于点播）
      */
-    public function isVideoSource(): bool
+    public function isVideoSource() : bool
     {
         return in_array($this, [
             self::CAMERA,
@@ -167,7 +167,7 @@ enum ChannelTypeEnum: int
     /**
      * 安全转换
      */
-    public static function tryFromInt(int $value): ?self
+    public static function tryFromInt(int $value) : ?self
     {
         return self::tryFrom($value);
     }

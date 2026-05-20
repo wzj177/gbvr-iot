@@ -7,9 +7,9 @@ use Workerman\Timer;
 
 class AutoLiveStreamTaskProcess
 {
-    public function onWorkerStart(): void
+    public function onWorkerStart() : void
     {
-        $interval = (int) env('AUTO_LIVE_INTERVAL') ?: 10;
+        $interval = (int)env('AUTO_LIVE_INTERVAL') ? : 10;
 
         Timer::add($interval, function () {
             AutoLiveStreamTask::run();

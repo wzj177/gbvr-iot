@@ -6,5 +6,5 @@ use CoreW\Dao\AdvancedDaoInterface;
 
 interface RecordPlanDao extends AdvancedDaoInterface
 {
-    public function getByName(string $name): ?array;
+    public function getByName(string $name) : ?array;
 }

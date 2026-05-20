@@ -71,10 +71,10 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
 
         try {
             $this->cosClient = new Client([
-                'region' => $this->region,
-                'schema' => 'https',
+                'region'      => $this->region,
+                'schema'      => 'https',
                 'credentials' => [
-                    'secretId' => $secretId,
+                    'secretId'  => $secretId,
                     'secretKey' => $secretKey,
                 ],
             ]);
@@ -142,18 +142,18 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
         $existFile = $this->getFileByHashId($hashId);
         if (!empty($existFile)) {
             return [
-                'storage' => 'tencent',
-                'filename' => $filename,
-                'newFilename' => $existFile['newFilename'],
-                'ext' => $existFile['ext'],
-                'metas' => $existFile['metas'],
-                'fileSize' => $existFile['fileSize'],
-                'type' => $existFile['type'],
-                'filepath' => $existFile['filepath'],
-                'hashId' => $hashId,
-                'groupCode' => $existFile['groupCode'],
-                'globalId' => $existFile['globalId'],
-                'firstStorage' => false
+                'storage'      => 'tencent',
+                'filename'     => $filename,
+                'newFilename'  => $existFile['newFilename'],
+                'ext'          => $existFile['ext'],
+                'metas'        => $existFile['metas'],
+                'fileSize'     => $existFile['fileSize'],
+                'type'         => $existFile['type'],
+                'filepath'     => $existFile['filepath'],
+                'hashId'       => $hashId,
+                'groupCode'    => $existFile['groupCode'],
+                'globalId'     => $existFile['globalId'],
+                'firstStorage' => false,
             ];
         }
 
@@ -161,27 +161,27 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
             // Upload to COS
             $result = $this->cosClient->upload(
                 [
-                    'Bucket' => $this->bucket,
-                    'Key' => $key,
-                    'Body' => fopen($localFilePath, 'rb'),
+                    'Bucket'      => $this->bucket,
+                    'Key'         => $key,
+                    'Body'        => fopen($localFilePath, 'rb'),
                     'ContentType' => $metas,
                 ]
             );
 
             return [
-                'storage' => 'tencent',
-                'filename' => $filename,
-                'newFilename' => $name . '.' . $ext,
-                'ext' => $ext,
-                'metas' => $metas,
-                'fileSize' => $fileSize,
-                'type' => $type,
-                'filepath' => $key,
-                'hashId' => $hashId,
-                'groupCode' => $group,
-                'globalId' => $key,
-                'etag' => $result['ETag'] ?? '',
-                'firstStorage' => true
+                'storage'      => 'tencent',
+                'filename'     => $filename,
+                'newFilename'  => $name . '.' . $ext,
+                'ext'          => $ext,
+                'metas'        => $metas,
+                'fileSize'     => $fileSize,
+                'type'         => $type,
+                'filepath'     => $key,
+                'hashId'       => $hashId,
+                'groupCode'    => $group,
+                'globalId'     => $key,
+                'etag'         => $result['ETag'] ?? '',
+                'firstStorage' => true,
             ];
         } catch (Exception $e) {
             throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '腾讯云COS上传失败: ' . $e->getMessage());
@@ -225,25 +225,25 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
 
         try {
             $cosResult = $this->cosClient->putObject([
-                'Bucket' => $this->bucket,
-                'Key' => $key,
-                'Body' => $content,
+                'Bucket'      => $this->bucket,
+                'Key'         => $key,
+                'Body'        => $content,
                 'ContentType' => 'image/' . $ext,
             ]);
 
             return [
-                'storage' => 'tencent',
-                'filename' => $name . '.' . $ext,
+                'storage'     => 'tencent',
+                'filename'    => $name . '.' . $ext,
                 'newFilename' => $name . '.' . $ext,
-                'ext' => $ext,
-                'metas' => 'image/' . $ext,
-                'fileSize' => $fileSize,
-                'type' => 'image',
-                'filepath' => $key,
-                'hashId' => $hashId,
-                'groupCode' => $group,
-                'globalId' => $key,
-                'etag' => $cosResult['ETag'] ?? '',
+                'ext'         => $ext,
+                'metas'       => 'image/' . $ext,
+                'fileSize'    => $fileSize,
+                'type'        => 'image',
+                'filepath'    => $key,
+                'hashId'      => $hashId,
+                'groupCode'   => $group,
+                'globalId'    => $key,
+                'etag'        => $cosResult['ETag'] ?? '',
             ];
         } catch (Exception $e) {
             throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '腾讯云COS上传失败: ' . $e->getMessage());
@@ -275,7 +275,7 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
         try {
             ob_start();
             $context = stream_context_create([
-                'http' => ['follow_location' => false]
+                'http' => ['follow_location' => false],
             ]);
             readfile($url, false, $context);
             $content = ob_get_contents();
@@ -301,25 +301,25 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
                 $hashId = hash($algo, $content);
 
                 $cosResult = $this->cosClient->putObject([
-                    'Bucket' => $this->bucket,
-                    'Key' => $key,
-                    'Body' => $content,
+                    'Bucket'      => $this->bucket,
+                    'Key'         => $key,
+                    'Body'        => $content,
                     'ContentType' => $heads['Content-Type'] ?? 'application/octet-stream',
                 ]);
 
                 return [
-                    'storage' => 'tencent',
-                    'filename' => $name . '.' . $ext,
+                    'storage'     => 'tencent',
+                    'filename'    => $name . '.' . $ext,
                     'newFilename' => $name . '.' . $ext,
-                    'ext' => $ext,
-                    'metas' => $heads['Content-Type'] ?? 'application/octet-stream',
-                    'fileSize' => $fileSize,
-                    'type' => $type,
-                    'filepath' => $key,
-                    'hashId' => $hashId,
-                    'groupCode' => $group,
-                    'globalId' => $key,
-                    'etag' => $cosResult['ETag'] ?? '',
+                    'ext'         => $ext,
+                    'metas'       => $heads['Content-Type'] ?? 'application/octet-stream',
+                    'fileSize'    => $fileSize,
+                    'type'        => $type,
+                    'filepath'    => $key,
+                    'hashId'      => $hashId,
+                    'groupCode'   => $group,
+                    'globalId'    => $key,
+                    'etag'        => $cosResult['ETag'] ?? '',
                 ];
             }
         } catch (\Throwable $e) {
@@ -344,7 +344,7 @@ class TenCentFileImplementor extends AbstractFileImplementor implements FileImpl
         try {
             $this->cosClient->deleteObject([
                 'Bucket' => $this->bucket,
-                'Key' => $key,
+                'Key'    => $key,
             ]);
             return true;
         } catch (Exception $e) {

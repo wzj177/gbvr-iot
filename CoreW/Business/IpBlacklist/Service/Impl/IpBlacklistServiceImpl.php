@@ -8,23 +8,23 @@ use CoreW\Business\IpBlacklist\Service\IpBlacklistService;
 use CoreW\Business\IpBlacklist\Dao\IpBlacklistDao;
 use CoreW\Business\Setting\Service\SettingService;
 
-class IpBlacklistServiceImpl extends BaseService implements IpBlacklistService 
+class IpBlacklistServiceImpl extends BaseService implements IpBlacklistService
 {
 
     public function increaseIpFailedCount($ip)
     {
-        $setting = $this->getSettingService()->get('login_bind', array());
-        $setting = array_merge(array('temporary_lock_minutes' => 20), $setting);
+        $setting = $this->getSettingService()->get('login_bind', []);
+        $setting = array_merge(['temporary_lock_minutes' => 20], $setting);
 
         $existIp = $this->getIpBlacklistDao()->getByIpAndType($ip, 'failed');
         if (empty($existIp)) {
-            $ip = array(
-                'ip' => $ip,
-                'type' => 'failed',
-                'counter' => 1,
+            $ip = [
+                'ip'          => $ip,
+                'type'        => 'failed',
+                'counter'     => 1,
                 'expiredTime' => time() + ($setting['temporary_lock_minutes'] * 60),
                 'createdTime' => time(),
-            );
+            ];
             $ip = $this->getIpBlacklistDao()->create($ip);
 
             return $ip['counter'];
@@ -33,19 +33,19 @@ class IpBlacklistServiceImpl extends BaseService implements IpBlacklistService
         if ($this->isIpExpired($existIp)) {
             $this->getIpBlacklistDao()->delete($existIp['id']);
 
-            $ip = array(
-                'ip' => $ip,
-                'type' => 'failed',
-                'counter' => 1,
+            $ip = [
+                'ip'          => $ip,
+                'type'        => 'failed',
+                'counter'     => 1,
                 'expiredTime' => time() + ($setting['temporary_lock_minutes'] * 60),
                 'createdTime' => time(),
-            );
+            ];
             $ip = $this->getIpBlacklistDao()->create($ip);
 
             return $ip['counter'];
         }
 
-        $this->getIpBlacklistDao()->wave(array($existIp['id']), array('counter' => 1));
+        $this->getIpBlacklistDao()->wave([$existIp['id']], ['counter' => 1]);
 
         return $existIp['counter'] + 1;
     }
@@ -90,12 +90,12 @@ class IpBlacklistServiceImpl extends BaseService implements IpBlacklistService
     }
 
     /**
-      * @return IpBlacklistDao
-      */
+     * @return IpBlacklistDao
+     */
     protected function getIpBlacklistDao()
     {
         return $this->createDao('IpBlacklist:IpBlacklistDao');
-    
+
     }
 
 }

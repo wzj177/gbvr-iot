@@ -22,42 +22,42 @@ class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAcc
         return [];
     }
 
-    public function offsetExists($offset): bool
+    public function offsetExists($offset) : bool
     {
         return $this->__isset($offset);
     }
 
-    public function offsetGet($offset): mixed
+    public function offsetGet($offset) : mixed
     {
         return $this->__get($offset);
     }
 
-    public function offsetSet($offset, $value): void
+    public function offsetSet($offset, $value) : void
     {
         $this->__set($offset, $value);
     }
 
-    public function offsetUnset($offset): void
+    public function offsetUnset($offset) : void
     {
         $this->__unset($offset);
     }
 
-//    public function serialize()
-//    {
-//        return serialize($this->data);
-//    }
-//
-//    public function unserialize($serialized)
-//    {
-//        $this->data = unserialize($serialized);
-//    }
+    //    public function serialize()
+    //    {
+    //        return serialize($this->data);
+    //    }
+    //
+    //    public function unserialize($serialized)
+    //    {
+    //        $this->data = unserialize($serialized);
+    //    }
 
-    public function __serialize(): array
+    public function __serialize() : array
     {
         return $this->data;
     }
 
-    public function __unserialize(array $data): void
+    public function __unserialize(array $data) : void
     {
         $this->data = $data;
     }
@@ -107,7 +107,7 @@ class CurrentUser implements CurrentUserInterface, EquatableInterface, \ArrayAcc
     /**
      * @return string
      */
-    public function getUUID(): string
+    public function getUUID() : string
     {
         return $this->uuid;
     }

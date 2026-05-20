@@ -9,11 +9,11 @@ class RecordPlanRangeDaoImpl extends AdvancedDaoImpl implements RecordPlanRangeD
 {
     protected $table = 'gv_record_plan_range';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'week_day',
                 'start_time',
@@ -31,12 +31,12 @@ class RecordPlanRangeDaoImpl extends AdvancedDaoImpl implements RecordPlanRangeD
         ];
     }
 
-    public function findByPlanId(int $planId): array
+    public function findByPlanId(int $planId) : array
     {
         return $this->findInField('record_plan_id', [$planId]);
     }
 
-    public function deleteByPlanId(int $planId): int
+    public function deleteByPlanId(int $planId) : int
     {
         return $this->db()->delete($this->table(), ['record_plan_id' => $planId]);
     }

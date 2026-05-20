@@ -39,9 +39,9 @@ enum DeviceCategoryEnum: int
     /**
      * 获取设备分类名称
      */
-    public function label(): string
+    public function label() : string
     {
-        return match($this) {
+        return match ($this) {
             self::VIDEO_INPUT => '摄像机',
             self::AUDIO_INPUT => '音频输入设备',
             self::ALARM_INPUT => '报警输入设备',
@@ -69,9 +69,9 @@ enum DeviceCategoryEnum: int
     /**
      * 获取设备分类图标
      */
-    public function icon(): string
+    public function icon() : string
     {
-        return match($this) {
+        return match ($this) {
             self::VIDEO_INPUT => 'video-camera',
             self::AUDIO_INPUT => 'audio',
             self::ALARM_INPUT => 'bell',
@@ -89,14 +89,14 @@ enum DeviceCategoryEnum: int
      * @param string $deviceId 20位国标设备ID
      * @return self|null
      */
-    public static function parseFromDeviceId(string $deviceId): ?self
+    public static function parseFromDeviceId(string $deviceId) : ?self
     {
         if (strlen($deviceId) < 13) {
             return null;
         }
 
         // 提取第10-13位（索引9-12）
-        $categoryCode = (int) substr($deviceId, 9, 3);
+        $categoryCode = (int)substr($deviceId, 9, 3);
 
         return self::tryFrom($categoryCode);
     }
@@ -106,14 +106,14 @@ enum DeviceCategoryEnum: int
      *
      * @return array
      */
-    public static function options(): array
+    public static function options() : array
     {
         $options = [];
         foreach (self::cases() as $case) {
             $options[] = [
                 'value' => $case->value,
                 'label' => $case->label(),
-                'icon' => $case->icon(),
+                'icon'  => $case->icon(),
             ];
         }
         return $options;
@@ -124,7 +124,7 @@ enum DeviceCategoryEnum: int
      *
      * @return array<int, string>
      */
-    public static function map(): array
+    public static function map() : array
     {
         $map = [];
         foreach (self::cases() as $case) {
@@ -136,9 +136,9 @@ enum DeviceCategoryEnum: int
     /**
      * 判断是否为移动设备（需要位置订阅）
      */
-    public function isMobileDevice(): bool
+    public function isMobileDevice() : bool
     {
-        return match($this) {
+        return match ($this) {
             self::MOBILE_TERMINAL,
             self::PORTABLE_DEVICE,
             self::VEHICLE_DEVICE,

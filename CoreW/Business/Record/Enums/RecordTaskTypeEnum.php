@@ -2,7 +2,7 @@
 
 namespace CoreW\Business\Record\Enums;
 
-enum RecordTaskTypeEnum:string
+enum RecordTaskTypeEnum: string
 {
     case ALARM = 'alarm';
 

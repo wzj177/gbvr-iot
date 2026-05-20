@@ -18,7 +18,7 @@ class AlarmServiceImpl extends BaseService implements AlarmService
         return $this->getAlarmDao()->count($conditions);
     }
 
-    public function countActiveAlarms(): int
+    public function countActiveAlarms() : int
     {
         return $this->getAlarmDao()->count(['handled_status' => 'pending']);
     }
@@ -33,8 +33,8 @@ class AlarmServiceImpl extends BaseService implements AlarmService
         $alarm = array_merge([
             'handled_status' => 'pending',
             'alarm_priority' => 1,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
+            'created_at'     => date('Y-m-d H:i:s'),
+            'updated_at'     => date('Y-m-d H:i:s'),
         ], $fields);
 
         return $this->getAlarmDao()->create($alarm);
@@ -46,11 +46,11 @@ class AlarmServiceImpl extends BaseService implements AlarmService
         return $this->getAlarmDao()->update($id, $fields);
     }
 
-    public function updateAlarmStatus(int $id, string $status, ?string $action = null, ?string $remark = null): bool
+    public function updateAlarmStatus(int $id, string $status, ?string $action = null, ?string $remark = null) : bool
     {
         $fields = [
             'handled_status' => $status,
-            'updated_at' => date('Y-m-d H:i:s'),
+            'updated_at'     => date('Y-m-d H:i:s'),
         ];
 
         if ($status === 'handled' || $status === 'processing') {

@@ -19,7 +19,7 @@ class GB28181DeviceCategoryController extends BaseController
     {
         return $this->createSuccessJsonResponse([
             'options' => DeviceCategoryEnum::options(),
-            'map' => DeviceCategoryEnum::map(),
+            'map'     => DeviceCategoryEnum::map(),
         ]);
     }
 
@@ -75,10 +75,10 @@ class GB28181DeviceCategoryController extends BaseController
                 $categoryKey = $category->value;
                 if (!isset($stats[$categoryKey])) {
                     $stats[$categoryKey] = [
-                        'code' => $category->value,
-                        'name' => $category->label(),
-                        'icon' => $category->icon(),
-                        'count' => 0,
+                        'code'      => $category->value,
+                        'name'      => $category->label(),
+                        'icon'      => $category->icon(),
+                        'count'     => 0,
                         'is_mobile' => $category->isMobileDevice(),
                     ];
                 }
@@ -89,16 +89,16 @@ class GB28181DeviceCategoryController extends BaseController
         }
 
         return $this->createSuccessJsonResponse([
-            'categories' => array_values($stats),
+            'categories'    => array_values($stats),
             'uncategorized' => $uncategorized,
-            'total' => count($devices),
+            'total'         => count($devices),
         ]);
     }
 
     /**
      * @return \CoreW\Business\Devices\Service\DeviceService
      */
-    private function getDeviceService(): \CoreW\Business\Devices\Service\DeviceService
+    private function getDeviceService() : \CoreW\Business\Devices\Service\DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }

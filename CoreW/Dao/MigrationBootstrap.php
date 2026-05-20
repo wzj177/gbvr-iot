@@ -34,7 +34,7 @@ class MigrationBootstrap
             return new Adapter\Doctrine\DBAL($container['db'], $table);
         };
 
-        $migrations = array();
+        $migrations = [];
         foreach ($this->directories as $directory) {
             $migrations = array_merge($migrations, glob("{$directory}/*.php"));
         }

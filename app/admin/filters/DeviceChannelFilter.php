@@ -11,13 +11,14 @@ class DeviceChannelFilter extends Filter
 {
     protected array $publicFields = [];
 
-    protected array $appendFields = [
-        'channel_type_text' => 'appendChannelTypeText',
-        'status_text' => 'appendStatusText',
-        'stream_status_text' => 'appendStreamStatusText',
-    ];
+    protected array $appendFields
+        = [
+            'channel_type_text'  => 'appendChannelTypeText',
+            'status_text'        => 'appendStatusText',
+            'stream_status_text' => 'appendStreamStatusText',
+        ];
 
-    protected function appendChannelTypeText($data): string
+    protected function appendChannelTypeText($data) : string
     {
         if (!isset($data['channel_type']) || 'unknown' === $data['channel_type']) {
             return '--';
@@ -27,9 +28,9 @@ class DeviceChannelFilter extends Filter
         return $type->label();
     }
 
-    protected function appendStatusText($data): string
+    protected function appendStatusText($data) : string
     {
-        if (!isset($data['status']) ) {
+        if (!isset($data['status'])) {
             return '--';
         }
 
@@ -39,9 +40,9 @@ class DeviceChannelFilter extends Filter
 
     }
 
-    protected function appendStreamStatusText($data): string
+    protected function appendStreamStatusText($data) : string
     {
-        if (!isset($data['stream_status']) ) {
+        if (!isset($data['stream_status'])) {
             return '--';
         }
         $status = ChannelStreamStatus::tryFrom($data['stream_status']);

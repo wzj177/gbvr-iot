@@ -12,7 +12,7 @@ use Workerman\Crontab\Crontab;
  */
 class SubscriptionRenewTaskProcess
 {
-    public function onWorkerStart(): void
+    public function onWorkerStart() : void
     {
         // 每10分钟执行一次
         new Crontab('*/10 * * * *', function () {

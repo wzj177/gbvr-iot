@@ -18,7 +18,7 @@ class DeleteSceneJob implements Consumer
 
     public $connection = 'default';
 
-    public function consume($data): bool
+    public function consume($data) : bool
     {
         $product = $data['product'];
         $scene = $data['scene'];

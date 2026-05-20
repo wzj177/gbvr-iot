@@ -60,7 +60,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
     /**
      * 处理 Talk 模式流到达
      */
-    public function handle(StreamArrivalContext $context): bool
+    public function handle(StreamArrivalContext $context) : bool
     {
         $session = $context->getSession();
 
@@ -95,7 +95,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Talk: startSendRtpPassive 失败', [
                     'session_id' => $context->getSessionId(),
-                    'error' => $openResult['msg'] ?? 'unknown',
+                    'error'      => $openResult['msg'] ?? 'unknown',
                 ]);
             return false;
         }
@@ -103,7 +103,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
         // 更新端口信息到 session
         $updData = [
             'receive_stream' => $context->getReceiveStreamId(),
-            'ssrc' => $context->getSsrc(),
+            'ssrc'           => $context->getSsrc(),
             'rtp_local_port' => $openResult['local_port'],
         ];
         $this->getVoiceSessionDao()->update($session['id'], $updData);
@@ -111,9 +111,9 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
 
         $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
             'Talk: startSendRtpPassive 成功', [
-                'session_id' => $context->getSessionId(),
+                'session_id'     => $context->getSessionId(),
                 'rtp_local_port' => $openResult['local_port'],
-                'rtp_tcp' => $session['rtp_tcp'],
+                'rtp_tcp'        => $session['rtp_tcp'],
             ]);
 
         // === 第五步：发 SIP INVITE 给设备 ===
@@ -129,7 +129,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
      * 1. 查是否正在广播（broadcast）：流存活 -> 拒绝；流不在 -> stopAudioBroadcast 清理
      * 2. 查是否正在对讲（talk 但不是自己）：流存活 -> 拒绝；流不在 -> stopTalk 清理
      */
-    private function checkMutualExclusion(StreamArrivalContext $context): bool
+    private function checkMutualExclusion(StreamArrivalContext $context) : bool
     {
         $deviceId = $context->getDeviceId();
         $channelId = $context->getChannelId();
@@ -139,7 +139,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
         if ($broadcastConflict === false) {
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Talk: 互斥检查失败 - 设备正在语音广播中', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
             return false;
@@ -150,7 +150,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
         if ($talkConflict === false) {
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Talk: 互斥检查失败 - 设备正在语音对讲中', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
             return false;
@@ -169,14 +169,14 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
      * @param string $mode 要检查的模式（talk/broadcast）
      * @return bool true=无冲突或已清理, false=流存活需拒绝
      */
-    private function checkExistingSession(StreamArrivalContext $context, string $mode): bool
+    private function checkExistingSession(StreamArrivalContext $context, string $mode) : bool
     {
         $voiceTalkService = $this->getVoiceTalkService();
         $deviceId = $context->getDeviceId();
         $channelId = $context->getChannelId();
         $currentSessionId = $context->getSessionId();
 
-        $timeoutSeconds = (int) env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::INVITE_TIMEOUT) + 5;
+        $timeoutSeconds = (int)env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::INVITE_TIMEOUT) + 5;
 
         $existingSessions = $this->getVoiceSessionDao()->findActiveByDeviceChannelAndMode(
             $deviceId,
@@ -202,7 +202,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
             $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 "Talk: 清理 {$mode} 僵尸会话", [
                     'session_id' => $existingSession['session_id'],
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'channel_id' => $channelId,
                 ]);
             $voiceTalkService->stopVoiceTalkBySession($existingSession, 'mutual_exclusion_cleanup');
@@ -217,15 +217,15 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
      * 通过 RedisQueue 延迟任务实现，超时后触发会话清理。
      * 超时触发流程：检查会话状态 -> 如仍在 INVITING 则调用 stopVoiceTalkBySession
      */
-    private function startInviteTimeoutTimer(StreamArrivalContext $context): void
+    private function startInviteTimeoutTimer(StreamArrivalContext $context) : void
     {
-        $timeout = (int) env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::INVITE_TIMEOUT);
+        $timeout = (int)env('GB_VOICE_TALK_SESSION_RECEIVE_INVITE_TIMEOUT', self::INVITE_TIMEOUT);
 
         try {
             \Webman\RedisQueue\Client::send(self::TIMEOUT_QUEUE, [
-                'type' => 'talk_invite_timeout',
+                'type'       => 'talk_invite_timeout',
                 'session_id' => $context->getSessionId(),
-                'device_id' => $context->getDeviceId(),
+                'device_id'  => $context->getDeviceId(),
                 'channel_id' => $context->getChannelId(),
                 'created_at' => date('Y-m-d H:i:s'),
             ], $timeout);
@@ -239,7 +239,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 'Talk: 启动超时定时器失败', [
                     'session_id' => $context->getSessionId(),
-                    'error' => $e->getMessage(),
+                    'error'      => $e->getMessage(),
                 ]);
         }
     }
@@ -249,7 +249,7 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
      *
      * 将应用层 mode (talk) 映射为 SDP 媒体方向属性 sendrecv（双向对讲）
      */
-    private function sendTalkInvite(StreamArrivalContext $context): void
+    private function sendTalkInvite(StreamArrivalContext $context) : void
     {
         $session = $context->getSession();
 
@@ -258,11 +258,11 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
 
         $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
             'Talk: 发送 SIP INVITE', [
-                'session_id' => $context->getSessionId(),
-                'device_id' => $context->getDeviceId(),
-                'channel_id' => $context->getChannelId(),
+                'session_id'     => $context->getSessionId(),
+                'device_id'      => $context->getDeviceId(),
+                'channel_id'     => $context->getChannelId(),
                 'rtp_local_port' => $session['rtp_local_port'] ?? null,
-                'ssrc' => $session['ssrc'] ?? null,
+                'ssrc'           => $session['ssrc'] ?? null,
             ]);
 
         $this->getGb28181Service()->startVoiceTalk($session);
@@ -272,27 +272,27 @@ class TalkStreamArrivalHandler implements StreamArrivalHandlerInterface
     // 依赖获取
     // ============================================================
 
-    protected function getVoiceSessionDao(): VoiceSessionDao|DaoProxy
+    protected function getVoiceSessionDao() : VoiceSessionDao|DaoProxy
     {
         return $this->bfw->dao('Devices:VoiceSessionDao');
     }
 
-    protected function getVoiceTalkService(): VoiceTalkService
+    protected function getVoiceTalkService() : VoiceTalkService
     {
         return $this->bfw->service('Devices:VoiceTalkService');
     }
 
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->bfw['gb28181_service'];
     }
 
-    protected function getGb28181SendRtpPortService(): Gb28181SendRtpPortService
+    protected function getGb28181SendRtpPortService() : Gb28181SendRtpPortService
     {
         return $this->bfw['gb28181_send_rtp_port_service'];
     }
 
-    protected function getLogService(): SystemLogService
+    protected function getLogService() : SystemLogService
     {
         return $this->bfw->service('SystemLog:SystemLogService');
     }

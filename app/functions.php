@@ -86,7 +86,7 @@ if (!function_exists('attachment_validate_upload_file')) {
     }
 }
 if (!function_exists('parse_mit_ini')) {
-    function parse_mit_ini(string $path, bool $flat = false): array
+    function parse_mit_ini(string $path, bool $flat = false) : array
     {
         $data = [];
         $section = null;

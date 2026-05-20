@@ -170,10 +170,10 @@ class Ys7Strategy extends LiveProviderStrategy implements LiveProvider
     protected function gbProtoToYs7Proto($gbProto)
     {
         $items = [
-            'ezopen' => 1,
-            'hls' => 2,
-            'rtmp' => 3,
-            'http_flv' => 4
+            'ezopen'   => 1,
+            'hls'      => 2,
+            'rtmp'     => 3,
+            'http_flv' => 4,
         ];
 
         return $items[$gbProto] ?? 2;
@@ -184,18 +184,18 @@ class Ys7Strategy extends LiveProviderStrategy implements LiveProvider
         //gb 指令：1=上;2=左上;3=右上;4=下;5=左下;6=右下;7=左;8=右;9=聚焦+;10=聚焦-;11=变倍+;12=变倍-;13=光圈开;14=光圈关;
         //萤石云指令：0-上，1-下，2-左，3-右，4-左上，5-左下，6-右上，7-右下，8-放大，9-缩小，10-近焦距，11-远焦距，16-自动控制
         $items = [
-            1 => 0,
-            2 => 4,
-            3 => 6,
-            4 => 1,
-            5 => 5,
-            6 => 7,
-            7 => 2,
-            8 => 3,
-            9 => 11,
+            1  => 0,
+            2  => 4,
+            3  => 6,
+            4  => 1,
+            5  => 5,
+            6  => 7,
+            7  => 2,
+            8  => 3,
+            9  => 11,
             10 => 10,
             11 => 8,
-            12 => 9
+            12 => 9,
         ];
 
         return $items[$gbDire] ?? $gbDire;
@@ -204,7 +204,7 @@ class Ys7Strategy extends LiveProviderStrategy implements LiveProvider
     /**
      * @return OpenYs7
      */
-    protected function getYs7Sdk(): OpenYs7
+    protected function getYs7Sdk() : OpenYs7
     {
         $params = $this->currentThirdParty['params'] ?? [];
         if ($this->currentThirdParty['live_providers'] === Constants::LIVE_PROVIDER_OPEN_LE_YS7_CHANGE) {

@@ -3,7 +3,6 @@
 namespace CoreW\Business\SystemLog\Exception;
 
 
-
 use CoreW\Exception\AbstractBizException;
 
 class SystemLogException extends AbstractBizException
@@ -19,7 +18,7 @@ class SystemLogException extends AbstractBizException
     public function setMessages()
     {
         $this->messages = [
-            self::LOG_NOT_FOUND => '获取失败，日志不存在'
+            self::LOG_NOT_FOUND => '获取失败，日志不存在',
         ];
     }
 

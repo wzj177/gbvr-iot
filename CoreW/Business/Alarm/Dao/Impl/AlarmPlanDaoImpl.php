@@ -9,16 +9,16 @@ class AlarmPlanDaoImpl extends AdvancedDaoImpl implements AlarmPlanDao
 {
     protected $table = 'gv_alarm_plan';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'alarm_level' => 'json',
-                'alarm_method' => 'json',
-                'alarm_type' => 'json',
+                'alarm_level'     => 'json',
+                'alarm_method'    => 'json',
+                'alarm_type'      => 'json',
                 'alarm_eventtype' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'created_at',
             ],
@@ -26,7 +26,7 @@ class AlarmPlanDaoImpl extends AdvancedDaoImpl implements AlarmPlanDao
                 'created_at',
                 'updated_at',
             ],
-            'datetime' => [
+            'datetime'   => [
                 'created_at',
                 'updated_at',
             ],
@@ -39,12 +39,12 @@ class AlarmPlanDaoImpl extends AdvancedDaoImpl implements AlarmPlanDao
         ];
     }
 
-    public function getEnabledPlans(): array
+    public function getEnabledPlans() : array
     {
         return $this->search(['status' => 1]);
     }
 
-    public function getPlansByDeviceAndChannel(string $deviceId, string $channelId): array
+    public function getPlansByDeviceAndChannel(string $deviceId, string $channelId) : array
     {
         $sql = "SELECT p.*
                 FROM {$this->table()} p

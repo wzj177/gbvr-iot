@@ -13,7 +13,7 @@ use support\Log;
  */
 class AlarmRecordTaskExecutor extends BaseCrontabTask
 {
-    public function execute(): void
+    public function execute() : void
     {
         $this->log()->info('AlarmRecordTaskExecutor started');
 
@@ -29,7 +29,7 @@ class AlarmRecordTaskExecutor extends BaseCrontabTask
 
             $this->log()->info('AlarmRecordTaskExecutor completed', [
                 'processed_count' => $processedCount,
-                'stopped_count' => $stoppedCount,
+                'stopped_count'   => $stoppedCount,
             ]);
 
         } catch (\Exception $e) {

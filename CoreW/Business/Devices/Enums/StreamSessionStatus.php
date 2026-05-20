@@ -2,7 +2,7 @@
 
 namespace CoreW\Business\Devices\Enums;
 
-enum StreamSessionStatus:string
+enum StreamSessionStatus: string
 {
     // 'inviting','active','stopped','error'
     case Inviting = 'inviting';

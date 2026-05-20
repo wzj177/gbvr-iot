@@ -14,7 +14,7 @@ class PublicController extends BaseController
      * @param string $key
      * @return \support\Response
      */
-    public function getDictItems(Request $request, string $key): \support\Response
+    public function getDictItems(Request $request, string $key) : \support\Response
     {
         $items = [];
         if ($key === 'vr_product_type') {

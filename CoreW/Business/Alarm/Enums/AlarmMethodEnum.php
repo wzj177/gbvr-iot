@@ -17,7 +17,7 @@ enum AlarmMethodEnum: int
     case DEVICE_FAULT = 6;       // 设备故障报警
     case OTHER = 7;              // 其他报警
 
-    public function label(): string
+    public function label() : string
     {
         return match ($this) {
             self::TELEPHONE => '电话报警',
@@ -30,7 +30,7 @@ enum AlarmMethodEnum: int
         };
     }
 
-    public static function tryFromInt(?int $value): ?self
+    public static function tryFromInt(?int $value) : ?self
     {
         if ($value === null) {
             return null;
@@ -42,7 +42,7 @@ enum AlarmMethodEnum: int
      * 获取所有选项
      * @return array
      */
-    public static function options(): array
+    public static function options() : array
     {
         $options = [];
         foreach (self::cases() as $case) {

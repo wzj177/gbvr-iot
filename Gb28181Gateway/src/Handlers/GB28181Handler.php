@@ -4,7 +4,6 @@ namespace Gb28181\GateWay\Handlers;
 
 use \ExoSip;
 use Gb28181\GateWay\Device\DeviceManager;
-use Gb28181\GateWay\Handlers\LongTask\RedisSubscriber;
 use Gb28181\GateWay\Handlers\LongTask\CommandSubscriber;
 use Gb28181\GateWay\Transport\TransportFactory;
 use Gb28181\GateWay\Message\CommandDispatcher;
@@ -150,17 +149,17 @@ class GB28181Handler
         $this->sipServer = $sipServer;
 
         $this->config = array_merge([
-            'heartbeat_timeout' => 180,
-            'check_interval' => 30,
-            'register_expires' => 3600,
+            'heartbeat_timeout'  => 180,
+            'check_interval'     => 30,
+            'register_expires'   => 3600,
             'catalog_auto_query' => false,
         ], $config);
 
         // 初始化日志
         $this->logger = Logger::getInstance([
-            'log_file' => $config['log_file'] ?? 'php://stdout',
+            'log_file'  => $config['log_file'] ?? 'php://stdout',
             'min_level' => ($config['debug'] ?? false) ? 'DEBUG' : ($config['log_level'] ?? 'INFO'),
-            'max_days' => $config['log_max_days'] ?? 30,
+            'max_days'  => $config['log_max_days'] ?? 30,
         ]);
 
         // 初始化设备管理器
@@ -169,7 +168,7 @@ class GB28181Handler
             $this->config['check_interval'],
             [
                 'cache_file' => $this->config['device_cache_file'] ?? '/tmp/gb28181_devices.cache',
-                'api_loader' => [$this, 'deviceManagerListener']
+                'api_loader' => [$this, 'deviceManagerListener'],
             ]
         );
 
@@ -190,9 +189,9 @@ class GB28181Handler
 
         // 初始化查询发送器
         $this->querySender = new QuerySender($sipServer, [
-            'server_id' => $this->config['server_id'],
+            'server_id'     => $this->config['server_id'],
             'server_domain' => $this->config['server_domain'],
-            'debug' => $this->config['debug'] ?? false,
+            'debug'         => $this->config['debug'] ?? false,
         ]);
 
         // 初始化命令分发器
@@ -201,7 +200,7 @@ class GB28181Handler
             $this->querySender,
             $this->deviceManager,
             [
-                'debug' => $this->config['debug'] ?? false,
+                'debug'     => $this->config['debug'] ?? false,
                 'server_id' => $this->config['server_id'],
             ]
         );
@@ -212,10 +211,9 @@ class GB28181Handler
     /**
      * 绑定事件处理器到SIP服务器
      */
-    public function bindEvents(): void
+    public function bindEvents() : void
     {
         // 核心SIP方法事件
-
         $this->sipServer->onWorkerStart = CallbackWrapper::wrap($this, 'handleWorkerStart', $this->logger);
         // 绑定 onPipeMessage (接收Task的推送)
         $this->sipServer->onPipeMessage = CallbackWrapper::wrap($this, 'handleOnPipeMessage', $this->logger);
@@ -257,7 +255,7 @@ class GB28181Handler
      * 设备管理器监听器
      * @return array|null
      */
-    public function deviceManagerListener(): ?array
+    public function deviceManagerListener() : ?array
     {
         // TODO: 思考：如果api删除了设备是否需要更新当前内存里面的deviceManager
         // 从hock API拉取在线设备列表
@@ -275,13 +273,18 @@ class GB28181Handler
     }
 
     # region SIP事件处理
-    public function handleWorkerStart(ExoSip $server): void
+    public function handleWorkerStart(ExoSip $server) : void
     {
         $this->log("Worker started (PID: " . posix_getpid() . ")");
 
         //  捕获需要的变量到闭包
         $config = $this->config;
         $debug = $config['debug'] ?? false;
+        // Gateway 自动注册（集群模式下向 API 注册自己）
+        $gatewayId = $this->config['gateway_id'] ?? null;
+        if ($gatewayId) {
+            $this->registerGateway($gatewayId);
+        }
 
         // 启动命令订阅器 Long Task
         $server->startLongTask(function () use ($server, $config, $debug) {
@@ -297,10 +300,13 @@ class GB28181Handler
 
             $transport = TransportFactory::create($transportType, $transportConfig);
 
-            $queueKey = $config['redis']['queue_name'] ?? 'gb28181:commands';
+            // 拼接完整队列名：queue_name + ':' + gateway_id
+            $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
+            $gatewayId = $config['gateway_id'] ?? '';
+            $queueKey = $baseQueueName . ($gatewayId ? ':' . $gatewayId : '');
 
             $subscriber = new CommandSubscriber($transport, $debug);
-            $subscriber->run($server, $queueKey, 0);
+            $subscriber->run($server, $queueKey, 1);
         });
     }
 
@@ -309,7 +315,7 @@ class GB28181Handler
      * @param array|null $message
      * @return void
      */
-    public function handleOnPipeMessage(?array $message): void
+    public function handleOnPipeMessage(?array $message) : void
     {
         if (!$message) {
             $this->log("Invalid message format", 'ERROR');
@@ -340,14 +346,14 @@ class GB28181Handler
 
         $this->curlPost($this->config['api_hock_url'], [
             'scene' => 'gateway_cmd_after',
-            'body' => $result, // 替换为你要发送的实际数据
+            'body'  => $result, // 替换为你要发送的实际数据
         ]);
     }
 
     /**
      * 定时任务处理（在主循环中调用）
      */
-    public function tick(): void
+    public function tick() : void
     {
         static $lastCheckTime = 0;
         static $lastCleanupTime = 0;
@@ -355,7 +361,7 @@ class GB28181Handler
         $now = time();
 
         // 检查设备心跳超时
-//        $this->log("Checking device heartbeat timeout:{$lastCheckTime}-{$this->config['check_interval']}");
+        //        $this->log("Checking device heartbeat timeout:{$lastCheckTime}-{$this->config['check_interval']}");
         if ($now - $lastCheckTime >= $this->config['check_interval']) {
             $timeoutDevices = $this->deviceManager->checkTimeout();
             $lastCheckTime = $now;
@@ -368,12 +374,12 @@ class GB28181Handler
                 $this->log("Checking device heartbeat timeout:{$lastCheckTime}");
                 $this->log("发现 " . count($timeoutDevices) . " 个心跳超时设备", 'WARNING');
                 foreach ($timeoutDevices as $device) {
-//                    $device = $this->deviceManager->getDevice($deviceId);
+                    //                    $device = $this->deviceManager->getDevice($deviceId);
                     $this->postTask('device_expired', [
-                        'device_id' => $device['device_id'],
+                        'device_id'      => $device['device_id'],
                         'last_heartbeat' => $device['last_heartbeat'] ?? 0,
-                        'timeout' => $this->config['heartbeat_timeout'],
-                        'timestamp' => $now,
+                        'timeout'        => $this->config['heartbeat_timeout'],
+                        'timestamp'      => $now,
                     ]);
                     $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
                 }
@@ -397,24 +403,121 @@ class GB28181Handler
                     unset($this->processedInviteCallIds[$callId]);
                 }
             }
-//            $offlineDevices = $this->deviceManager->cleanupOfflineDevices();
-//            $lastCleanupTime = $now;
+            //            $offlineDevices = $this->deviceManager->cleanupOfflineDevices();
+            //            $lastCleanupTime = $now;
 
             //  TODO：这里不需要了，通知 API 更新离线设备状态为 offline
-//            if (!empty($offlineDevices)) {
-//                $this->log("清理 " . count($offlineDevices) . " 个离线设备");
-//                foreach ($offlineDevices as $deviceId => $device) {
-//                    $this->postTask('device_offline', [
-//                        'device_id' => $deviceId,
-//                        'registered_at' => $device['registered_at'] ?? 0,
-//                        'last_heartbeat' => $device['last_heartbeat'] ?? 0,
-//                        'timestamp' => $now,
-//                    ]);
-//                    $this->log("设备已离线: {$deviceId}");
-//                }
-//            } else {
-//                $this->log("无离线设备需要清理");
-//            }
+            //            if (!empty($offlineDevices)) {
+            //                $this->log("清理 " . count($offlineDevices) . " 个离线设备");
+            //                foreach ($offlineDevices as $deviceId => $device) {
+            //                    $this->postTask('device_offline', [
+            //                        'device_id' => $deviceId,
+            //                        'registered_at' => $device['registered_at'] ?? 0,
+            //                        'last_heartbeat' => $device['last_heartbeat'] ?? 0,
+            //                        'timestamp' => $now,
+            //                    ]);
+            //                    $this->log("设备已离线: {$deviceId}");
+            //                }
+            //            } else {
+            //                $this->log("无离线设备需要清理");
+            //            }
+            //        }
+        }
+
+        // Gateway 心跳上报（每30秒）
+        $gatewayId = $this->config['gateway_id'] ?? null;
+        if ($gatewayId && ($now - $this->lastHeartbeatSent >= 30)) {
+            $this->sendGatewayHeartbeat();
+            $this->lastHeartbeatSent = $now;
+        }
+    }
+
+    /**
+     * 向 API 上报 Gateway 心跳
+     * POST /api/v2/gb/gateway/heartbeat
+     */
+    private function sendGatewayHeartbeat() : void
+    {
+        $gatewayId = $this->config['gateway_id'] ?? null;
+        if (empty($gatewayId)) {
+            return;
+        }
+
+        $heartbeatUrl = preg_replace('#/server/hook$#', '/gateway/heartbeat', $this->config['api_hock_url']);
+
+        $payload = [
+            'gateway_id'   => $gatewayId,
+            'pid'          => getmypid(),
+            'ip'           => gethostbyname(gethostname()),
+            'device_count' => count($this->deviceManager->getOnlineDevices()),
+        ];
+
+        try {
+            $this->curlPost($heartbeatUrl, $payload);
+            $this->log("Gateway heartbeat sent: gateway_id={$gatewayId}, device_count={$payload['device_count']}", 'DEBUG');
+        } catch (\Throwable $e) {
+            $this->log("Gateway heartbeat failed: {$e->getMessage()}", 'ERROR');
+        }
+    }
+
+    /**
+     * 向 API 注册 Gateway（自动注册，防重复写入）
+     * POST /api/v2/gb/gateway/register
+     */
+    private function registerGateway(string $gatewayId) : void
+    {
+        $registerUrl = preg_replace('#/server/hook$#', '/gateway/register', $this->config['api_hock_url']);
+
+        $cfg = $this->config;
+
+        // 构建 redis_config（去掉 queue_name，由 API 端根据 gateway_id 生成）
+        $redisConfig = $cfg['redis'] ?? [];
+        unset($redisConfig['queue_name']);
+
+        // api_config：从展开的别名 key 重新组装为嵌套格式
+        $apiConfig = [
+            'hock_url' => $cfg['api_hock_url'] ?? '',
+            'pull_url' => $cfg['api_pull_url'] ?? '',
+            'token'    => $cfg['api_hock_token'] ?? '',
+        ];
+
+        $payload = [
+            'gateway_id'               => $gatewayId,
+            'gateway_name'             => $cfg['gateway_name'] ?? ('Gateway-' . $gatewayId),
+            'server_id'                => $cfg['server_id'] ?? '',
+            'server_domain'            => $cfg['server_domain'] ?? '',
+            'sip_host'                 => $cfg['sip_host'] ?? $cfg['listen_addr'] ?? '0.0.0.0',
+            'sip_port'                 => $cfg['sip_port'] ?? 5060,
+            'transport'                => $cfg['transport'] ?? 'UDP',
+            'public_ip'                => $cfg['public_ip'] ?? '',
+            'device_password'          => $cfg['device_password'] ?? '',
+            'authentication'           => $cfg['authentication'] ?? true,
+            'sip_username'             => $cfg['sip_username'] ?? '',
+            'register_expires'         => $cfg['register_expires'] ?? 3600,
+            'keepalive_interval'       => $cfg['keepalive_interval'] ?? 60,
+            'heartbeat_timeout'        => $cfg['heartbeat_timeout'] ?? 180,
+            'keepalive_lost_number'    => $cfg['keepalive_lost_number'] ?? 3,
+            'catalog_auto_query'       => $cfg['catalog_auto_query'] ?? true,
+            'encoding_type'            => $cfg['encoding_type'] ?? 'GB2312',
+            'task_worker_num'          => $cfg['task_worker_num'] ?? 4,
+            'timer_interval'           => $cfg['timer_interval'] ?? $cfg['check_interval'] ?? 60,
+            'max_devices'              => $cfg['max_devices'] ?? 10000,
+            'broadcast_push_after_ack' => $cfg['broadcast_push_after_ack'] ?? true,
+            'mq_type'                  => $cfg['mq_type'] ?? 'redis',
+            'mq_config'                => $cfg['mq_config'] ?? [],
+            'redis_config'             => $redisConfig,
+            'api_config'               => $apiConfig,
+            'log_level'                => $cfg['log_level'] ?? 'INFO',
+            'debug'                    => $cfg['debug'] ?? false,
+            'pid'                      => getmypid(),
+            'ip'                       => gethostbyname(gethostname()),
+        ];
+
+        try {
+            $response = $this->curlPost($registerUrl, $payload);
+            $this->log("Gateway registered successfully: gateway_id={$gatewayId}, response={$response}", 'INFO');
+        } catch (\Throwable $e) {
+            $this->log("Gateway registration failed: {$e->getMessage()}", 'WARNING');
         }
     }
 
@@ -423,13 +526,13 @@ class GB28181Handler
      * @param $taskId
      * @param $taskData
      */
-    public function handleTask($taskId, $taskData): array
+    public function handleTask($taskId, $taskData) : array
     {
         $this->log("Task #{$taskId} processing", 'DEBUG');
         if (empty($taskData)) {
             return [
                 'success' => false,
-                'error' => 'Invalid task data',
+                'error'   => 'Invalid task data',
             ];
         }
 
@@ -447,7 +550,7 @@ class GB28181Handler
 
             $response = $this->curlPost($apiUrl, [
                 'scene' => 'broadcast_setup_rtp',
-                'body' => $payload,
+                'body'  => $payload,
             ]);
 
             // 解析 API JSON 响应
@@ -462,12 +565,12 @@ class GB28181Handler
             }
 
             return [
-                'success' => $apiResult !== null,
-                'task_id' => $taskId,
-                'action' => 'broadcast_setup_rtp',
+                'success'    => $apiResult !== null,
+                'task_id'    => $taskId,
+                'action'     => 'broadcast_setup_rtp',
                 'api_result' => $apiResult,
             ];
-        } elseif ($action === 'start_send_rtp') {
+        } else if ($action === 'start_send_rtp') {
             // === 广播 startSendRtp：ACK 后或立即推流 ===
             $payload = $taskData['payload'] ?? [];
             $apiUrl = !empty($taskData['api_hook_url'])
@@ -478,7 +581,7 @@ class GB28181Handler
 
             $response = $this->curlPost($apiUrl, [
                 'scene' => 'start_send_rtp',
-                'body' => $payload,
+                'body'  => $payload,
             ]);
 
             // 解析 API JSON 响应
@@ -493,12 +596,12 @@ class GB28181Handler
             }
 
             return [
-                'success' => $apiResult !== null,
-                'task_id' => $taskId,
-                'action' => 'start_send_rtp',
+                'success'    => $apiResult !== null,
+                'task_id'    => $taskId,
+                'action'     => 'start_send_rtp',
                 'api_result' => $apiResult,
             ];
-        } elseif ($action === 'api_callback') {
+        } else if ($action === 'api_callback') {
             // 来自 CommandDispatcher 的 API 回调任务
             $type = $taskData['type'] ?? 'unknown';
             $payload = $taskData['payload'] ?? [];
@@ -512,14 +615,14 @@ class GB28181Handler
 
             $this->curlPost($apiUrl, [
                 'scene' => $type,
-                'body' => $payload,
+                'body'  => $payload,
             ]);
         } else {
             // 普通任务（兼容旧格式）
             $type = $taskData['type'] ?? 'unknown';
             $this->curlPost($this->config['api_hock_url'], [
                 'scene' => $type,
-                'body' => $taskData['payload'] ?? [],
+                'body'  => $taskData['payload'] ?? [],
             ]);
         }
 
@@ -536,7 +639,7 @@ class GB28181Handler
      * @param $result
      * @return void
      */
-    public function handleTaskFinish($taskId, $result): void
+    public function handleTaskFinish($taskId, $result) : void
     {
         $this->log("Task #{$taskId} finished", 'DEBUG');
 
@@ -576,7 +679,7 @@ class GB28181Handler
      * - broadcastPushAfterAck=true（默认）: 将会话记入 pendingBroadcastAck，等 ACK 再推流
      * - broadcastPushAfterAck=false 或 TCP 主动模式: 立即投递 startSendRtp 任务
      */
-    private function handleBroadcastSetupRtpResult(int $taskId, array $result): void
+    private function handleBroadcastSetupRtpResult(int $taskId, array $result) : void
     {
         $setup = $this->pendingInviteSetup[$taskId];
         unset($this->pendingInviteSetup[$taskId]);
@@ -619,10 +722,10 @@ class GB28181Handler
             // 投递 stopAudioBroadcast 清理任务
             $this->postTask('broadcast_stop', [
                 'session_id' => $sessionId,
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
-                'reason' => 'stream_gone_on_invite',
-                'timestamp' => time(),
+                'reason'     => 'stream_gone_on_invite',
+                'timestamp'  => time(),
             ]);
             return;
         }
@@ -670,31 +773,31 @@ class GB28181Handler
         $this->commandDispatcher->removePendingBroadcast($broadcastKey);
         $this->commandDispatcher->addActiveSession($streamId, [
             'request_id' => $pendingBroadcast['request_id'] ?? uniqid(),
-            'call_id' => $callId,
-            'dialog_id' => $dialogId,
-            'device_id' => $deviceId,
+            'call_id'    => $callId,
+            'dialog_id'  => $dialogId,
+            'device_id'  => $deviceId,
             'channel_id' => $channelId,
-            'type' => 'broadcast',
-            'ssrc' => $actualSsrc,
-            'rtp_port' => $localPort,
-            'stream_id' => $streamId,
-            'mode' => 'sendonly',
-            'tcp_mode' => $tcpMode,
+            'type'       => 'broadcast',
+            'ssrc'       => $actualSsrc,
+            'rtp_port'   => $localPort,
+            'stream_id'  => $streamId,
+            'mode'       => 'sendonly',
+            'tcp_mode'   => $tcpMode,
             'session_id' => $sessionId,
             'started_at' => time(),
         ]);
 
         // 通知 API 会话已建立
         $this->postTask('voice_established', [
-            'device_id' => $deviceId,
+            'device_id'  => $deviceId,
             'channel_id' => $channelId,
-            'dialog_id' => $dialogId,
-            'call_id' => $callId,
-            'mode' => 'broadcast',
-            'ssrc' => $actualSsrc,
-            'stream_id' => $streamId,
+            'dialog_id'  => $dialogId,
+            'call_id'    => $callId,
+            'mode'       => 'broadcast',
+            'ssrc'       => $actualSsrc,
+            'stream_id'  => $streamId,
             'session_id' => $sessionId,
-            'timestamp' => time(),
+            'timestamp'  => time(),
         ]);
 
         // === 第七步（WVP 对齐）：判断是否等 ACK 再推流 ===
@@ -705,34 +808,34 @@ class GB28181Handler
         if ($broadcastPushAfterAck && !$isTcpActive) {
             // 等待设备 ACK 再推流，存入 pendingBroadcastAck
             $this->pendingBroadcastAck[$callId] = [
-                'session_id' => $sessionId,
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'ssrc' => $actualSsrc,
-                'stream_id' => $streamId,
-                'app' => $pendingBroadcast['app'] ?? 'broadcast',
+                'session_id'      => $sessionId,
+                'device_id'       => $deviceId,
+                'channel_id'      => $channelId,
+                'ssrc'            => $actualSsrc,
+                'stream_id'       => $streamId,
+                'app'             => $pendingBroadcast['app'] ?? 'broadcast',
                 'media_server_id' => $pendingBroadcast['media_server_id'] ?? '',
-                'local_port' => $localPort,
-                'tcp_mode' => $tcpMode,
-                'device_ip' => $deviceIp,
-                'device_port' => $devicePort,
+                'local_port'      => $localPort,
+                'tcp_mode'        => $tcpMode,
+                'device_ip'       => $deviceIp,
+                'device_port'     => $devicePort,
             ];
             $this->log("广播: 等待设备 ACK 后再推流 (broadcastPushAfterAck=true), callId={$callId}");
         } else {
             // 立即推流（broadcastPushAfterAck=false 或 TCP 主动模式）
             $this->log("广播: 立即投递 startSendRtp 任务 (broadcastPushAfterAck=false 或 TCP主动), callId={$callId}");
             $this->dispatchStartSendRtp([
-                'session_id' => $sessionId,
-                'device_id' => $deviceId,
-                'channel_id' => $channelId,
-                'ssrc' => $actualSsrc,
-                'stream_id' => $streamId,
-                'app' => $pendingBroadcast['app'] ?? 'broadcast',
+                'session_id'      => $sessionId,
+                'device_id'       => $deviceId,
+                'channel_id'      => $channelId,
+                'ssrc'            => $actualSsrc,
+                'stream_id'       => $streamId,
+                'app'             => $pendingBroadcast['app'] ?? 'broadcast',
                 'media_server_id' => $pendingBroadcast['media_server_id'] ?? '',
-                'local_port' => $localPort,
-                'tcp_mode' => $tcpMode,
-                'device_ip' => $deviceIp,
-                'device_port' => $devicePort,
+                'local_port'      => $localPort,
+                'tcp_mode'        => $tcpMode,
+                'device_ip'       => $deviceIp,
+                'device_port'     => $devicePort,
             ]);
         }
 
@@ -742,7 +845,7 @@ class GB28181Handler
     /**
      * 处理设备注册（包括注销）
      */
-    public function handleRegister(\SipEvent $event): void
+    public function handleRegister(\SipEvent $event) : void
     {
         $fromUri = $event->getFromUri();
         $deviceId = $this->extractDeviceId($fromUri);
@@ -766,16 +869,16 @@ class GB28181Handler
 
             // 发送响应
             $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => 0
+                'Expires' => 0,
             ]);
 
             // 通知 API 更新状态为 unregistered
             $this->postTask('device_unregister', [
-                'device_id' => $deviceId,
-                'registered_at' => $device['registered_at'] ?? 0,
+                'device_id'      => $deviceId,
+                'registered_at'  => $device['registered_at'] ?? 0,
                 'last_heartbeat' => $device['last_heartbeat'] ?? 0,
-                'expires' => 0,
-                'timestamp' => time(),
+                'expires'        => 0,
+                'timestamp'      => time(),
             ]);
 
             $stats = $this->deviceManager->getStats();
@@ -807,7 +910,7 @@ class GB28181Handler
 
             // 基本认证：使用 Digest MD5
             $result = $this->sipServer->sendResponse($event->getTid(), 401, 'Unauthorized', [
-                'WWW-Authenticate' => "Digest realm=\"{$realm}\", nonce=\"{$nonce}\", algorithm=MD5"
+                'WWW-Authenticate' => "Digest realm=\"{$realm}\", nonce=\"{$nonce}\", algorithm=MD5",
             ]);
             return;
         }
@@ -851,8 +954,8 @@ class GB28181Handler
         // 【决策】优先使用 received（实际源地址），因为：
         // - Contact 是设备声明的地址（可能配置错误）
         // - received 是服务器实际收到包的源地址（100%可达）
-        $finalIp = $receivedIp ?: $contactIp;
-        $finalPort = $receivedPort ?: $contactPort;
+        $finalIp = $receivedIp ? : $contactIp;
+        $finalPort = $receivedPort ? : $contactPort;
 
         $this->log("GB28181设备注册成功: {$deviceId}");
         $this->log("  Contact 声明地址: {$contactIp}:{$contactPort}", 'DEBUG');
@@ -868,16 +971,16 @@ class GB28181Handler
 
         // 在 DeviceManager 中创建或更新设备信息
         $deviceInfo = [
-            'uri' => $fromUri,
-            'device_id' => $deviceId,
-            'ip' => $finalIp,
-            'port' => $finalPort,
-            'user_agent' => $event->getHeader('User-Agent'),
-            'received_ip' => $receivedIp,  // 保存实际源地址，供调试使用
+            'uri'           => $fromUri,
+            'device_id'     => $deviceId,
+            'ip'            => $finalIp,
+            'port'          => $finalPort,
+            'user_agent'    => $event->getHeader('User-Agent'),
+            'received_ip'   => $receivedIp,  // 保存实际源地址，供调试使用
             'received_port' => $receivedPort,
             'registered_at' => time(),
-            'timestamp' => time(),
-            'expires' => $this->config['register_expires']
+            'timestamp'     => time(),
+            'expires'       => $this->config['register_expires'],
         ];
 
         // 检查设备是否已存在
@@ -894,23 +997,23 @@ class GB28181Handler
 
         // 发送注册成功响应
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $this->config['register_expires']
+            'Expires' => $this->config['register_expires'],
         ]);
 
         $stats = $this->deviceManager->getStats();
         $this->log("当前在线设备: {$stats['online']}");
 
         $this->postTask('register', [
-            'device_id' => $deviceId,
-            'from_uri' => $fromUri,
-            'ip' => $finalIp,
-            'port' => $finalPort,
-            'user_agent' => $event->getHeader('User-Agent'),
-            'received_ip' => $receivedIp,  // 保存实际源地址，供调试使用
+            'device_id'     => $deviceId,
+            'from_uri'      => $fromUri,
+            'ip'            => $finalIp,
+            'port'          => $finalPort,
+            'user_agent'    => $event->getHeader('User-Agent'),
+            'received_ip'   => $receivedIp,  // 保存实际源地址，供调试使用
             'received_port' => $receivedPort,
             'registered_at' => time(),
-            'timestamp' => time(),
-            'expires' => $this->config['register_expires']
+            'timestamp'     => time(),
+            'expires'       => $this->config['register_expires'],
         ]);
 
 
@@ -924,7 +1027,7 @@ class GB28181Handler
     /**
      * 处理SIP MESSAGE（GB28181 XML消息）
      */
-    public function handleMessage(\SipEvent $event): void
+    public function handleMessage(\SipEvent $event) : void
     {
 //        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
         $body = $event->getBody();
@@ -963,12 +1066,12 @@ class GB28181Handler
 
         $this->postTask('sip_xml', [
             'device_id' => $deviceId,
-            'xml' => $body,
+            'xml'       => $body,
         ]);
         try {
             // 使用 MessageHandler 处理消息
             $result = $this->messageHandler->handle($xml, $deviceId, [
-                'event' => $event,
+                'event'          => $event,
                 'device_manager' => $this->deviceManager,
             ]);
 
@@ -995,7 +1098,7 @@ class GB28181Handler
      * 2. 语音对讲(Talk): 设备主动发起INVITE, Subject包含talk (已弃用, GB28181-2022 移除)
      * 3. 视频点播: 服务器主动发起INVITE(由CommandDispatcher处理)
      */
-    public function handleInvite(\SipEvent $event): void
+    public function handleInvite(\SipEvent $event) : void
     {
         $fromUri = $event->getFromUri();
         $toUri = $event->getToUri();
@@ -1066,7 +1169,7 @@ class GB28181Handler
     /**
      * 处理会话结束BYE
      */
-    public function handleBye(\SipEvent $event): void
+    public function handleBye(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $callId = $event->getCallId();
@@ -1079,7 +1182,7 @@ class GB28181Handler
         // 通知外部系统会话结束
         $this->postTask('session_bye', [
             'device_id' => $deviceId,
-            'call_id' => $callId,
+            'call_id'   => $callId,
             'timestamp' => time(),
         ]);
 
@@ -1093,7 +1196,7 @@ class GB28181Handler
      * 当 broadcastPushAfterAck=true 时，收到设备 ACK 后才触发 startSendRtp
      * 让 ZLM 向设备发送音频 RTP 流。
      */
-    public function handleAck(\SipEvent $event): void
+    public function handleAck(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $callId = $event->getCallId();
@@ -1112,7 +1215,7 @@ class GB28181Handler
     /**
      * 处理INFO（PTZ控制等）
      */
-    public function handleInfo(\SipEvent $event): void
+    public function handleInfo(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $this->log("INFO消息: {$deviceId}", 'DEBUG');
@@ -1122,7 +1225,7 @@ class GB28181Handler
     /**
      * 处理UPDATE请求
      */
-    public function handleUpdate(\SipEvent $event): void
+    public function handleUpdate(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $this->log("UPDATE请求: {$deviceId}", 'DEBUG');
@@ -1134,7 +1237,7 @@ class GB28181Handler
     /**
      * 处理REFER转接
      */
-    public function handleRefer(\SipEvent $event): void
+    public function handleRefer(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $this->log("REFER转接: {$deviceId}", 'DEBUG');
@@ -1145,10 +1248,10 @@ class GB28181Handler
 
     /**
      * 处理订阅请求（SUBSCRIBE）
-     * 
+     *
      * 触发时机：当国标设备向服务器发送 SUBSCRIBE 请求时
      * 事件类型：EXOSIP_IN_SUBSCRIPTION_NEW（IN_ 前缀表示 incoming 入站请求）
-     * 
+     *
      * 使用场景（较少见，但需要支持）：
      * - 下级平台向上级平台订阅目录变更
      * - 设备订阅平台的报警推送
@@ -1162,7 +1265,7 @@ class GB28181Handler
      *
      * @param \SipEvent $event SUBSCRIBE 事件
      */
-    public function handleSubscribe(\SipEvent $event): void
+    public function handleSubscribe(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $eventType = $event->getHeader('Event') ?? 'unknown';
@@ -1184,7 +1287,7 @@ class GB28181Handler
         // 处理取消订阅（Expires: 0）
         if ($expires === 0) {
             $this->log("取消订阅: {$deviceId}, Event: {$eventType}");
-            
+
             // 从设备管理器移除订阅
             $subscriptionType = $this->mapEventToSubscriptionType($eventType);
             if ($subscriptionType) {
@@ -1193,14 +1296,14 @@ class GB28181Handler
 
             // 通知业务系统
             $this->postTask('subscription_cancelled', [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'event_type' => $eventType,
-                'call_id' => $callId,
-                'timestamp' => time(),
+                'call_id'    => $callId,
+                'timestamp'  => time(),
             ]);
 
             $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => 0
+                'Expires' => 0,
             ]);
             return;
         }
@@ -1212,33 +1315,33 @@ class GB28181Handler
             case 'catalog':
                 $handler->handleCatalogSubscribe($event, $deviceId, $expires, $body);
                 break;
-                
+
             case 'alarm':
                 $handler->handleAlarmSubscribe($event, $deviceId, $expires, $body);
                 break;
-                
+
             case 'mobileposition':
             case 'presence':
                 $handler->andleMobilePositionSubscribe($event, $deviceId, $expires, $body);
                 break;
-                
+
             default:
                 // 未知订阅类型，仍然接受但记录日志
                 $this->log("未知订阅类型: {$eventType}", 'WARNING');
-                
+
                 $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                    'Expires' => $expires
+                    'Expires' => $expires,
                 ]);
-                
+
                 // 通知业务系统
                 $this->postTask('subscription_unknown', [
-                    'device_id' => $deviceId,
+                    'device_id'  => $deviceId,
                     'event_type' => $eventType,
-                    'expires' => $expires,
-                    'call_id' => $callId,
-                    'dialog_id' => $dialogId,
-                    'body' => $body,
-                    'timestamp' => time(),
+                    'expires'    => $expires,
+                    'call_id'    => $callId,
+                    'dialog_id'  => $dialogId,
+                    'body'       => $body,
+                    'timestamp'  => time(),
                 ]);
                 break;
         }
@@ -1250,15 +1353,15 @@ class GB28181Handler
      * @param string $eventType Event 头的值
      * @return string|null 订阅类型
      */
-    private function mapEventToSubscriptionType(string $eventType): ?string
+    private function mapEventToSubscriptionType(string $eventType) : ?string
     {
         $map = [
-            'catalog' => 'catalog',
-            'alarm' => 'alarm',
+            'catalog'        => 'catalog',
+            'alarm'          => 'alarm',
             'mobileposition' => 'mobile_position',
-            'presence' => 'mobile_position',
+            'presence'       => 'mobile_position',
         ];
-        
+
         return $map[strtolower($eventType)] ?? null;
     }
 
@@ -1298,14 +1401,14 @@ class GB28181Handler
      * 3. 通过 MessageHandler 分发到对应的 CommandType 处理
      * 4. 检查 Subscription-State 头判断订阅是否终止
      */
-    public function handleNotify(\SipEvent $event): void
+    public function handleNotify(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $eventType = $event->getHeader('Event') ?? '';
         $subscriptionState = $event->getHeader('Subscription-State') ?? '';
         $body = $event->getBody();
         $device = $this->deviceManager->getDeviceObject($deviceId);
-        
+
         if (!$device) {
             $this->log("NOTIFY 来自未注册设备: {$deviceId}", 'WARNING');
             $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
@@ -1336,7 +1439,7 @@ class GB28181Handler
                 try {
                     // 使用 MessageHandler 统一处理（和 handleMessage 相同的模式）
                     $result = $this->messageHandler->handle($xml, $deviceId, [
-                        'event' => $event,
+                        'event'          => $event,
                         'device_manager' => $this->deviceManager,
                     ]);
 
@@ -1373,11 +1476,11 @@ class GB28181Handler
      * @param string $subscriptionState Subscription-State 头的值
      * @param string $body XML 消息体
      */
-    private function handleSubscribeNotify(\SipEvent $event, string $deviceId, string $eventType, string $subscriptionState, string $body): void
+    private function handleSubscribeNotify(\SipEvent $event, string $deviceId, string $eventType, string $subscriptionState, string $body) : void
     {
         $eventTypeDesc = SubscribeNotifyCommand::getEventTypeDesc($eventType);
         $this->log("{$eventTypeDesc}通知: {$deviceId}, State: {$subscriptionState}");
-        
+
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             $this->log("设备未注册: {$deviceId}", 'WARNING');
@@ -1415,13 +1518,13 @@ class GB28181Handler
         // 使用 SubscribeNotifyCommand 统一处理
         $subscribeNotifyCommand = new SubscribeNotifyCommand();
         $result = $subscribeNotifyCommand->handle($xml, $deviceId, [
-            'event_type' => $eventType,
+            'event_type'         => $eventType,
             'subscription_state' => $subscriptionState,
-            'sip_event' => $event,
+            'sip_event'          => $event,
         ]);
 
         $notifyType = $result['notify_type'] ?? $eventType;
-        
+
         // 根据通知类型记录日志
         switch ($notifyType) {
             case 'catalog':
@@ -1429,7 +1532,7 @@ class GB28181Handler
                 $eventInXml = $result['event_desc'] ?? $result['event'] ?? '';
                 $this->log("  事件类型: {$eventInXml}, 通道数: {$deviceCount}");
                 break;
-                
+
             case 'alarm':
                 $alarmMethodDesc = $result['alarm_method_desc'] ?? '';
                 $priorityDesc = $result['alarm_priority_desc'] ?? '';
@@ -1438,7 +1541,7 @@ class GB28181Handler
                     $this->log("  报警描述: {$result['alarm_description']}");
                 }
                 break;
-                
+
             case 'mobile_position':
                 $lon = $result['longitude'] ?? '';
                 $lat = $result['latitude'] ?? '';
@@ -1463,7 +1566,7 @@ class GB28181Handler
      * - SnapshotComplete: 图像抓拍完成通知
      * - Keepalive: 媒体流心跳通知
      */
-    private function handleMediaStatusReport(\SipEvent $event, string $deviceId, array $result): void
+    private function handleMediaStatusReport(\SipEvent $event, string $deviceId, array $result) : void
     {
         $notifyType = $result['notify_type'] ?? '';
         $this->log("MediaStatus 通知: {$deviceId}, Type: {$notifyType}");
@@ -1477,13 +1580,13 @@ class GB28181Handler
 
             // 推送到业务系统
             $this->postTask('snapshot_complete', [
-                'device_id' => $deviceId,
-                'session_id' => $sessionId,
-                'file_url' => $fileUrl,
+                'device_id'   => $deviceId,
+                'session_id'  => $sessionId,
+                'file_url'    => $fileUrl,
                 'notify_type' => 'SnapshotComplete',
-                'timestamp' => time()
+                'timestamp'   => time(),
             ]);
-        } elseif ($notifyType === 'Keepalive') {
+        } else if ($notifyType === 'Keepalive') {
             // 媒体流心跳通知
             $ssrc = $result['ssrc'] ?? '';
             $bitRate = $result['bit_rate'] ?? '';
@@ -1494,13 +1597,13 @@ class GB28181Handler
 
             // 可选: 推送媒体流状态到业务系统
             $this->postTask('media_status', [
-                'device_id' => $deviceId,
-                'ssrc' => $ssrc,
-                'bit_rate' => $bitRate,
-                'frame_rate' => $frameRate,
+                'device_id'   => $deviceId,
+                'ssrc'        => $ssrc,
+                'bit_rate'    => $bitRate,
+                'frame_rate'  => $frameRate,
                 'packet_loss' => $packetLoss,
                 'notify_type' => 'Keepalive',
-                'timestamp' => time()
+                'timestamp'   => time(),
             ]);
         }
 
@@ -1513,7 +1616,7 @@ class GB28181Handler
      *  关键：处理设备对 INVITE 的 200 OK 响应（含 SDP）
      *  以及 MESSAGE 查询命令的 200 OK 响应
      */
-    public function handleResponse(\SipEvent $event): void
+    public function handleResponse(\SipEvent $event) : void
     {
         $code = $event->getCode();
         $type = $event->getType();
@@ -1531,7 +1634,7 @@ class GB28181Handler
                 if ($type == EXOSIP_CALL_ANSWERED) {
                     $this->handleInviteResponse($event);
                 } // MESSAGE 的 200 OK（查询命令已接收）
-                elseif ($type == EXOSIP_MESSAGE_ANSWERED || $type == EXOSIP_CALL_MESSAGE_ANSWERED) {
+                else if ($type == EXOSIP_MESSAGE_ANSWERED || $type == EXOSIP_CALL_MESSAGE_ANSWERED) {
                     $this->handleMessageResponse($event);
                 } else {
                     if ($this->config['debug'] ?? false) {
@@ -1539,12 +1642,12 @@ class GB28181Handler
                     }
                 }
             }
-        } elseif ($code >= 100 && $code < 200) {
+        } else if ($code >= 100 && $code < 200) {
             // 临时响应 (1xx) - 仅记录日志
             if ($this->config['debug'] ?? false) {
                 $this->log("临时响应: Type=$type Code=$code (如 180 Ringing)", 'DEBUG');
             }
-        } elseif ($code >= 400) {
+        } else if ($code >= 400) {
             // 错误响应
             $this->log("请求失败: Type=$type Code=$code", 'WARNING');
 
@@ -1581,7 +1684,7 @@ class GB28181Handler
      * 对于重传的 200 OK，UAC（服务器）必须重新发送 ACK，但不应重复执行业务逻辑。
      * 通过 processedInviteCallIds 跟踪已处理的 call_id 来实现去重。
      */
-    private function handleInviteResponse(\SipEvent $event): void
+    private function handleInviteResponse(\SipEvent $event) : void
     {
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
@@ -1672,14 +1775,14 @@ class GB28181Handler
             // 视频流会话处理（ACK 已在上面发送，此处只做业务逻辑）
             // 通知业务系统：媒体流已就绪
             $this->postTask('media_ready', [
-                'device_id' => $deviceId,
-                'call_id' => $callId,
-                'dialog_id' => $dialogId,
+                'device_id'   => $deviceId,
+                'call_id'     => $callId,
+                'dialog_id'   => $dialogId,
                 'device_ssrc' => $deviceSsrc,
-                'device_ip' => $deviceIp,
+                'device_ip'   => $deviceIp,
                 'device_port' => $devicePort,
-                'sdp' => $sdp,
-                'timestamp' => time(),
+                'sdp'         => $sdp,
+                'timestamp'   => time(),
             ]);
 
             $this->log("媒体流就绪通知已发送: {$deviceId} SSRC={$deviceSsrc}");
@@ -1698,7 +1801,7 @@ class GB28181Handler
      * - 实际的执行结果会通过后续的 MESSAGE 请求返回（带 XML body）
      * - 这里只是确认"设备收到了指令"，不是"指令执行完成"
      */
-    private function handleMessageResponse(\SipEvent $event): void
+    private function handleMessageResponse(\SipEvent $event) : void
     {
         $code = $event->getCode();
         $callId = $event->getCallId();
@@ -1725,12 +1828,12 @@ class GB28181Handler
         // 通知业务系统：设备已确认收到控制指令
         // 业务系统可以根据 call_id 或 cseq 关联原始请求
         $this->postTask('command_confirmed', [
-            'device_id' => $deviceId,
-            'call_id' => $callId,
-            'cseq' => $cseqNumber,
+            'device_id'   => $deviceId,
+            'call_id'     => $callId,
+            'cseq'        => $cseqNumber,
             'status_code' => $code,
-            'method' => $method,
-            'timestamp' => time(),
+            'method'      => $method,
+            'timestamp'   => time(),
         ]);
 
         if ($this->config['debug']) {
@@ -1741,7 +1844,7 @@ class GB28181Handler
     /**
      * 处理超时事件
      */
-    public function handleTimeout(\SipEvent $event): void
+    public function handleTimeout(\SipEvent $event) : void
     {
         $type = $event->getType();
         $toUri = $event->getToUri();
@@ -1763,7 +1866,7 @@ class GB28181Handler
     /**
      * 处理错误事件(接收字符串错误消息)
      */
-    public function handleError(string $errorMsg): void
+    public function handleError(string $errorMsg) : void
     {
         $this->log("Event callback error: $errorMsg", 'ERROR');
 
@@ -1776,7 +1879,7 @@ class GB28181Handler
     /**
      * 处理心跳保活
      */
-    private function handleKeepalive(\SipEvent $event, string $deviceId, array $data): void
+    private function handleKeepalive(\SipEvent $event, string $deviceId, array $data) : void
     {
         $this->log("心跳: $deviceId");
 
@@ -1798,12 +1901,12 @@ class GB28181Handler
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
 
-    private function handleRecordInfo(\SipEvent $event, string $deviceId, array $data): void
+    private function handleRecordInfo(\SipEvent $event, string $deviceId, array $data) : void
     {
         $this->postTask('record_info', [
-            'device_id' => $deviceId,
+            'device_id'   => $deviceId,
             'record_info' => $data,
-            'timestamp' => time(),
+            'timestamp'   => time(),
         ]);
 
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
@@ -1812,7 +1915,7 @@ class GB28181Handler
     /**
      * 处理目录响应
      */
-    private function handleCatalog(\SipEvent $event, string $deviceId, array $result): void
+    private function handleCatalog(\SipEvent $event, string $deviceId, array $result) : void
     {
         $this->log("目录响应: $deviceId");
 
@@ -1848,8 +1951,8 @@ class GB28181Handler
         // 异步保存目录到数据库
         $this->postTask('device_catalog', [
             'device_id' => $deviceId,
-            'sum_num' => $sumNum,
-            'devices' => $items,
+            'sum_num'   => $sumNum,
+            'devices'   => $items,
             'timestamp' => time(),
         ]);
 
@@ -1859,17 +1962,17 @@ class GB28181Handler
     /**
      * 处理设备信息响应
      */
-    private function handleDeviceInfo(\SipEvent $event, string $deviceId, array $result): void
+    private function handleDeviceInfo(\SipEvent $event, string $deviceId, array $result) : void
     {
         $this->log("设备信息: $deviceId");
 
         $deviceInfo = $result['device_info'] ?? [];
         $info = [
-            'name' => $deviceInfo['DeviceName'] ?? '',
+            'name'         => $deviceInfo['DeviceName'] ?? '',
             'manufacturer' => $deviceInfo['Manufacturer'] ?? '',
-            'model' => $deviceInfo['Model'] ?? '',
-            'firmware' => $deviceInfo['Firmware'] ?? '',
-            'channel' => $deviceInfo['Channel'] ?? 0,
+            'model'        => $deviceInfo['Model'] ?? '',
+            'firmware'     => $deviceInfo['Firmware'] ?? '',
+            'channel'      => $deviceInfo['Channel'] ?? 0,
         ];
 
         $this->deviceManager->updateDeviceInfo($deviceId, ['info' => $info]);
@@ -1878,9 +1981,9 @@ class GB28181Handler
         $this->log("  厂商: {$info['manufacturer']}");
 
         $this->postTask('device_info', [
-            'device_id' => $deviceId,
+            'device_id'   => $deviceId,
             'device_info' => $deviceInfo,
-            'timestamp' => time(),
+            'timestamp'   => time(),
         ]);
 
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
@@ -1897,7 +2000,7 @@ class GB28181Handler
     /**
      * 处理设备状态响应
      */
-    private function handleDeviceStatus(\SipEvent $event, string $deviceId, array $data): void
+    private function handleDeviceStatus(\SipEvent $event, string $deviceId, array $data) : void
     {
         $this->log("设备状态: $deviceId");
 
@@ -1908,8 +2011,8 @@ class GB28181Handler
 
         $this->postTask('device_status', [
             'device_id' => $deviceId,
-            'online' => $online,
-            'status' => $status,
+            'online'    => $online,
+            'status'    => $status,
             'timestamp' => time(),
         ]);
 
@@ -1919,7 +2022,7 @@ class GB28181Handler
     /**
      * 处理报警信息
      */
-    private function handleAlarm(\SipEvent $event, string $deviceId, array $data): void
+    private function handleAlarm(\SipEvent $event, string $deviceId, array $data) : void
     {
         $this->log("报警信息: $deviceId", 'WARNING');
 
@@ -1930,11 +2033,11 @@ class GB28181Handler
 
         // 异步推送报警信息
         $this->postTask('alarm', [
-            'event' => 'alarm',
+            'event'     => 'alarm',
             'device_id' => $deviceId,
-            'priority' => $alarmPriority,
-            'method' => $alarmMethod,
-            'data' => $data,
+            'priority'  => $alarmPriority,
+            'method'    => $alarmMethod,
+            'data'      => $data,
             'timestamp' => time(),
         ]);
 
@@ -1942,14 +2045,14 @@ class GB28181Handler
     }
 
     // handleMobilePositionReport
-    private function handleMobilePositionReport(\SipEvent $event, string $deviceId, array $data): void
+    private function handleMobilePositionReport(\SipEvent $event, string $deviceId, array $data) : void
     {
-        $this->log("【移动位置通知】设备ID=$deviceId,数据=" . json_encode($data, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        $this->log("【移动位置通知】设备ID=$deviceId,数据=" . json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
         $this->postTask('mobile_position_report', [
-            'event' => 'mobile_position_report',
+            'event'     => 'mobile_position_report',
             'device_id' => $deviceId,
-            'data' => $data,
+            'data'      => $data,
             'timestamp' => time(),
         ]);
 
@@ -1963,7 +2066,7 @@ class GB28181Handler
     /**
      * 分发命令到具体处理方法
      */
-    private function dispatchCommand(\SipEvent $event, string $deviceId, array $result): void
+    private function dispatchCommand(\SipEvent $event, string $deviceId, array $result) : void
     {
         $cmdType = $result['cmd_type'];
 
@@ -2005,20 +2108,20 @@ class GB28181Handler
             case 'PresetQuery':
                 $this->log("预置位查询响应: $deviceId, 数量=" . ($result['num'] ?? 0));
                 $this->postTask('preset_query_result', [
-                    'device_id' => $deviceId,
+                    'device_id'   => $deviceId,
                     'preset_list' => $result['preset_list'] ?? [],
-                    'num' => $result['num'] ?? 0,
-                    'timestamp' => time(),
+                    'num'         => $result['num'] ?? 0,
+                    'timestamp'   => time(),
                 ]);
                 $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
                 break;
             case 'ConfigDownload':
                 $this->log("配置查询响应: $deviceId");
                 $this->postTask('config_download_result', [
-                    'device_id' => $deviceId,
-                    'result' => $result['result'] ?? '',
+                    'device_id'   => $deviceId,
+                    'result'      => $result['result'] ?? '',
                     'basic_param' => $result['basic_param'] ?? [],
-                    'timestamp' => time(),
+                    'timestamp'   => time(),
                 ]);
                 $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
                 break;
@@ -2053,7 +2156,7 @@ class GB28181Handler
      * @param string|null $sdpBody SDP body
      * @param string $mode 模式 (此处仅 'talk')
      */
-    private function handleVoiceInvite(\SipEvent $event, string $deviceId, string $channelId, ?string $sdpBody, string $mode): void
+    private function handleVoiceInvite(\SipEvent $event, string $deviceId, string $channelId, ?string $sdpBody, string $mode) : void
     {
         $bodyLen = $sdpBody ? strlen($sdpBody) : 0;
         $this->log("语音INVITE(Talk): {$deviceId} 模式:{$mode}, bodyLen={$bodyLen}");
@@ -2096,15 +2199,15 @@ class GB28181Handler
         }
 
         $this->postTask('voice_invite', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'mode' => $mode,
-            'device_ip' => $deviceIp,
+            'device_id'   => $deviceId,
+            'channel_id'  => $channelId,
+            'mode'        => $mode,
+            'device_ip'   => $deviceIp,
             'device_port' => $devicePort,
-            'transport' => $transport,
-            'media_mode' => $mediaMode,
-            'tid' => $event->getTid(),
-            'timestamp' => time(),
+            'transport'   => $transport,
+            'media_mode'  => $mediaMode,
+            'tid'         => $event->getTid(),
+            'timestamp'   => time(),
         ]);
 
         $this->log("语音对讲请求已转发到API项目处理");
@@ -2137,10 +2240,10 @@ class GB28181Handler
      */
     private function handleBroadcastInvite(
         \SipEvent $event,
-        string    $fromDeviceId,
-        array     $pendingBroadcast,
-        ?string   $sdpBody = null
-    ): void
+        string $fromDeviceId,
+        array $pendingBroadcast,
+        ?string $sdpBody = null
+    ) : void
     {
         // 从 pendingBroadcast 获取所有业务字段（不依赖 INVITE 的 From/To URI）
         $channelId = $pendingBroadcast['channel_id'];
@@ -2185,38 +2288,38 @@ class GB28181Handler
         // 不立即发 200 OK，而是异步调 API 开 ZLM 端口
         // API 根据设备 SDP transport 决定 TCP/UDP 模式
         $taskPayload = [
-            'session_id' => $sessionId,
-            'ssrc' => $ssrc,
-            'rtp_port' => $rtpPort,
-            'media_server_id' => $pendingBroadcast['media_server_id'] ?? '',
+            'session_id'       => $sessionId,
+            'ssrc'             => $ssrc,
+            'rtp_port'         => $rtpPort,
+            'media_server_id'  => $pendingBroadcast['media_server_id'] ?? '',
             'device_transport' => $deviceTransport,
-            'device_setup' => $deviceSetup,
-            'device_ip' => $deviceIp,
-            'device_port' => $devicePort,
+            'device_setup'     => $deviceSetup,
+            'device_ip'        => $deviceIp,
+            'device_port'      => $devicePort,
             // 传入流信息，供 API 检查流是否就绪
-            'stream_id' => $streamId,
-            'app' => $pendingBroadcast['app'] ?? 'broadcast',
+            'stream_id'        => $streamId,
+            'app'              => $pendingBroadcast['app'] ?? 'broadcast',
         ];
 
         try {
             $taskId = $this->sipServer->addTask([
-                'action' => 'broadcast_setup_rtp',
-                'type' => 'broadcast_setup_rtp',
-                'payload' => $taskPayload,
+                'action'       => 'broadcast_setup_rtp',
+                'type'         => 'broadcast_setup_rtp',
+                'payload'      => $taskPayload,
                 'api_hook_url' => $this->config['api_hock_url'],
             ]);
 
             // 存储等待结果的上下文，供 handleTaskFinish 使用
             $this->pendingInviteSetup[$taskId] = [
-                'tid' => $tid,
-                'call_id' => $callId,
-                'dialog_id' => $dialogId,
+                'tid'               => $tid,
+                'call_id'           => $callId,
+                'dialog_id'         => $dialogId,
                 'pending_broadcast' => $pendingBroadcast,
-                'device_transport' => $deviceTransport,
-                'device_setup' => $deviceSetup,
-                'device_ip' => $deviceIp,
-                'device_port' => $devicePort,
-                'broadcast_key' => $broadcastKey,
+                'device_transport'  => $deviceTransport,
+                'device_setup'      => $deviceSetup,
+                'device_ip'         => $deviceIp,
+                'device_port'       => $devicePort,
+                'broadcast_key'     => $broadcastKey,
             ];
 
             $this->log("广播 INVITE: 已投递 broadcast_setup_rtp Task #{$taskId}, 等待 API 返回");
@@ -2232,7 +2335,7 @@ class GB28181Handler
     /**
      * 查询设备目录
      */
-    public function queryCatalog($deviceId): bool
+    public function queryCatalog($deviceId) : bool
     {
         $deviceInfo = $this->deviceManager->getDevice($deviceId);
         if (!$deviceInfo) {
@@ -2269,7 +2372,7 @@ class GB28181Handler
     /**
      * 查询设备信息
      */
-    public function queryDeviceInfo($deviceId): bool
+    public function queryDeviceInfo($deviceId) : bool
     {
         $deviceInfo = $this->deviceManager->getDevice($deviceId);
         if (!$deviceInfo) {
@@ -2287,7 +2390,7 @@ class GB28181Handler
     /**
      * PTZ控制
      */
-    public function ptzControl($deviceId, $channelId, $command): bool
+    public function ptzControl($deviceId, $channelId, $command) : bool
     {
         $deviceInfo = $this->deviceManager->getDevice($deviceId);
         if (!$deviceInfo) {
@@ -2318,7 +2421,7 @@ class GB28181Handler
     /**
      * 验证设备ID格式（20位数字）
      */
-    private function isValidDeviceId($deviceId): bool|int
+    private function isValidDeviceId($deviceId) : bool|int
     {
         return preg_match('/^\d{20}$/', $deviceId);
     }
@@ -2326,7 +2429,7 @@ class GB28181Handler
     /**
      * 获取在线设备列表
      */
-    public function getOnlineDevices(): array
+    public function getOnlineDevices() : array
     {
         return $this->deviceManager->getOnlineDevices();
     }
@@ -2334,24 +2437,24 @@ class GB28181Handler
     /**
      * 获取统计信息
      */
-    public function getStats(): array
+    public function getStats() : array
     {
         $managerStats = $this->deviceManager->getStats();
         $allDevices = $this->deviceManager->getAllDevices();
         $totalDevices = count($allDevices);
 
         return [
-            'total_devices' => $totalDevices,
-            'online_devices' => $managerStats['online'] ?? 0,
+            'total_devices'        => $totalDevices,
+            'online_devices'       => $managerStats['online'] ?? 0,
             'unregistered_devices' => $managerStats['unregistered'] ?? 0,
-            'timeout_devices' => $managerStats['timeout'] ?? 0,
+            'timeout_devices'      => $managerStats['timeout'] ?? 0,
         ];
     }
 
     /**
      * 获取设备管理器（用于心跳超时检测）
      */
-    public function getDeviceManager(): DeviceManager
+    public function getDeviceManager() : DeviceManager
     {
         return $this->deviceManager;
     }
@@ -2360,7 +2463,7 @@ class GB28181Handler
      * 处理超时检测（应在主循环中定期调用）
      * @return array 超时的设备列表
      */
-    public function processTimeouts(): array
+    public function processTimeouts() : array
     {
         return $this->deviceManager->checkTimeout();
     }
@@ -2368,7 +2471,7 @@ class GB28181Handler
     /**
      * 获取所有设备信息
      */
-    public function getAllDevices(): array
+    public function getAllDevices() : array
     {
         return $this->deviceManager->getAllDevices();
     }
@@ -2376,7 +2479,7 @@ class GB28181Handler
     /**
      * 获取指定设备信息
      */
-    public function getDevice(string $deviceId): ?array
+    public function getDevice(string $deviceId) : ?array
     {
         return $this->deviceManager->getDevice($deviceId);
     }
@@ -2394,7 +2497,7 @@ class GB28181Handler
      * @param string $deviceSpecifiedCharset 设备指定的编码
      * @return string 规范化后的UTF-8 XML
      */
-    private function normalizeXmlEncoding(string $xml, string $deviceCharset = 'auto'): string
+    private function normalizeXmlEncoding(string $xml, string $deviceCharset = 'auto') : string
     {
         $rawXml = $xml;
 
@@ -2452,7 +2555,7 @@ class GB28181Handler
     }
 
 
-    private function isReallyUtf8(string $str): bool
+    private function isReallyUtf8(string $str) : bool
     {
         return (bool)preg_match('//u', $str);
     }
@@ -2463,7 +2566,7 @@ class GB28181Handler
     /**
      * 投递异步任务到 Task 进程
      */
-    private function postTask(string $type, array $payload): void
+    private function postTask(string $type, array $payload) : void
     {
         // 检查是否支持 addTask 方法（多进程模式）
         if (!method_exists($this->sipServer, 'addTask')) {
@@ -2482,7 +2585,7 @@ class GB28181Handler
 
         try {
             $taskId = $this->sipServer->addTask([
-                'type' => $type,
+                'type'    => $type,
                 'payload' => $payload,
             ]);
 
@@ -2504,15 +2607,15 @@ class GB28181Handler
      *
      * @param array $info 推流信息，包含 session_id, ssrc, stream_id, app, media_server_id 等
      */
-    private function dispatchStartSendRtp(array $info): void
+    private function dispatchStartSendRtp(array $info) : void
     {
         $this->log("投递 start_send_rtp 任务: sessionId={$info['session_id']}, streamId={$info['stream_id']}");
 
         try {
             $this->sipServer->addTask([
-                'action' => 'start_send_rtp',
-                'type' => 'start_send_rtp',
-                'payload' => $info,
+                'action'       => 'start_send_rtp',
+                'type'         => 'start_send_rtp',
+                'payload'      => $info,
                 'api_hook_url' => $this->config['api_hock_url'],
             ]);
         } catch (\Exception $e) {
@@ -2524,7 +2627,7 @@ class GB28181Handler
     /**
      * 判断是否为注销请求
      */
-    private function isUnregisterRequest(\SipEvent $event): bool
+    private function isUnregisterRequest(\SipEvent $event) : bool
     {
         return $event->getExpires() === 0;
     }
@@ -2532,12 +2635,12 @@ class GB28181Handler
     /**
      * 检查是否包含 Authorization 头（包括 Capability 和 Digest）
      */
-    private function hasAuthorizationHeader(\SipEvent $event): bool
+    private function hasAuthorizationHeader(\SipEvent $event) : bool
     {
         // 尝试不同的大小写变体
         $authHeader = $event->getHeader('Authorization')
-            ?: $event->getHeader('authorization')
-                ?: $event->getHeader('AUTHORIZATION');
+            ? : $event->getHeader('authorization')
+                ? : $event->getHeader('AUTHORIZATION');
 
         if (!$authHeader) {
             // 调试：打印所有可用的头
@@ -2559,7 +2662,7 @@ class GB28181Handler
     /**
      * 验证 Authorization 头
      */
-    private function validateAuthorization(\SipEvent $event, string $deviceId): bool
+    private function validateAuthorization(\SipEvent $event, string $deviceId) : bool
     {
         $authHeader = $event->getHeader('Authorization');
         if (!$authHeader) {
@@ -2580,7 +2683,7 @@ class GB28181Handler
     /**
      * 验证 Digest MD5 认证
      */
-    private function validateDigestAuth(string $authHeader, \SipEvent $event, string $deviceId): bool
+    private function validateDigestAuth(string $authHeader, \SipEvent $event, string $deviceId) : bool
     {
         // 解析 Digest 认证头
         $params = $this->parseDigestAuth($authHeader);
@@ -2635,14 +2738,14 @@ class GB28181Handler
      * GB28181: 如果UA中包含安全信息（如RSA、SHA-256），则支持数字证书认证
      * 否则使用基本的 Digest MD5 认证
      */
-    private function getDeviceCapability(\SipEvent $event): ?string
+    private function getDeviceCapability(\SipEvent $event) : ?string
     {
         $userAgent = $event->getHeader('User-Agent');
         if (!$userAgent) {
             return null;
         }
 
-//        echo "[DEBUG] User-Agent: {$userAgent}\n";
+        //        echo "[DEBUG] User-Agent: {$userAgent}\n";
 
         // 检查是否包含安全能力关键字
         // 例如: "GB28181 Security/RSA,SHA-256,3DES"
@@ -2663,21 +2766,21 @@ class GB28181Handler
     /**
      * 解析 Digest 认证头
      */
-    private function parseDigestAuth(string $authHeader): array
+    private function parseDigestAuth(string $authHeader) : array
     {
         $params = [];
 
-//        echo "[DEBUG] 原始 Authorization 头: {$authHeader}\n";
+        //        echo "[DEBUG] 原始 Authorization 头: {$authHeader}\n";
 
         // 移除 "Digest " 前缀
         $authHeader = trim(substr($authHeader, 7));
 
-//        echo "[DEBUG] 去除前缀后: {$authHeader}\n";
+        //        echo "[DEBUG] 去除前缀后: {$authHeader}\n";
 
         // 修复：osip 库返回的值中引号被转义为 ""，需要先还原
         $authHeader = str_replace('""', '"', $authHeader);
 
-//        echo "[DEBUG] 还原引号后: {$authHeader}\n";
+        //        echo "[DEBUG] 还原引号后: {$authHeader}\n";
 
         // 解析参数 - 支持带引号和不带引号的值
         if (preg_match_all('/(\w+)=(?:"([^"]+)"|([^,\s]+))/', $authHeader, $matches, PREG_SET_ORDER)) {
@@ -2695,7 +2798,7 @@ class GB28181Handler
     /**
      * 生成 nonce 值
      */
-    private function generateNonce(): string
+    private function generateNonce() : string
     {
         return md5(uniqid() . time() . rand());
     }
@@ -2706,12 +2809,11 @@ class GB28181Handler
      * GB28181标准：服务器端使用统一的接入密码
      * 所有设备在NVR/IPC的"国标配置"中填写相同的密码
      */
-    private function getDevicePassword(?string $deviceId = null): string
+    private function getDevicePassword(?string $deviceId = null) : string
     {
         // 返回统一的接入密码
         return $this->config['device_password'] ?? '12345678';
     }
-
 
 
     /**
@@ -2729,7 +2831,7 @@ class GB28181Handler
      * @param int|null $devicePort 设备音频接收端口（来自 200 OK 的 SDP）
      * @return void
      */
-    private function handleVoiceTalkEstablished(array $activeSession, int $dialogId, ?string $deviceIp, ?int $devicePort): void
+    private function handleVoiceTalkEstablished(array $activeSession, int $dialogId, ?string $deviceIp, ?int $devicePort) : void
     {
         $deviceId = $activeSession['device_id'];
         $channelId = $activeSession['channel_id'];
@@ -2744,17 +2846,17 @@ class GB28181Handler
         // API 侧的 GBServerHookController 将调用 VoiceTalkService::onSipResponseOk()
         // 来更新数据库中的会话状态为 CONNECTED
         $this->postTask('voice_established', [
-            'device_id' => $deviceId,
-            'channel_id' => $channelId,
-            'dialog_id' => $dialogId,
-            'call_id' => $callId,
-            'device_ip' => $deviceIp,
+            'device_id'   => $deviceId,
+            'channel_id'  => $channelId,
+            'dialog_id'   => $dialogId,
+            'call_id'     => $callId,
+            'device_ip'   => $deviceIp,
             'device_port' => $devicePort,
-            'mode' => $mode,
-            'ssrc' => $ssrc,
-            'stream_id' => $streamId,
-            'session_id' => $activeSession['session_id'] ?? null,
-            'timestamp' => time(),
+            'mode'        => $mode,
+            'ssrc'        => $ssrc,
+            'stream_id'   => $streamId,
+            'session_id'  => $activeSession['session_id'] ?? null,
+            'timestamp'   => time(),
         ]);
 
         $this->log("语音对讲会话已建立: {$deviceId}/{$channelId}, Dialog-ID: {$dialogId}, Stream: {$streamId}");
@@ -2764,7 +2866,7 @@ class GB28181Handler
     /**
      * 日志输出
      */
-    private function log(string $message, string $level = 'INFO'): void
+    private function log(string $message, string $level = 'INFO') : void
     {
         $this->logger->log($message, $level, 'GB28181');
     }

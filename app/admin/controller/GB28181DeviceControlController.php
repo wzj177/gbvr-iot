@@ -132,8 +132,8 @@ class GB28181DeviceControlController extends BaseController
             $result = $this->getGb28181Service()->alarmReset(
                 $deviceId,
                 $channelId,
-                $alarmMethod !== null ? (int) $alarmMethod : null,
-                $alarmType !== null ? (int) $alarmType : null
+                $alarmMethod !== null ? (int)$alarmMethod : null,
+                $alarmType !== null ? (int)$alarmType : null
             );
             if (!$result) {
                 return $this->createErrorJsonResponse('发送报警复位命令失败', 500);
@@ -179,15 +179,15 @@ class GB28181DeviceControlController extends BaseController
         $deviceId = $request->post('device_id');
         $channelId = $request->post('channel_id');
         $enabled = $request->post('enabled', 1);
-        $resetTime = (int) $request->post('reset_time', 0);
-        $presetIndex = (int) $request->post('preset_index', 1);
+        $resetTime = (int)$request->post('reset_time', 0);
+        $presetIndex = (int)$request->post('preset_index', 1);
 
         if (!$deviceId || !$channelId) {
             return $this->createErrorJsonResponse('缺少必要参数(device_id, channel_id)', 400);
         }
 
         try {
-            $result = $this->getGb28181Service()->homePosition($deviceId, $channelId, (bool) $enabled, $resetTime, $presetIndex);
+            $result = $this->getGb28181Service()->homePosition($deviceId, $channelId, (bool)$enabled, $resetTime, $presetIndex);
             if (!$result) {
                 return $this->createErrorJsonResponse('发送看守位命令失败', 500);
             }
@@ -217,12 +217,12 @@ class GB28181DeviceControlController extends BaseController
         }
 
         $params = [
-            'length' => (int) $request->post('length', 0),
-            'width' => (int) $request->post('width', 0),
-            'mid_point_x' => (int) $request->post('mid_point_x', 0),
-            'mid_point_y' => (int) $request->post('mid_point_y', 0),
-            'length_x' => (int) $request->post('length_x', 0),
-            'length_y' => (int) $request->post('length_y', 0),
+            'length'      => (int)$request->post('length', 0),
+            'width'       => (int)$request->post('width', 0),
+            'mid_point_x' => (int)$request->post('mid_point_x', 0),
+            'mid_point_y' => (int)$request->post('mid_point_y', 0),
+            'length_x'    => (int)$request->post('length_x', 0),
+            'length_y'    => (int)$request->post('length_y', 0),
         ];
 
         try {
@@ -257,9 +257,9 @@ class GB28181DeviceControlController extends BaseController
         $heartbeatCount = $request->post('heartbeat_count');
 
         if ($name !== null) $params['name'] = $name;
-        if ($expiration !== null) $params['expiration'] = (int) $expiration;
-        if ($heartbeatInterval !== null) $params['heartbeat_interval'] = (int) $heartbeatInterval;
-        if ($heartbeatCount !== null) $params['heartbeat_count'] = (int) $heartbeatCount;
+        if ($expiration !== null) $params['expiration'] = (int)$expiration;
+        if ($heartbeatInterval !== null) $params['heartbeat_interval'] = (int)$heartbeatInterval;
+        if ($heartbeatCount !== null) $params['heartbeat_count'] = (int)$heartbeatCount;
 
         if (empty($params)) {
             return $this->createErrorJsonResponse('至少需要提供一个配置参数(name, expiration, heartbeat_interval, heartbeat_count)', 400);
@@ -292,7 +292,7 @@ class GB28181DeviceControlController extends BaseController
         }
 
         try {
-            $result = $this->getGb28181Service()->wiperControl($deviceId, $channelId, (bool) $on);
+            $result = $this->getGb28181Service()->wiperControl($deviceId, $channelId, (bool)$on);
             if (!$result) {
                 return $this->createErrorJsonResponse('发送雨刷控制命令失败', 500);
             }
@@ -312,7 +312,7 @@ class GB28181DeviceControlController extends BaseController
     {
         $deviceId = $request->post('device_id');
         $channelId = $request->post('channel_id');
-        $switchId = (int) $request->post('switch_id', 1);
+        $switchId = (int)$request->post('switch_id', 1);
         $on = $request->post('on', true);
 
         if (!$deviceId || !$channelId) {
@@ -320,7 +320,7 @@ class GB28181DeviceControlController extends BaseController
         }
 
         try {
-            $result = $this->getGb28181Service()->auxControl($deviceId, $channelId, $switchId, (bool) $on);
+            $result = $this->getGb28181Service()->auxControl($deviceId, $channelId, $switchId, (bool)$on);
             if (!$result) {
                 return $this->createErrorJsonResponse('发送辅助开关命令失败', 500);
             }
@@ -360,7 +360,7 @@ class GB28181DeviceControlController extends BaseController
     /**
      * @return Gb28181Service
      */
-    private function getGb28181Service(): Gb28181Service
+    private function getGb28181Service() : Gb28181Service
     {
         return $this->getBiz()->offsetGet('gb28181_service');
     }

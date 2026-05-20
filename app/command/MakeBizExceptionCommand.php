@@ -50,11 +50,11 @@ class MakeBizExceptionCommand extends Command
         try {
             $gii = GiiFactory::create('easy', $namespace, $this->getBiz());
             $path = $gii->render([
-                'bizId' => $bizId,
-                'scene' => 'make-exception',
+                'bizId'     => $bizId,
+                'scene'     => 'make-exception',
                 'templates' => [
                     'exception' => ExceptionTemplate::class,
-                ]
+                ],
             ]);
             $output->writeln(ShellColor::showInfo("{$path}已创建"));
             return self::SUCCESS;

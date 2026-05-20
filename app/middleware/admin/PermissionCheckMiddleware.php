@@ -20,12 +20,13 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * 不需要权限检查的路由
      */
-    protected array $exceptRoutes = [
-        'admin.login',
-        'admin.captcha',
-        'admin.login_config',
-        'admin.menu.user'
-    ];
+    protected array $exceptRoutes
+        = [
+            'admin.login',
+            'admin.captcha',
+            'admin.login_config',
+            'admin.menu.user',
+        ];
 
     /**
      * 超级管理员角色代码
@@ -38,7 +39,7 @@ class PermissionCheckMiddleware implements MiddlewareInterface
      */
     protected array $routePermissionMap = [];
 
-    public function process(Request $request, callable $next): Response
+    public function process(Request $request, callable $next) : Response
     {
         $route = $request->route;
         $routeName = $route?->getName();
@@ -76,7 +77,7 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * 检查是否应该跳过权限检查
      */
-    protected function shouldSkip(string $routeName): bool
+    protected function shouldSkip(string $routeName) : bool
     {
         return in_array($routeName, $this->exceptRoutes);
     }
@@ -84,7 +85,7 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * 检查是否是超级管理员
      */
-    protected function isSuperAdmin(CurrentUserInterface $user): bool
+    protected function isSuperAdmin(CurrentUserInterface $user) : bool
     {
         $roles = $user['roles'] ?? [];
         if (is_string($roles)) {
@@ -97,7 +98,7 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * 检查用户是否有权限
      */
-    protected function hasPermission(CurrentUserInterface $user, Request $request, string $routeName): bool
+    protected function hasPermission(CurrentUserInterface $user, Request $request, string $routeName) : bool
     {
         // 获取用户的角色代码
         $roleCodes = $user['roles'] ?? [];
@@ -133,7 +134,7 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * 扁平化菜单树，收集所有菜单ID
      */
-    protected function flattenMenuTree(array $menus): array
+    protected function flattenMenuTree(array $menus) : array
     {
         $menuIds = [];
 
@@ -150,7 +151,7 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * 根据路由获取菜单ID
      */
-    protected function getMenuIdByRoute(Request $request, string $routeName): ?int
+    protected function getMenuIdByRoute(Request $request, string $routeName) : ?int
     {
         // 首先检查显式映射
         if (isset($this->routePermissionMap[$routeName])) {
@@ -195,23 +196,23 @@ class PermissionCheckMiddleware implements MiddlewareInterface
     /**
      * @return Bfw
      */
-    protected function getBiz(): Bfw
+    protected function getBiz() : Bfw
     {
         return Core::instance();
     }
 
-    protected function getMenuService(): MenuService
+    protected function getMenuService() : MenuService
     {
         return $this->getBiz()->service('Menu:MenuService');
     }
 
-    protected function createFailJsonResponse(string $message, int $code = 400): Response
+    protected function createFailJsonResponse(string $message, int $code = 400) : Response
     {
         return new Response($code, [
             'Content-Type' => 'application/json',
         ], json_encode([
             'code' => $code,
-            'msg' => $message,
+            'msg'  => $message,
             'data' => null,
         ], JSON_UNESCAPED_UNICODE));
     }

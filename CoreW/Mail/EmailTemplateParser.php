@@ -12,8 +12,8 @@ class EmailTemplateParser
 
     public function parseTemplate($templateName, $arguments)
     {
-        if (isset($this->bfw[$templateName.'_template'])) {
-            return $this->bfw[$templateName.'_template']->parse($arguments);
+        if (isset($this->bfw[$templateName . '_template'])) {
+            return $this->bfw[$templateName . '_template']->parse($arguments);
         }
 
         return $this->bfw['empty_email_template']->parse($arguments);

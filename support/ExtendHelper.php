@@ -25,11 +25,12 @@ function is_win_os()
  * @param $ipFilters
  * @return bool
  */
-function is_local_client($ip, $ipFilters = [
+function is_local_client($ip, $ipFilters
+= [
     '127.0.0.1',
     '0.0.0.0',
-    '192.168.*.*'
-]): bool
+    '192.168.*.*',
+]) : bool
 {
     if (empty($ipFilters)) {
         return true;
@@ -81,7 +82,7 @@ function static_assets_path()
  * @param string $path
  * @return string
  */
-function core_path(string $path = ''): string
+function core_path(string $path = '') : string
 {
     static $corePath = '';
     if (!$corePath) {

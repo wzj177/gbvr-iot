@@ -24,7 +24,7 @@ class RabbitMQTransport implements TransportInterface
         $this->logger = Logger::getInstance();
     }
 
-    public function connect(): bool
+    public function connect() : bool
     {
         try {
             $host = $this->config['host'] ?? '127.0.0.1';
@@ -62,7 +62,7 @@ class RabbitMQTransport implements TransportInterface
         }
     }
 
-    public function push(string $queueKey, string $message): bool
+    public function push(string $queueKey, string $message) : bool
     {
         if (!$this->ensureConnection()) {
             return false;
@@ -86,7 +86,7 @@ class RabbitMQTransport implements TransportInterface
         }
     }
 
-    public function pop(array $queueKeys, int $timeout): ?array
+    public function pop(array $queueKeys, int $timeout) : ?array
     {
         if (!$this->ensureConnection()) {
             return null;
@@ -119,7 +119,7 @@ class RabbitMQTransport implements TransportInterface
         }
     }
 
-    public function isHealthy(): bool
+    public function isHealthy() : bool
     {
         if (!$this->connection || !$this->channel) {
             return false;
@@ -132,7 +132,7 @@ class RabbitMQTransport implements TransportInterface
         }
     }
 
-    public function close(): void
+    public function close() : void
     {
         try {
             if ($this->channel) {
@@ -150,7 +150,7 @@ class RabbitMQTransport implements TransportInterface
         $this->logger->info("[RabbitMQTransport] Connection closed", 'Transport');
     }
 
-    public function getType(): string
+    public function getType() : string
     {
         return 'rabbitmq';
     }
@@ -158,7 +158,7 @@ class RabbitMQTransport implements TransportInterface
     /**
      * Ensure connection is active, reconnect if needed
      */
-    private function ensureConnection(): bool
+    private function ensureConnection() : bool
     {
         if ($this->isHealthy()) {
             return true;
@@ -172,7 +172,7 @@ class RabbitMQTransport implements TransportInterface
     /**
      * Reset connection after error
      */
-    private function resetConnection(): void
+    private function resetConnection() : void
     {
         $this->channel = null;
         $this->connection = null;

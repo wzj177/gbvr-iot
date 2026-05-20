@@ -14,7 +14,7 @@ interface ProductService
      * @param $id
      * @return array|null
      */
-    public function getProductById($id): ?array;
+    public function getProductById($id) : ?array;
 
     /**
      * 获取作品详情
@@ -22,7 +22,7 @@ interface ProductService
      * @param $id
      * @return array|null
      */
-    public function getProductByCode(string $code): ?array;
+    public function getProductByCode(string $code) : ?array;
 
     /**
      * 获取作品统计数
@@ -69,7 +69,7 @@ interface ProductService
      * @return bool
      * @throws \CoreW\Dao\DaoException
      */
-    public function closeProduct($id, array $fields): bool;
+    public function closeProduct($id, array $fields) : bool;
 
     /**
      * 会员(或者系统)发布作品
@@ -78,7 +78,7 @@ interface ProductService
      * @return bool
      * @throws \CoreW\Dao\DaoException
      */
-    public function publishProduct($id, array $fields): bool;
+    public function publishProduct($id, array $fields) : bool;
 
     /**
      * 删除作品
@@ -318,7 +318,7 @@ interface ProductService
      * @param int $productId
      * @return array
      */
-    public function getProductConfigs(int $productId): array;
+    public function getProductConfigs(int $productId) : array;
 
     /**
      * 获取作品配置
@@ -344,7 +344,7 @@ interface ProductService
      * @param int $productId
      * @return array
      */
-    public function makeShareUrl(int $productId): array;
+    public function makeShareUrl(int $productId) : array;
 
     /**
      * 解析分享token
@@ -358,12 +358,12 @@ interface ProductService
      * @param int $id
      * @return int
      */
-    public function increaseViewCount(int $id): int;
+    public function increaseViewCount(int $id) : int;
 
     /**
      * 增加点赞量
      * @param int $id
      * @return int
      */
-    public function increaseLikeCount(int $id): int;
+    public function increaseLikeCount(int $id) : int;
 }

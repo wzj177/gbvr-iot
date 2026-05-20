@@ -26,19 +26,19 @@ class BizEnum
     public static function getVrHotpointTypeItems($key = null)
     {
         $items = [
-            self::VR_HOTPOINT_TYPE_TEXT => '文本热点',
-            self::VR_HOTPOINT_TYPE_VIDEO => '视频热点',
-            self::VR_HOTPOINT_TYPE_IMAGE => '图片热点',
-            self::VR_HOTPOINT_TYPE_LINK => '超链接',
+            self::VR_HOTPOINT_TYPE_TEXT         => '文本热点',
+            self::VR_HOTPOINT_TYPE_VIDEO        => '视频热点',
+            self::VR_HOTPOINT_TYPE_IMAGE        => '图片热点',
+            self::VR_HOTPOINT_TYPE_LINK         => '超链接',
             self::VR_HOTPOINT_TYPE_SCENE_CHANGE => '场景切换',
-            self::VR_HOTPOINT_TYPE_IOT => '设备热点',
+            self::VR_HOTPOINT_TYPE_IOT          => '设备热点',
         ];
 
         return self::getItems($items, $key);
     }
 
     const VIP_COMPANY_IOT_API_DEVICE_CATALOG = 'device_catalog';
-    const VIP_COMPANY_IOT_API_DEVICE_LIST= 'device_list';
+    const VIP_COMPANY_IOT_API_DEVICE_LIST = 'device_list';
     const VIP_COMPANY_IOT_API_DEVICE_INFO = 'device_info';
     const VIP_COMPANY_IOT_API_DEVICE_REAL_DATA = 'device_real_data';
     const VIP_COMPANY_IOT_API_DEVICE_HISTORY_DATA = 'device_history_data';
@@ -50,13 +50,13 @@ class BizEnum
     public static function getCompanyIotApiItems($key = null)
     {
         $items = [
-            self::VIP_COMPANY_IOT_API_DEVICE_CATALOG => '设备分类',
-            self::VIP_COMPANY_IOT_API_DEVICE_LIST => '设备列表',
-            self::VIP_COMPANY_IOT_API_DEVICE_INFO => '设备信息',
-            self::VIP_COMPANY_IOT_API_DEVICE_REAL_DATA => '设备实时数据',
+            self::VIP_COMPANY_IOT_API_DEVICE_CATALOG      => '设备分类',
+            self::VIP_COMPANY_IOT_API_DEVICE_LIST         => '设备列表',
+            self::VIP_COMPANY_IOT_API_DEVICE_INFO         => '设备信息',
+            self::VIP_COMPANY_IOT_API_DEVICE_REAL_DATA    => '设备实时数据',
             self::VIP_COMPANY_IOT_API_DEVICE_HISTORY_DATA => '设备历史数据',
-            self::VIP_COMPANY_IOT_API_CAMERA_LIVE_URL => '摄像头直播地址',
-            self::VIP_COMPANY_IOT_API_GIS_TILES_URL => 'GIS切片地址(基地鸟瞰图等)',
+            self::VIP_COMPANY_IOT_API_CAMERA_LIVE_URL     => '摄像头直播地址',
+            self::VIP_COMPANY_IOT_API_GIS_TILES_URL       => 'GIS切片地址(基地鸟瞰图等)',
         ];
         return self::getItems($items, $key);
     }
@@ -69,8 +69,8 @@ class BizEnum
     {
         $items = [
             self::VIP_COMPANY_STATUS_REJECT => '驳回',
-            self::VIP_COMPANY_STATUS_WAIT => '待审核',
-            self::VIP_COMPANY_STATUS_OK => '已通过',
+            self::VIP_COMPANY_STATUS_WAIT   => '待审核',
+            self::VIP_COMPANY_STATUS_OK     => '已通过',
         ];
 
         return self::getItems($items, $key);
@@ -88,8 +88,8 @@ class BizEnum
     public static function getVipRoleItems($key = null)
     {
         $items = [
-            self::VIP_ROLE_PERSON => '个人',
-            self::VIP_ROLE_COMPANY => '企业'
+            self::VIP_ROLE_PERSON  => '个人',
+            self::VIP_ROLE_COMPANY => '企业',
         ];
         return self::getItems($items, $key);
     }
@@ -103,9 +103,9 @@ class BizEnum
     {
         $items = [
             self::PRODUCT_SCENE_TILE_STATUS_NONE => '未生成',
-            self::PRODUCT_SCENE_TILE_STATUS_ING => '生成中',
-            self::PRODUCT_SCENE_TILE_STATUS_OK => '已生成',
-            self::PRODUCT_SCENE_TILE_STATUS_ERR => '生成失败',
+            self::PRODUCT_SCENE_TILE_STATUS_ING  => '生成中',
+            self::PRODUCT_SCENE_TILE_STATUS_OK   => '已生成',
+            self::PRODUCT_SCENE_TILE_STATUS_ERR  => '生成失败',
         ];
 
         return self::getItems($items, $key);
@@ -119,8 +119,8 @@ class BizEnum
     {
         $items = [
             self::PRODUCT_STATUS_PUBLISHED => '已发布',
-            self::PRODUCT_STATUS_CLOSED => '已关闭',
-            self::PRODUCT_STATUS_DRAFTED => '草稿'
+            self::PRODUCT_STATUS_CLOSED    => '已关闭',
+            self::PRODUCT_STATUS_DRAFTED   => '草稿',
         ];
 
         return self::getItems($items, $key);
@@ -143,8 +143,8 @@ class BizEnum
     {
         $items = [
             self::PRODUCT_TYPE_PICTURES => '图片全景',
-            self::PRODUCT_TYPE_VIDEOS => '视频全景',
-            self::PRODUCT_TYPE_3D_RING => '3D环物全景'
+            self::PRODUCT_TYPE_VIDEOS   => '视频全景',
+            self::PRODUCT_TYPE_3D_RING  => '3D环物全景',
         ];
 
         return self::getItems($items, $key);
@@ -160,7 +160,7 @@ class BizEnum
     public static function getUserGenderItems($key = null)
     {
         $items = [
-            self::USER_GENDER_MALE => '男',
+            self::USER_GENDER_MALE   => '男',
             self::USER_GENDER_FEMALE => '女',
             self::USER_GENDER_SECRET => '保密',
         ];
@@ -196,12 +196,12 @@ class BizEnum
     public static function getFileTypeItems($key = null)
     {
         $items = [
-            self::FILE_TYPE_IMAGE => '图片',
+            self::FILE_TYPE_IMAGE    => '图片',
             self::FILE_TYPE_DOCUMENT => '文档',
-            self::FILE_TYPE_VIDEO => '视频',
-            self::FILE_TYPE_AUDIO => '音频',
-            self::FILE_TYPE_PPT => 'PPT',
-            self::FILE_TYPE_OTHER => '其它',
+            self::FILE_TYPE_VIDEO    => '视频',
+            self::FILE_TYPE_AUDIO    => '音频',
+            self::FILE_TYPE_PPT      => 'PPT',
+            self::FILE_TYPE_OTHER    => '其它',
         ];
 
         return self::getItems($items, $key);
@@ -214,9 +214,9 @@ class BizEnum
     public static function getUploadClientTypeItems($key = null)
     {
         $items = [
-            self::UPLOAD_CLIENT_BACKEND => '后台',
+            self::UPLOAD_CLIENT_BACKEND  => '后台',
             self::UPLOAD_CLIENT_FRONTEND => '前台',
-            self::UPLOAD_CLIENT_MIDDLE => '中台',
+            self::UPLOAD_CLIENT_MIDDLE   => '中台',
         ];
 
         return self::getItems($items, $key);
@@ -231,9 +231,9 @@ class BizEnum
     public static function getStorageTypeItems($key = null)
     {
         $items = [
-            self::STORAGE_TYPE_LOCAL => '本地存储',
-            self::STORAGE_TYPE_QINIU => '七牛云oss',
-            self::STORAGE_TYPE_ALI => '阿里云oss',
+            self::STORAGE_TYPE_LOCAL   => '本地存储',
+            self::STORAGE_TYPE_QINIU   => '七牛云oss',
+            self::STORAGE_TYPE_ALI     => '阿里云oss',
             self::STORAGE_TYPE_TENCENT => '腾讯云oss',
         ];
 
@@ -247,9 +247,9 @@ class BizEnum
     public static function getUserPwdLevelItems($key = null)
     {
         $items = [
-            self::USER_PASSWORD_LEVEL_LOWER => '低',
+            self::USER_PASSWORD_LEVEL_LOWER  => '低',
             self::USER_PASSWORD_LEVEL_MIDDLE => '中',
-            self::USER_PASSWORD_LEVEL_HIGH => '高',
+            self::USER_PASSWORD_LEVEL_HIGH   => '高',
         ];
 
         return self::getItems($items, $key);
@@ -263,7 +263,7 @@ class BizEnum
     {
         $items = [
             self::YES => '是',
-            self::NO => '否',
+            self::NO  => '否',
         ];
 
         return self::getItems($items, $key);
@@ -275,7 +275,7 @@ class BizEnum
     public static function getEnableOrDisableItems($key = null)
     {
         $items = [
-            self::ENABLED => '启用',
+            self::ENABLED  => '启用',
             self::DISABLED => '禁用',
         ];
 
@@ -297,10 +297,10 @@ class BizEnum
     public static function getLoginTypeItems($key = null)
     {
         $items = [
-            self::TOKEN_TYPE_ADMIN_LOGIN => '后台登录',
-            self::TOKEN_TYPE_H5_LOGIN => 'H5登录',
+            self::TOKEN_TYPE_ADMIN_LOGIN  => '后台登录',
+            self::TOKEN_TYPE_H5_LOGIN     => 'H5登录',
             self::TOKEN_TYPE_WECHAT_LOGIN => '微信登录',
-            self::TOKEN_TYPE_APP_LOGIN => '手机app登录',
+            self::TOKEN_TYPE_APP_LOGIN    => '手机app登录',
             self::TOKEN_TYPE_VIP_PC_LOGIN => '会员登录',
         ];
 
@@ -314,9 +314,9 @@ class BizEnum
     public static function getAttachmentImageClipTypeItems($key = null)
     {
         $items = [
-            self::ATTACHMENT_IMAGE_CLIP_TYPE_SMALL => '小',
+            self::ATTACHMENT_IMAGE_CLIP_TYPE_SMALL  => '小',
             self::ATTACHMENT_IMAGE_CLIP_TYPE_MEDIUM => '中',
-            self::ATTACHMENT_IMAGE_CLIP_TYPE_LARGE => '大'
+            self::ATTACHMENT_IMAGE_CLIP_TYPE_LARGE  => '大',
         ];
         return self::getItems($items, $key);
     }
@@ -331,10 +331,10 @@ class BizEnum
     {
         $items = [
             self::ATTACHMENT_IMAGE_TYPE_JPEG => 'JPEG',
-            self::ATTACHMENT_IMAGE_TYPE_JPG => 'JPG',
-            self::ATTACHMENT_IMAGE_TYPE_PNG => 'PNG',
-            self::ATTACHMENT_IMAGE_TYPE_GIF => 'GIF',
-            self::ATTACHMENT_IMAGE_TYPE_ICO => 'ICO',
+            self::ATTACHMENT_IMAGE_TYPE_JPG  => 'JPG',
+            self::ATTACHMENT_IMAGE_TYPE_PNG  => 'PNG',
+            self::ATTACHMENT_IMAGE_TYPE_GIF  => 'GIF',
+            self::ATTACHMENT_IMAGE_TYPE_ICO  => 'ICO',
         ];
         return self::getItems($items, $key);
     }

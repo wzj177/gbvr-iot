@@ -19,8 +19,8 @@ class DbalLogger implements SQLLogger
     /**
      * Constructor.
      *
-     * @param LoggerInterface $logger    A LoggerInterface instance
-     * @param Stopwatch       $stopwatch A Stopwatch instance
+     * @param LoggerInterface $logger A LoggerInterface instance
+     * @param Stopwatch $stopwatch A Stopwatch instance
      */
     public function __construct(LoggerInterface $logger = null, Stopwatch $stopwatch = null)
     {
@@ -38,7 +38,7 @@ class DbalLogger implements SQLLogger
         }
 
         if (null !== $this->logger) {
-            $this->log($sql, null === $params ? array() : $this->normalizeParams($params));
+            $this->log($sql, null === $params ? [] : $this->normalizeParams($params));
         }
     }
 
@@ -56,7 +56,7 @@ class DbalLogger implements SQLLogger
      * Logs a message.
      *
      * @param string $message A message to log
-     * @param array  $params  The context
+     * @param array $params The context
      */
     protected function log($message, array $params)
     {
@@ -84,7 +84,7 @@ class DbalLogger implements SQLLogger
 
             // detect if the too long string must be shorten
             if (self::MAX_STRING_LENGTH < mb_strlen($params[$index], 'UTF-8')) {
-                $params[$index] = mb_substr($params[$index], 0, self::MAX_STRING_LENGTH - 6, 'UTF-8').' [...]';
+                $params[$index] = mb_substr($params[$index], 0, self::MAX_STRING_LENGTH - 6, 'UTF-8') . ' [...]';
                 continue;
             }
         }

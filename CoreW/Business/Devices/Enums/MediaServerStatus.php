@@ -2,7 +2,7 @@
 
 namespace CoreW\Business\Devices\Enums;
 
-enum MediaServerStatus:string
+enum MediaServerStatus: string
 {
     // 'running','stopped','unknown','offline'
     case RUNNING = 'running';

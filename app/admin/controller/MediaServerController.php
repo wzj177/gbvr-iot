@@ -33,22 +33,22 @@ class MediaServerController extends BaseController
         }
 
         $total = $this->getMediaServerService()->countMediaServers($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
         $sort = $this->getSort($request);
         $sort['id'] = 'DESC';
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
         $files = $this->getMediaServerService()->searchMediaServers($conditions, $sort, $paginator->getOffsetCount(), $paginator->getPerPageCount());
 
         return $this->createSuccessJsonResponse([
-            'list' => $files,
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => $files,
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
     /**
      * Restart media server
      */
-    public function restart(Request $request, $id): Response
+    public function restart(Request $request, $id) : Response
     {
         try {
             $result = $this->getMediaServerService()->restart((int)$id);
@@ -60,7 +60,7 @@ class MediaServerController extends BaseController
             return $this->createErrorJsonResponse('重启失败');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'restart_media_server', '重启媒体服务器失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -71,7 +71,7 @@ class MediaServerController extends BaseController
     /**
      * Get ZLMediaKit stats
      */
-    public function getZLMediaKitStats(Request $request, $id): Response
+    public function getZLMediaKitStats(Request $request, $id) : Response
     {
         try {
             $stats = $this->getMediaServerService()->getStats((int)$id);
@@ -79,7 +79,7 @@ class MediaServerController extends BaseController
             return $this->createSuccessJsonResponse($stats);
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'get_media_server_stats', '获取媒体服务器统计失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -90,7 +90,7 @@ class MediaServerController extends BaseController
     /**
      * Store new media server
      */
-    public function store(Request $request): Response
+    public function store(Request $request) : Response
     {
         $data = $request->post();
 
@@ -112,7 +112,7 @@ class MediaServerController extends BaseController
             'area_id',        // 区域ID
             'remark',         // 备注
             'record_path',     // 录制路径
-            'send_rtp_port_range' // 发送RTP端口范围
+            'send_rtp_port_range', // 发送RTP端口范围
         ];
 
         // 过滤只允许创建的字段
@@ -130,7 +130,7 @@ class MediaServerController extends BaseController
             return $this->createSuccessJsonResponse($this->getMediaServerService()->createMediaServer($createData), '创建成功');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'create_media_server', '创建媒体服务器失败', [
-                'data' => $createData,
+                'data'  => $createData,
                 'error' => $e->getMessage(),
             ]);
 
@@ -141,7 +141,7 @@ class MediaServerController extends BaseController
     /**
      * Set media server config
      */
-    public function setConfig(Request $request, $id): Response
+    public function setConfig(Request $request, $id) : Response
     {
         $config = $request->post();
 
@@ -159,7 +159,7 @@ class MediaServerController extends BaseController
             return $this->createErrorJsonResponse('配置保存失败');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'set_media_server_config', '设置媒体服务器配置失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -170,7 +170,7 @@ class MediaServerController extends BaseController
     /**
      * Get media server config
      */
-    public function getConfig(Request $request, $id): Response
+    public function getConfig(Request $request, $id) : Response
     {
         try {
             $config = $this->getMediaServerService()->getConfig((int)$id);
@@ -178,7 +178,7 @@ class MediaServerController extends BaseController
             return $this->createSuccessJsonResponse($config);
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'get_media_server_config', '获取媒体服务器配置失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -189,7 +189,7 @@ class MediaServerController extends BaseController
     /**
      * Update media server
      */
-    public function update(Request $request, $id): Response
+    public function update(Request $request, $id) : Response
     {
         $data = $request->post();
 
@@ -209,7 +209,7 @@ class MediaServerController extends BaseController
             'status',         // 状态
             'area_id',        // 区域ID
             'remark',         // 备注
-            'record_path'     // 录制路径
+            'record_path',     // 录制路径
         ];
 
         // 过滤只允许更新的字段
@@ -225,7 +225,7 @@ class MediaServerController extends BaseController
             return $this->createSuccessJsonResponse(null, '更新成功');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'update_media_server', '更新媒体服务器失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -236,7 +236,7 @@ class MediaServerController extends BaseController
     /**
      * Delete media server
      */
-    public function delete(Request $request, $id): Response
+    public function delete(Request $request, $id) : Response
     {
         try {
             $this->getMediaServerService()->deleteMediaServerById((int)$id);
@@ -244,7 +244,7 @@ class MediaServerController extends BaseController
             return $this->createSuccessJsonResponse(null, '删除成功');
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'delete_media_server', '删除媒体服务器失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -255,7 +255,7 @@ class MediaServerController extends BaseController
     /**
      * Show media server details
      */
-    public function show(Request $request, $id): Response
+    public function show(Request $request, $id) : Response
     {
         try {
             $server = $this->getMediaServerService()->getMediaServerById((int)$id);
@@ -267,7 +267,7 @@ class MediaServerController extends BaseController
             return $this->createSuccessJsonResponse($server);
         } catch (\Exception $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, 'get_media_server', '获取媒体服务器失败', [
-                'id' => $id,
+                'id'    => $id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -278,7 +278,7 @@ class MediaServerController extends BaseController
     /**
      * @return MediaServerService
      */
-    protected function getMediaServerService(): MediaServerService
+    protected function getMediaServerService() : MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
     }

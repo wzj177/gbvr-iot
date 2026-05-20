@@ -10,27 +10,27 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 class ProductEventSubscriber extends EventSubscriber implements EventSubscriberInterface
 {
 
-    public static function getSubscribedEvents(): array
+    public static function getSubscribedEvents() : array
     {
         return [
-            'vr.product.view' => 'onVRView'
+            'vr.product.view' => 'onVRView',
         ];
     }
 
     public function onVRView(Event $event)
     {
-       $product = $event->getSubject();
-       if (empty($product)) {
-           return false;
-       }
+        $product = $event->getSubject();
+        if (empty($product)) {
+            return false;
+        }
 
-       return $this->getProductService()->increaseViewCount($product['id']);
+        return $this->getProductService()->increaseViewCount($product['id']);
     }
 
     /**
      * @return ProductService
      */
-    protected function getProductService(): ProductService
+    protected function getProductService() : ProductService
     {
         return $this->getBiz()->service('Product:ProductService');
     }

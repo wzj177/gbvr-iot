@@ -26,7 +26,7 @@ class VoiceTalkTimeoutJob implements Consumer
 
     public $connection = 'default';
 
-    public function consume($data): bool
+    public function consume($data) : bool
     {
         $type = $data['type'] ?? '';
         $sessionId = $data['session_id'] ?? '';
@@ -55,11 +55,11 @@ class VoiceTalkTimeoutJob implements Consumer
 
             if (!in_array($status, $pendingStatuses)) {
                 // 会话已完成（CONNECTED）或已结束（ENDED/FAILED），跳过
-//                $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
-//                    "超时任务跳过: 会话状态已变更为 {$status}", [
-//                        'type' => $type,
-//                        'session_id' => $sessionId,
-//                    ]);
+                //                $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
+                //                    "超时任务跳过: 会话状态已变更为 {$status}", [
+                //                        'type' => $type,
+                //                        'session_id' => $sessionId,
+                //                    ]);
                 return true;
             }
 
@@ -72,9 +72,9 @@ class VoiceTalkTimeoutJob implements Consumer
             $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 "语音会话超时，执行清理: type={$type}", [
                     'session_id' => $sessionId,
-                    'device_id' => $data['device_id'] ?? '',
+                    'device_id'  => $data['device_id'] ?? '',
                     'channel_id' => $data['channel_id'] ?? '',
-                    'status' => $status,
+                    'status'     => $status,
                 ]);
 
             $this->getVoiceTalkService()->stopVoiceTalkBySession($session, $reason);
@@ -83,26 +83,26 @@ class VoiceTalkTimeoutJob implements Consumer
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,
                 '超时清理异常', [
-                    'type' => $type,
+                    'type'       => $type,
                     'session_id' => $sessionId,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'error'      => $e->getMessage(),
+                    'trace'      => $e->getTraceAsString(),
                 ]);
             return false;
         }
     }
 
-    protected function getBiz(): Bfw
+    protected function getBiz() : Bfw
     {
         return Core::instance();
     }
 
-    protected function getVoiceTalkService(): VoiceTalkService
+    protected function getVoiceTalkService() : VoiceTalkService
     {
         return $this->getBiz()->service('Devices:VoiceTalkService');
     }
 
-    protected function getLogService(): SystemLogService
+    protected function getLogService() : SystemLogService
     {
         return $this->getBiz()->service('SystemLog:SystemLogService');
     }

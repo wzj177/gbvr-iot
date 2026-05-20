@@ -4,7 +4,7 @@ namespace CoreW\Business\Devices\Exception;
 
 use CoreW\Exception\AbstractBizException;
 
-class DeviceChannelException extends AbstractBizException 
+class DeviceChannelException extends AbstractBizException
 {
     public function __construct($code, $message = null)
     {
@@ -18,7 +18,7 @@ class DeviceChannelException extends AbstractBizException
     public function setMessages()
     {
         $this->messages = [
-        
+
         ];
     }
 

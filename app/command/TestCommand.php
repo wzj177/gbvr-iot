@@ -35,12 +35,12 @@ class TestCommand extends Command
     {
         //http://localhost:3010/share/RVhwQ2VkY1R3M1lHL3ZxRUVyNGpBdz09
         $this->getBiz()->service('Product:ProductService')->checkShareToken("RVhwQ2VkY1R3M1lHL3ZxRUVyNGpBdz09");
-//        $name = $input->getArgument('name');
-//        $output->writeln('Hello TestCommand');
-//        echo FileToolkit::formatFileSize(71563679), ',', FileToolkit::formatFileSize(1073741824), PHP_EOL;
-//        var_dump(AssetHelper::absoluteUrl('/api/v1/auth/index'));
-//        $output->writeln($this->getBiz()->offsetGet('debug') ? '1' : '2');
-//        echo $this->wave([1], ['remainedTimes' => -1]), PHP_EOL;
+        //        $name = $input->getArgument('name');
+        //        $output->writeln('Hello TestCommand');
+        //        echo FileToolkit::formatFileSize(71563679), ',', FileToolkit::formatFileSize(1073741824), PHP_EOL;
+        //        var_dump(AssetHelper::absoluteUrl('/api/v1/auth/index'));
+        //        $output->writeln($this->getBiz()->offsetGet('debug') ? '1' : '2');
+        //        echo $this->wave([1], ['remainedTimes' => -1]), PHP_EOL;
 
         return self::SUCCESS;
     }
@@ -54,9 +54,9 @@ class TestCommand extends Command
             array_keys($diffs)
         );
 
-        $marks = str_repeat('?,', count($ids) - 1).'?';
+        $marks = str_repeat('?,', count($ids) - 1) . '?';
 
-        $sql = "UPDATE user_tokens SET ".implode(', ', $sets)." WHERE id IN ($marks)";
+        $sql = "UPDATE user_tokens SET " . implode(', ', $sets) . " WHERE id IN ($marks)";
 
         return $sql;
     }

@@ -18,7 +18,7 @@ class ZlmStart extends Command
     /**
      * @return void
      */
-    protected function configure(): void
+    protected function configure() : void
     {
         // force 如果已经运行则强制kill后启动
         $this->addOption('force', '-f', InputOption::VALUE_NONE, '强制覆盖启动');
@@ -29,7 +29,7 @@ class ZlmStart extends Command
      * @param OutputInterface $output
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $output->writeln('start zlm...');
         try {

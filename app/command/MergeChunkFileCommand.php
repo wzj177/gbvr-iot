@@ -35,15 +35,15 @@ class MergeChunkFileCommand extends Command
     {
         $hash = $input->getArgument('hash');
         $filepath = $input->getArgument('filepath');
-//        file_put_contents(runtime_path('test.log'), json_encode([
-//            'hash' => $hash,
-//            'filepath' => $filepath,
-//        ]), FILE_APPEND);
+        //        file_put_contents(runtime_path('test.log'), json_encode([
+        //            'hash' => $hash,
+        //            'filepath' => $filepath,
+        //        ]), FILE_APPEND);
         $chunks = $this->getAttachmentService()->getChunkFilesByHashID($hash, false);
         $fp = fopen($filepath, 'ab+');
         foreach ($chunks as $chunkFile) {
             $chunkFp = fopen($chunkFile, 'rb');
-//            stream_copy_to_stream($chunkFp, $fp);
+            //            stream_copy_to_stream($chunkFp, $fp);
             while (!feof($chunkFp)) {
                 fwrite($fp, fread($chunkFp, 1024 * 1024 * 5));
             }
@@ -51,59 +51,59 @@ class MergeChunkFileCommand extends Command
         }
 
         fclose($fp);
-//        $numChunks = count($chunks);
-//        $chunkSize = 50;
+        //        $numChunks = count($chunks);
+        //        $chunkSize = 50;
 
         $resultFiles = [];
-//        $poolSize = 4; // 设置并行处理的进程数量
-//        $pool = [];
-//
-//        for ($i = 0; $i < $numChunks; $i += $chunkSize) {
-//            $chunkSlice = array_slice($chunks, $i, $chunkSize);
-//            $pool[] = pcntl_fork();
-//            if (count($pool) >= $poolSize || $i + $chunkSize >= $numChunks) {
-//                // 当进程池达到指定大小或到达最后一组分片时，等待所有进程完成
-//                foreach ($pool as $pid) {
-//                    pcntl_waitpid($pid, $status);
-//                    if (pcntl_wifexited($status)) {
-//                        $resultFiles[] = pcntl_wexitstatus($status);
-//                        file_put_contents(runtime_path('test.log'), '主进程等待子进程退出，并获取返回结果' . microtime() . PHP_EOL, FILE_APPEND);
-//                    }
-//                }
-//                $pool = []; // 重置进程池
-//            }
-//
-//            if (end($pool) == 0) {
-//                // 子进程中执行合并任务
-//                $mergedFile = $this->mergeChunks($chunkSlice, $filepath);
-//                file_put_contents(runtime_path('test.log'), 'i=' . $i . '个进程处理' . microtime() . PHP_EOL, FILE_APPEND);
-//                exit($mergedFile);
-//            }
-//        }
-//        for ($i = 0; $i < $numChunks; $i += $chunkSize) {
-//            $chunkSlice = array_slice($chunks, $i, $chunkSize);
-//            $resultFiles[] = $this->mergeChunks($chunkSlice, $filepath);
-//            $pid = pcntl_fork();
-//            if ($pid == -1) {
-//                // 创建子进程失败
-//                die("Fork failed.");
-//            } elseif ($pid == 0) {
-//                // 子进程中执行合并任务
-//                $mergedFile = $this->mergeChunks($chunkSlice, $filepath);
-//                file_put_contents(runtime_path('test.log'), 'i=' . $i . '个进程处理' . microtime() . PHP_EOL, FILE_APPEND);
-//                exit($mergedFile);
-//            } else {
-//                // 主进程等待子进程退出，并获取返回结果
-//                $status = null;
-//                pcntl_waitpid($pid, $status);
-//                if (pcntl_wifexited($status)) {
-//                    $resultFiles[] = pcntl_wexitstatus($status);
-//                    file_put_contents(runtime_path('test.log'), '主进程等待子进程退出，并获取返回结果' . microtime() . PHP_EOL, FILE_APPEND);
-//                }
-//            }
-//        }
+        //        $poolSize = 4; // 设置并行处理的进程数量
+        //        $pool = [];
+        //
+        //        for ($i = 0; $i < $numChunks; $i += $chunkSize) {
+        //            $chunkSlice = array_slice($chunks, $i, $chunkSize);
+        //            $pool[] = pcntl_fork();
+        //            if (count($pool) >= $poolSize || $i + $chunkSize >= $numChunks) {
+        //                // 当进程池达到指定大小或到达最后一组分片时，等待所有进程完成
+        //                foreach ($pool as $pid) {
+        //                    pcntl_waitpid($pid, $status);
+        //                    if (pcntl_wifexited($status)) {
+        //                        $resultFiles[] = pcntl_wexitstatus($status);
+        //                        file_put_contents(runtime_path('test.log'), '主进程等待子进程退出，并获取返回结果' . microtime() . PHP_EOL, FILE_APPEND);
+        //                    }
+        //                }
+        //                $pool = []; // 重置进程池
+        //            }
+        //
+        //            if (end($pool) == 0) {
+        //                // 子进程中执行合并任务
+        //                $mergedFile = $this->mergeChunks($chunkSlice, $filepath);
+        //                file_put_contents(runtime_path('test.log'), 'i=' . $i . '个进程处理' . microtime() . PHP_EOL, FILE_APPEND);
+        //                exit($mergedFile);
+        //            }
+        //        }
+        //        for ($i = 0; $i < $numChunks; $i += $chunkSize) {
+        //            $chunkSlice = array_slice($chunks, $i, $chunkSize);
+        //            $resultFiles[] = $this->mergeChunks($chunkSlice, $filepath);
+        //            $pid = pcntl_fork();
+        //            if ($pid == -1) {
+        //                // 创建子进程失败
+        //                die("Fork failed.");
+        //            } elseif ($pid == 0) {
+        //                // 子进程中执行合并任务
+        //                $mergedFile = $this->mergeChunks($chunkSlice, $filepath);
+        //                file_put_contents(runtime_path('test.log'), 'i=' . $i . '个进程处理' . microtime() . PHP_EOL, FILE_APPEND);
+        //                exit($mergedFile);
+        //            } else {
+        //                // 主进程等待子进程退出，并获取返回结果
+        //                $status = null;
+        //                pcntl_waitpid($pid, $status);
+        //                if (pcntl_wifexited($status)) {
+        //                    $resultFiles[] = pcntl_wexitstatus($status);
+        //                    file_put_contents(runtime_path('test.log'), '主进程等待子进程退出，并获取返回结果' . microtime() . PHP_EOL, FILE_APPEND);
+        //                }
+        //            }
+        //        }
 
-//        file_put_contents(runtime_path('test.log'), json_encode($resultFiles), FILE_APPEND);
+        //        file_put_contents(runtime_path('test.log'), json_encode($resultFiles), FILE_APPEND);
         return self::SUCCESS;
     }
 

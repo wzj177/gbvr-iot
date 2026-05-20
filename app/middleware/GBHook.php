@@ -8,7 +8,7 @@ use Webman\Http\Request;
 
 class GBHook implements MiddlewareInterface
 {
-    public function process(Request $request, callable $next): Response
+    public function process(Request $request, callable $next) : Response
     {
         $apiHookSecret = config('app.gb.api_hock_secret');
         $serverDomain = config('gb28181.server_domain');
@@ -35,7 +35,7 @@ class GBHook implements MiddlewareInterface
         return $next($request);
     }
 
-    public function checkAllowedIp(string $clientIp, array $allowIps): bool
+    public function checkAllowedIp(string $clientIp, array $allowIps) : bool
     {
         // 获取配置信息
         $isAllowedIp = false;
@@ -56,7 +56,7 @@ class GBHook implements MiddlewareInterface
      * @param string $pattern IP模式，支持通配符*
      * @return bool 是否匹配
      */
-    private function ipMatch(string $ip, string $pattern): bool
+    private function ipMatch(string $ip, string $pattern) : bool
     {
         // 如果没有通配符，直接比较
         if (!str_contains($pattern, '*')) {

@@ -33,7 +33,7 @@ class CommandSubscriber
      * @param string $queueKey 队列键名
      * @param int $timeout pop 超时时间（秒）
      */
-    public function run(\ExoSip $server, string $queueKey = 'gb28181:commands', int $timeout = 1): void
+    public function run(\ExoSip $server, string $queueKey = 'gb28181:commands', int $timeout = 1) : void
     {
         // 设置信号处理器
         pcntl_async_signals(true);
@@ -44,44 +44,23 @@ class CommandSubscriber
 
         $lastHealthCheck = 0;
         $healthCheckInterval = 10;
-        $reconnectAttempts = 0;
-        $maxReconnectDelay = 30;
 
         $this->logger->info("[CommandSubscriber] Started (PID: " . getmypid() . ")", 'CommandSubscriber');
         $this->logger->info("[CommandSubscriber] transport={$this->transport->getType()}, queue={$queueKey}", 'CommandSubscriber');
 
-        // Initial connection
-        if (!$this->transport->connect()) {
-            $this->logger->error("[CommandSubscriber] Initial connection failed", 'CommandSubscriber');
-        } else {
-            $reconnectAttempts = 0;
-        }
-
         while (!$this->shouldExit) {
             try {
-                // Health check
+                // 健康检查（失败时不立即重连，而是下次循环重连）
                 $now = time();
                 if ($now - $lastHealthCheck >= $healthCheckInterval) {
                     if (!$this->transport->isHealthy()) {
-                        $this->logger->error("[CommandSubscriber] Transport unhealthy, reconnecting... (attempt " . ($reconnectAttempts + 1) . ")", 'CommandSubscriber');
-                        $this->transport->close();
-
-                        $delay = min($reconnectAttempts * 2, $maxReconnectDelay);
-                        if ($delay > 0) {
-                            sleep($delay);
-                        }
-
-                        if ($this->transport->connect()) {
-                            $reconnectAttempts = 0;
-                            $this->logger->info("[CommandSubscriber] Reconnected successfully", 'CommandSubscriber');
-                        } else {
-                            $reconnectAttempts++;
-                        }
+                        $this->logger->error("[CommandSubscriber] Transport unhealthy, will reconnect next loop", 'CommandSubscriber');
+                        // transport 内部已设为 null，下次循环会自动重连
                     }
                     $lastHealthCheck = $now;
                 }
 
-                // Pop message from queue
+                // Pop message from queue（transport 内部会自动重连）
                 $result = $this->transport->pop([$queueKey], $timeout);
 
                 if ($result && is_array($result)) {
@@ -89,8 +68,6 @@ class CommandSubscriber
                     if ($message) {
                         $this->handleMessage($server, $message);
                     }
-                    // Reset reconnect attempts on successful message
-                    $reconnectAttempts = 0;
                 }
 
                 // Process signals
@@ -98,7 +75,7 @@ class CommandSubscriber
 
             } catch (\Exception $e) {
                 $this->logger->error("[CommandSubscriber] Error: {$e->getMessage()}", 'CommandSubscriber');
-                $reconnectAttempts++;
+                // transport 内部已设为 null，sleep 后下次循环会自动重连
                 sleep(1);
             }
         }
@@ -110,7 +87,7 @@ class CommandSubscriber
     /**
      * 处理接收到的消息
      */
-    private function handleMessage(\ExoSip $server, string $message): void
+    private function handleMessage(\ExoSip $server, string $message) : void
     {
         $cmd = @json_decode($message, true);
         if (!$cmd) {
@@ -121,6 +98,28 @@ class CommandSubscriber
         $action = $cmd['action'] ?? 'unknown';
         $deviceId = $cmd['device_id'] ?? 'unknown';
         $requestId = $cmd['request_id'] ?? 'unknown';
+
+        // 检查指令是否过期
+        if (isset($cmd['timestamp'])) {
+            $now = time();
+            $age = $now - $cmd['timestamp'];
+
+            // 过期阈值：超过 60 秒视为过期
+            $maxAge = 60;
+
+            // 允许时钟不同步：未来时间超过 30 秒视为异常
+            $maxFuture = 30;
+
+            if ($age > $maxAge) {
+                $this->logger->warning("[CommandSubscriber] Command expired, ignoring. action={$action}, device={$deviceId}, age={$age}s, max_age={$maxAge}s", 'CommandSubscriber');
+                return;
+            }
+
+            if ($age < -$maxFuture) {
+                $this->logger->warning("[CommandSubscriber] Command has future timestamp, ignoring. action={$action}, device={$deviceId}, age={$age}s, max_future={$maxFuture}s", 'CommandSubscriber');
+                return;
+            }
+        }
 
         $this->logger->info("[CommandSubscriber] Received command: {$action}, device={$deviceId}", 'CommandSubscriber');
 

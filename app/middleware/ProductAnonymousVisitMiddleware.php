@@ -17,7 +17,7 @@ class ProductAnonymousVisitMiddleware extends AuthIdentityMiddleware implements 
 {
     protected $currentUserIndex = 'vip';
 
-    public function process(Request $request, callable $handler): Response
+    public function process(Request $request, callable $handler) : Response
     {
         $tokenKey = config('auth.token_handler') === 'jwt' ? 'authorization' : 'x-auth-token';
         $token = $request->header($tokenKey);
@@ -25,17 +25,17 @@ class ProductAnonymousVisitMiddleware extends AuthIdentityMiddleware implements 
             // TODO: 验证token
             try {
                 $this->handle($request);
-                
+
                 $response = $handler($request);
-                
+
                 // 如果需要续签JWT token
                 if (isset($this->jwtRefreshData)) {
                     $response = $response->withHeaders([
-                        'Authorization' => $this->jwtRefreshData['token'],
-                        'AuthorizationType' => $this->jwtRefreshData['type']
+                        'Authorization'     => $this->jwtRefreshData['token'],
+                        'AuthorizationType' => $this->jwtRefreshData['type'],
                     ]);
                 }
-                
+
                 return $response;
             } catch (\Throwable $e) {
                 throw $e;
@@ -57,7 +57,7 @@ class ProductAnonymousVisitMiddleware extends AuthIdentityMiddleware implements 
     /**
      * @return ProductService
      */
-    protected function getProductService(): ProductService
+    protected function getProductService() : ProductService
     {
         return $this->getBiz()->service('Product:ProductService');
     }
@@ -65,7 +65,7 @@ class ProductAnonymousVisitMiddleware extends AuthIdentityMiddleware implements 
     /**
      * @return Bfw
      */
-    protected function getBiz(): Bfw
+    protected function getBiz() : Bfw
     {
         return Core::instance();
     }

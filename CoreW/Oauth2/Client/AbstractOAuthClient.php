@@ -99,7 +99,7 @@ abstract class AbstractOAuthClient
         $userInfo['avatar'] = $info['headimgurl'];
         if ($info['sex'] == 1) {
             $userInfo['gender'] = 'male';
-        } elseif ($info['sex'] == 2) {
+        } else if ($info['sex'] == 2) {
             $userInfo['gender'] = 'female';
         } else {
             $userInfo['gender'] = 'secret';

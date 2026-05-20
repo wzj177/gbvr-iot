@@ -10,9 +10,9 @@ class EmailLoginSendEmailTemplate extends BaseTemplate implements EmailTemplateI
     public function parse($options)
     {
         return [
-            'title' => $this->getSiteName(),
-            'body' => $this->renderBody('login-email-code.txt.twig', $options['params'] ?? []),
-            'format' => 'text/html'
+            'title'  => $this->getSiteName(),
+            'body'   => $this->renderBody('login-email-code.txt.twig', $options['params'] ?? []),
+            'format' => 'text/html',
         ];
     }
 }

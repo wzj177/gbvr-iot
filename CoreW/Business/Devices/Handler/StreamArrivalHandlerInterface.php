@@ -21,5 +21,5 @@ interface StreamArrivalHandlerInterface
      * @param StreamArrivalContext $context 流到达上下文（包含 session、mediaServer 等信息）
      * @return bool 处理是否成功
      */
-    public function handle(StreamArrivalContext $context): bool;
+    public function handle(StreamArrivalContext $context) : bool;
 }

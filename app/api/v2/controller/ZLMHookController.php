@@ -48,7 +48,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onFlowReport(Request $request): \support\Response
+    public function onFlowReport(Request $request) : \support\Response
     {
         // TODO: 统计流量数据，可用于计费或流量分析
         // - 记录播放器/推流器的流量使用情况
@@ -67,7 +67,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onHttpAccess(Request $request): \support\Response
+    public function onHttpAccess(Request $request) : \support\Response
     {
         // TODO: HTTP 文件访问鉴权
         // - 验证用户是否有权限访问该文件
@@ -87,7 +87,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onPlay(Request $request): \support\Response
+    public function onPlay(Request $request) : \support\Response
     {
         // TODO: 播放鉴权和统计
         // - 验证用户是否有权限播放该流
@@ -101,7 +101,7 @@ class ZLMHookController extends BaseController
     /**
      * 推流事件
      */
-    public function onPublish(Request $request): \support\Response
+    public function onPublish(Request $request) : \support\Response
     {
         $streamId = $request->post('stream') ?? $request->post('stream_id');
         $app = $request->post('app', 'rtp');
@@ -111,10 +111,10 @@ class ZLMHookController extends BaseController
         $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流事件', $request->post());
 
         $result = [
-            'code' => 0,
-            'msg' => '',
+            'code'         => 0,
+            'msg'          => '',
             'enable_audio' => false,
-            'enable_mp4' => false, // TODO:对于云录制的流需开启此功能
+            'enable_mp4'   => false, // TODO:对于云录制的流需开启此功能
         ];
 
         try {
@@ -138,7 +138,7 @@ class ZLMHookController extends BaseController
     /**
      * RTP 推流处理：按流会话类型控制 enable_mp4/enable_audio
      */
-    private function handleRtpPublish(string $streamId, string $mediaServerId, array $result): array
+    private function handleRtpPublish(string $streamId, string $mediaServerId, array $result) : array
     {
         $session = $this->getDeviceService()->getSessionByStreamId($streamId);
         if (!$session) {
@@ -163,7 +163,7 @@ class ZLMHookController extends BaseController
     /**
      * 语音对讲/广播推流鉴权：验证 sign token，开启音频
      */
-    private function handleVoicePublish(string $app, string $streamId, ?string $paramsStr, array $result): array
+    private function handleVoicePublish(string $app, string $streamId, ?string $paramsStr, array $result) : array
     {
         $params = [];
         if ($paramsStr) {
@@ -178,9 +178,9 @@ class ZLMHookController extends BaseController
                     // 管理端申请的
                     $existUser = $this->getUserService()->getUserByUUID($signInfo[1]);
                     $valid = !empty($existUser);
-                } elseif ($signInfo[0] === 'vip') {
+                } else if ($signInfo[0] === 'vip') {
                     // 会员端申请的
-                } elseif ($signInfo[0] === 'share') {
+                } else if ($signInfo[0] === 'share') {
                     // 分享的，需要验证过期时间
                 }
 
@@ -205,7 +205,7 @@ class ZLMHookController extends BaseController
     /**
      * 处理推流结束（on_unpublish Hook）
      */
-    public function onUnpublish(Request $request): \support\Response
+    public function onUnpublish(Request $request) : \support\Response
     {
         $streamId = $request->post('stream') ?? $request->post('stream_id');
         $app = $request->post('app', 'rtp');
@@ -220,9 +220,9 @@ class ZLMHookController extends BaseController
                 $this->getVoiceTalkService()->handleStreamDeparture($app, $streamId, $mediaServerId);
             } catch (\Throwable $e) {
                 $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_UNPUBLISH_FAILED, '语音对讲推流结束处理失败', [
-                    'app' => $app,
+                    'app'    => $app,
                     'stream' => $streamId,
-                    'error' => $e->getMessage(),
+                    'error'  => $e->getMessage(),
                 ]);
             }
         }
@@ -240,7 +240,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onRecordMp4(Request $request): \support\Response
+    public function onRecordMp4(Request $request) : \support\Response
     {
         $hookData = $request->post();
 
@@ -251,7 +251,7 @@ class ZLMHookController extends BaseController
             $this->getRecordFileService()->createFromHook($hookData, $request->mediaServer['server_id']);
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK_FAILED, '创建录像文件失败', [
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
                 'stream' => $hookData['stream'] ?? '',
             ]);
         }
@@ -267,7 +267,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onRecordTs(Request $request): \support\Response
+    public function onRecordTs(Request $request) : \support\Response
     {
         // TODO: HLS/TS 录像文件处理
         // - 保存录像文件信息到数据库
@@ -285,7 +285,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onRtspAuth(Request $request): \support\Response
+    public function onRtspAuth(Request $request) : \support\Response
     {
         // TODO: RTSP 认证
         // - 验证用户名密码
@@ -304,15 +304,15 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onRtspRealm(Request $request): \support\Response
+    public function onRtspRealm(Request $request) : \support\Response
     {
         // TODO: 返回 RTSP realm
         // - 可根据不同的 vhost/app/stream 返回不同的 realm
         $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_RTSP_REALM, 'RTSP Realm', $request->post());
 
         return json([
-            'code' => 0,
-            'realm' => config('app.name', 'GBVR-IoT')
+            'code'  => 0,
+            'realm' => config('app.name', 'GBVR-IoT'),
         ]);
     }
 
@@ -324,7 +324,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onServerStarted(Request $request): \support\Response
+    public function onServerStarted(Request $request) : \support\Response
     {
         // TODO: 服务器启动处理
         // - 更新媒体服务器状态为在线
@@ -342,7 +342,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onShellLogin(Request $request): \support\Response
+    public function onShellLogin(Request $request) : \support\Response
     {
         // TODO: Shell 登录鉴权
         // - 验证用户名密码
@@ -361,7 +361,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onStreamChanged(Request $request): \support\Response
+    public function onStreamChanged(Request $request) : \support\Response
     {
         //{ "app": "talk", "stream": "talk_1920268492", "register": 0, "schema": "rtmp" }
         $schema = $request->post('schema', '');
@@ -370,14 +370,14 @@ class ZLMHookController extends BaseController
         $vhost = $request->post('vhost', '__defaultVhost__');
         $register = $request->post('regist', 0); // 1=注册，0=注销
         $mediaServerId = $request->mediaServer['server_id'] ?? '';
-//        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_CHANGED, $stream  . '流' . ($register ? '上线' : '下线'), $request->post());
-//        if ($register) {
-//            // 流注册上线
-//            // TODO: 更新流状态、通知前端
-//        } else {
-//            // 流注销下线
-//            // TODO: 清理会话、更新流状态
-//        }
+        //        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_CHANGED, $stream  . '流' . ($register ? '上线' : '下线'), $request->post());
+        //        if ($register) {
+        //            // 流注册上线
+        //            // TODO: 更新流状态、通知前端
+        //        } else {
+        //            // 流注销下线
+        //            // TODO: 清理会话、更新流状态
+        //        }
         //  处理语音对讲/喊话流
         if (in_array($app, ['talk', 'broadcast']) && strtolower($schema) === 'rtsp') {
             try {
@@ -395,11 +395,11 @@ class ZLMHookController extends BaseController
                 }
             } catch (\Throwable $e) {
                 $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_STREAM_CHANGED_FAILED, '语音流变化处理失败', [
-                    'app' => $app,
-                    'stream' => $stream,
+                    'app'      => $app,
+                    'stream'   => $stream,
                     'register' => $register,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
+                    'error'    => $e->getMessage(),
+                    'trace'    => $e->getTraceAsString(),
                 ]);
             }
         }
@@ -415,7 +415,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onStreamNoneReader(Request $request): \support\Response
+    public function onStreamNoneReader(Request $request) : \support\Response
     {
         $streamId = $request->post('stream');
         $app = $request->post('app', 'rtp');  //  新增：获取 app 参数
@@ -429,8 +429,8 @@ class ZLMHookController extends BaseController
         try {
             $sessions = $this->getDeviceService()->searchSessions([
                 'media_server_id' => $request->mediaServer['server_id'],
-                'stream_id' => $streamId,
-                'viewer_count_GE' => 1
+                'stream_id'       => $streamId,
+                'viewer_count_GE' => 1,
             ], [], 0, PHP_INT_MAX, ['id']);
 
             $ids = array_column($sessions, 'id');
@@ -439,7 +439,7 @@ class ZLMHookController extends BaseController
             }
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_STREAM_NONE_READER, '清理无人观看的流会话失败', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -455,7 +455,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onStreamNotFound(Request $request): \support\Response
+    public function onStreamNotFound(Request $request) : \support\Response
     {
         // TODO: 流未找到处理
         // - 记录 404 错误日志
@@ -473,7 +473,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onStreamNotFoundFfmpeg(Request $request): \support\Response
+    public function onStreamNotFoundFfmpeg(Request $request) : \support\Response
     {
         // TODO: FFmpeg 拉流失败处理
         // - 记录错误日志
@@ -491,7 +491,7 @@ class ZLMHookController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function onRtpServerTimeout(Request $request): \support\Response
+    public function onRtpServerTimeout(Request $request) : \support\Response
     {
         // TODO: RTP 超时处理
         // - 清理超时的 RTP 会话
@@ -510,43 +510,43 @@ class ZLMHookController extends BaseController
             $this->getMediaServerService()->updateMediaServer($request->mediaServer['id'], [
                 'last_heartbeat_time' => date('Y-m-d H:i:s'),
 
-                'status' => MediaServerStatus::RUNNING->value
+                'status' => MediaServerStatus::RUNNING->value,
             ]);
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_SERVER_KEEPALIVE, '更新媒体服务器信息失败', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
         return json(['code' => 0]);
     }
 
 
-    protected function getUserService(): UserService
+    protected function getUserService() : UserService
     {
         return $this->getBiz()->service('User:UserService');
     }
 
-    protected function getDeviceService(): DeviceService
+    protected function getDeviceService() : DeviceService
     {
         return $this->getBiz()->service('Devices:DeviceService');
     }
 
-    protected function getRecordTaskService(): RecordTaskService
+    protected function getRecordTaskService() : RecordTaskService
     {
         return $this->getBiz()->service('Record:RecordTaskService');
     }
 
-    protected function getRecordFileService(): RecordFileService
+    protected function getRecordFileService() : RecordFileService
     {
         return $this->getBiz()->service('RecordFile:RecordFileService');
     }
 
-    protected function getVoiceTalkService(): VoiceTalkService
+    protected function getVoiceTalkService() : VoiceTalkService
     {
         return $this->createService('Devices:VoiceTalkService');
     }
 
-    protected function getMediaServerService(): MediaServerService
+    protected function getMediaServerService() : MediaServerService
     {
         return $this->getBiz()->service('MediaServer:MediaServerService');
     }

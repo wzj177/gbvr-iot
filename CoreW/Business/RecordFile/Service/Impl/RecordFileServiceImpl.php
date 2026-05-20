@@ -19,7 +19,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
      * @param string $mediaServerId 媒体服务器 ID
      * @return array|null 创建的记录，失败返回 null
      */
-    public function createFromHook(array $hookData, string $mediaServerId): ?array
+    public function createFromHook(array $hookData, string $mediaServerId) : ?array
     {
         $streamId = $hookData['stream'] ?? '';
         $app = $hookData['app'] ?? '';
@@ -64,10 +64,10 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
                 $this->getRecordTaskService()->completeTaskFromHook($recordTask['id'], $hookEndTime, $duration);
 
                 $this->getLogService()->info(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '任务从钩子完成', [
-                    'task_id' => $recordTask['id'],
-                    'stream_id' => $streamId,
+                    'task_id'         => $recordTask['id'],
+                    'stream_id'       => $streamId,
                     'record_end_time' => $hookEndTime,
-                    'duration' => $duration,
+                    'duration'        => $duration,
                 ]);
             }
         } else {
@@ -78,9 +78,9 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             }
 
             $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '找不到stream_id对应的录像任务', [
-                'device_id' => $deviceId,
+                'device_id'  => $deviceId,
                 'channel_id' => $channelId,
-                'stream_id' => $streamId,
+                'stream_id'  => $streamId,
             ]);
             return null;
         }
@@ -108,31 +108,31 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
         $downloadUrl = '';
 
         $data = [
-            'main_id' => $streamId,
+            'main_id'         => $streamId,
             'media_server_id' => $mediaServerId,
             'media_server_ip' => $hookData['media_ip'] ?? '',
-            'channel_id' => $channelId,
-            'channel_name' => $recordTask['channel_name'] ?? '',
-            'device_id' => $deviceId,
-            'source_type' => $sourceType,
-            'video_src_url' => '',
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'duration' => $duration,
-            'video_path' => $videoPath,
-            'file_size' => $fileSize,
-            'vhost' => $vhost,
-            'stream_id' => $streamId,
-            'app' => $app,
-            'download_url' => $downloadUrl,
-            'is_undo' => 1,
-            'record_date' => $recordDate,
-            'source_id' => $sourceId,
-            'source_desc' => $sourceDesc,
-            'delete_at' => null,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-            'plan_id' => 0,
+            'channel_id'      => $channelId,
+            'channel_name'    => $recordTask['channel_name'] ?? '',
+            'device_id'       => $deviceId,
+            'source_type'     => $sourceType,
+            'video_src_url'   => '',
+            'start_time'      => $startTime,
+            'end_time'        => $endTime,
+            'duration'        => $duration,
+            'video_path'      => $videoPath,
+            'file_size'       => $fileSize,
+            'vhost'           => $vhost,
+            'stream_id'       => $streamId,
+            'app'             => $app,
+            'download_url'    => $downloadUrl,
+            'is_undo'         => 1,
+            'record_date'     => $recordDate,
+            'source_id'       => $sourceId,
+            'source_desc'     => $sourceDesc,
+            'delete_at'       => null,
+            'created_at'      => date('Y-m-d H:i:s'),
+            'updated_at'      => date('Y-m-d H:i:s'),
+            'plan_id'         => 0,
         ];
 
         try {
@@ -141,45 +141,45 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             $this->getLogService()->info(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '从钩子创建录像文件', [
                 'stream_id' => $streamId,
                 'file_path' => $filePath,
-                'duration' => $duration,
+                'duration'  => $duration,
             ]);
 
             return $recordFile;
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '创建录像文件失败', [
                 'stream_id' => $streamId,
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
             ]);
             return null;
         }
     }
 
-    public function searchRecordFiles(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    public function searchRecordFiles(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
         return $this->getRecordFileDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countRecordFiles(array $conditions): int
+    public function countRecordFiles(array $conditions) : int
     {
         return $this->getRecordFileDao()->count($conditions);
     }
 
-    public function getRecordFileDateListByPlanId(int $planId): array
+    public function getRecordFileDateListByPlanId(int $planId) : array
     {
         return $this->getRecordFileDao()->getRecordFileDateListByPlanId($planId);
     }
 
-    public function getRecordFileSizeByPlanId(int $planId): int
+    public function getRecordFileSizeByPlanId(int $planId) : int
     {
         return $this->getRecordFileDao()->getRecordFileSizeByPlanId($planId);
     }
 
-    public function softDeleteByPlanIdAndDate(int $planId, string $recordDate): int
+    public function softDeleteByPlanIdAndDate(int $planId, string $recordDate) : int
     {
         return $this->getRecordFileDao()->softDeleteByPlanIdAndDate($planId, $recordDate);
     }
 
-    public function searchRecordFilesWithDeviceInfo(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    public function searchRecordFilesWithDeviceInfo(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
         return $this->getRecordFileDao()->searchWithDeviceInfo($conditions, $orderBys, $start, $limit);
     }
@@ -187,7 +187,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
     /**
      * @return RecordFileDao|DaoProxy
      */
-    protected function getRecordFileDao(): RecordFileDao|DaoProxy
+    protected function getRecordFileDao() : RecordFileDao|DaoProxy
     {
         return $this->createDao('RecordFile:RecordFileDao');
     }
@@ -195,7 +195,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
     /**
      * @return RecordTaskService
      */
-    protected function getRecordTaskService(): RecordTaskService
+    protected function getRecordTaskService() : RecordTaskService
     {
         return $this->createService('Record:RecordTaskService');
     }

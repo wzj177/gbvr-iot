@@ -30,7 +30,7 @@ class PanoramaChunkTilesJob implements Consumer
 
     public $connection = 'default';
 
-    public function consume($data): bool
+    public function consume($data) : bool
     {
         if (empty($data['panorama']) || empty($data['productId']) || empty($data['userId'])) {
             return false;
@@ -38,7 +38,7 @@ class PanoramaChunkTilesJob implements Consumer
         $panoramaFile = AssetHelper::uploadPath($data['panorama']);
         if (!is_file($panoramaFile)) {
             $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '全景图文件不存在', [
-                'panorama' => $data['panorama']
+                'panorama' => $data['panorama'],
             ]);
             return false;
         }
@@ -51,12 +51,12 @@ class PanoramaChunkTilesJob implements Consumer
         $width = $imageSize->getWidth();
         $height = $imageSize->getHeight();
         $this->getProductService()->updateSceneByProductAndIndex($data['productId'], $data['number'], [
-            'panoramaWidth' => $width,
-            'panoramaHeight' => $height
+            'panoramaWidth'  => $width,
+            'panoramaHeight' => $height,
         ]);
 
         if ($size > $canChunkTileSize) {
-//            $lockKey = 'panorama_chunk_tiles_' . $data['productId'] . '_' . $data['number'];
+            //            $lockKey = 'panorama_chunk_tiles_' . $data['productId'] . '_' . $data['number'];
             $this->generateTiles($data['userId'], $data['productId'], $data['number'], $image, $panoramaFile);
         }
 
@@ -74,8 +74,8 @@ class PanoramaChunkTilesJob implements Consumer
             $relativeTilePath = str_replace(uploads_path(), 'uploads', $tilesPath);
             try {
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, [
-                    'tilePath' => $relativeTilePath,
-                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ING
+                    'tilePath'   => $relativeTilePath,
+                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ING,
                 ]);
                 $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, "生成场景切片进行中，{$productId}");
                 if (!is_dir($tilesPath) && @mkdir($tilesPath, 0755)) {
@@ -90,13 +90,13 @@ class PanoramaChunkTilesJob implements Consumer
                 $height = $imageSize->getHeight();
                 $tileSize = (int)floor($width / $columns);
                 $quality = 95;
-//                $columns = intval(ceil($width / $tileSize));
-//                $rows = intval(ceil($height / $tileSize));
-//                $columns = $columns == $width / $tileSize ? $columns * 2 : $columns;
-//                $rows = $rows == $height / $tileSize ? $rows * 2 : $rows;
+                //                $columns = intval(ceil($width / $tileSize));
+                //                $rows = intval(ceil($height / $tileSize));
+                //                $columns = $columns == $width / $tileSize ? $columns * 2 : $columns;
+                //                $rows = $rows == $height / $tileSize ? $rows * 2 : $rows;
                 // 最接近且小于所需值的 2 的幂次数
-//                $columns = pow(2, floor(log($width / $tileSize, 2)));
-//                $rows = pow(2, floor(log($height / $tileSize, 2)));
+                //                $columns = pow(2, floor(log($width / $tileSize, 2)));
+                //                $rows = pow(2, floor(log($height / $tileSize, 2)));
 
                 for ($x = 0; $x < $columns; $x++) {
                     for ($y = 0; $y < $rows; $y++) {
@@ -121,11 +121,11 @@ class PanoramaChunkTilesJob implements Consumer
                 }
                 $panoramaSmallPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $smallKey . '.' . $partInfo['extension'];
                 $item = [
-                    'tileRows' => $rows,
+                    'tileRows'    => $rows,
                     'tileColumns' => $columns,
-                    'tilePath' => $relativeTilePath,
-                    'tileSize' => $tileSize,
-                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_OK
+                    'tilePath'    => $relativeTilePath,
+                    'tileSize'    => $tileSize,
+                    'tileStatus'  => BizEnum::PRODUCT_SCENE_TILE_STATUS_OK,
                 ];
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
                 $tileSize = $this->getDirectorySize($tilesPath);
@@ -142,19 +142,19 @@ class PanoramaChunkTilesJob implements Consumer
                 }
 
                 $this->getLogService()->info(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '全景图切片完成', [
-                    'productId' => $productId,
+                    'productId'     => $productId,
                     'panorama_file' => $panoramaFile,
-                    'tile_path' => $tilesPath
+                    'tile_path'     => $tilesPath,
                 ]);
             } catch (\Throwable $e) {
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, [
-                    'tilePath' => $relativeTilePath,
-                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ERR
+                    'tilePath'   => $relativeTilePath,
+                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ERR,
                 ]);
                 $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '全景图切片失败，' . $e->getMessage(), [
-                    'productId' => $productId,
+                    'productId'     => $productId,
                     'panorama_file' => $panoramaFile,
-                    'tile_path' => $tilesPath
+                    'tile_path'     => $tilesPath,
                 ]);
 
             }

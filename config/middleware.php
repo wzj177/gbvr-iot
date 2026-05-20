@@ -16,10 +16,10 @@
 use Webman\Http\Request;
 
 return [
-    '' => [
+    ''      => [
         \app\middleware\AccessCorsControlMiddleware::class,
-        \app\middleware\IpCheckMiddleware::class
+        \app\middleware\IpCheckMiddleware::class,
     ],
     'admin' => [
-    ]
+    ],
 ];

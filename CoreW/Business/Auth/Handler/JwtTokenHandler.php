@@ -15,31 +15,31 @@ class JwtTokenHandler extends BaseTokenHandler implements TokenHandlerInterface
     public function refreshAccessToken($oldToken)
     {
         $payload = [
-            'iss' => $oldToken['type'],
-            'userId' => $oldToken['userId']
+            'iss'    => $oldToken['type'],
+            'userId' => $oldToken['userId'],
         ];
         $payload['sub'] = 'jwt_' . $payload['userId'];
         $accessToken = $this->getJwtManager()->refreshAccessToken($payload);
         $this->getTokenService()->destroyToken($oldToken['token']);
         $this->getTokenService()->createToken([
-            'type' => $payload['iss'],
-            'token' => md5($accessToken),
-            'data' => [
-                'access_token' => $accessToken,
-                'refresh_token' => $oldToken['data']['refresh_token']
+            'type'          => $payload['iss'],
+            'token'         => md5($accessToken),
+            'data'          => [
+                'access_token'  => $accessToken,
+                'refresh_token' => $oldToken['data']['refresh_token'],
             ],
-            'times' => 0,
+            'times'         => 0,
             'remainedTimes' => 0,
-            'userId' => $payload['userId'],
-            'expiredTime' => $oldToken['expiredTime'],
-            'createdTime' => time()
+            'userId'        => $payload['userId'],
+            'expiredTime'   => $oldToken['expiredTime'],
+            'createdTime'   => time(),
         ]);
 
         return [
-            'token' => 'Bearer ' . $accessToken,
-            'key' => 'Authorization',
-            'type' => $payload['iss'],
-            'userId' => $payload['userId']
+            'token'  => 'Bearer ' . $accessToken,
+            'key'    => 'Authorization',
+            'type'   => $payload['iss'],
+            'userId' => $payload['userId'],
         ];
     }
 
@@ -54,7 +54,7 @@ class JwtTokenHandler extends BaseTokenHandler implements TokenHandlerInterface
     public function makeToken($type, array $args = [])
     {
         $payload = [
-            'iss' => $type,
+            'iss'    => $type,
             'userId' => $args['userId'],
         ];
         $payload['sub'] = 'jwt_' . $payload['userId'];
@@ -65,24 +65,24 @@ class JwtTokenHandler extends BaseTokenHandler implements TokenHandlerInterface
         $md5ID = md5($accessToken);
         // 登录就存入refresh token，通过type 和 userId 查询
         $this->getTokenService()->createToken([
-            'type' => $payload['iss'],
-            'token' => $md5ID,
-            'data' => [
-                'access_token' => $accessToken,
-                'refresh_token' => $refreshToken
+            'type'          => $payload['iss'],
+            'token'         => $md5ID,
+            'data'          => [
+                'access_token'  => $accessToken,
+                'refresh_token' => $refreshToken,
             ],
-            'times' => 0,
+            'times'         => 0,
             'remainedTimes' => 0,
-            'userId' => $payload['userId'],
-            'expiredTime' => $refreshPayload['exp'],
-            'createdTime' => time()
+            'userId'        => $payload['userId'],
+            'expiredTime'   => $refreshPayload['exp'],
+            'createdTime'   => time(),
         ]);
 
         return [
-            'token' => 'Bearer ' . $accessToken,
+            'token'     => 'Bearer ' . $accessToken,
             'md5_token' => $md5ID,
-            'key' => 'Authorization',
-            'type' => $payload['iss']
+            'key'       => 'Authorization',
+            'type'      => $payload['iss'],
         ];
     }
 
@@ -110,20 +110,20 @@ class JwtTokenHandler extends BaseTokenHandler implements TokenHandlerInterface
 
         if ($result === 0) {
             return [
-                'refresh' => true,
-                'oldToken' => $dbToken
+                'refresh'  => true,
+                'oldToken' => $dbToken,
             ];
         }
 
         if ((int)$result->userId !== (int)$dbToken['userId']) {
             // 串号
-//            echo 'token与用户不匹配';
+            //            echo 'token与用户不匹配';
             return null;
         }
 
         return [
-            'token' => $value,
-            'userId' => $dbToken['userId']
+            'token'  => $value,
+            'userId' => $dbToken['userId'],
         ];
     }
 

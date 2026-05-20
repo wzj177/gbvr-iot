@@ -145,43 +145,43 @@ class QiNiuFileImplementor extends AbstractFileImplementor implements FileImplem
         $existFile = $this->getFileByHashId($hashId);
         if (!empty($existFile)) {
             return [
-                'storage' => 'qiniu',
-                'filename' => $filename,
-                'newFilename' => $existFile['newFilename'],
-                'ext' => $existFile['ext'],
-                'metas' => $existFile['metas'],
-                'fileSize' => $existFile['fileSize'],
-                'type' => $existFile['type'],
-                'filepath' => $existFile['filepath'],
-                'hashId' => $hashId,
-                'groupCode' => $existFile['groupCode'],
-                'globalId' => $existFile['globalId'],
-                'firstStorage' => false
+                'storage'      => 'qiniu',
+                'filename'     => $filename,
+                'newFilename'  => $existFile['newFilename'],
+                'ext'          => $existFile['ext'],
+                'metas'        => $existFile['metas'],
+                'fileSize'     => $existFile['fileSize'],
+                'type'         => $existFile['type'],
+                'filepath'     => $existFile['filepath'],
+                'hashId'       => $hashId,
+                'groupCode'    => $existFile['groupCode'],
+                'globalId'     => $existFile['globalId'],
+                'firstStorage' => false,
             ];
         }
 
         // Upload to Qiniu
         $token = $this->auth->uploadToken($this->bucket);
-        list($result, $error) = $this->uploadMgr->putFile($token, $key, $localFilePath);
+        [$result, $error] = $this->uploadMgr->putFile($token, $key, $localFilePath);
 
         if ($error !== null) {
             throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '七牛云上传失败: ' . $error->message());
         }
 
         return [
-            'storage' => 'qiniu',
-            'filename' => $filename,
-            'newFilename' => $name . '.' . $ext,
-            'ext' => $ext,
-            'metas' => $metas,
-            'fileSize' => $fileSize,
-            'type' => $type,
-            'filepath' => $key,
-            'hashId' => $hashId,
-            'groupCode' => $group,
-            'globalId' => $result['key'] ?? $key,
-            'etag' => $result['hash'] ?? '',
-            'firstStorage' => true
+            'storage'      => 'qiniu',
+            'filename'     => $filename,
+            'newFilename'  => $name . '.' . $ext,
+            'ext'          => $ext,
+            'metas'        => $metas,
+            'fileSize'     => $fileSize,
+            'type'         => $type,
+            'filepath'     => $key,
+            'hashId'       => $hashId,
+            'groupCode'    => $group,
+            'globalId'     => $result['key'] ?? $key,
+            'etag'         => $result['hash'] ?? '',
+            'firstStorage' => true,
         ];
     }
 
@@ -222,25 +222,25 @@ class QiNiuFileImplementor extends AbstractFileImplementor implements FileImplem
 
         // Upload to Qiniu
         $token = $this->auth->uploadToken($this->bucket);
-        list($result, $error) = $this->uploadMgr->put($token, $key, $content);
+        [$result, $error] = $this->uploadMgr->put($token, $key, $content);
 
         if ($error !== null) {
             throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '七牛云上传失败: ' . $error->message());
         }
 
         return [
-            'storage' => 'qiniu',
-            'filename' => $name . '.' . $ext,
+            'storage'     => 'qiniu',
+            'filename'    => $name . '.' . $ext,
             'newFilename' => $name . '.' . $ext,
-            'ext' => $ext,
-            'metas' => 'image/' . $ext,
-            'fileSize' => $fileSize,
-            'type' => 'image',
-            'filepath' => $key,
-            'hashId' => $hashId,
-            'groupCode' => $group,
-            'globalId' => $result['key'] ?? $key,
-            'etag' => $result['hash'] ?? '',
+            'ext'         => $ext,
+            'metas'       => 'image/' . $ext,
+            'fileSize'    => $fileSize,
+            'type'        => 'image',
+            'filepath'    => $key,
+            'hashId'      => $hashId,
+            'groupCode'   => $group,
+            'globalId'    => $result['key'] ?? $key,
+            'etag'        => $result['hash'] ?? '',
         ];
     }
 
@@ -269,7 +269,7 @@ class QiNiuFileImplementor extends AbstractFileImplementor implements FileImplem
         try {
             ob_start();
             $context = stream_context_create([
-                'http' => ['follow_location' => false]
+                'http' => ['follow_location' => false],
             ]);
             readfile($url, false, $context);
             $content = ob_get_contents();
@@ -296,25 +296,25 @@ class QiNiuFileImplementor extends AbstractFileImplementor implements FileImplem
 
                 // Upload to Qiniu
                 $token = $this->auth->uploadToken($this->bucket);
-                list($result, $error) = $this->uploadMgr->put($token, $key, $content);
+                [$result, $error] = $this->uploadMgr->put($token, $key, $content);
 
                 if ($error !== null) {
                     throw new AttachmentException(AttachmentException::OSS_UPLOAD_FAILED, '七牛云上传失败: ' . $error->message());
                 }
 
                 return [
-                    'storage' => 'qiniu',
-                    'filename' => $name . '.' . $ext,
+                    'storage'     => 'qiniu',
+                    'filename'    => $name . '.' . $ext,
                     'newFilename' => $name . '.' . $ext,
-                    'ext' => $ext,
-                    'metas' => $heads['Content-Type'] ?? 'application/octet-stream',
-                    'fileSize' => $fileSize,
-                    'type' => $type,
-                    'filepath' => $key,
-                    'hashId' => $hashId,
-                    'groupCode' => $group,
-                    'globalId' => $result['key'] ?? $key,
-                    'etag' => $result['hash'] ?? '',
+                    'ext'         => $ext,
+                    'metas'       => $heads['Content-Type'] ?? 'application/octet-stream',
+                    'fileSize'    => $fileSize,
+                    'type'        => $type,
+                    'filepath'    => $key,
+                    'hashId'      => $hashId,
+                    'groupCode'   => $group,
+                    'globalId'    => $result['key'] ?? $key,
+                    'etag'        => $result['hash'] ?? '',
                 ];
             }
         } catch (\Throwable $e) {
@@ -376,7 +376,7 @@ class QiNiuFileImplementor extends AbstractFileImplementor implements FileImplem
             return '';
         }
 
-        $protocol = $this->protocol ?: 'https';
+        $protocol = $this->protocol ? : 'https';
 
         // Remove protocol from domain if it exists
         $domain = preg_replace('/^https?:\/\//', '', $domain);

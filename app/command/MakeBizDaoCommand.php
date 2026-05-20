@@ -29,7 +29,7 @@ class MakeBizDaoCommand extends Command
     {
         $this->addOption('id', '-i', InputOption::VALUE_REQUIRED, '业务名称')
             ->addOption('dao', '-d', InputOption::VALUE_OPTIONAL, 'dao名称')
-            ->addOption('table', '-t', InputOption::VALUE_OPTIONAL,'数据表名称')
+            ->addOption('table', '-t', InputOption::VALUE_OPTIONAL, '数据表名称')
             ->addOption('namespace', '-s', InputOption::VALUE_OPTIONAL, '命名空间');
     }
 
@@ -51,14 +51,14 @@ class MakeBizDaoCommand extends Command
             $gii = GiiFactory::create('easy', $namespace, $this->getBiz());
             $path = $gii->render([
                 'tableName' => $table,
-                'bizId' => $bizId,
-                'prefix' => getenv('DB_PREFIX'),
-                'dao' => $dao,
-                'scene' => 'make-dao',
+                'bizId'     => $bizId,
+                'prefix'    => getenv('DB_PREFIX'),
+                'dao'       => $dao,
+                'scene'     => 'make-dao',
                 'templates' => [
                     'daoInterface' => DaoInterfaceTemplate::class,
-                    'daoImpl' => DaoImplTemplate::class,
-                ]
+                    'daoImpl'      => DaoImplTemplate::class,
+                ],
             ]);
             $output->writeln(ShellColor::showInfo("{$path}已创建"));
             return self::SUCCESS;

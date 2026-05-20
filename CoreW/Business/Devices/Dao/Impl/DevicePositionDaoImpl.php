@@ -9,17 +9,17 @@ class DevicePositionDaoImpl extends AdvancedDaoImpl implements DevicePositionDao
 {
     protected $table = 'gv_device_positions';
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'time',
                 'recv_time',
             ],
             'timestamps' => [],
-            'datetime' => [],
+            'datetime'   => [],
             'conditions' => [
                 'id = :id',
                 'id > :id_GT',
@@ -36,13 +36,13 @@ class DevicePositionDaoImpl extends AdvancedDaoImpl implements DevicePositionDao
         ];
     }
 
-    public function deleteOldPositions(int $cutoffTime): int
+    public function deleteOldPositions(int $cutoffTime) : int
     {
         $sql = "DELETE FROM {$this->table()} WHERE time < ?";
         return $this->db()->executeStatement($sql, [$cutoffTime]);
     }
 
-    public function getLatestPositionsByDevices(array $deviceIds = [], ?int $partnerId = null): array
+    public function getLatestPositionsByDevices(array $deviceIds = [], ?int $partnerId = null) : array
     {
         // 使用子查询找到每个设备的最新时间，然后关联查询完整记录
         $whereConditions = [];
@@ -91,7 +91,7 @@ class DevicePositionDaoImpl extends AdvancedDaoImpl implements DevicePositionDao
         return $result;
     }
 
-    public function getTracksByDevices(array $deviceIds, int $startTime, int $endTime, ?int $partnerId = null): array
+    public function getTracksByDevices(array $deviceIds, int $startTime, int $endTime, ?int $partnerId = null) : array
     {
         if (empty($deviceIds)) {
             return [];

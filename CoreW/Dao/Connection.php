@@ -23,27 +23,27 @@ class Connection extends \Doctrine\DBAL\Connection
     /***
      * 兼容 phpmig 包
      *
-     * @deprecated use fetchAllAssociative
-     *
      * @param string $query
      * @param array $params
      * @param array $types
      * @return array
      * @throws \Doctrine\DBAL\Exception
+     * @deprecated use fetchAllAssociative
+     *
      */
-    public function fetchAll(string $query, array $params = [], array $types = []): array
+    public function fetchAll(string $query, array $params = [], array $types = []) : array
     {
         return $this->fetchAllAssociative($query, $params, $types);
     }
 
-    public function update($tableExpression, array $data, array $identifier, array $types = array())
+    public function update($tableExpression, array $data, array $identifier, array $types = [])
     {
         $this->checkFieldNames(array_keys($data));
 
         return parent::update($tableExpression, $data, $identifier, $types);
     }
 
-    public function insert($tableExpression, array $data, array $types = array())
+    public function insert($tableExpression, array $data, array $types = [])
     {
         $this->checkFieldNames(array_keys($data));
 

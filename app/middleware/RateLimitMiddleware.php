@@ -13,10 +13,12 @@ use Webman\MiddlewareInterface;
 
 class RateLimitMiddleware implements MiddlewareInterface
 {
-    protected $routeLimiterMap = [
-        'auth.config' => 'login_send_sms_rate_limiter'
-    ];
-    public function process(Request $request, callable $next): Response
+    protected $routeLimiterMap
+        = [
+            'auth.config' => 'login_send_sms_rate_limiter',
+        ];
+
+    public function process(Request $request, callable $next) : Response
     {
         $routeKey = $request->route->getName();
         if (!isset($this->routeLimiterMap[$routeKey])) {

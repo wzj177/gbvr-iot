@@ -33,7 +33,7 @@ class CallbackWrapper
                 "File: {$e->getFile()}:{$e->getLine()}",
                 "Stack Trace:",
                 $e->getTraceAsString(),
-                "========================================"
+                "========================================",
             ];
 
             $errorMsg = implode("\n", $errorLines);
@@ -63,7 +63,7 @@ class CallbackWrapper
      * @param Logger|null $logger 可选的 Logger 实例
      * @return callable 包装后的安全回调
      */
-    public static function wrap(object $handler, string $method, ?Logger $logger = null): callable
+    public static function wrap(object $handler, string $method, ?Logger $logger = null) : callable
     {
         return function (...$args) use ($handler, $method, $logger) {
             return self::safe([$handler, $method], $logger, ...$args);
@@ -78,7 +78,7 @@ class CallbackWrapper
      * @param Logger|null $logger 可选的 Logger 实例
      * @return array 包装后的回调数组 ['onRegister' => callable, ...]
      */
-    public static function wrapAll(object $handler, array $methods, ?Logger $logger = null): array
+    public static function wrapAll(object $handler, array $methods, ?Logger $logger = null) : array
     {
         $wrapped = [];
         foreach ($methods as $method) {

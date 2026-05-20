@@ -37,12 +37,13 @@ class Logger
     /** @var int 上次清理过期日志的时间戳 */
     private int $lastCleanupTime = 0;
 
-    private array $levelPriority = [
-        'DEBUG' => 0,
-        'INFO' => 1,
-        'WARNING' => 2,
-        'ERROR' => 3,
-    ];
+    private array $levelPriority
+        = [
+            'DEBUG'   => 0,
+            'INFO'    => 1,
+            'WARNING' => 2,
+            'ERROR'   => 3,
+        ];
 
     private function __construct(array $config = [])
     {
@@ -62,7 +63,7 @@ class Logger
     /**
      * 获取单例
      */
-    public static function getInstance(array $config = []): self
+    public static function getInstance(array $config = []) : self
     {
         if (self::$instance === null) {
             self::$instance = new self($config);
@@ -73,7 +74,7 @@ class Logger
     /**
      * 写入日志
      */
-    public function log(string $message, string $level = 'INFO', string $module = ''): void
+    public function log(string $message, string $level = 'INFO', string $module = '') : void
     {
         $level = strtoupper($level);
         if (!$this->shouldLog($level)) {
@@ -100,7 +101,7 @@ class Logger
     /**
      * DEBUG 级别日志
      */
-    public function debug(string $message, string $module = ''): void
+    public function debug(string $message, string $module = '') : void
     {
         $this->log($message, 'DEBUG', $module);
     }
@@ -108,7 +109,7 @@ class Logger
     /**
      * INFO 级别日志
      */
-    public function info(string $message, string $module = ''): void
+    public function info(string $message, string $module = '') : void
     {
         $this->log($message, 'INFO', $module);
     }
@@ -116,7 +117,7 @@ class Logger
     /**
      * WARNING 级别日志
      */
-    public function warning(string $message, string $module = ''): void
+    public function warning(string $message, string $module = '') : void
     {
         $this->log($message, 'WARNING', $module);
     }
@@ -124,7 +125,7 @@ class Logger
     /**
      * ERROR 级别日志
      */
-    public function error(string $message, string $module = ''): void
+    public function error(string $message, string $module = '') : void
     {
         $this->log($message, 'ERROR', $module);
     }
@@ -132,7 +133,7 @@ class Logger
     /**
      * 判断是否应该记录该级别日志
      */
-    private function shouldLog(string $level): bool
+    private function shouldLog(string $level) : bool
     {
         $currentPriority = $this->levelPriority[$level] ?? 1;
         $minPriority = $this->levelPriority[$this->minLevel] ?? 1;
@@ -142,7 +143,7 @@ class Logger
     /**
      * 设置最小日志级别
      */
-    public function setMinLevel(string $level): void
+    public function setMinLevel(string $level) : void
     {
         $this->minLevel = strtoupper($level);
     }
@@ -150,7 +151,7 @@ class Logger
     /**
      * 设置日志文件
      */
-    public function setLogFile(string $file): void
+    public function setLogFile(string $file) : void
     {
         $this->logFile = $file;
         $this->isFileMode = !str_starts_with($file, 'php://');
@@ -170,7 +171,7 @@ class Logger
      *   base: /path/to/logs/gb28181.log
      *   result: /path/to/logs/gb28181-2026-02-11.log
      */
-    private function refreshLogPath(): void
+    private function refreshLogPath() : void
     {
         $this->currentDate = date('Y-m-d');
         $this->currentLogPath = $this->buildDatedLogPath($this->currentDate);
@@ -182,7 +183,7 @@ class Logger
      * @param string $date 日期字符串 (Y-m-d)
      * @return string 带日期的日志文件路径
      */
-    private function buildDatedLogPath(string $date): string
+    private function buildDatedLogPath(string $date) : string
     {
         $info = pathinfo($this->logFile);
         $dir = $info['dirname'];
@@ -195,7 +196,7 @@ class Logger
     /**
      * 确保日志目录存在
      */
-    private function ensureLogDirectory(): void
+    private function ensureLogDirectory() : void
     {
         $dir = dirname($this->logFile);
         if (!is_dir($dir)) {
@@ -208,7 +209,7 @@ class Logger
      *
      * 每天最多执行一次，删除超过 maxDays 天的日志文件
      */
-    private function cleanupOldLogs(): void
+    private function cleanupOldLogs() : void
     {
         if ($this->maxDays <= 0) {
             return;

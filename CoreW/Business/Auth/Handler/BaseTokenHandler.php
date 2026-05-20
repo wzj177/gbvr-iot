@@ -23,11 +23,10 @@ class BaseTokenHandler
     }
 
 
-
     /**
      * @param array $config
      */
-    public function setConfig(array $config): void
+    public function setConfig(array $config) : void
     {
         $this->config = $config;
     }
@@ -35,7 +34,7 @@ class BaseTokenHandler
     /**
      * @param Bfw $bfw
      */
-    public function setBfw(Bfw $bfw): void
+    public function setBfw(Bfw $bfw) : void
     {
         $this->bfw = $bfw;
     }

@@ -149,7 +149,7 @@ class GB28181PTZController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -157,7 +157,7 @@ class GB28181PTZController extends BaseController
     /**
      * @return Gb28181Service
      */
-    private function getGb28181Service(): Gb28181Service
+    private function getGb28181Service() : Gb28181Service
     {
         return $this->getBiz()->offsetGet('gb28181_service');
     }
@@ -175,8 +175,8 @@ class GB28181PTZController extends BaseController
         $deviceId = $request->post('device_id');
         $channelId = $request->post('channel_id');
         $action = $request->post('action');
-        $groupId = (int) $request->post('group_id', 0);
-        $speed = (int) $request->post('speed', 0);
+        $groupId = (int)$request->post('group_id', 0);
+        $speed = (int)$request->post('speed', 0);
 
         if (!$deviceId || !$channelId || !$action) {
             return $this->createErrorJsonResponse('缺少必要参数(device_id, channel_id, action)', 400);

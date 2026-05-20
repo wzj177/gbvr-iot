@@ -10,7 +10,7 @@ use support\utils\ArrayToolkit;
 
 class DevicePositionServiceImpl extends BaseService implements DevicePositionService
 {
-    public function savePosition(array $positionData): array
+    public function savePosition(array $positionData) : array
     {
         // 字段过滤和验证
         $fields = ArrayToolkit::parts($positionData, [
@@ -40,7 +40,7 @@ class DevicePositionServiceImpl extends BaseService implements DevicePositionSer
         return $this->getDevicePositionDao()->create($fields);
     }
 
-    public function getLatestPosition(string $deviceId): ?array
+    public function getLatestPosition(string $deviceId) : ?array
     {
         $conditions = ['device_id' => $deviceId];
         $orderBys = ['time' => 'DESC'];
@@ -50,42 +50,42 @@ class DevicePositionServiceImpl extends BaseService implements DevicePositionSer
         return $positions[0] ?? null;
     }
 
-    public function searchPositions(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20): array
+    public function searchPositions(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
         return $this->getDevicePositionDao()->search($conditions, $orderBys, $start, $limit);
     }
 
-    public function countPositions(array $conditions): int
+    public function countPositions(array $conditions) : int
     {
         return $this->getDevicePositionDao()->count($conditions);
     }
 
-    public function getDeviceTrack(string $deviceId, string $startTime, string $endTime): array
+    public function getDeviceTrack(string $deviceId, string $startTime, string $endTime) : array
     {
         $startTimestamp = strtotime($startTime);
         $endTimestamp = strtotime($endTime);
 
         $conditions = [
             'device_id' => $deviceId,
-            'time_GTE' => $startTimestamp,
-            'time_LTE' => $endTimestamp,
+            'time_GTE'  => $startTimestamp,
+            'time_LTE'  => $endTimestamp,
         ];
 
         return $this->getDevicePositionDao()->search($conditions, ['time' => 'ASC'], 0, PHP_INT_MAX);
     }
 
-    public function cleanupOldPositions(int $days = 30): int
+    public function cleanupOldPositions(int $days = 30) : int
     {
         $cutoffTime = time() - ($days * 86400);
         return $this->getDevicePositionDao()->deleteOldPositions($cutoffTime);
     }
 
-    public function getMultiDeviceLatestPositions(array $deviceIds = [], ?int $partnerId = null): array
+    public function getMultiDeviceLatestPositions(array $deviceIds = [], ?int $partnerId = null) : array
     {
         return $this->getDevicePositionDao()->getLatestPositionsByDevices($deviceIds, $partnerId);
     }
 
-    public function getMultiDeviceTracks(array $deviceIds, string $startTime, string $endTime, ?int $partnerId = null): array
+    public function getMultiDeviceTracks(array $deviceIds, string $startTime, string $endTime, ?int $partnerId = null) : array
     {
         if (empty($deviceIds)) {
             return [];
@@ -100,7 +100,7 @@ class DevicePositionServiceImpl extends BaseService implements DevicePositionSer
     /**
      * @return DevicePositionDao|DaoProxy
      */
-    protected function getDevicePositionDao(): DevicePositionDao|DaoProxy
+    protected function getDevicePositionDao() : DevicePositionDao|DaoProxy
     {
         return $this->createDao('Devices:DevicePositionDao');
     }

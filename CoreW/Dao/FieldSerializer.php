@@ -9,7 +9,7 @@ class FieldSerializer implements SerializerInterface
     public function serialize($method, $value)
     {
         $methods = [
-            'json' => function ($value) {
+            'json'       => function ($value) {
                 if (empty($value)) {
                     return '';
                 }
@@ -23,16 +23,16 @@ class FieldSerializer implements SerializerInterface
 
                 return json_encode($value);
             },
-            'delimiter' => function ($value) {
+            'delimiter'  => function ($value) {
                 if (empty($value)) {
                     return '';
                 }
 
                 return '|' . implode('|', $value) . '|';
             },
-            'php' => function ($value) {
+            'php'        => function ($value) {
                 return serialize($value);
-            }
+            },
         ];
 
         return $methods[$method]($value);
@@ -41,7 +41,7 @@ class FieldSerializer implements SerializerInterface
     public function unserialize($method, $value)
     {
         $methods = [
-            'json' => function ($value) {
+            'json'       => function ($value) {
                 if (empty($value)) {
                     return [];
                 }
@@ -55,16 +55,16 @@ class FieldSerializer implements SerializerInterface
 
                 return json_decode($value, true);
             },
-            'delimiter' => function ($value) {
+            'delimiter'  => function ($value) {
                 if (empty($value)) {
                     return [];
                 }
 
                 return explode('|', trim($value, '|'));
             },
-            'php' => function ($value) {
+            'php'        => function ($value) {
                 return unserialize($value);
-            }
+            },
         ];
 
         return $methods[$method]($value);

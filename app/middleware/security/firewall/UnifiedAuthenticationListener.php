@@ -52,7 +52,7 @@ class UnifiedAuthenticationListener
             && null === $request->header('x-auth-token', null)) {
             return $this->handleBasicAuth($request, $authorization);
         }
-        
+
         // 否则处理 Token Auth
         return $this->handleTokenAuth($request);
     }
@@ -63,35 +63,35 @@ class UnifiedAuthenticationListener
             // API端不处理Basic Auth
             return true;
         }
-        
-        list($username, $password) = StringToolkit::parseBasicAuthData(
+
+        [$username, $password] = StringToolkit::parseBasicAuthData(
             str_replace('Basic ', '', $authorizationHeader)
         );
-        
+
         if (empty($username) || empty($password)) {
             throw AdminUserException::USERNAME_PASSWORD_ERROR();
         }
-        
+
         $user = $this->getUserService()->getUserByNickname($username);
         if (!$user || !$this->getUserService()->verifyInSaltOut($password, $user['salt'], $user['password'])) {
             throw AdminUserException::USERNAME_PASSWORD_ERROR();
         }
-        
+
         if ($user['locked']) {
             throw AdminUserException::LOCKED_USER();
         }
-        
+
         $currentUser = new AdminCurrentUser();
         $user['currentIp'] = $request->getRealIp();
         $currentUser->fromArray($user);
-        
+
         $token = new ApiToken($currentUser, $currentUser->getRoles());
         $this->setToken($token);
 
         return true;
     }
 
-    protected function handleTokenAuth(Request $request): bool
+    protected function handleTokenAuth(Request $request) : bool
     {
         $token = $request->header($this->tokenKey);
         if (empty($token) && $request->header('accept') === 'text/event-stream') {
@@ -141,7 +141,7 @@ class UnifiedAuthenticationListener
             // 保存续签数据供中间件使用
             $this->jwtRefreshData = [
                 'token' => $rawToken['token'],
-                'type' => $rawToken['type']
+                'type'  => $rawToken['type'],
             ];
 
             return $rawToken;
@@ -178,7 +178,7 @@ class UnifiedAuthenticationListener
      * @param string $loginToken
      * @return ApiToken
      */
-    protected function createApiTokenFromRequest(Request $request, array|int $userId, string $loginToken = ''): ApiToken
+    protected function createApiTokenFromRequest(Request $request, array|int $userId, string $loginToken = '') : ApiToken
     {
         if ($this->isApiRequest) {
             // API端处理VIP用户
@@ -210,7 +210,7 @@ class UnifiedAuthenticationListener
     /**
      * @return TokenHandlerInterface
      */
-    protected function getTokenHandler(): TokenHandlerInterface
+    protected function getTokenHandler() : TokenHandlerInterface
     {
         if ($this->isApiRequest) {
             $tokenHandler = $this->biz['api_auth']();
@@ -238,7 +238,7 @@ class UnifiedAuthenticationListener
             if (config('app.api.public_key')) {
                 $config['public_key'] = config('app.api.public_key');
             }
-            
+
             $tokenHandler->setConfig($config);
             return $tokenHandler;
         } else {
@@ -267,7 +267,7 @@ class UnifiedAuthenticationListener
             if (config('app.admin.public_key')) {
                 $config['public_key'] = config('app.admin.public_key');
             }
-            
+
             $tokenHandler->setConfig($config);
             return $tokenHandler;
         }
@@ -280,7 +280,7 @@ class UnifiedAuthenticationListener
     {
         return $this->biz->service('User:UserService');
     }
-    
+
     /**
      * @return VIPService
      */

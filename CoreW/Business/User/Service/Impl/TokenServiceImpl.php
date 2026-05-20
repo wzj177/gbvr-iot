@@ -17,10 +17,11 @@ use Webman\Config;
 
 class TokenServiceImpl extends BaseService implements TokenService
 {
-    private array $storageMap = [
-        'db' => DbTokenStorage::class,
-        'redis' => RedisTokenStorage::class
-    ];
+    private array $storageMap
+        = [
+            'db'    => DbTokenStorage::class,
+            'redis' => RedisTokenStorage::class,
+        ];
 
     public function createToken(array $fields)
     {
@@ -58,7 +59,7 @@ class TokenServiceImpl extends BaseService implements TokenService
         }
 
         if ($token['remainedTimes'] > 1) {
-            $this->getTokenStorage()->wave(array($token['id']), array('remainedTimes' => -1));
+            $this->getTokenStorage()->wave([$token['id']], ['remainedTimes' => -1]);
         }
 
         $this->_gcToken($token);
@@ -134,7 +135,7 @@ class TokenServiceImpl extends BaseService implements TokenService
     /**
      * @return TokenStorageInterface
      */
-    public function getTokenStorage(): TokenStorageInterface
+    public function getTokenStorage() : TokenStorageInterface
     {
         $storage = config('auth.token_storage');
         if (!isset($this->storageMap[$storage])) {

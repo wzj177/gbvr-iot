@@ -12,17 +12,17 @@ class ProductCatalogTagDaoImpl extends AdvancedDaoImpl implements ProductCatalog
 
     protected $table = 'gv_product_catalog_tag';
 
-    public function getAllByCatalogId($catalogId): array
+    public function getAllByCatalogId($catalogId) : array
     {
         return $this->findByFields(['catalogId' => $catalogId]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
             ],

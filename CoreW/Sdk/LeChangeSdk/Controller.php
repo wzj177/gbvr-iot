@@ -23,7 +23,7 @@ class Controller
      * 获取管理员token
      * @return string
      */
-    public function accessToken(): ?string
+    public function accessToken() : ?string
     {
         if ($this->redis()->exists($this->cacheAccessTokenKey)) {
             $this->_accessToken = $this->redis()->get($this->cacheAccessTokenKey);
@@ -55,7 +55,7 @@ class Controller
     public function listDeviceDetailsByPage(int $page = 1, int $pageSize = 50)
     {
         $params = [
-            'page' => $page,
+            'page'     => $page,
             'pageSize' => $pageSize,
         ];
 
@@ -78,8 +78,8 @@ class Controller
         }
 
 
-        $result =  $this->authRequest('listDeviceDetailsByIds', [
-            'deviceList' => [$params]
+        $result = $this->authRequest('listDeviceDetailsByIds', [
+            'deviceList' => [$params],
         ]);
 
         if (!empty($result['data']['deviceList'])) {
@@ -113,7 +113,7 @@ class Controller
     public function bindDeviceLive(string $deviceId, int $channelId = 0, array $params = [])
     {
         $params = array_merge($params, [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ]);
         return $this->authRequest('bindDeviceLive', $params);
@@ -124,7 +124,7 @@ class Controller
      * @param string $liveToken
      * @return array
      */
-    public function unbindDeviceLive(string $liveToken): array
+    public function unbindDeviceLive(string $liveToken) : array
     {
         $params = [
             'liveToken' => $liveToken,
@@ -143,7 +143,7 @@ class Controller
     public function createDeviceFlvLive(string $deviceId, int $channelId = 0, array $params = [])
     {
         $params = array_merge($params, [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ]);
         return $this->authRequest('createDeviceFlvLive', $params);
@@ -158,7 +158,7 @@ class Controller
     public function deleteDeviceFlvLive(string $deviceId, int $channelId = 0)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ];
 
@@ -174,7 +174,7 @@ class Controller
     public function queryDeviceFlvLive(string $deviceId, int $channelId = 0)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ];
         return $this->authRequest('queryDeviceFlvLive', $params);
@@ -191,7 +191,7 @@ class Controller
     public function createDeviceRtmpLive(string $deviceId, int $channelId = 0, array $params = [])
     {
         $params = array_merge($params, [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ]);
         return $this->authRequest('createDeviceRtmpLive', $params);
@@ -206,7 +206,7 @@ class Controller
     public function deleteDeviceRtmpLive(string $deviceId, int $channelId = 0)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ];
         return $this->authRequest('deleteDeviceRtmpLive', $params);
@@ -221,7 +221,7 @@ class Controller
     public function queryDeviceRtmpLive(string $deviceId, int $channelId = 0)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ];
         return $this->authRequest('queryDeviceRtmpLive', $params);
@@ -238,10 +238,10 @@ class Controller
     public function controlMovePTZ(string $deviceId, int $channelId = 0, string $operation, int $duration = 1)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
             'operation' => $operation,
-            'duration' => $duration,
+            'duration'  => $duration,
         ];
         return $this->authRequest('controlMovePTZ', $params);
     }
@@ -255,7 +255,7 @@ class Controller
     public function getLiveStreamInfo(string $deviceId, int $channelId = 0)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ];
         return $this->authRequest('getLiveStreamInfo', $params);
@@ -270,7 +270,7 @@ class Controller
     public function setDeviceSnapEnhanced(string $deviceId, int $channelId = 0)
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
         ];
         return $this->authRequest('setDeviceSnapEnhanced', $params);
@@ -303,12 +303,12 @@ class Controller
      * @param int $type 0：所有权限；1：实时预览；2：录像回放（云录像+本地录像）；6：云台转动
      * @return array|null
      */
-    public function getKitToken(string $deviceId, string $channelId, int $type = 0): ?array
+    public function getKitToken(string $deviceId, string $channelId, int $type = 0) : ?array
     {
         $params = [
-            'deviceId' => $deviceId,
+            'deviceId'  => $deviceId,
             'channelId' => $channelId,
-            'type' => $type,
+            'type'      => $type,
         ];
 
         $result = $this->authRequest('getKitToken', $params);
@@ -323,7 +323,7 @@ class Controller
         return null;
     }
 
-    protected function authRequest(string $url, array $params = [], string $method = 'POST', array $headers = []): array
+    protected function authRequest(string $url, array $params = [], string $method = 'POST', array $headers = []) : array
     {
         $params['token'] = $this->accessToken();
 
@@ -332,21 +332,21 @@ class Controller
             if ($response['result']['code'] === 0 || $response['result']['code'] === "0") {
                 return [
                     'code' => 0,
-                    'msg' => $response['result']['msg'],
+                    'msg'  => $response['result']['msg'],
                     'data' => $response['result']['data'],
                 ];
             }
 
             return [
-                'code' => $response['result']['code'],
+                'code'    => $response['result']['code'],
                 'message' => $response['result']['msg'],
-                'data' => [],
+                'data'    => [],
             ];
         } catch (\Exception $e) {
             return [
-                'code' => -1,
+                'code'    => -1,
                 'message' => "请求 {$url} 失败，" . $e->getTraceAsString(),
-                'data' => [],
+                'data'    => [],
             ];
         }
     }
@@ -355,7 +355,7 @@ class Controller
      * redis 缓存类
      * @return \Illuminate\Redis\Connections\Connection
      */
-    public function redis(): \Illuminate\Redis\Connections\Connection
+    public function redis() : \Illuminate\Redis\Connections\Connection
     {
         return Redis::connection('sdkCache');
     }

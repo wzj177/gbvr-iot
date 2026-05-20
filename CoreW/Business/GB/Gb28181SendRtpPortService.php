@@ -24,7 +24,7 @@ class Gb28181SendRtpPortService
      *
      * WVP 使用数据库主键，我们使用 deviceId_channelId 组合
      */
-    private function buildChannelKey(string $deviceId, string $channelId): string
+    private function buildChannelKey(string $deviceId, string $channelId) : string
     {
         return $deviceId . '_' . $channelId;
     }
@@ -35,7 +35,7 @@ class Gb28181SendRtpPortService
      * @param array $mediaServer 媒体服务器配置
      * @return int 返回端口号，失败返回 -1
      */
-    public function getNextPort(array $mediaServer): int
+    public function getNextPort(array $mediaServer) : int
     {
         if (empty($mediaServer)) {
             Log::error("[发送端口管理] 参数错误，mediaServer为空");
@@ -113,7 +113,7 @@ class Gb28181SendRtpPortService
      *
      * @return array
      */
-    private function getAllSendRtpPort(): array
+    private function getAllSendRtpPort() : array
     {
         $key = self::SEND_RTP_INFO_KEY;
         $values = $this->redis->hGetAll($key);
@@ -133,7 +133,7 @@ class Gb28181SendRtpPortService
     /**
      * 缓存 SendRtpInfo（标记端口已使用）
      */
-    public function saveSendRtpInfo(array $session): void
+    public function saveSendRtpInfo(array $session) : void
     {
         $callId = $session['call_id'] ?? '';
         $stream = $session['stream'] ?? '';
@@ -162,17 +162,17 @@ class Gb28181SendRtpPortService
     /**
      * 删除 SendRtpInfo（释放端口）
      */
-    public function deleteSendRtpInfo(array $session): void
+    public function deleteSendRtpInfo(array $session) : void
     {
-        $callId = $session['call_id'] ??  '';
+        $callId = $session['call_id'] ?? '';
         $stream = $session['stream'] ?? '';
         $channelId = $session['channel_id'] ?? '';
-        $deviceId =  $session['device_id'] ?? '';
+        $deviceId = $session['device_id'] ?? '';
 
         if ($callId) {
             $this->redis->hDel(self::SEND_RTP_INFO_KEY, $callId);
         }
-        
+
         if ($stream) {
             $this->redis->hDel(self::SEND_RTP_INFO_STREAM_KEY . $stream, $deviceId);
         }
@@ -190,7 +190,7 @@ class Gb28181SendRtpPortService
     /**
      * 根据 CallId 查询
      */
-    public function queryByCallId(string $callId): ?array
+    public function queryByCallId(string $callId) : ?array
     {
         $json = $this->redis->hGet(self::SEND_RTP_INFO_KEY, $callId);
         return $json ? json_decode($json, true) : null;
@@ -199,13 +199,13 @@ class Gb28181SendRtpPortService
     /**
      * 根据 Stream 查询
      */
-    public function queryByStream(string $stream, string $targetId): ?array
+    public function queryByStream(string $stream, string $targetId) : ?array
     {
         $json = $this->redis->hGet(self::SEND_RTP_INFO_STREAM_KEY . $stream, $targetId);
         return $json ? json_decode($json, true) : null;
     }
 
-    public function queryByDeviceIdAndChannelId(string $deviceId, string $channelId): ?array
+    public function queryByDeviceIdAndChannelId(string $deviceId, string $channelId) : ?array
     {
         $channelKey = $this->buildChannelKey($deviceId, $channelId);
         $json = $this->redis->hGet(self::SEND_RTP_INFO_CHANNEL_KEY . $channelKey, $deviceId);

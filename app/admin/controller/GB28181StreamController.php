@@ -42,7 +42,7 @@ class GB28181StreamController extends BaseController
             return $this->createSuccessJsonResponse([
                 ...$result,
                 'play_urls' => $playUrls,
-                'message' => '实时视频开始',
+                'message'   => '实时视频开始',
             ]);
         } catch (\Exception $e) {
             return $this->handleStreamException($e);
@@ -113,7 +113,6 @@ class GB28181StreamController extends BaseController
     }
 
 
-
     /**
      * 开始录像回放
      */
@@ -152,7 +151,7 @@ class GB28181StreamController extends BaseController
             return $this->createSuccessJsonResponse([
                 ...$result,
                 'play_urls' => $playUrls,
-                'message' => '录像回放开始',
+                'message'   => '录像回放开始',
             ]);
         } catch (\Exception $e) {
             return $this->handleStreamException($e);
@@ -180,7 +179,7 @@ class GB28181StreamController extends BaseController
 
     /**
      * 录像回放控制（倍速、暂停、拖动）
-     * 
+     *
      * 支持的操作：
      * - play: 正常播放（恢复）
      * - pause: 暂停
@@ -188,7 +187,7 @@ class GB28181StreamController extends BaseController
      * - slow_forward: 慢放（0.5倍速）
      * - seek: 拖动到指定时间
      * - scale: 缩放（数字缩放）
-     * 
+     *
      * POST 参数：
      * - device_id: 设备ID
      * - channel_id: 通道ID
@@ -237,9 +236,9 @@ class GB28181StreamController extends BaseController
             $result = $this->playbackControlCore($channel['device_id'], $channel['channel_id'], $streamId, $action, $speed, $seekTime, $scale);
 
             return $this->createSuccessJsonResponse([
-                'message' => '回放控制命令已发送',
-                'action' => $action,
-                'speed' => $speed,
+                'message'   => '回放控制命令已发送',
+                'action'    => $action,
+                'speed'     => $speed,
                 'stream_id' => $streamId,
             ]);
         } catch (\Exception $e) {
@@ -249,13 +248,13 @@ class GB28181StreamController extends BaseController
 
     /**
      * 录像下载
-     * 
+     *
      * 流程：
      * 1. 发送 INVITE (session_name = 'Download')
      * 2. 设备推流到 ZLM
      * 3. ZLM 录制为文件
      * 4. 返回文件下载地址
-     * 
+     *
      * POST 参数：
      * - device_id: 设备ID
      * - channel_id: 通道ID
@@ -303,23 +302,22 @@ class GB28181StreamController extends BaseController
                         $this->getRecordTaskService()->cancelRecordTask($existingTask['id']);
                     } else {
                         return $this->createSuccessJsonResponse([
-                            'message' => '下载任务进行中',
-                            'task_id' => $existingTask['id'],
-                            'status' => $status,
+                            'message'   => '下载任务进行中',
+                            'task_id'   => $existingTask['id'],
+                            'status'    => $status,
                             'stream_id' => $existingTask['stream_id'],
                         ]);
                     }
-                }
-                // 已完成的任务
-                elseif ($status === 'done') {
+                } // 已完成的任务
+                else if ($status === 'done') {
                     if (!$force) {
                         // 返回已有文件信息
                         return $this->createSuccessJsonResponse([
-                            'message' => '录像已存在',
-                            'task_id' => $existingTask['id'],
-                            'customized_path' => $existingTask['customized_path'] ?? null,
+                            'message'           => '录像已存在',
+                            'task_id'           => $existingTask['id'],
+                            'customized_path'   => $existingTask['customized_path'] ?? null,
                             'record_start_time' => $existingTask['record_start_time'] ?? null,
-                            'record_end_time' => $existingTask['record_end_time'] ?? null,
+                            'record_end_time'   => $existingTask['record_end_time'] ?? null,
                         ]);
                     }
                     // force=true 时继续，删除旧任务后重新创建
@@ -332,10 +330,10 @@ class GB28181StreamController extends BaseController
             $result = $this->downloadRecordCore($channel['device_id'], $channel['channel_id'], $startTime, $endTime, $downloadSpeed);
 
             return $this->createSuccessJsonResponse([
-                'message' => '录像下载已开始',
-                'stream_id' => $result['stream_id'],
+                'message'      => '录像下载已开始',
+                'stream_id'    => $result['stream_id'],
                 'download_url' => $result['download_url'] ?? null,
-                'file_size' => $result['file_size'] ?? 0,
+                'file_size'    => $result['file_size'] ?? 0,
             ]);
         } catch (\Throwable $e) {
             return $this->handleStreamException($e);
@@ -345,7 +343,7 @@ class GB28181StreamController extends BaseController
     /**
      * @return Gb28181Service
      */
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->getBiz()->offsetGet('gb28181_service');
     }
@@ -353,7 +351,7 @@ class GB28181StreamController extends BaseController
     /**
      * @return DeviceService
      */
-    protected function getDeviceService(): DeviceService
+    protected function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -361,19 +359,18 @@ class GB28181StreamController extends BaseController
     /**
      * @return RecordTaskService
      */
-    protected function getRecordTaskService(): RecordTaskService
+    protected function getRecordTaskService() : RecordTaskService
     {
         return $this->createService('Record:RecordTaskService');
     }
 
 
-
     /**
      * 处理流媒体异常
      */
-    protected function handleStreamException(\Throwable $e): \support\Response
+    protected function handleStreamException(\Throwable $e) : \support\Response
     {
-        $code = $e->getCode() ?: 500;
+        $code = $e->getCode() ? : 500;
         $message = $e->getMessage();
 
         // 根据异常类型返回不同的错误信息

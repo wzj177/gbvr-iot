@@ -22,7 +22,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
      * @param array $conditions
      * @return int
      */
-    public function countTag(array $conditions): int
+    public function countTag(array $conditions) : int
     {
         return $this->getTagDao()->count($conditions);
     }
@@ -37,7 +37,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
      * @param array $columns
      * @return array
      */
-    public function searchTags(array $conditions, array $orderBys, int $start, int $limit, array $columns = []): array
+    public function searchTags(array $conditions, array $orderBys, int $start, int $limit, array $columns = []) : array
     {
         if (!empty($conditions['catalog_id'])) {
             $catalogTags = $this->getCatalogTagDao()->getAllByCatalogId($conditions['catalog_id']);
@@ -48,7 +48,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
 
             $conditions['ids'] = $tagIds;
         }
-        
+
         return $this->getTagDao()->search($conditions, $orderBys, $start, $limit, $columns);
     }
 
@@ -60,7 +60,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
      * @param string $type
      * @return bool
      */
-    public function addTags($userId, string $tags, $type = 'system'): bool
+    public function addTags($userId, string $tags, $type = 'system') : bool
     {
         if (empty($tags)) {
             throw ProductException::TAG_ADD_PARAMETER_ERROR();
@@ -77,9 +77,9 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
         $items = [];
         foreach ($tags as $tag) {
             $items[] = [
-                'type' => $type,
-                'userId' => $userId,
-                'name' => $tag,
+                'type'        => $type,
+                'userId'      => $userId,
+                'name'        => $tag,
                 'createdTime' => time(),
                 'updatedTime' => time(),
             ];
@@ -104,7 +104,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
      * @param int $id
      * @return bool
      */
-    public function deleteTagById(int $id): bool
+    public function deleteTagById(int $id) : bool
     {
         // TODO: 校验是否与作品绑定（与product_tag_item判断）
         return $this->getTagDao()->delete($id);
@@ -123,7 +123,7 @@ class ProductTagServiceImpl extends BaseService implements ProductTagService
      * @param string|null $userIp
      * @return bool
      */
-    public function batchDeleteByIds(array $ids, ?int $userId, ?string $userIp): bool
+    public function batchDeleteByIds(array $ids, ?int $userId, ?string $userIp) : bool
     {
         if (empty($ids)) {
             return false;

@@ -103,7 +103,7 @@ class Device
     /**
      * 加载扩展配置字段
      */
-    private function loadExtendedConfig(array $data): void
+    private function loadExtendedConfig(array $data) : void
     {
         // 传输模式
         $this->rtpTransMode = (int)($data['rtp_trans_mode'] ?? 0);
@@ -146,7 +146,7 @@ class Device
     /**
      * 标记设备已注册
      */
-    public function markRegistered(): void
+    public function markRegistered() : void
     {
         $this->registered = true;
         $this->registerTime = time();
@@ -157,7 +157,7 @@ class Device
     /**
      * 标记设备已注销
      */
-    public function markUnregistered(): void
+    public function markUnregistered() : void
     {
         $this->registered = false;
         $this->status = 'unregistered';
@@ -166,7 +166,7 @@ class Device
     /**
      * 记录心跳
      */
-    public function recordHeartbeat(): void
+    public function recordHeartbeat() : void
     {
         $this->lastHeartbeat = time();
         $this->heartbeatCount++;
@@ -181,7 +181,7 @@ class Device
     /**
      * 标记超时
      */
-    public function markTimeout(): void
+    public function markTimeout() : void
     {
         $this->status = 'timeout';
         $this->timeoutCount++;
@@ -190,7 +190,7 @@ class Device
     /**
      * 检查是否超时
      */
-    public function isTimeout(int $timeoutSeconds): bool
+    public function isTimeout(int $timeoutSeconds) : bool
     {
         if (!$this->registered || $this->status !== 'online') {
             return false;
@@ -202,7 +202,7 @@ class Device
     /**
      * 更新设备信息
      */
-    public function updateInfo(array $info): void
+    public function updateInfo(array $info) : void
     {
         $this->info = array_merge($this->info, $info);
     }
@@ -210,7 +210,7 @@ class Device
     /**
      * 设置通道列表
      */
-    public function setChannels(array $channels): void
+    public function setChannels(array $channels) : void
     {
         $this->channels = $channels;
     }
@@ -218,41 +218,41 @@ class Device
     /**
      * 获取设备信息数组
      */
-    public function toArray(): array
+    public function toArray() : array
     {
         return [
-            'device_id' => $this->deviceId,
-            'uri' => $this->uri,
-            'ip' => $this->ip,
-            'received_ip' => $this->received_ip,
-            'received_port' => $this->received_port,
-            'port' => $this->port,
-            'registered' => $this->registered,
-            'register_time' => $this->registerTime,
-            'registered_at' => $this->registeredAt,
-            'expires' => $this->expires,
-            'last_heartbeat' => $this->lastHeartbeat,
-            'heartbeat_count' => $this->heartbeatCount,
-            'timeout_count' => $this->timeoutCount,
-            'status' => $this->status,
-            'info' => $this->info,
-            'channels' => $this->channels,
+            'device_id'            => $this->deviceId,
+            'uri'                  => $this->uri,
+            'ip'                   => $this->ip,
+            'received_ip'          => $this->received_ip,
+            'received_port'        => $this->received_port,
+            'port'                 => $this->port,
+            'registered'           => $this->registered,
+            'register_time'        => $this->registerTime,
+            'registered_at'        => $this->registeredAt,
+            'expires'              => $this->expires,
+            'last_heartbeat'       => $this->lastHeartbeat,
+            'heartbeat_count'      => $this->heartbeatCount,
+            'timeout_count'        => $this->timeoutCount,
+            'status'               => $this->status,
+            'info'                 => $this->info,
+            'channels'             => $this->channels,
             // 扩展配置字段
-            'rtp_trans_mode' => $this->rtpTransMode,
-            'subscribe_catalog' => $this->subscribeCatalog,
-            'subscribe_alarm' => $this->subscribeAlarm,
-            'subscribe_position' => $this->subscribePosition,
-            'subscribe_ptz' => $this->subscribePtz,
-            'subscribe_expires' => $this->subscribeExpires,
-            'position_interval' => $this->positionInterval,
-            'catalog_interval' => $this->catalogInterval,
-            'last_catalog_at' => $this->lastCatalogAt,
-            'charset' => $this->charset,
-            'stream_index' => $this->streamIndex,
+            'rtp_trans_mode'       => $this->rtpTransMode,
+            'subscribe_catalog'    => $this->subscribeCatalog,
+            'subscribe_alarm'      => $this->subscribeAlarm,
+            'subscribe_position'   => $this->subscribePosition,
+            'subscribe_ptz'        => $this->subscribePtz,
+            'subscribe_expires'    => $this->subscribeExpires,
+            'position_interval'    => $this->positionInterval,
+            'catalog_interval'     => $this->catalogInterval,
+            'last_catalog_at'      => $this->lastCatalogAt,
+            'charset'              => $this->charset,
+            'stream_index'         => $this->streamIndex,
             'filter_channel_types' => $this->filterChannelTypes,
-            'record_mode' => $this->recordMode,
-            'catalog_structure' => $this->catalogStructure,
-            'subscriptions' => $this->subscriptions,
+            'record_mode'          => $this->recordMode,
+            'catalog_structure'    => $this->catalogStructure,
+            'subscriptions'        => $this->subscriptions,
         ];
     }
 
@@ -261,7 +261,7 @@ class Device
      *
      * @return array 事件类型列表，如 ['Catalog', 'Alarm', 'presence']
      */
-    public function getSubscribeEvents(): array
+    public function getSubscribeEvents() : array
     {
         $events = [];
         if ($this->subscribeCatalog) $events[] = 'Catalog';
@@ -276,7 +276,7 @@ class Device
      *
      * @return bool 是否需要查询目录
      */
-    public function needsCatalogRefresh(): bool
+    public function needsCatalogRefresh() : bool
     {
         if ($this->catalogInterval <= 0) {
             return false;  // 禁用轮询
@@ -288,7 +288,7 @@ class Device
     /**
      * 更新目录查询时间
      */
-    public function updateCatalogTime(): void
+    public function updateCatalogTime() : void
     {
         $this->lastCatalogAt = time();
     }
@@ -298,7 +298,7 @@ class Device
      *
      * @param array $config 配置数据
      */
-    public function updateConfig(array $config): void
+    public function updateConfig(array $config) : void
     {
         // 传输模式
         if (isset($config['rtp_trans_mode'])) $this->rtpTransMode = (int)$config['rtp_trans_mode'];
@@ -335,35 +335,35 @@ class Device
     /**
      * 判断设备是否在线
      */
-    public function isOnline(): bool
+    public function isOnline() : bool
     {
         return $this->registered && $this->status === 'online';
     }
 
     /**
      * 添加订阅
-     * 
+     *
      * @param string $eventType 事件类型（Catalog, Alarm, MobilePosition）
      * @param int $subscriptionId ExoSip 返回的订阅 ID（用于后续取消订阅）
      * @param int $expires 订阅有效期（秒）
      * @param array $params 额外参数
      */
-    public function addSubscription(string $eventType, int $subscriptionId, int $expires, array $params = []): void
+    public function addSubscription(string $eventType, int $subscriptionId, int $expires, array $params = []) : void
     {
         $this->subscriptions[$eventType] = [
-            'event_type' => $eventType,
+            'event_type'      => $eventType,
             'subscription_id' => $subscriptionId,
-            'expires' => $expires,
-            'expires_at' => time() + $expires,
-            'created_at' => time(),
-            'params' => $params
+            'expires'         => $expires,
+            'expires_at'      => time() + $expires,
+            'created_at'      => time(),
+            'params'          => $params,
         ];
     }
 
     /**
      * 移除订阅
      */
-    public function removeSubscription(string $eventType): void
+    public function removeSubscription(string $eventType) : void
     {
         unset($this->subscriptions[$eventType]);
     }
@@ -371,7 +371,7 @@ class Device
     /**
      * 获取所有订阅
      */
-    public function getSubscriptions(): array
+    public function getSubscriptions() : array
     {
         return $this->subscriptions;
     }
@@ -379,7 +379,7 @@ class Device
     /**
      * 检查是否有某个订阅
      */
-    public function hasSubscription(string $eventType): bool
+    public function hasSubscription(string $eventType) : bool
     {
         return isset($this->subscriptions[$eventType]);
     }
@@ -387,7 +387,7 @@ class Device
     /**
      * 获取订阅ID（用于取消订阅）
      */
-    public function getSubscriptionId(string $eventType): ?int
+    public function getSubscriptionId(string $eventType) : ?int
     {
         return $this->subscriptions[$eventType]['subscription_id'] ?? null;
     }
@@ -395,7 +395,7 @@ class Device
     /**
      * 清除过期的订阅
      */
-    public function cleanExpiredSubscriptions(): void
+    public function cleanExpiredSubscriptions() : void
     {
         $now = time();
         foreach ($this->subscriptions as $eventType => $subscription) {

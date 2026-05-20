@@ -8,7 +8,7 @@ use Ramsey\Uuid\Codec\OrderedTimeCodec;
 
 /**
  * 针对MySQL Innodb优化的按时间序递增的ID生成器
- * 
+ *
  * @see https://www.percona.com/blog/2014/12/19/store-uuid-optimized-way/
  * @see https://github.com/ramsey/uuid/pull/118
  */
@@ -27,6 +27,7 @@ class OrderedTimeUUIDGenerator implements IdGenerator
 
         $this->uuidFactory = $factory;
     }
+
     /**
      * @inheritDoc
      */

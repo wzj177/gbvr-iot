@@ -5,7 +5,7 @@ namespace CoreW\Business\VIP\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\VIP\Dao\VIPDao;
 
-class VIPDaoImpl extends AdvancedDaoImpl implements VIPDao 
+class VIPDaoImpl extends AdvancedDaoImpl implements VIPDao
 {
 
     protected $table = 'gv_vip';
@@ -35,28 +35,28 @@ class VIPDaoImpl extends AdvancedDaoImpl implements VIPDao
         return $this->getByFields(['uuid' => $uuid]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
-            'serializes' => [ 
-           ], 
-            'orderbys' => [ 
+            'serializes' => [
+            ],
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
-           ], 
-            'conditions' => [ 
+            ],
+            'conditions' => [
                 'id = :id',
                 'id > :id_GT',
                 'id IN (:ids)',
                 'id NOT IN (:noIds)',
                 'createdTime >= :startTime',
                 'createdTime <= :endTime',
-           ], 
-            'timestamps' => [ 
+            ],
+            'timestamps' => [
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
         ];
-    } 
+    }
 }

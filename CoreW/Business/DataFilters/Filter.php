@@ -22,8 +22,8 @@ use support\utils\AssetHelper;
 abstract class Filter
 {
     const AUTHENTICATED_MODE = 'authenticated';
-    const SIMPLE_MODE        = 'simple';
-    const PUBLIC_MODE        = 'public';
+    const SIMPLE_MODE = 'simple';
+    const PUBLIC_MODE = 'public';
 
     protected string $mode = self::PUBLIC_MODE;
 
@@ -94,7 +94,7 @@ abstract class Filter
     /**
      * 批量处理列表
      */
-    public function filtersList($dataSet): ?array
+    public function filtersList($dataSet) : ?array
     {
         if (!$dataSet || !is_array($dataSet)) {
             return null;
@@ -135,7 +135,7 @@ abstract class Filter
         }
     }
 
-    protected function init(): void
+    protected function init() : void
     {
         $this->assetUri = AssetHelper::getUri();
     }
@@ -143,7 +143,7 @@ abstract class Filter
     /**
      * 默认时间格式化
      */
-    private function defaultTimeFilter(&$data): void
+    private function defaultTimeFilter(&$data) : void
     {
         foreach (['createdTime', 'updatedTime', 'created_time', 'updated_time'] as $field) {
             if (isset($data[$field]) && is_numeric($data[$field])) {
@@ -155,7 +155,7 @@ abstract class Filter
     /**
      * 格式化字段处理器
      */
-    protected function processFormat(array &$data): void
+    protected function processFormat(array &$data) : void
     {
         foreach ($this->formatFields as $field => $type) {
             if (!array_key_exists($field, $data)) {
@@ -182,7 +182,7 @@ abstract class Filter
         }
     }
 
-    protected function processAppend(array &$data): void
+    protected function processAppend(array &$data) : void
     {
         foreach ($this->appendFields as $newField => $handler) {
             // enum:xxx
@@ -248,7 +248,7 @@ abstract class Filter
         return $this->convertFilePath($value);
     }
 
-    protected function format_datetime(int $value): string
+    protected function format_datetime(int $value) : string
     {
         return $value === 0 ? '' : date('Y-m-d H:i:s', $value);
     }
@@ -261,7 +261,7 @@ abstract class Filter
         return $value;
     }
 
-    protected function convertAbsoluteUrl($html): array|string|null
+    protected function convertAbsoluteUrl($html) : array|string|null
     {
         $filter = $this;
         return preg_replace_callback('/src=[\'\"]\/(.*?)[\'\"]/', function ($matches) use ($filter) {
@@ -269,7 +269,7 @@ abstract class Filter
                 return "src=\"/{$matches[1]}\"";
             }
             $path = '/' . ltrim($matches[1], '/');
-            $url  = $filter->uriForPath($path);
+            $url = $filter->uriForPath($path);
             return "src=\"{$url}\"";
         }, $html);
     }

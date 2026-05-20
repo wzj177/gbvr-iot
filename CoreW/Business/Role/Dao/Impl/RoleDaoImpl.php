@@ -12,7 +12,7 @@ class RoleDaoImpl extends AdvancedDaoImpl implements RoleDao
 
     public function getByCode($code)
     {
-        return $this->getByFields(array('code' => $code));
+        return $this->getByFields(['code' => $code]);
     }
 
     public function findByCodes($codes)
@@ -27,16 +27,16 @@ class RoleDaoImpl extends AdvancedDaoImpl implements RoleDao
 
     public function getByName($name)
     {
-        return $this->getByFields(array('name' => $name));
+        return $this->getByFields(['name' => $name]);
     }
 
-    public function declares(): array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'data' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
