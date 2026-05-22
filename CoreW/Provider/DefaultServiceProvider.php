@@ -14,7 +14,7 @@ class DefaultServiceProvider implements ServiceProviderInterface, BootableProvid
 {
     private string $defaultRootNamespace = "CoreW\\Business\\";
 
-    public function register(Container $app): void
+    public function register(Container $app) : void
     {
         $app['autoload.object_maker.service'] = function ($app) {
             return function ($namespace, $name) use ($app) {
@@ -34,7 +34,7 @@ class DefaultServiceProvider implements ServiceProviderInterface, BootableProvid
                 }
 
                 return new DaoProxy($app, new $class($app), $app['dao.metadata_reader'], $app['dao.serializer'], $app['dao.cache.array_storage']);
-//                return new $class($app);
+                //                return new $class($app);
             };
         };
     }

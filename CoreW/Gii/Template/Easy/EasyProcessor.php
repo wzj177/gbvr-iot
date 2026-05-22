@@ -11,28 +11,29 @@ use Illuminate\Support\Str;
 
 class EasyProcessor extends BaseProcessor
 {
-    private array $templates = [
-        'daoInterface' => DaoInterfaceTemplate::class,
-        'daoImpl' => DaoImplTemplate::class,
-        'serviceInterface' => ServiceInterfaceTemplate::class,
-        'serviceImpl' => ServiceImplTemplate::class,
-        'exception' => ExceptionTemplate::class
-    ];
+    private array $templates
+        = [
+            'daoInterface'     => DaoInterfaceTemplate::class,
+            'daoImpl'          => DaoImplTemplate::class,
+            'serviceInterface' => ServiceInterfaceTemplate::class,
+            'serviceImpl'      => ServiceImplTemplate::class,
+            'exception'        => ExceptionTemplate::class,
+        ];
 
-    public function getTemplates(): array
+    public function getTemplates() : array
     {
         return $this->templates;
     }
 
-    public function render(array $args = []): string
+    public function render(array $args = []) : string
     {
         $args['bizId'] = ucwords($args['bizId']);
         if (Str::contains($this->namespacePrefix, 'Plugins')) {
-            list($rootName, $packageName, $pluginName) = explode("\\", $this->namespacePrefix);
+            [$rootName, $packageName, $pluginName] = explode("\\", $this->namespacePrefix);
             $rootName = str_replace('Plugins', 'vendor', $rootName);
             $path = $rootName . '/' . strtolower($packageName) . '/' . strtolower($this->uncamelize($pluginName)) . '/src/Business';
 
-        } elseif (Str::contains($this->namespacePrefix, "CoreW\\")) {
+        } else if (Str::contains($this->namespacePrefix, "CoreW\\")) {
             $path = str_replace("\\", "/", ltrim($this->namespacePrefix, "App\\"));
         } else {
             throw GiiException::pathNotOpen();
@@ -48,7 +49,7 @@ class EasyProcessor extends BaseProcessor
         $args['rootPath'] = $path;
         $templates = $this->templates;
         if (!empty($args['templates']) && is_array($args['templates'])) {
-//            $templates = array_merge($args['templates'], $templates);
+            //            $templates = array_merge($args['templates'], $templates);
             $templates = $args['templates'];
             unset($args['templates']);
         }
@@ -60,17 +61,17 @@ class EasyProcessor extends BaseProcessor
         if (!empty($args['useDao']) && strtolower($args['useDao']) === 'n') {
             unset($templates['daoInterface'], $templates['daoImpl']);
         }
-        
+
         // Handle service creation scene
         if (!empty($args['scene']) && $args['scene'] === 'make-service') {
             unset($templates['daoInterface'], $templates['daoImpl'], $templates['exception']);
         }
-        
+
         // Handle exception creation scene
         if (!empty($args['scene']) && $args['scene'] === 'make-exception') {
             unset($templates['daoInterface'], $templates['daoImpl'], $templates['serviceInterface'], $templates['serviceImpl']);
         }
-        
+
         // Handle dao creation scene
         if (!empty($args['scene']) && $args['scene'] === 'make-dao') {
             unset($templates['serviceInterface'], $templates['serviceImpl'], $templates['exception']);
@@ -82,7 +83,7 @@ class EasyProcessor extends BaseProcessor
                 if (class_exists($template)) {
                     /** @var $templateObj TemplateInterface */
                     $templateObj = new $template($this->namespacePrefix, $this->biz);
-                    list($filename, $content) = $templateObj->getContext($args);
+                    [$filename, $content] = $templateObj->getContext($args);
                     if (!empty($filename)) {
                         file_put_contents($filename, $content);
                     }

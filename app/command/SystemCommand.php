@@ -81,13 +81,13 @@ class SystemCommand extends Command
         $email = $input->getArgument('email');
         if (!empty($nickname) && !empty($password) && !empty($email)) {
             $adminUser = [
-                'email' => $email,
+                'email'    => $email,
                 'nickname' => $nickname,
                 'password' => $password,
             ];
         } else {
             $adminUser = [
-                'email' => 'superAdmin@vr.net',
+                'email'    => 'superAdmin@vr.net',
                 'nickname' => 'admin',
                 'password' => self::DEFAULT_USER_PWD,
             ];

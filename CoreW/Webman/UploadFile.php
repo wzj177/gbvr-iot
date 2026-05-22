@@ -8,7 +8,7 @@ use Webman\File;
 class UploadFile extends \Webman\Http\UploadFile
 {
 
-    public function move(string $destination, int $dirMode = 0777, int $destinationMode = 0666): File
+    public function move(string $destination, int $dirMode = 0777, int $destinationMode = 0666) : File
     {
         set_error_handler(function ($type, $msg) use (&$error) {
             $error = $msg;

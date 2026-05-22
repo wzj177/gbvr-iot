@@ -7,6 +7,7 @@ namespace CoreW\LiveProvider;
 use CoreW\Bfw;
 use CoreW\Exception\NotFoundException;
 use CoreW\LiveProvider\Strategy\LiveProviderStrategy;
+
 class LiveProviderFactory
 {
     protected $CoreW;
@@ -34,7 +35,7 @@ class LiveProviderFactory
         return $strategy;
     }
 
-    protected function getLiveProviderType($type): string
+    protected function getLiveProviderType($type) : string
     {
         return 'live_provider.' . $type;
     }

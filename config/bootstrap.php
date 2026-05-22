@@ -16,7 +16,7 @@
 return [
     support\bootstrap\Session::class,
     CoreW\Core::class,
-//    support\bootstrap\Log::class,
-//    support\bootstrap\BizBootstrap::class,
-//    support\bootstrap\LaravelDb::class,
+    //    support\bootstrap\Log::class,
+    //    support\bootstrap\BizBootstrap::class,
+    //    support\bootstrap\LaravelDb::class,
 ];

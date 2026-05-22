@@ -18,17 +18,17 @@ class ExceptionUtil
             $error['message'] = $exception->getMessage();
             $error['code'] = $exception->getCode();
             $httpCode = $exception->getStatusCode();
-        } elseif ($exception instanceof NotFoundExceptionInterface || $exception instanceof NotFoundException) {
+        } else if ($exception instanceof NotFoundExceptionInterface || $exception instanceof NotFoundException) {
             $error['message'] = 'Not Found';
-            $error['code'] = $exception->getCode() ?: -1;
+            $error['code'] = $exception->getCode() ? : -1;
             $httpCode = 404;
-        } elseif ($exception instanceof BadRequestHttpException) {
+        } else if ($exception instanceof BadRequestHttpException) {
             $error['message'] = $exception->getMessage();
-            $error['code'] = $exception->getCode() ?: -1;
+            $error['code'] = $exception->getCode() ? : -1;
             $httpCode = 400;
         } else {
             $error['message'] = 'Internal server error';
-            $error['code'] = $exception->getCode() ?: -1;
+            $error['code'] = $exception->getCode() ? : -1;
             $httpCode = 500;
         }
 

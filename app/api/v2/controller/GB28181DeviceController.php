@@ -28,29 +28,34 @@ class GB28181DeviceController extends BaseController
         }
 
         $total = $this->getDeviceService()->countDevices($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
 
         $devices = $this->getDeviceService()->searchDevices($conditions, ['id' => 'DESC'], $offset, $limit);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
+        foreach ($devices as &$device) {
+            if ($device['registered_at']) {
+                $device['registered_at'] = strtotime($device['registered_at']);
+            }
+        }
 
-        
+
         return $this->createSuccessJsonResponse([
-            'list' => $devices,
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => $devices,
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
     /**
-     * 拉取在线设备列表（用于信令网关启动时恢复设备状态）
+     * 推送在线设备列表（用于信令网关启动时恢复设备状态）
      *
      * @param Request $request
      * @return \support\Response
      */
-    public function pullOnLineList(Request $request): \support\Response
+    public function pushOnLineList(Request $request) : \support\Response
     {
         $devices = $this->getDeviceService()->searchDevices(
             [
-                'status' => DeviceStatusEnum::ONLINE->value
+                'status' => DeviceStatusEnum::ONLINE->value,
             ],
             ['id' => 'ASC'],
             0,
@@ -61,7 +66,7 @@ class GB28181DeviceController extends BaseController
         $deviceIds = ArrayToolkit::column($devices, 'device_id');
 
         $channels = $this->getDeviceService()->searchChannels([
-            'device_ids' => $deviceIds
+            'device_ids' => $deviceIds,
         ], [], 0, PHP_INT_MAX);
 
         $channelsGrouped = ArrayToolkit::group($channels, 'device_id');
@@ -70,15 +75,15 @@ class GB28181DeviceController extends BaseController
         $result = [];
         foreach ($devices as $device) {
             $result[] = [
-                'device_id' => $device['device_id'],
-                'uri' => $device['from_uri'],
-                'ip' => $device['ip'],
-                'port' => $device['port'],
-                'user_agent' => $device['user_agent'],
+                'device_id'     => $device['device_id'],
+                'uri'           => $device['from_uri'],
+                'ip'            => $device['ip'],
+                'port'          => $device['port'],
+                'user_agent'    => $device['user_agent'],
                 'registered_at' => strtotime($device['registered_at']),
-                'timestamp' => strtotime($device['last_heartbeat_at']),
-                'expires' => $device['expires'],
-                'channels' => $channelsGrouped[$device['device_id']] ?? []
+                'timestamp'     => $device['last_heartbeat_at'],//strtotime($device['last_heartbeat_at']),
+                'expires'       => $device['expires'],
+                'channels'      => $channelsGrouped[$device['device_id']] ?? [],
             ];
         }
 
@@ -91,18 +96,18 @@ class GB28181DeviceController extends BaseController
     public function show(Request $request, $deviceId)
     {
         $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
-        
+
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
         }
-        
+
         // 获取通道列表
         $channels = $this->getDeviceService()->getChannelsByDeviceId($deviceId);
         $device['channels'] = $channels;
-        
+
         return $this->createSuccessJsonResponse($device);
     }
-    
+
     /**
      * 获取设备通道列表
      */
@@ -114,60 +119,60 @@ class GB28181DeviceController extends BaseController
         }
 
         $channels = $this->getDeviceService()->getChannelsByDeviceId($deviceId);
-        
+
         return $this->createSuccessJsonResponse([
-            'device_id' => $deviceId,
+            'device_id'   => $deviceId,
             'device_name' => $device['device_name'],
-            'channels' => $channels,
+            'channels'    => $channels,
         ]);
     }
-    
+
     /**
      * 查询设备目录（发送命令到信令网关）
      */
     public function queryCatalog(Request $request, $deviceId)
     {
         $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
-        
+
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
         }
-        
+
         if ($device['status'] !== 'online') {
             return $this->createErrorJsonResponse('设备离线', 400);
         }
-        
+
         // 发送命令到信令网关
         try {
             $result = $this->getGb28181Service()->queryCatalog($deviceId);
-            
+
             if (!$result) {
                 return $this->createErrorJsonResponse('发送目录查询请求失败', 500);
             }
         } catch (\Exception $e) {
             return $this->createErrorJsonResponse('发送目录查询请求异常: ' . $e->getMessage(), 500);
         }
-        
+
         Log::channel('sip')->info('Query catalog command sent', [
             'device_id' => $deviceId,
         ]);
-        
+
         return $this->createSuccessJsonResponse([
             'message' => '目录查询命令已发送，请等待设备响应',
         ]);
     }
-    
+
     /**
      * 删除设备
      */
     public function destroy(Request $request, $deviceId)
     {
         $device = $this->getDeviceService()->getDeviceByDeviceId($deviceId);
-        
+
         if (!$device) {
             return $this->createErrorJsonResponse('设备不存在', 404);
         }
-        
+
         // 删除设备和通道
         try {
             $this->getDeviceService()->deleteDeviceById($device['id']);
@@ -217,16 +222,16 @@ class GB28181DeviceController extends BaseController
     /**
      * @return DeviceService
      */
-    private function getDeviceService(): DeviceService
+    private function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
-    
+
     /**
      * @return Gb28181Service
      */
-    private function getGb28181Service(): Gb28181Service
+    private function getGb28181Service() : Gb28181Service
     {
-        return $this->createService('GB:Gb28181Service');
+        return $this->getBiz()->offsetGet('gb28181_service');
     }
 }

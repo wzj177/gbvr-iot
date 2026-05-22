@@ -35,7 +35,6 @@ class ProductCatalogController extends BaseController
         }
 
 
-
         return $this->createSuccessJsonResponse($this->getProductCatalogService()->getTree($conditions, $mode));
     }
 
@@ -48,7 +47,7 @@ class ProductCatalogController extends BaseController
         }
 
         $total = $this->getProductCatalogService()->countProductCatalog($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
         $sort = $this->getSort($request);
         $sort['id'] = 'DESC';
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
@@ -57,8 +56,8 @@ class ProductCatalogController extends BaseController
         $filter->filters($items);
 
         return $this->createSuccessJsonResponse([
-            'list' => $items,
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => $items,
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
@@ -119,7 +118,7 @@ class ProductCatalogController extends BaseController
     public function batchUpdateStatus(Request $request)
     {
         $fields = v::input($request->post(), [
-            'ids' => v::arrayVal()->addRule(v::notEmpty()->setTemplate('分类id参数错误'))->setName('分类id参数错误'),
+            'ids'    => v::arrayVal()->addRule(v::notEmpty()->setTemplate('分类id参数错误'))->setName('分类id参数错误'),
             'status' => v::in(array_keys(BizEnum::getEnableOrDisableItems()))->setName('状态'),
         ]);
         if ($this->getProductCatalogService()->batchUpdateStatus($fields)) {
@@ -132,7 +131,7 @@ class ProductCatalogController extends BaseController
     public function batchDestroy(Request $request)
     {
         $fields = v::input($request->post(), [
-            'ids' => v::arrayVal()->addRule(v::notEmpty()->setTemplate('分类id参数错误'))->setName('分类id参数错误')
+            'ids' => v::arrayVal()->addRule(v::notEmpty()->setTemplate('分类id参数错误'))->setName('分类id参数错误'),
         ]);
 
         if ($this->getProductCatalogService()->batchUpdateDeleteByIds($fields['ids'])) {

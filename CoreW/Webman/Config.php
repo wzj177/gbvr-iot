@@ -29,26 +29,26 @@ class Config extends \Webman\Config
                 $current = &$current[$subKey];
             }
         }
-//        $level = count($keyArray);
-//        if ($level == 1) {
-//            if (isset(static::$config[$key])) {
-//                static::$config[$key] = $value;
-//            }
-//            return;
-//        }
-//
-//        if ($level === 2) {
-//            if (isset(static::$config[$keyArray[0]][$keyArray[1]])) {
-//                static::$config[$keyArray[0]][$keyArray[1]] = $value;
-//            }
-//            return;
-//        }
-//
-//
-//        if ($level === 3) {
-//            if (isset(static::$config[$keyArray[0]][$keyArray[1]][$keyArray[12]])) {
-//                static::$config[$keyArray[0]][$keyArray[1]][$keyArray[2]] = $value;
-//            }
-//        }
+        //        $level = count($keyArray);
+        //        if ($level == 1) {
+        //            if (isset(static::$config[$key])) {
+        //                static::$config[$key] = $value;
+        //            }
+        //            return;
+        //        }
+        //
+        //        if ($level === 2) {
+        //            if (isset(static::$config[$keyArray[0]][$keyArray[1]])) {
+        //                static::$config[$keyArray[0]][$keyArray[1]] = $value;
+        //            }
+        //            return;
+        //        }
+        //
+        //
+        //        if ($level === 3) {
+        //            if (isset(static::$config[$keyArray[0]][$keyArray[1]][$keyArray[12]])) {
+        //                static::$config[$keyArray[0]][$keyArray[1]][$keyArray[2]] = $value;
+        //            }
+        //        }
     }
 }

@@ -8,13 +8,13 @@ class GisUtil
      * @param array $polygon
      * @return array
      */
-    public static function getVideoLayerPositionByPolygonCorners(array $polygonCorners): array
+    public static function getVideoLayerPositionByPolygonCorners(array $polygonCorners) : array
     {
         $items = [];
         foreach ($polygonCorners as $key => $corner) {
             $items[] = [
                 'pitch' => $corner[1],
-                'yaw' => $corner[0],
+                'yaw'   => $corner[0],
             ];
         }
 
@@ -29,7 +29,7 @@ class GisUtil
      * @param int $webHeight
      * @return float[]
      */
-    public static function getPolygonCorners($polygon): array
+    public static function getPolygonCorners($polygon) : array
     {
         // 初始化左上、右上、左下、右下的点
         $left_top = null;
@@ -62,14 +62,14 @@ class GisUtil
         }
 
         return [
-            'left_top' => $left_top,
-            'right_top' => $right_top,
+            'left_top'     => $left_top,
+            'right_top'    => $right_top,
             'right_bottom' => $right_bottom,
-            'left_bottom' => $left_bottom
+            'left_bottom'  => $left_bottom,
         ];
     }
 
-    public static function sphericalToCartesian($pitch, $yaw): array
+    public static function sphericalToCartesian($pitch, $yaw) : array
     {
         // 将球面坐标 (pitch, yaw) 转换为 Cartesian (x, y)
         $x = cos($pitch) * cos($yaw);
@@ -78,7 +78,7 @@ class GisUtil
         return [$x, $y, $z];
     }
 
-    public static function calculateWidthHeight($corners, int $webWidth = 1920, int $webHeight = 1080): array
+    public static function calculateWidthHeight($corners, int $webWidth = 1920, int $webHeight = 1080) : array
     {
         // 左上角和右下角坐标
         $left_top = $corners['left_top'];
@@ -101,8 +101,8 @@ class GisUtil
         $height = $heightRange * $yScale;
 
         return [
-            'width' => ceil($width),
-            'height' => ceil($height)
+            'width'  => ceil($width),
+            'height' => ceil($height),
         ];
     }
 

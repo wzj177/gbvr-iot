@@ -10,7 +10,7 @@ interface ProductCatalogService
      * @param array $conditions
      * @return int
      */
-    public function countProductCatalog(array $conditions): int;
+    public function countProductCatalog(array $conditions) : int;
 
     /**
      * @param array $conditions
@@ -20,7 +20,7 @@ interface ProductCatalogService
      * @param array $columns
      * @return array
      */
-    public function searchProductCatalogs(array $conditions, array $orderBys, int $start, int $limit, array $columns = []): array;
+    public function searchProductCatalogs(array $conditions, array $orderBys, int $start, int $limit, array $columns = []) : array;
 
     /**
      * @param array $fields
@@ -57,13 +57,13 @@ interface ProductCatalogService
      * @param int $id
      * @return array|null
      */
-    public function getProductCatalogById(int $id): ?array;
+    public function getProductCatalogById(int $id) : ?array;
 
     /**
      * @param int $id
      * @return bool
      */
-    public function deleteProductCatalogById(int $id): bool;
+    public function deleteProductCatalogById(int $id) : bool;
 
     /**
      * 获取分类通过分类名称
@@ -71,7 +71,7 @@ interface ProductCatalogService
      * @param string $name
      * @return array|null
      */
-    public function getProductCatalogByName(string $name): ?array;
+    public function getProductCatalogByName(string $name) : ?array;
 
     /**
      * 获取分类通过分类编码
@@ -79,7 +79,7 @@ interface ProductCatalogService
      * @param string $code
      * @return array|null
      */
-    public function getProductCatalogByCode(string $code): ?array;
+    public function getProductCatalogByCode(string $code) : ?array;
 
     /**
      * 获取分类树
@@ -88,13 +88,13 @@ interface ProductCatalogService
      * @param string $type
      * @return array
      */
-    public function getTree(array $conditions, $type = 'infinite_limit'): array;
+    public function getTree(array $conditions, $type = 'infinite_limit') : array;
 
     /**
      * @param array $fields
      * @return bool
      */
-    public function batchUpdateStatus(array $fields) :bool;
+    public function batchUpdateStatus(array $fields) : bool;
 
     /**
      * 批量删除分类
@@ -102,7 +102,7 @@ interface ProductCatalogService
      * @param array $ids
      * @return bool
      */
-    public function batchUpdateDeleteByIds(array $ids) :bool;
+    public function batchUpdateDeleteByIds(array $ids) : bool;
 
     /**
      * 获取顶级分类

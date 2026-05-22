@@ -176,11 +176,11 @@ class ArrayToolkit
 
             if (is_array($value)) {
                 $filtered[$key] = (array)$array[$key];
-            } elseif (is_int($value)) {
+            } else if (is_int($value)) {
                 $filtered[$key] = (int)$array[$key];
-            } elseif (is_float($value)) {
+            } else if (is_float($value)) {
                 $filtered[$key] = (float)$array[$key];
-            } elseif (is_bool($value)) {
+            } else if (is_bool($value)) {
                 $filtered[$key] = (bool)$array[$key];
             } else {
                 $filtered[$key] = (string)$array[$key];
@@ -203,7 +203,7 @@ class ArrayToolkit
         foreach ($array as $key => $value) {
             if (is_array($value)) {
                 $array[$key] = static::trim($value);
-            } elseif (is_string($value)) {
+            } else if (is_string($value)) {
                 $array[$key] = trim($value);
             }
         }
@@ -298,5 +298,37 @@ class ArrayToolkit
         );
 
         return $twoDimensionalArr;
+    }
+
+    /**
+     * 获取数组中指定字段的值
+     *
+     * @param array $items
+     * @param string $key
+     * @param string $value
+     *
+     * @return array
+     */
+    public static function find(array $items, string $key, string $value)
+    {
+        if (function_exists('array_find')) {
+            return array_find($items, function ($item) use ($key, $value) {
+                if (!isset($item[$key])) {
+                    return false;
+                }
+                return $item[$key] == $value;
+            });
+        }
+
+        foreach ($items as $item) {
+            if (!isset($item[$key])) {
+                continue;
+            }
+            if ($item[$key] == $value) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 }

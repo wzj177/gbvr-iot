@@ -10,12 +10,12 @@ class CurlRequest
     /**
      * @var array
      */
-    public $options = array();
+    public $options = [];
     // request specific options - valid only for single request
     /**
      * @var array
      */
-    public $request_options = array();
+    public $request_options = [];
     /**
      * @var
      */
@@ -36,17 +36,18 @@ class CurlRequest
     /**
      * @var array
      */
-    private $_config = [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HEADER => false,
-        CURLOPT_VERBOSE => false, // debug
-        CURLOPT_AUTOREFERER => true,
-        CURLOPT_CONNECTTIMEOUT => 30,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-    ];
+    private $_config
+        = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HEADER         => false,
+            CURLOPT_VERBOSE        => false, // debug
+            CURLOPT_AUTOREFERER    => true,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        ];
 
     /**
      * @return array|mixed
@@ -60,7 +61,7 @@ class CurlRequest
             foreach ($next as $k => $v) {
                 if (is_array($v) && isset($res[$k]) && is_array($res[$k]))
                     $res[$k] = self::mergeArray($res[$k], $v);
-                elseif (is_numeric($k))
+                else if (is_numeric($k))
                     isset($res[$k]) ? $res[] = $v : $res[$k] = $v;
                 else
                     $res[$k] = $v;
@@ -99,7 +100,7 @@ class CurlRequest
      */
     public function resetOptions()
     {
-        $this->request_options = array();
+        $this->request_options = [];
         return $this;
     }
 
@@ -132,11 +133,11 @@ class CurlRequest
      * @param array $data
      * @return string
      */
-    public function buildUrl($url, $data = array())
+    public function buildUrl($url, $data = [])
     {
         $parsed = parse_url($url);
 
-        isset($parsed['query']) ? parse_str($parsed['query'], $parsed['query']) : $parsed['query'] = array();
+        isset($parsed['query']) ? parse_str($parsed['query'], $parsed['query']) : $parsed['query'] = [];
         $params = isset($parsed['query']) ? $data + $parsed['query'] : $data;
         $parsed['query'] = ($params) ? '?' . http_build_query($params) : '';
         if (!isset($parsed['path'])) {
@@ -169,7 +170,7 @@ class CurlRequest
         } else if ($debug)
             $this->_info = curl_getinfo($ch);
         if (@$options[CURLOPT_HEADER] == true) {
-            list($header, $output) = $this->_processHeader($output, curl_getinfo($ch, CURLINFO_HEADER_SIZE));
+            [$header, $output] = $this->_processHeader($output, curl_getinfo($ch, CURLINFO_HEADER_SIZE));
             $this->_header = $header;
         }
         curl_close($ch);
@@ -183,7 +184,7 @@ class CurlRequest
      */
     public function _processHeader($response, $header_size)
     {
-        return array(substr($response, 0, $header_size), substr($response, $header_size));
+        return [substr($response, 0, $header_size), substr($response, $header_size)];
     }
 
     /**
@@ -192,7 +193,7 @@ class CurlRequest
      * @param bool $debug
      * @return mixed
      */
-    public function get($url, $params = array(), $debug = false)
+    public function get($url, $params = [], $debug = false)
     {
         $exec_url = $this->buildUrl($url, $params);
         $options = $this->getOptions();
@@ -206,7 +207,7 @@ class CurlRequest
      * @param bool $debug
      * @return mixed
      */
-    public function post($url, $data, $params = array(), $debug = false)
+    public function post($url, $data, $params = [], $debug = false)
     {
         $url = $this->buildUrl($url, $params);
         $options = $this->getOptions();
@@ -225,7 +226,7 @@ class CurlRequest
      * @param bool $debug
      * @return mixed
      */
-    public function put($url, $data = null, $params = array(), $debug = false)
+    public function put($url, $data = null, $params = [], $debug = false)
     {
         $url = $this->buildUrl($url, $params);
 
@@ -246,7 +247,7 @@ class CurlRequest
      * @param bool $debug
      * @return mixed
      */
-    public function patch($url, $data = array(), $params = array(), $debug = false)
+    public function patch($url, $data = [], $params = [], $debug = false)
     {
         $url = $this->buildUrl($url, $params);
 
@@ -262,7 +263,7 @@ class CurlRequest
      * @param bool $debug
      * @return mixed
      */
-    public function delete($url, $params = array(), $debug = false)
+    public function delete($url, $params = [], $debug = false)
     {
         $url = $this->buildUrl($url, $params);
 
@@ -277,10 +278,10 @@ class CurlRequest
     public function getHeaders()
     {
         if (!$this->_header)
-            return array();
+            return [];
         if (!$this->_headerMap) {
             $headers = explode("\r\n", trim($this->_header));
-            $output = array();
+            $output = [];
             $output['http_status'] = array_shift($headers);
             foreach ($headers as $line) {
                 $params = explode(':', $line, 2);
@@ -298,9 +299,9 @@ class CurlRequest
      * @param array $header
      * @return $this
      */
-    public function addHeader($header = array())
+    public function addHeader($header = [])
     {
-        $h = isset($this->request_options[CURLOPT_HTTPHEADER]) ? $this->request_options[CURLOPT_HTTPHEADER] : array();
+        $h = isset($this->request_options[CURLOPT_HTTPHEADER]) ? $this->request_options[CURLOPT_HTTPHEADER] : [];
         foreach ($header as $k => $v) {
             $h[] = $k . ': ' . $v;
         }
@@ -324,10 +325,10 @@ class CurlRequest
      * @param bool $default
      * @return $this
      */
-    public function setHeaders($header = array(), $default = false)
+    public function setHeaders($header = [], $default = false)
     {
         if ($this->_isAssoc($header)) {
-            $out = array();
+            $out = [];
             foreach ($header as $k => $v) {
                 $out[] = $k . ': ' . $v;
             }
@@ -378,7 +379,7 @@ class CurlRequest
             $mrc = curl_multi_exec($mch, $active);
             //这个循环的目的是尽可能地读写，直到无法继续读写为止
             //返回 CURLM_CALL_MULTI_PERFORM 表示还能继续向网络读写
-//            $errNo = curl_multi_errno($mch);
+            //            $errNo = curl_multi_errno($mch);
         } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
         while ($active && $mrc == CURLM_OK) {

@@ -42,6 +42,12 @@ class Monitor
      */
     public static $lockFile = __DIR__ . '/../runtime/monitor.lock';
 
+    // 排除的目录
+    protected array $excludeDirs = [];
+
+    // 忽略的相对目录，相对当前项目跟目录
+    protected array $excludeRelativeDirs = ['app/command', 'Gb28181Gateway', 'docs', 'migrations', 'public', 'runtime', 'tests'];
+
     /**
      * Pause monitor
      * @return void
@@ -166,7 +172,26 @@ class Monitor
         if (static::isPaused()) {
             return false;
         }
+
+        // 过滤掉排除的目录
         foreach ($this->paths as $path) {
+            if (in_array($path, $this->excludeDirs)) {
+                continue;
+            }
+
+            $continue = false;
+            foreach ($this->excludeRelativeDirs as $relativeDir) {
+                $dir = base_path($relativeDir);
+                if (str_starts_with($path, $dir)) {
+                    $continue =  true;
+                    break;
+                }
+            }
+
+            if ($continue) {
+                continue;
+            }
+
             if ($this->checkFilesChange($path)) {
                 return true;
             }

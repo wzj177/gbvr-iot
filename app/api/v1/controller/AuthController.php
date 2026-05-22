@@ -47,7 +47,7 @@ class AuthController extends BaseController
         }
 
         return $this->createSuccessJsonResponse([
-            'url' => $oauth2QQ->getAuthorizationUrl($url)
+            'url' => $oauth2QQ->getAuthorizationUrl($url),
         ]);
     }
 
@@ -66,13 +66,13 @@ class AuthController extends BaseController
         $dto->oauth2RedirectUri = $redirectUri;
         $dto->requestIp = $request->getRealIp();
         $dto->clientType = $type;
-        list($vip, $token) = $this->getVIPService()->login($dto);
+        [$vip, $token] = $this->getVIPService()->login($dto);
         $filter = new VIPFilter();
         $filter->filter($vip);
 
         return $this->createSuccessJsonResponse([
             'token' => $token,
-            'user' => $vip
+            'user'  => $vip,
         ], '登录成功');
     }
 
@@ -93,13 +93,13 @@ class AuthController extends BaseController
         $dto->verifyCode = $request->post('code', '');
         $dto->clientType = $type;
         $dto->requestIp = $request->getRealIp();
-        list($vip, $token) = $this->getVIPService()->login($dto);
+        [$vip, $token] = $this->getVIPService()->login($dto);
         $filter = new VIPFilter();
         $filter->filter($vip);
 
         return $this->createSuccessJsonResponse([
             'token' => $token,
-            'user' => $vip
+            'user'  => $vip,
         ], '登录成功');
     }
 
@@ -118,13 +118,13 @@ class AuthController extends BaseController
         $dto->password = $request->post('password', '');
         $dto->clientType = $type;
         $dto->requestIp = $request->getRealIp();
-        list($vip, $token) = $this->getVIPService()->login($dto);
+        [$vip, $token] = $this->getVIPService()->login($dto);
         $filter = new VIPFilter();
         $filter->filter($vip);
 
         return $this->createSuccessJsonResponse([
             'token' => $token,
-            'user' => $vip
+            'user'  => $vip,
         ], '登录成功');
     }
 
@@ -138,14 +138,15 @@ class AuthController extends BaseController
     {
         $vip = $this->getVIPInfo()->toArray();
         $this->getLogService()->info('vip', 'logout', '会员退出', [
-            'vip' => $vip,
-            'currentIp' => $request->getRealIp()
+            'vip'       => $vip,
+            'currentIp' => $request->getRealIp(),
         ]);
         $this->getVIPService()->destroyToken($vip['loginToken']);
         $this->getBiz()->offsetSet('vip', null);
 
         return $this->createSuccessJsonResponse(null, '登出成功');
     }
+
     /**
      * 用户注册
      *
@@ -166,7 +167,7 @@ class AuthController extends BaseController
 
             return $this->createSuccessJsonResponse([
                 'token' => $token,
-                'user' => $vip
+                'user'  => $vip,
             ], '注册成功');
         }
 
@@ -184,12 +185,12 @@ class AuthController extends BaseController
         $fields = $request->post();
         v::email()->setName('登录邮箱')->setTemplate('登录邮箱为空或格式错误')->check($fields['username'] ?? '');
         $key = $this->getVIPService()->sendAccountEmailLoginCode($fields['username']);
-        if  ($key === null) {
+        if ($key === null) {
             return $this->createErrorJsonResponse("邮箱登录验证码发送失败");
         }
 
         return $this->createSuccessJsonResponse([
-            'key' => $key
+            'key' => $key,
         ]);
     }
 }

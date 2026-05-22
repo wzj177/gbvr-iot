@@ -6,7 +6,8 @@
 use CoreW\Business\Attachment\Exception\AttachmentException;
 
 if (!function_exists('format_bytes')) {
-    function format_bytes(int $bytes) {
+    function format_bytes(int $bytes)
+    {
         if ($bytes < 1024) {
             return $bytes . ' B';
         }
@@ -24,7 +25,8 @@ if (!function_exists('format_bytes')) {
 }
 
 if (!function_exists('format_duration')) {
-    function format_duration(int $duration) {
+    function format_duration(int $duration)
+    {
         if ($duration < 60) {
             return $duration . 's';
         }
@@ -45,7 +47,8 @@ if (!function_exists('format_duration')) {
 }
 
 if (!function_exists('attachment_validate_upload_file')) {
-    function attachment_validate_upload_file($setting, $ext, $size) {
+    function attachment_validate_upload_file($setting, $ext, $size)
+    {
         $imgExts = !is_array($setting['allow_image_exts']) || empty($setting['allow_image_exts']) ? [] : $setting['allow_image_exts'];
         $audioExts = !is_array($setting['allow_audio_exts']) || empty($setting['allow_audio_exts']) ? [] : $setting['allow_audio_exts'];
         $videoExts = !is_array($setting['allow_video_exts']) || empty($setting['allow_video_exts']) ? [] : $setting['allow_video_exts'];
@@ -82,3 +85,59 @@ if (!function_exists('attachment_validate_upload_file')) {
         return true;
     }
 }
+if (!function_exists('parse_mit_ini')) {
+    function parse_mit_ini(string $path, bool $flat = false) : array
+    {
+        $data = [];
+        $section = null;
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            throw new RuntimeException("Cannot read file: $path");
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === ';') {
+                continue;
+            }
+
+            // [section]
+            if ($line[0] === '[' && str_ends_with($line, ']')) {
+                $section = substr($line, 1, -1);
+                if (!$flat && !isset($data[$section])) {
+                    $data[$section] = [];
+                }
+                continue;
+            }
+
+            // key=value
+            $pos = strpos($line, '=');
+            if ($pos === false) {
+                continue;
+            }
+
+            $key = trim(substr($line, 0, $pos));
+            $val = ltrim(substr($line, $pos + 1));
+
+            // 类型弱转换（不影响 notFound 这种字符串）
+            if (is_numeric($val)) {
+                $val = str_contains($val, '.') ? (float)$val : (int)$val;
+            }
+
+            if ($flat) {
+                $fullKey = $section !== null ? "$section.$key" : $key;
+                $data[$fullKey] = $val;
+            } else {
+                if ($section === null) {
+                    $data[$key] = $val;
+                } else {
+                    $data[$section][$key] = $val;
+                }
+            }
+        }
+
+        return $data;
+    }
+}
+

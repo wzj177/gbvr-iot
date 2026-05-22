@@ -5,7 +5,7 @@ namespace CoreW\Business\Attachment\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\Attachment\Dao\AttachmentDao;
 
-class AttachmentDaoImpl extends AdvancedDaoImpl implements AttachmentDao 
+class AttachmentDaoImpl extends AdvancedDaoImpl implements AttachmentDao
 {
 
     protected $table = 'gv_attachment';
@@ -28,22 +28,22 @@ class AttachmentDaoImpl extends AdvancedDaoImpl implements AttachmentDao
     public function getOneByStorageAndPath(string $storage, string $path)
     {
         return $this->getByFields([
-            'storage' => $storage,
-            'filepath' => $path
+            'storage'  => $storage,
+            'filepath' => $path,
         ]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
-            'serializes' => [ 
-           ], 
-            'orderbys' => [ 
+            'serializes' => [
+            ],
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
-           ], 
-            'conditions' => [ 
+            ],
+            'conditions' => [
                 'id = :id',
                 'hashId = :hashId',
                 'id > :id_GT',
@@ -58,10 +58,10 @@ class AttachmentDaoImpl extends AdvancedDaoImpl implements AttachmentDao
                 'storage = :storage',
                 '(filename LIKE :keyword OR UPPER(ext) LIKE :keyword)',
             ],
-            'timestamps' => [ 
+            'timestamps' => [
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
         ];
-    } 
+    }
 }

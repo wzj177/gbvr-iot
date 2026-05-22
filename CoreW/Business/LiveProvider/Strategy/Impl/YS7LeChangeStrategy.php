@@ -12,7 +12,7 @@ class YS7LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
         return $this->getYs7LiveStrategy()->searchRecorders($offset, $limit, $conditions, $sort, $columns);
     }
 
-    public function searchCameras($offset, $limit, array $conditions = [], $sort = null, $columns = []): array
+    public function searchCameras($offset, $limit, array $conditions = [], $sort = null, $columns = []) : array
     {
         $total = 0;
         try {
@@ -30,8 +30,8 @@ class YS7LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
         }
 
         return [
-            'total' => $total,
-            'ys7' => $ys7Cameras['items'] ?? [],
+            'total'    => $total,
+            'ys7'      => $ys7Cameras['items'] ?? [],
             'leChange' => $leChangeCameras['items'] ?? [],
         ];
     }
@@ -55,7 +55,7 @@ class YS7LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
         $platform = $options['platform'] ?? null;
         if (!$platform) {
             try {
-                $result =  $this->getYs7LiveStrategy()->getLiveUrl($code, $options);
+                $result = $this->getYs7LiveStrategy()->getLiveUrl($code, $options);
                 if (!$result) {
                     throw new \Exception('ys7 camera not found');
                 }
@@ -77,7 +77,7 @@ class YS7LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
         return null;
     }
 
-    public function getCamera($code): array
+    public function getCamera($code) : array
     {
         $ys7Camera = $this->getYs7LiveStrategy()->getCamera($code);
         if (!empty($ys7Camera)) {
@@ -137,7 +137,7 @@ class YS7LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
     /**
      * @return Ys7Strategy
      */
-    protected function getYs7LiveStrategy(): Ys7Strategy
+    protected function getYs7LiveStrategy() : Ys7Strategy
     {
         return $this->CoreW->offsetGet('live_provider.Ys7')->setCurrentThirdParty($this->currentThirdParty);
     }
@@ -145,7 +145,7 @@ class YS7LeChangeStrategy extends LiveProviderStrategy implements LiveProvider
     /**
      * @return LeChangeStrategy
      */
-    public function getLeChangeStrategy(): LeChangeStrategy
+    public function getLeChangeStrategy() : LeChangeStrategy
     {
         return $this->CoreW->offsetGet('live_provider.LeChange')->setCurrentThirdParty($this->currentThirdParty);
     }

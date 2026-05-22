@@ -65,7 +65,7 @@ class TimeMachine
     public function format($format, $timestamp = null)
     {
         $datetime = new DateTime(null, new DateTimeZone($this->timezone));
-        $datetime->setTimestamp($timestamp ?: time());
+        $datetime->setTimestamp($timestamp ? : time());
 
         return $datetime->format($format);
     }
@@ -94,7 +94,7 @@ class TimeMachine
         $startTime = $datetime->getTimestamp();
         $endTime = $startTime + 86400;
 
-        return array($startTime, $endTime);
+        return [$startTime, $endTime];
     }
 
     public static function getTimeRangeByDays($days)
@@ -103,7 +103,7 @@ class TimeMachine
             throw new InvalidArgumentException('days is error');
         }
 
-        return array('startTime' => strtotime(date('Y-m-d', time() - $days * 24 * 60 * 60)), 'endTime' => strtotime(date('Y-m-d', time() + 24 * 3600)));
+        return ['startTime' => strtotime(date('Y-m-d', time() - $days * 24 * 60 * 60)), 'endTime' => strtotime(date('Y-m-d', time() + 24 * 3600))];
     }
 
     public function diffDays($timestamp1, $timestamp2)

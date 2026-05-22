@@ -8,7 +8,7 @@ use Webman\Exception\NotFoundException;
 
 class Container extends \Webman\Container
 {
-    public function set($name, $args = []): object
+    public function set($name, $args = []) : object
     {
         if (!class_exists($name)) {
             throw new NotFoundException("Class '$name' not found");

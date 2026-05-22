@@ -4,7 +4,7 @@ namespace CoreW\Business\IpBlacklist\Exception;
 
 use support\exception\AbstractException;
 
-class IpBlacklistException extends AbstractException 
+class IpBlacklistException extends AbstractException
 {
     public function __construct($code)
     {
@@ -15,7 +15,7 @@ class IpBlacklistException extends AbstractException
     public function setMessages()
     {
         $this->messages = [
-        
+
         ];
     }
 

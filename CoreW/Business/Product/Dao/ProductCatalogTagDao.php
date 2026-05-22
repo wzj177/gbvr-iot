@@ -12,5 +12,5 @@ interface ProductCatalogTagDao extends AdvancedDaoInterface
      * @param $catalogId
      * @return array
      */
-    public function getAllByCatalogId($catalogId) :array;
+    public function getAllByCatalogId($catalogId) : array;
 }

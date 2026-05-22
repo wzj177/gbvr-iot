@@ -16,12 +16,12 @@ use Workerman\Worker;
 
 return [
     // File update detection and automatic reload
-    'monitor' => [
-        'handler' => process\Monitor::class,
-        'reloadable' => false,
+    'monitor'                                 => [
+        'handler'     => process\Monitor::class,
+        'reloadable'  => false,
         'constructor' => [
             // Monitor these directories
-            'monitorDir' => array_merge([
+            'monitorDir'        => array_merge([
                 app_path(),
                 config_path(),
                 core_path(),
@@ -32,27 +32,58 @@ return [
             ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
             // Files with these suffixes will be monitored
             'monitorExtensions' => [
-                'php', 'html', 'htm', 'env'
+                'php', 'html', 'htm', 'env',
             ],
-            'options' => [
-                'enable_file_monitor' => !Worker::$daemonize && DIRECTORY_SEPARATOR === '/',
+            'options'           => [
+                'enable_file_monitor'   => !Worker::$daemonize && DIRECTORY_SEPARATOR === '/',
                 'enable_memory_monitor' => DIRECTORY_SEPARATOR === '/',
-            ]
-        ]
+            ],
+        ],
     ],
-    'redis_consumer_fast' => [
-        'handler' => Webman\RedisQueue\Process\Consumer::class,
-        'count' => 8,
+    'redis_consumer_fast'                     => [
+        'handler'     => Webman\RedisQueue\Process\Consumer::class,
+        'count'       => 8,
         'constructor' => [
             // 消费者类目录
-            'consumer_dir' => app_path() . '/queue/redis/fast'
-        ]
+            'consumer_dir' => app_path() . '/queue/redis/fast',
+        ],
     ],
-//    'http-chunk' => [
-//        'listen' => 'http://0.0.0.0:8585',
-//        'handler' => \process\HttpChunk::class,
-//    ],
-    'task' => [
-        'handler' => app\process\Task::class
+    //    'http-chunk' => [
+    //        'listen' => 'http://0.0.0.0:8585',
+    //        'handler' => \process\HttpChunk::class,
+    //    ],
+    'ScheduleTask'                            => [
+        'handler' => app\process\ScheduleTaskProcess::class,
+    ],
+    //    'Gb28181DeviceCatalogQueryTask' => [
+    //        'handler' => app\process\Gb28181DeviceCatalogQueryTaskProcess::class
+    //    ],
+    'Gb28181DeviceStatusCheckTask'            => [
+        'handler' => app\process\Gb28181DeviceStatusCheckTaskProcess::class,
+    ],
+    //    'RefreshMediaServerStatusTask' => [
+    //        'handler' => app\process\RefreshMediaServerStatusTaskProcess::class
+    //    ],
+    'CleanupRtpPortAndClearStreamSessionTask' => [
+        'handler' => app\process\CleanupRtpPortAndClearStreamSessionTaskProcess::class,
+    ],
+    'SubscriptionRenewTask'                   => [
+        'handler' => app\process\SubscriptionRenewTaskProcess::class,
+    ],
+    'AutoLiveStreamTask'                      => [
+        'handler' => app\process\AutoLiveStreamTaskProcess::class,
+    ],
+    'AutoRecord'                              => [
+        'handler' => app\process\AutoRecordProcess::class,
+        'count'   => (int)getenv('TASK_RECORD_PROCESS_NUM') ? : 3,
+    ],
+    'StreamProxyHealthCheck'                  => [
+        'handler' => app\process\StreamProxyHealthCheckProcess::class,
+    ],
+    'StreamProxyAutoReconnect'                => [
+        'handler' => app\process\StreamProxyAutoReconnectProcess::class,
+    ],
+    'SipGatewayHealthCheck'                   => [
+        'handler' => app\process\SipGatewayHealthCheckProcess::class,
     ],
 ];

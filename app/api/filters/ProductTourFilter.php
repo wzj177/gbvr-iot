@@ -5,20 +5,21 @@ namespace app\api\filters;
 use CoreW\Business\DataFilters\Filter;
 use support\utils\AssetHelper;
 
-class ProductTourFilter  extends Filter
+class ProductTourFilter extends Filter
 {
-    protected $publicFields = [
-        'id',
-        'productId',
-        'title',
-        'startImg',
-        'endImg',
-        'loopPlay',
-        'endToStart',
-        'txtPosition',
-        'txtSize',
-        'createdTime',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'productId',
+            'title',
+            'startImg',
+            'endImg',
+            'loopPlay',
+            'endToStart',
+            'txtPosition',
+            'txtSize',
+            'createdTime',
+        ];
 
     protected function publicFields(&$data)
     {

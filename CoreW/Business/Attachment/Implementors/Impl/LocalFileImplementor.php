@@ -9,8 +9,10 @@ use CoreW\Business\Attachment\Implementors\AbstractFileImplementor;
 use CoreW\Business\Attachment\Implementors\FileImplementor;
 use Imagine\Image\Box;
 use support\utils\StringToolkit;
+
 //use Webman\Http\UploadFile;
 use CoreW\Webman\UploadFile;
+
 class LocalFileImplementor extends AbstractFileImplementor implements FileImplementor
 {
 
@@ -52,18 +54,18 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
         $filename = $file->getUploadName();
         if (!empty($existFile) && is_file(uploads_path(str_replace('uploads/', '', $existFile['filepath'])))) {
             return [
-                'storage' => 'local',
-                'filename' => $filename,
-                'newFilename' => $existFile['newFilename'],
-                'ext' => $existFile['ext'],
-                'metas' => $existFile['metas'],
-                'fileSize' => $existFile['fileSize'],
-                'type' => $existFile['type'],
-                'filepath' => $existFile['filepath'],
-                'hashId' => $hashId,
-                'groupCode' => $existFile['groupCode'],
-                'thumbPath' => $existFile['thumbPath'],
-                'firstStorage' => false
+                'storage'      => 'local',
+                'filename'     => $filename,
+                'newFilename'  => $existFile['newFilename'],
+                'ext'          => $existFile['ext'],
+                'metas'        => $existFile['metas'],
+                'fileSize'     => $existFile['fileSize'],
+                'type'         => $existFile['type'],
+                'filepath'     => $existFile['filepath'],
+                'hashId'       => $hashId,
+                'groupCode'    => $existFile['groupCode'],
+                'thumbPath'    => $existFile['thumbPath'],
+                'firstStorage' => false,
             ];
         }
 
@@ -75,33 +77,34 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
         $absolutePath = uploads_path() . DIRECTORY_SEPARATOR . $path;
         $file->move($absolutePath, 0755);
         if ($isSaveThumbImage) {
-            list($thumbWidth, $thumbHeight) = $thumbImageOptions['box'] ?? [];
+            [$thumbWidth, $thumbHeight] = $thumbImageOptions['box'] ?? [];
             if (!empty($thumbWidth) && !empty($thumbHeight)) {
                 $imageBox = new Box($thumbWidth, $thumbHeight);
                 try {
                     $image = $this->getImagine()->open($absolutePath);
-                    $thumbPath = !empty($options['thumbPath']) ? $options['thumbPath'] :  $basePath . $name . '_thumb.' . $file->getUploadExtension();
+                    $thumbPath = !empty($options['thumbPath']) ? $options['thumbPath'] : $basePath . $name . '_thumb.' . $file->getUploadExtension();
                     $absoluteThumbPath = uploads_path() . DIRECTORY_SEPARATOR . $thumbPath;
                     $thumbPath = 'uploads' . DIRECTORY_SEPARATOR . $thumbPath;
                     $image->resize($imageBox)->save($absoluteThumbPath);
                     $image = null;
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             }
         }
 
         return [
-            'storage' => 'local',
-            'filename' => $filename,
-            'newFilename' => $name . '.' . $ext,
-            'ext' => $ext,
-            'metas' => $metas,
-            'fileSize' => $fileSize,
-            'type' => $type,
-            'filepath' => $filepath,
-            'hashId' => $hashId,
-            'groupCode' => $group,
-            'thumbPath' => $thumbPath,
-            'firstStorage' => true
+            'storage'      => 'local',
+            'filename'     => $filename,
+            'newFilename'  => $name . '.' . $ext,
+            'ext'          => $ext,
+            'metas'        => $metas,
+            'fileSize'     => $fileSize,
+            'type'         => $type,
+            'filepath'     => $filepath,
+            'hashId'       => $hashId,
+            'groupCode'    => $group,
+            'thumbPath'    => $thumbPath,
+            'firstStorage' => true,
         ];
     }
 
@@ -140,16 +143,16 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
             file_put_contents($file, base64_decode(str_replace($result[1], '', $base64Str)));
 
             return [
-                'storage' => 'local',
-                'filename' => $name . '.' . $ext,
+                'storage'     => 'local',
+                'filename'    => $name . '.' . $ext,
                 'newFilename' => $name . '.' . $ext,
-                'ext' => $ext,
-                'metas' => 'image/' . $ext,
-                'fileSize' => $file_size,
-                'type' => 'image',
-                'filepath' => $filepath,
-                'hashId' => hash_file($algo, $file),
-                'groupCode' => $group,
+                'ext'         => $ext,
+                'metas'       => 'image/' . $ext,
+                'fileSize'    => $file_size,
+                'type'        => 'image',
+                'filepath'    => $filepath,
+                'hashId'      => hash_file($algo, $file),
+                'groupCode'   => $group,
             ];
         }
 
@@ -171,7 +174,7 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
         if (strpos($url, "http") !== 0) {
             throw AttachmentException::REMOTE_FILE_LINK_INVALID();
         }
-//        //获取请求头并检测死链
+        //        //获取请求头并检测死链
         $heads = get_headers($url, 1);
         if (!(stristr($heads[0], "200") && stristr($heads[0], "OK"))) {
             throw AttachmentException::REMOTE_FILE_LINK_DEAD();
@@ -181,20 +184,22 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
             //打开输出缓冲区并获取远程图片
             ob_start();
             $context = stream_context_create(
-                array('http' => array(
-                    'follow_location' => false // don't follow redirects
-                ))
+                [
+                    'http' => [
+                        'follow_location' => false, // don't follow redirects
+                    ],
+                ]
             );
-//            $fp = fopen($url, 'rb', false, $context);
-//            stream_set_timeout($fp, 30);
+            //            $fp = fopen($url, 'rb', false, $context);
+            //            stream_set_timeout($fp, 30);
             readfile($url, false, $context);
             $content = ob_get_contents();
-//            $content = '';
-//            while (!feof($fp)) {
-//                $content = fread($fp, 1024);
-//            }
+            //            $content = '';
+            //            while (!feof($fp)) {
+            //                $content = fread($fp, 1024);
+            //            }
             ob_end_clean();
-//            fclose($fp);
+            //            fclose($fp);
             $urlPath = parse_url($url, PHP_URL_PATH);
             $pathInfo = explode('.', $urlPath);
             // TODO: 可能有bug
@@ -219,43 +224,18 @@ class LocalFileImplementor extends AbstractFileImplementor implements FileImplem
                 file_put_contents($file, $content);
 
                 return [
-                    'storage' => 'local',
-                    'filename' => $name . '.' . $ext,
+                    'storage'     => 'local',
+                    'filename'    => $name . '.' . $ext,
                     'newFilename' => $name . '.' . $ext,
-                    'ext' => $ext,
-                    'metas' => 'image/' . $ext,
-                    'fileSize' => $file_size,
-                    'type' => $type,
-                    'filepath' => $filepath,
-                    'hashId' => hash_file($algo, $file),
-                    'groupCode' => $group,
+                    'ext'         => $ext,
+                    'metas'       => 'image/' . $ext,
+                    'fileSize'    => $file_size,
+                    'type'        => $type,
+                    'filepath'    => $filepath,
+                    'hashId'      => hash_file($algo, $file),
+                    'groupCode'   => $group,
                 ];
             }
-//            if (!in_array($ext, $this->config['allow_image_exts'])
-//                && !in_array($ext, $this->config['allow_audio_exts'])
-//                && !in_array($ext, $this->config['allow_video_exts'])
-//                && !in_array($ext, explode('|', $this->config['allow_file_exts']))
-//            ) {
-//                throw AttachmentException::ALL_FILE_EXT_INVALID();
-//            }
-//
-//
-//            if ('image' === $type && $this->config['allow_image_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "图片大小不能超过" . sprintf("%.2f", $this->config['allow_image_upload_size'] / 1024) . "M");
-//            }
-//
-//            if ('audio' === $type && $this->config['allow_audio_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "音频大小不能超过" . sprintf("%.2f", $this->config['allow_image_upload_size'] / 1024) . "M");
-//            }
-//
-//            if ('video' === $type && $this->config['allow_video_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "视频大小不能超过" . sprintf("%.2f", $this->config['allow_image_upload_size'] / 1024) . "M");
-//            }
-//
-//            if ('other' === $type && $this->config['allow_file_upload_size'] * 1024 < $file_size) {
-//                throw new AttachmentException(AttachmentException::IMAGE_FILE_SIZE_INVALID, "文件大小不能超过" . sprintf("%.2f", $this->config['allow_file_upload_size'] / 1024) . "M");
-//            }
-
 
         } catch (\Throwable $e) {
             throw  $e;

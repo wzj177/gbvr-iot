@@ -30,14 +30,16 @@ class PanoramaChunkTilesJob implements Consumer
 
     public $connection = 'default';
 
-    public function consume($data): bool
+    public function consume($data) : bool
     {
         if (empty($data['panorama']) || empty($data['productId']) || empty($data['userId'])) {
             return false;
         }
         $panoramaFile = AssetHelper::uploadPath($data['panorama']);
         if (!is_file($panoramaFile)) {
-            Log::error('PanoramaChunkTilesJob consume data: panorama file not found');
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '全景图文件不存在', [
+                'panorama' => $data['panorama'],
+            ]);
             return false;
         }
 
@@ -49,12 +51,12 @@ class PanoramaChunkTilesJob implements Consumer
         $width = $imageSize->getWidth();
         $height = $imageSize->getHeight();
         $this->getProductService()->updateSceneByProductAndIndex($data['productId'], $data['number'], [
-            'panoramaWidth' => $width,
-            'panoramaHeight' => $height
+            'panoramaWidth'  => $width,
+            'panoramaHeight' => $height,
         ]);
 
         if ($size > $canChunkTileSize) {
-//            $lockKey = 'panorama_chunk_tiles_' . $data['productId'] . '_' . $data['number'];
+            //            $lockKey = 'panorama_chunk_tiles_' . $data['productId'] . '_' . $data['number'];
             $this->generateTiles($data['userId'], $data['productId'], $data['number'], $image, $panoramaFile);
         }
 
@@ -63,7 +65,7 @@ class PanoramaChunkTilesJob implements Consumer
 
     protected function generateTiles(?int $userId, ?int $productId, int $index, $image, $panoramaFile, bool $lock = true)
     {
-        Log::debug("开始生成场景切片，{$productId}");
+        $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, "开始生成场景切片，{$productId}");
         $partInfo = pathinfo($panoramaFile);
         $key = $partInfo['filename'] . '_p' . $productId . '_' . $index . '_tiles';
         $smallKey = $partInfo['filename'] . '_p' . $productId . '_' . $index . '_small';
@@ -72,10 +74,10 @@ class PanoramaChunkTilesJob implements Consumer
             $relativeTilePath = str_replace(uploads_path(), 'uploads', $tilesPath);
             try {
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, [
-                    'tilePath' => $relativeTilePath,
-                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ING
+                    'tilePath'   => $relativeTilePath,
+                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ING,
                 ]);
-                Log::debug("生成场景切片进行中，{$productId}");
+                $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, "生成场景切片进行中，{$productId}");
                 if (!is_dir($tilesPath) && @mkdir($tilesPath, 0755)) {
                 } else {
                     FileToolkit::removeDirFiles($tilesPath);
@@ -88,13 +90,13 @@ class PanoramaChunkTilesJob implements Consumer
                 $height = $imageSize->getHeight();
                 $tileSize = (int)floor($width / $columns);
                 $quality = 95;
-//                $columns = intval(ceil($width / $tileSize));
-//                $rows = intval(ceil($height / $tileSize));
-//                $columns = $columns == $width / $tileSize ? $columns * 2 : $columns;
-//                $rows = $rows == $height / $tileSize ? $rows * 2 : $rows;
+                //                $columns = intval(ceil($width / $tileSize));
+                //                $rows = intval(ceil($height / $tileSize));
+                //                $columns = $columns == $width / $tileSize ? $columns * 2 : $columns;
+                //                $rows = $rows == $height / $tileSize ? $rows * 2 : $rows;
                 // 最接近且小于所需值的 2 的幂次数
-//                $columns = pow(2, floor(log($width / $tileSize, 2)));
-//                $rows = pow(2, floor(log($height / $tileSize, 2)));
+                //                $columns = pow(2, floor(log($width / $tileSize, 2)));
+                //                $rows = pow(2, floor(log($height / $tileSize, 2)));
 
                 for ($x = 0; $x < $columns; $x++) {
                     for ($y = 0; $y < $rows; $y++) {
@@ -119,16 +121,16 @@ class PanoramaChunkTilesJob implements Consumer
                 }
                 $panoramaSmallPath = $partInfo['dirname'] . DIRECTORY_SEPARATOR . $smallKey . '.' . $partInfo['extension'];
                 $item = [
-                    'tileRows' => $rows,
+                    'tileRows'    => $rows,
                     'tileColumns' => $columns,
-                    'tilePath' => $relativeTilePath,
-                    'tileSize' => $tileSize,
-                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_OK
+                    'tilePath'    => $relativeTilePath,
+                    'tileSize'    => $tileSize,
+                    'tileStatus'  => BizEnum::PRODUCT_SCENE_TILE_STATUS_OK,
                 ];
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
                 $tileSize = $this->getDirectorySize($tilesPath);
                 $this->getVIPService()->addUsedSpaceSize($userId, $tileSize);
-                Log::debug("处理场景切片图片分辨率，{$productId}");
+                $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, "处理场景切片图片分辨率，{$productId}");
                 $item = [];
                 $result = $this->compressPanoramaSmallImage($panoramaFile, $panoramaSmallPath);
                 if ($result !== false) {
@@ -136,23 +138,23 @@ class PanoramaChunkTilesJob implements Consumer
                     $item['panoramaSize'] = $panoramaSize;
                     $item['panoramaSmall'] = str_replace(uploads_path(), 'uploads', $panoramaSmallPath);
                     $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, $item);
-                    Log::debug("处理场景切片图片分辨率完成，{$productId}");
+                    $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, "处理场景切片图片分辨率完成，{$productId}");
                 }
 
-                $this->getLogService()->info('product_scene', 'chunk_panorama', '全景图切片完成', [
-                    'productId' => $productId,
+                $this->getLogService()->info(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '全景图切片完成', [
+                    'productId'     => $productId,
                     'panorama_file' => $panoramaFile,
-                    'tile_path' => $tilesPath
+                    'tile_path'     => $tilesPath,
                 ]);
             } catch (\Throwable $e) {
                 $this->getProductService()->updateSceneByProductAndIndex((int)$productId, (int)$index, [
-                    'tilePath' => $relativeTilePath,
-                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ERR
+                    'tilePath'   => $relativeTilePath,
+                    'tileStatus' => BizEnum::PRODUCT_SCENE_TILE_STATUS_ERR,
                 ]);
-                $this->getLogService()->info('product_scene', 'chunk_panorama', '全景图切片失败，' . $e->getMessage(), [
-                    'productId' => $productId,
+                $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '全景图切片失败，' . $e->getMessage(), [
+                    'productId'     => $productId,
                     'panorama_file' => $panoramaFile,
-                    'tile_path' => $tilesPath
+                    'tile_path'     => $tilesPath,
                 ]);
 
             }
@@ -188,9 +190,9 @@ class PanoramaChunkTilesJob implements Consumer
             $image->setResourceLimit(\Imagick::RESOURCETYPE_MAP, 1024);    // 增加映射文件大小
             $image->setResourceLimit(\Imagick::RESOURCETYPE_FILE, 100);    // 增加文件资源限制
 
-            Log::debug('打开低分辨率的全景图图片成功');
+            $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '打开低分辨率的全景图图片成功');
         } catch (\Throwable $e) {
-            Log::error('打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
             return false;
         }
 
@@ -208,7 +210,7 @@ class PanoramaChunkTilesJob implements Consumer
                 clearstatcache(true, $targetImagePath);  // 清除缓存
                 $fileSize = filesize($targetImagePath);
 
-                Log::debug('当前图像大小：', [$fileSize, '期望最小值：', $minSize]);
+                $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '当前图像大小：', [$fileSize, '期望最小值：', $minSize]);
 
                 // 若文件大小小于最小值，结束循环
                 if ($fileSize <= $minSize) {
@@ -222,7 +224,7 @@ class PanoramaChunkTilesJob implements Consumer
                 $image->resizeImage($newWidth, $newHeight, \Imagick::FILTER_LANCZOS, 1);  // 使用 Lanczos 滤镜缩放
                 $quality = max(5, $quality - 2);  // 递减质量，最小为 5
             } catch (\Throwable $e) {
-                Log::error('调整图像质量或尺寸失败, ' . $e->getMessage());
+                $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '调整图像质量或尺寸失败, ' . $e->getMessage());
                 break;
             }
         } while ($fileSize > $maxSize);
@@ -230,9 +232,9 @@ class PanoramaChunkTilesJob implements Consumer
         // 最终保存图像
         try {
             $image->writeImage($targetImagePath);
-            Log::debug('保存低分辨率的全景图图片资源成功');
+            $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '保存低分辨率的全景图图片资源成功');
         } catch (\Throwable $e) {
-            Log::error('保存低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '保存低分辨率的全景图图片资源失败, ' . $e->getMessage());
             return false;
         } finally {
             // 释放资源
@@ -240,7 +242,7 @@ class PanoramaChunkTilesJob implements Consumer
             $image->destroy();
         }
 
-        Log::debug('返回低分辨率图片大小', [$targetImagePath, $fileSize]);
+        $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '返回低分辨率图片大小', [$targetImagePath, $fileSize]);
         return [$targetImagePath, $fileSize];
     }
 
@@ -261,9 +263,9 @@ class PanoramaChunkTilesJob implements Consumer
                 return false;
             }
             $image = $this->getImagine()->open($originalImagePath);
-            Log::debug('打开低分辨率的全景图图片成功');
+            $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '打开低分辨率的全景图图片成功');
         } catch (\Throwable $e) {
-            Log::error('打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '打开低分辨率的全景图图片资源失败, ' . $e->getMessage());
             return false;
         }
         $minSize = 500 * 1024; // 500KB（以字节为单位）
@@ -275,7 +277,7 @@ class PanoramaChunkTilesJob implements Consumer
                 $image->save($targetImagePath, ['quality' => $quality]);
                 clearstatcache($targetImagePath);
                 $fileSize = filesize($targetImagePath);
-                Log::debug('低分辨率的全景图图片 原图大小：', [$fileSize, $minSize]);
+                $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '低分辨率的全景图图片 原图大小：', [$fileSize, $minSize]);
                 if ($fileSize <= $minSize) {
                     break;
                 }
@@ -287,7 +289,7 @@ class PanoramaChunkTilesJob implements Consumer
                 // 更新图像质量
                 $quality -= 5; // 递减质量
             } catch (\Throwable $e) {
-                Log::error('调整图像质量失败, ' . $e->getMessage());
+                $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '调整图像质量失败, ' . $e->getMessage());
                 break;
             }
         } while ($fileSize > $maxSize);
@@ -295,13 +297,13 @@ class PanoramaChunkTilesJob implements Consumer
         // 保存处理后的图像
         try {
             $image->save($targetImagePath);
-            Log::debug('保存低分辨率的全景图图片资源成功');
+            $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '保存低分辨率的全景图图片资源成功');
         } catch (\Throwable $e) {
-            Log::error('保存低分辨率的全景图图片资源失败, ' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '保存低分辨率的全景图图片资源失败, ' . $e->getMessage());
             return false;
         }
 
-        Log::debug('返回低分辨率图片大小', [$targetImagePath, $fileSize]);
+        $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, '返回低分辨率图片大小', [$targetImagePath, $fileSize]);
         return [$targetImagePath, $fileSize];
     }
 
@@ -328,7 +330,7 @@ class PanoramaChunkTilesJob implements Consumer
             }
         } catch (\Throwable $e) {
             // 捕获异常并记录日志
-            Log::debug("Error reading tiles file computed file size: " . $e->getMessage());
+            $this->getLogService()->debug(LogEnum::MODULE_PRODUCT_SCENE, LogEnum::ACTION_VR_SCENE_CHUNK_PANORAMA, "Error reading tiles file computed file size: " . $e->getMessage());
         }
 
         return $totalSize;

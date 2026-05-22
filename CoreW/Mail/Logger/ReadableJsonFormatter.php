@@ -14,31 +14,32 @@ class ReadableJsonFormatter extends JsonFormatter
      * Translates Monolog log levels to syslog levels.
      * @see https://en.wikipedia.org/wiki/Syslog
      */
-    private $logLevels = array(
-        Logger::DEBUG => 7,
-        Logger::INFO => 6,
-        Logger::NOTICE => 5,
-        Logger::WARNING => 4,
-        Logger::ERROR => 3,
-        Logger::CRITICAL => 2,
-        Logger::ALERT => 1,
-        Logger::EMERGENCY => 0,
-    );
+    private $logLevels
+        = [
+            Logger::DEBUG     => 7,
+            Logger::INFO      => 6,
+            Logger::NOTICE    => 5,
+            Logger::WARNING   => 4,
+            Logger::ERROR     => 3,
+            Logger::CRITICAL  => 2,
+            Logger::ALERT     => 1,
+            Logger::EMERGENCY => 0,
+        ];
 
-    public function format(array $record):string
+    public function format(array $record) : string
     {
         if (!isset($record['datetime'])) {
             return parent::format($record);
         }
 
-        return parent::format(array(
-            'time' => $record['datetime']->format($this->dateFormat),
-            'channel' => $record['channel'],
+        return parent::format([
+            'time'       => $record['datetime']->format($this->dateFormat),
+            'channel'    => $record['channel'],
             'level_name' => $record['level_name'],
-            'message' => $record['message'],
-            'context' => $record['context'],
-            'extra' => $record['extra'],
-            'level' => $this->logLevels[$record['level']],
-        ));
+            'message'    => $record['message'],
+            'context'    => $record['context'],
+            'extra'      => $record['extra'],
+            'level'      => $this->logLevels[$record['level']],
+        ]);
     }
 }

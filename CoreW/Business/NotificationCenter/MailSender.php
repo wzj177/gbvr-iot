@@ -1,7 +1,7 @@
 <?php
 
 
-namespace  CoreW\NotificationCenter;
+namespace CoreW\NotificationCenter;
 
 
 class MailSender extends BaseSender implements SenderInterface
@@ -10,7 +10,7 @@ class MailSender extends BaseSender implements SenderInterface
     {
         echo '邮件发送', PHP_EOL, '内容：', $message;
         sleep(1);
-        echo PHP_EOL,'发送成功-------------',PHP_EOL;
+        echo PHP_EOL, '发送成功-------------', PHP_EOL;
     }
 
     /**

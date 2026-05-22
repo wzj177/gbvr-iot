@@ -20,10 +20,11 @@ class SystemController extends BaseController
     public function logs(Request $request)
     {
         $conditions = $request->get();
+        if (!empty($conditions['keyword'])) {
+            $conditions['keywordsLike'] = $conditions['keyword'];
+        }
         $total = $this->getLogService()->countLogs($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
-//        $sort = $this->getSort($request);
-//        $sort['id'] = 'DESC';
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
         $logs = $this->getLogService()->searchLogs(
             $conditions,
@@ -32,13 +33,11 @@ class SystemController extends BaseController
             $paginator->getPerPageCount()
         );
 
-        $filter = new SystemLogFilter(SystemLogFilter::SIMPLE_MODE);
-        $filter->filters($logs);
 
         return $this->createSuccessJsonResponse(
             [
-                'list' => $logs,
-                'paginator' => Paginator::toArray($paginator)
+                'list'      => SystemLogFilter::publicList($logs),
+                'paginator' => Paginator::toArray($paginator),
             ]
         );
     }
@@ -109,8 +108,8 @@ class SystemController extends BaseController
         }
 
         $mailOptions = [
-            'to' => $toMail,
-            'toName' => '用户你好',
+            'to'       => $toMail,
+            'toName'   => '用户你好',
             'template' => 'email_system_self_test',
         ];
         $mailFactory = $this->getBiz()->offsetGet('mail_factory');
@@ -122,12 +121,12 @@ class SystemController extends BaseController
         } catch (\Throwable $e) {
             return $this->createErrorJsonResponse("发送失败：{$e->getMessage()}");
         }
-//        // 队列名
-//        $queue = 'send-system-test-mail';
-//        // 投递消息
-//        Client::send($queue, $mailOptions);
+        //        // 队列名
+        //        $queue = 'send-system-test-mail';
+        //        // 投递消息
+        //        Client::send($queue, $mailOptions);
 
-//        return $this->createSuccessJsonResponse();
+        //        return $this->createSuccessJsonResponse();
     }
 
 

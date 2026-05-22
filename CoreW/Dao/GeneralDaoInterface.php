@@ -18,9 +18,9 @@ interface GeneralDaoInterface extends DaoInterface
 
     public function delete($id);
 
-    public function get($id, array $options = array());
+    public function get($id, array $options = []);
 
-    public function search($conditions, $orderBys, $start, $limit = null, $columns = array());
+    public function search($conditions, $orderBys, $start, $limit = null, $columns = []);
 
     public function count($conditions);
 
@@ -28,7 +28,7 @@ interface GeneralDaoInterface extends DaoInterface
 
     public function table();
 
-    public function increment($id, $field, $value): int;
+    public function increment($id, $field, $value) : int;
 
-    public function decrement($id, $field, $value): int;
+    public function decrement($id, $field, $value) : int;
 }

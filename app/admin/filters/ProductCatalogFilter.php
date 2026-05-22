@@ -10,26 +10,27 @@ use support\utils\AssetHelper;
 
 class ProductCatalogFilter extends Filter
 {
-    protected $publicFields = [
-        'id',
-        'name',
-        'path',
-        'parentId',
-        'icon',
-        'cover',
-        'coverFull',
-        'name',
-        'treeName',
-        'code',
-        'status',
-        'statusText',
-        'sort',
-        'remark',
-        'createdTime',
-        'recommendTags',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'name',
+            'path',
+            'parentId',
+            'icon',
+            'cover',
+            'coverFull',
+            'name',
+            'treeName',
+            'code',
+            'status',
+            'statusText',
+            'sort',
+            'remark',
+            'createdTime',
+            'recommendTags',
+        ];
 
-    public function publicFields(&$data):void
+    public function publicFields(&$data) : void
     {
         $data['statusText'] = BizEnum::getEnableOrDisableItems($data['status']);
         if (!empty($data['cover'])) {

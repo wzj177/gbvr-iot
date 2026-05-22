@@ -388,7 +388,7 @@ class ExoSip {
      * @param string $to Target SIP URI (e.g., 'sip:34020000001320000001@3402000000')
      * @param string $message Message body content
      * @param string|null $contentType Content-Type header (default: 'Application/MANSCDP+xml')
-     * @return bool True on success, false on failure
+     * @return integer
      * 
      * @example
      * ```php
@@ -397,15 +397,93 @@ class ExoSip {
      * $sip->sendMessage('sip:34020000001320000001@3402000000', $xml, 'Application/MANSCDP+xml');
      * ```
      */
-    public function sendMessage(string $to, string $message, ?string $contentType = null): bool {}
+    public function sendMessage(string $to, string $message, ?string $contentType = null): integer {}
 
 
     /**
      * Send SIP ACK request
-     * @param string $dialogId Dialog ID
+     * @param int $dialogId Dialog ID
      * @return bool
      */
-    public function sendAck(string $dialogId): bool {}
+    public function sendAck(int $dialogId): bool {}
+    
+    /**
+     * Send SIP INFO request (Playback Control - GB28181)
+     * 
+     * Sends an INFO request within an established INVITE dialog for playback control.
+     * This is the correct method for GB28181 playback control (pause, resume, seek, speed).
+     * 
+     * ⚠️ **Important**: INFO is different from MESSAGE:
+     * - INFO: Sent within an established dialog (requires dialog_id from INVITE)
+     * - MESSAGE: Sent outside a dialog (standalone request)
+     * 
+     * ## MANSRTSP Protocol (GB28181 Annex B)
+     * 
+     * GB28181 defines a subset of RTSP for playback control called MANSRTSP.
+     * The Content-Type MUST be `Application/MANSRTSP`.
+     * 
+     * Supported commands:
+     * - **PAUSE**: Pause playback
+     * - **PLAY**: Resume or seek playback, or change speed
+     * - **TEARDOWN**: Stop playback (same as BYE)
+     * 
+     * @param int $dialogId Dialog ID from established INVITE session
+     * @param string $body MANSRTSP command body
+     * @param string|null $contentType Content-Type (default: 'Application/MANSRTSP')
+     * @return bool True on success, false on failure
+     * 
+     * @example Pause playback
+     * ```php
+     * $body = "PAUSE RTSP/1.0\r\n"
+     *       . "CSeq: 1\r\n"
+     *       . "PauseTime: now\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body, 'Application/MANSRTSP');
+     * ```
+     * 
+     * @example Resume playback
+     * ```php
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 2\r\n"
+     *       . "Range: npt=now-\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @example Seek to position (300 seconds from start)
+     * ```php
+     * $seekTime = 300;  // seconds
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 3\r\n"
+     *       . "Range: npt={$seekTime}-\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @example Speed control (2x fast forward)
+     * ```php
+     * $speed = 2.0;
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 4\r\n"
+     *       . "Scale: " . sprintf("%.6f", $speed) . "\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @example Speed control (0.5x slow motion)
+     * ```php
+     * $speed = 0.5;
+     * $body = "PLAY RTSP/1.0\r\n"
+     *       . "CSeq: 5\r\n"
+     *       . "Scale: " . sprintf("%.6f", $speed) . "\r\n";
+     * 
+     * $sip->sendInfo($dialogId, $body);
+     * ```
+     * 
+     * @see WVP-PRO SIPCommander.playbackControlCmd() for reference implementation
+     * @see GB/T 28181-2016 Annex B for MANSRTSP protocol specification
+     */
+    public function sendInfo(int $dialogId, string $body, ?string $contentType = null): bool {}
     
     /**
      * Send SIP INVITE request (Server-side)
@@ -521,7 +599,7 @@ class ExoSip {
      * 
      * @see sendInvite() To initiate a session
      */
-    public function sendBye(int $call_id, int $dialog_id = 0): bool {}
+    public function sendBye(int $call_id, int $dialog_id = -1): bool {}
     
     /**
      * Send SIP response to a request
@@ -549,6 +627,268 @@ class ExoSip {
      * ```
      */
     public function sendResponse(int $tid, int $code, ?string $reason = null, ?array $headers = null): bool {}
+
+    /**
+     * Send SIP INVITE response (200 OK with SDP body)
+     *
+     * Used to respond to incoming INVITE requests (e.g., device-initiated broadcast INVITE).
+     * Unlike sendResponse() which handles MESSAGE/REGISTER, this method uses the eXosip CALL API
+     * to properly respond to INVITE requests with SDP body.
+     *
+     * @param int $tid Transaction ID from SipEvent::getTid()
+     * @param int $code SIP response code (typically 200)
+     * @param string|null $body SDP body content (required for 200 OK)
+     * @param string|null $reason Reason phrase (default: standard phrase for code, e.g., "OK")
+     * @param string|null $contentType Content-Type header (default: "application/sdp")
+     * @return bool True on success, false on failure
+     *
+     * @example
+     * ```php
+     * // Respond to device broadcast INVITE with SDP
+     * $sip->onInvite = function($event) use ($sip) {
+     *     $sdp = SdpBuilder::buildBroadcastSdp($serverId, $mediaIp, $port, $ssrc);
+     *     $sip->sendCallAnswer($event->getTid(), 200, $sdp, 'OK');
+     * };
+     * ```
+     */
+    public function sendCallAnswer(int $tid, int $code, ?string $body = null, ?string $reason = null, ?string $contentType = null): bool {}
+    
+    /* ========== SUBSCRIBE/NOTIFY Methods (GB28181订阅功能) ========== */
+    
+    /**
+     * Send SIP SUBSCRIBE request (GB28181 event subscription)
+     * 
+     * Subscribe to device events such as:
+     * - Catalog: Device directory changes (add/remove/update)
+     * - Alarm: Alarm event notifications
+     * - MobilePosition: GPS position updates
+     * 
+     * @param string $toUri Target device SIP URI (e.g., "sip:34020000001320000001@192.168.1.100:5060")
+     * @param string $eventType Event type to subscribe:
+     *   - "Catalog": Subscribe to device catalog changes
+     *   - "Alarm": Subscribe to alarm notifications
+     *   - "MobilePosition": Subscribe to GPS position updates
+     * @param int $expires Subscription duration in seconds (default: 3600)
+     * @param string|null $xmlBody Optional GB28181 XML body for query parameters
+     * @return int|false Subscription ID on success (>0), false on failure
+     * 
+     * @example
+     * ```php
+     * // Subscribe to Catalog changes (目录订阅)
+     * $subId = $sip->subscribe(
+     *     "sip:34020000001320000001@192.168.1.100:5060",
+     *     "Catalog",
+     *     3600  // 1 hour
+     * );
+     * if ($subId !== false) {
+     *     echo "Subscribed to Catalog, ID: {$subId}\n";
+     * }
+     * ```
+     * 
+     * @example
+     * ```php
+     * // Subscribe to Alarm notifications (报警订阅)
+     * $xmlBody = '<?xml version="1.0"?>
+     * <Query>
+     *   <CmdType>Alarm</CmdType>
+     *   <SN>1</SN>
+     *   <DeviceID>34020000001320000001</DeviceID>
+     *   <StartAlarmPriority>1</StartAlarmPriority>
+     *   <EndAlarmPriority>4</EndAlarmPriority>
+     * </Query>';
+     * 
+     * $subId = $sip->subscribe(
+     *     $deviceUri,
+     *     "Alarm",
+     *     7200,  // 2 hours
+     *     $xmlBody
+     * );
+     * ```
+     * 
+     * @example
+     * ```php
+     * // Subscribe to MobilePosition (移动位置订阅)
+     * $xmlBody = '<?xml version="1.0"?>
+     * <Query>
+     *   <CmdType>MobilePosition</CmdType>
+     *   <SN>1</SN>
+     *   <DeviceID>34020000001320000001</DeviceID>
+     *   <Interval>5</Interval>
+     * </Query>';
+     * 
+     * $subId = $sip->subscribe($deviceUri, "MobilePosition", 3600, $xmlBody);
+     * ```
+     * 
+     * @see refreshSubscribe() To extend subscription before expiry
+     * @see cancelSubscribe() To terminate subscription
+     * @see getSubscriptions() To list all active subscriptions
+     */
+    public function subscribe(string $toUri, string $eventType, int $expires = 3600, ?string $xmlBody = null): int|false {}
+    
+    /**
+     * Refresh/extend an existing subscription (GB28181)
+     * 
+     * Sends SUBSCRIBE with same dialog to extend expiration time.
+     * Should be called before subscription expires (typically at 80% of duration).
+     * 
+     * @param int $subscriptionId Subscription ID from subscribe() return value
+     * @param int $expires New subscription duration in seconds (default: 3600)
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // Auto-refresh subscription before expiry
+     * $sip->onTimer = function() use ($sip, &$activeSubscriptions) {
+     *     foreach ($activeSubscriptions as $deviceId => $subInfo) {
+     *         $remaining = $subInfo['expires_at'] - time();
+     *         // Refresh when 20% time remaining
+     *         if ($remaining < $subInfo['duration'] * 0.2) {
+     *             $result = $sip->refreshSubscribe($subInfo['subscription_id'], 3600);
+     *             if ($result) {
+     *                 $subInfo['expires_at'] = time() + 3600;
+     *                 echo "Refreshed subscription for {$deviceId}\n";
+     *             }
+     *         }
+     *     }
+     * };
+     * ```
+     * 
+     * @see subscribe() To create initial subscription
+     */
+    public function refreshSubscribe(int $subscriptionId, int $expires = 3600): bool {}
+    
+    /**
+     * Cancel/terminate an active subscription (GB28181)
+     * 
+     * Sends SUBSCRIBE with Expires: 0 to terminate subscription.
+     * The device will stop sending NOTIFY messages for this subscription.
+     * 
+     * @param int $subscriptionId Subscription ID from subscribe() return value
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // Cancel subscription when device goes offline
+     * $sip->onRegister = function($event) use ($sip, &$subscriptions) {
+     *     $expires = $event->getExpires();
+     *     if ($expires === 0) {
+     *         // Device unregistering
+     *         $deviceId = extractDeviceId($event->getFromUri());
+     *         if (isset($subscriptions[$deviceId])) {
+     *             $sip->cancelSubscribe($subscriptions[$deviceId]);
+     *             unset($subscriptions[$deviceId]);
+     *             echo "Cancelled subscription for {$deviceId}\n";
+     *         }
+     *     }
+     * };
+     * ```
+     * 
+     * @see subscribe() To create subscription
+     */
+    public function cancelSubscribe(int $subscriptionId): bool {}
+    
+    /**
+     * Send response to incoming NOTIFY request (GB28181)
+     * 
+     * When device sends NOTIFY (catalog change, alarm, position update),
+     * server MUST respond with 200 OK to acknowledge receipt.
+     * 
+     * @param int $tid Transaction ID from the NOTIFY event
+     * @param int $code SIP response code (typically 200 for success)
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // Handle incoming NOTIFY
+     * $sip->onNotify = function($event) use ($sip, $deviceManager) {
+     *     $body = $event->getBody();
+     *     $eventType = $event->getEventType();  // Catalog, Alarm, MobilePosition
+     *     
+     *     switch ($eventType) {
+     *         case 'Catalog':
+     *             // Parse catalog change XML
+     *             $catalog = parseCatalogNotify($body);
+     *             $deviceManager->updateCatalog($catalog);
+     *             break;
+     *             
+     *         case 'Alarm':
+     *             // Parse alarm notification
+     *             $alarm = parseAlarmNotify($body);
+     *             $deviceManager->handleAlarm($alarm);
+     *             break;
+     *             
+     *         case 'MobilePosition':
+     *             // Parse GPS position
+     *             $position = parsePositionNotify($body);
+     *             $deviceManager->updatePosition($position);
+     *             break;
+     *     }
+     *     
+     *     // IMPORTANT: Always respond to NOTIFY
+     *     $sip->sendNotifyResponse($event->getTid(), 200);
+     * };
+     * ```
+     * 
+     * @see subscribe() To create subscription that triggers NOTIFY
+     */
+    public function sendNotifyResponse(int $tid, int $code): bool {}
+    
+    /**
+     * Send NOTIFY request to subscriber (as event source) (GB28181)
+     * 
+     * When platform is the event source (e.g., device catalog changed, alarm occurred),
+     * it sends NOTIFY to all subscribers to inform them of the event.
+     * 
+     * This is the OPPOSITE of sendNotifyResponse():
+     * - sendNotifyResponse(): Respond to incoming NOTIFY from devices
+     * - sendNotify(): Send outgoing NOTIFY to subscribers
+     * 
+     * GB28181 Subscription States:
+     * - "active": Subscription is valid and active
+     * - "pending": Subscription is being processed
+     * - "terminated": Subscription has ended (use with reason parameter)
+     * 
+     * Termination Reasons (when state is "terminated"):
+     * - "deactivated": Subscriber deactivated
+     * - "probation": Subscription on probation
+     * - "rejected": Subscription rejected
+     * - "timeout": Subscription timed out
+     * - "giveup": Server gave up
+     * - "noresource": Resource no longer exists
+     * 
+     * @param int $dialogId Dialog ID from the subscription (from onSubscribe event)
+     * @param string $subscriptionState Subscription state: "active", "pending", or "terminated"
+     * @param string $body XML body (GB28181 MANSCDP format)
+     * @param string|null $reason Termination reason (only when state is "terminated")
+     * @return bool True on success, false on failure
+     * 
+     * @example
+     * ```php
+     * // When device catalog changes, notify all subscribers
+     * $catalogXml = buildCatalogNotifyXml($deviceId, $channels);
+     * 
+     * foreach ($subscriptionManager->getCatalogSubscribers($deviceId) as $sub) {
+     *     $sip->sendNotify(
+     *         $sub['dialog_id'],
+     *         'active',           // Subscription still valid
+     *         $catalogXml,
+     *         null                // No termination reason
+     *     );
+     * }
+     * 
+     * // When subscription expires, send terminated NOTIFY
+     * $sip->sendNotify(
+     *     $dialogId,
+     *     'terminated',
+     *     $finalXml,
+     *     'timeout'           // Reason: subscription timed out
+     * );
+     * ```
+     * 
+     * @see subscribe() To create outgoing subscription
+     * @see sendNotifyResponse() To respond to incoming NOTIFY
+     */
+    public function sendNotify(int $dialogId, string $subscriptionState, string $body, ?string $reason = null): bool {}
     
     /**
      * Get socket file descriptor for external event loops

@@ -17,7 +17,7 @@ class ProductSceneDaoImpl extends AdvancedDaoImpl implements ProductSceneDao
     public function getAllByProductId(int $productId)
     {
         return $this->getAll([
-            'productId' => $productId
+            'productId' => $productId,
         ], ['number' => 'ASC']);
     }
 
@@ -30,17 +30,17 @@ class ProductSceneDaoImpl extends AdvancedDaoImpl implements ProductSceneDao
     {
         return $this->findByFields([
             'productId' => $productId,
-            'number' => $index
+            'number'    => $index,
         ]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'vrOptions' => 'json'
+                'vrOptions' => 'json',
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'number',
                 'productId',
@@ -58,7 +58,7 @@ class ProductSceneDaoImpl extends AdvancedDaoImpl implements ProductSceneDao
                 'createdTime >= :startTime',
                 'createdTime <= :endTime',
                 'productId = :productId',
-                'number = :number'
+                'number = :number',
             ],
             'timestamps' => [
                 'createdTime',

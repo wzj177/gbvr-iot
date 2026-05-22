@@ -34,7 +34,7 @@ class MakeVipCommand extends Command
      * @param OutputInterface $output
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $helper = $this->getHelper('question');
         $question = new Question('请输入需要生成的会员用户名: ');

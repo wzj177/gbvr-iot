@@ -29,7 +29,7 @@ class ProductController extends BaseController
      * @param Request $request
      * @return \support\Response
      */
-    public function getHotpointTypeItems(Request $request): \support\Response
+    public function getHotpointTypeItems(Request $request) : \support\Response
     {
         $vrTypeDict = BizEnum::getVrHotpointTypeItems();
         if ((int)$this->getVIPInfo()->getRole() === BizEnum::VIP_ROLE_PERSON) {
@@ -55,15 +55,15 @@ class ProductController extends BaseController
         }
 
         $dto = new FileUploadDto([
-            'file' => $file,
-            'type' => 'single_file_upload',
-            'group' => $group,
-            'userId' => $this->getVIPInfo()->getId(),
-            'client' => 'frontend',
-            'isSaveThumbImage' => true,
+            'file'              => $file,
+            'type'              => 'single_file_upload',
+            'group'             => $group,
+            'userId'            => $this->getVIPInfo()->getId(),
+            'client'            => 'frontend',
+            'isSaveThumbImage'  => true,
             'thumbImageOptions' => [
-                'box' => [512, 512]
-            ]
+                'box' => [512, 512],
+            ],
         ]);
 
         $result = $this->getAttachmentService()->uploadFile($dto);
@@ -165,20 +165,20 @@ class ProductController extends BaseController
         }
 
         $dto = new FileUploadDto([
-            'file' => $file,
-            'type' => 'single_file_upload',
-            'group' => $group,
-            'userId' => $this->getVIPInfo()->getId(),
-            'client' => 'frontend',
-            'isSaveThumbImage' => true,
+            'file'              => $file,
+            'type'              => 'single_file_upload',
+            'group'             => $group,
+            'userId'            => $this->getVIPInfo()->getId(),
+            'client'            => 'frontend',
+            'isSaveThumbImage'  => true,
             'thumbImageOptions' => [
-                'box' => [512, 512]
-            ]
+                'box' => [512, 512],
+            ],
         ]);
 
         $scene = $this->getProductService()->addScene($id, $dto, [
             'userId' => $this->getVIPInfo()->getId(),
-            'index' => $request->post('index', 0)
+            'index'  => $request->post('index', 0),
         ]);
 
         $filter = new ProductSceneFilter(ProductSceneFilter::SIMPLE_MODE);
@@ -243,7 +243,7 @@ class ProductController extends BaseController
      * @param $id
      * @return \support\Response
      */
-    public function getProduct(Request $request, $id): \support\Response
+    public function getProduct(Request $request, $id) : \support\Response
     {
         $product = is_numeric($id) ? $this->getProductService()->getProductById($id) : $this->getProductService()->getProductByCode($id);
         $filter = new ProductFilter(ProductFilter::SIMPLE_MODE);
@@ -258,7 +258,7 @@ class ProductController extends BaseController
      * @param $id
      * @return \support\Response
      */
-    public function getProductViewInfo(Request $request, $id): \support\Response
+    public function getProductViewInfo(Request $request, $id) : \support\Response
     {
         $product = is_string($id) ? $this->getProductService()->getProductByCode($id) : $this->getProductService()->getProductById($id);
         $configs = $this->getProductService()->getProductConfigs((int)$product['id']);
@@ -339,11 +339,11 @@ class ProductController extends BaseController
         return $this->createErrorJsonResponse([], '点赞失败了，请联系管理员');
     }
 
-    public function closeProduct(Request $request, $id): \support\Response
+    public function closeProduct(Request $request, $id) : \support\Response
     {
         if ($this->getProductService()->closeProduct($id, [
-            'userId' => $this->getVIPInfo()->getId(),
-            'currentIp' => $request->getRealIp()
+            'userId'    => $this->getVIPInfo()->getId(),
+            'currentIp' => $request->getRealIp(),
         ])) {
             return $this->createSuccessJsonResponse(['id' => $id], '关闭成功');
         }
@@ -351,11 +351,11 @@ class ProductController extends BaseController
         return $this->createErrorJsonResponse([], '关闭失败了，请联系管理员');
     }
 
-    public function publishProduct(Request $request, $id): \support\Response
+    public function publishProduct(Request $request, $id) : \support\Response
     {
         if ($this->getProductService()->publishProduct($id, [
-            'userId' => $this->getVIPInfo()->getId(),
-            'currentIp' => $request->getRealIp()
+            'userId'    => $this->getVIPInfo()->getId(),
+            'currentIp' => $request->getRealIp(),
         ])) {
             return $this->createSuccessJsonResponse(['id' => $id], '发布成功');
         }
@@ -379,10 +379,10 @@ class ProductController extends BaseController
         return $this->createErrorJsonResponse('删除失败');
     }
 
-    public function getSceneHotPoints(Request $request, $id): Response
+    public function getSceneHotPoints(Request $request, $id) : Response
     {
         $conditions = [
-            'sceneId' => $id
+            'sceneId' => $id,
         ];
         $points = $this->getProductService()->searchHotPoints($conditions, ['createdTime' => 'DESC'], 0);
         $useAiHuman = $request->get('useAiHuman', false);
@@ -394,23 +394,23 @@ class ProductController extends BaseController
                     $iconMarker = $point['iconMarkerParams'];
                     if (!empty($iconMarker['polygon']) && count($iconMarker['polygon']) >= 4) {
                         $poiItems = array_slice($iconMarker['polygon'], 0, 4);
-//                        $size = GisUtil::calculateWidthHeight($poiItems);
+                        //                        $size = GisUtil::calculateWidthHeight($poiItems);
                         $point['iconMarkerParams'] = [
-                            'id' => $iconMarker['id'],
+                            'id'         => $iconMarker['id'],
                             'videoLayer' => $point['videoUrl'],
-                            'autoplay' => false,
-                            'position' => GisUtil::getVideoLayerPositionByPolygonCorners($poiItems),
-//                            'size' => $size,
-                            'style' => [
-                                'cursor' => 'pointer'
+                            'autoplay'   => false,
+                            'position'   => GisUtil::getVideoLayerPositionByPolygonCorners($poiItems),
+                            //                            'size' => $size,
+                            'style'      => [
+                                'cursor' => 'pointer',
                             ],
-                            'chromaKey' => [
-                                'enabled' => true,
-                                'color' => '#014EF2',
-                                'similarity' => 0.1
+                            'chromaKey'  => [
+                                'enabled'    => true,
+                                'color'      => '#014EF2',
+                                'similarity' => 0.1,
                             ],
-                            'tooltip' => $iconMarker['tooltip'] ?? 'Play / Pause',
-                            'data' => $iconMarker['data']
+                            'tooltip'    => $iconMarker['tooltip'] ?? 'Play / Pause',
+                            'data'       => $iconMarker['data'],
                         ];
                     }
                 }
@@ -482,9 +482,9 @@ class ProductController extends BaseController
     {
         $nodes = $request->post('nodes', []);
         $fields = [
-            'userId' => $this->getVIPInfo()->getId(),
+            'userId'    => $this->getVIPInfo()->getId(),
             'currentIp' => $request->getRealIp(),
-            'nodes' => $nodes
+            'nodes'     => $nodes,
         ];
         if ($this->getProductService()->setProductTourNodes($id, $fields)) {
             return $this->createSuccessJsonResponse();
@@ -536,14 +536,14 @@ class ProductController extends BaseController
     {
         $dto = new PlaneGraphMarkersDto([
             'productId' => $id,
-            'userId' => $this->getVIPInfo()->getId(),
+            'userId'    => $this->getVIPInfo()->getId(),
             'currentIp' => $request->getRealIp(),
-            'markers' => $request->post('markers', []),
-            'type' => $request->post('type', 'default'),
-            'imgUrl' => $request->post('imgUrl', ''),
-            'gisParam' => $request->post('gisParam', []),
-            'rotation' => $request->post('rotation', ''),
-            'center' => $request->post('mapCenterPoint', ['x' => 0, 'y' => 0])
+            'markers'   => $request->post('markers', []),
+            'type'      => $request->post('type', 'default'),
+            'imgUrl'    => $request->post('imgUrl', ''),
+            'gisParam'  => $request->post('gisParam', []),
+            'rotation'  => $request->post('rotation', ''),
+            'center'    => $request->post('mapCenterPoint', ['x' => 0, 'y' => 0]),
         ]);
         if ($this->getProductService()->savePlaneGraphMarkers($dto)) {
             return $this->createSuccessJsonResponse();
@@ -578,9 +578,9 @@ class ProductController extends BaseController
     {
         $dto = new ProductConfigDto([
             'productId' => $id,
-            'userId' => $this->getVIPInfo()->getId(),
-            'key' => $request->post('key'),
-            'values' => $request->post('values', [])
+            'userId'    => $this->getVIPInfo()->getId(),
+            'key'       => $request->post('key'),
+            'values'    => $request->post('values', []),
         ]);
 
         if ($this->getProductService()->setProductConfig($dto)) {
@@ -615,7 +615,7 @@ class ProductController extends BaseController
         return $this->getProductViewInfo($request, $productId);
     }
 
-    protected function checkAspectRatio($imagePath, $aspectRatioWidth = 2, $aspectRatioHeight = 1): bool
+    protected function checkAspectRatio($imagePath, $aspectRatioWidth = 2, $aspectRatioHeight = 1) : bool
     {
         // 获取图片尺寸
         $imageSize = getimagesize($imagePath);
@@ -653,15 +653,15 @@ class ProductController extends BaseController
             unset($conditions['date_span']);
         }
         $total = $this->getProductService()->countProducts($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
         $products = $this->getProductService()->searchProducts($conditions, ['id' => 'DESC'], $offset, $limit);
         $filter = new ProductFilter($filterType, false);
         $filter->filters($products);
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
 
         return $this->createSuccessJsonResponse([
-            'list' => $products,
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => $products,
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 

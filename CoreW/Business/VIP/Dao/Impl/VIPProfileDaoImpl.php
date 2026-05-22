@@ -31,7 +31,7 @@ class VIPProfileDaoImpl extends GeneralDaoImpl implements VIPProfileDao
     public function findDistinctMobileProfiles($start, $limit)
     {
         $sql = "SELECT * FROM {$this->table} WHERE `mobile` <> '' GROUP BY `mobile` ORDER BY `id` ASC";
-        $sql = $this->sql($sql, array(), $start, $limit);
+        $sql = $this->sql($sql, [], $start, $limit);
 
         return $this->db()->fetchAll($sql);
     }
@@ -61,11 +61,11 @@ class VIPProfileDaoImpl extends GeneralDaoImpl implements VIPProfileDao
         return parent::createQueryBuilder($conditions);
     }
 
-    public function declares():array
+    public function declares() : array
     {
-        return array(
-            'orderbys' => array('id'),
-            'conditions' => array(
+        return [
+            'orderbys'   => ['id'],
+            'conditions' => [
                 'mobile LIKE :mobile',
                 'truename LIKE :truename',
                 'idcard LIKE :idcardLike',
@@ -74,7 +74,7 @@ class VIPProfileDaoImpl extends GeneralDaoImpl implements VIPProfileDao
                 'mobile = :tel',
                 'mobile <> :mobileNotEqual',
                 'qq LIKE :qq',
-            ),
-        );
+            ],
+        ];
     }
 }

@@ -16,11 +16,11 @@ class SettingServiceImpl extends BaseService implements SettingService
     public function getAkServerConfig()
     {
         $config = [
-            'api_url' => Config::get('app.ak_config.api_url'),
-            'access_key' => Config::get('app.ak_config.access_key'),
-            'zlmediakit_api' => Config::get('app.ak_config.zlmediakit_api'),
+            'api_url'           => Config::get('app.ak_config.api_url'),
+            'access_key'        => Config::get('app.ak_config.access_key'),
+            'zlmediakit_api'    => Config::get('app.ak_config.zlmediakit_api'),
             'zlmediakit_secret' => Config::get('app.ak_config.zlmediakit_secret'),
-            'debug' => Config::get('app.ak_config.debug'),
+            'debug'             => Config::get('app.ak_config.debug'),
         ];
 
         $dbConfig = $this->get('ak_config', []);
@@ -35,7 +35,7 @@ class SettingServiceImpl extends BaseService implements SettingService
     {
         $this->getSettingDao()->deleteByName($name);
         $setting = [
-            'name' => $name,
+            'name'  => $name,
             'value' => json_encode($value),
         ];
         $res = $this->getSettingDao()->create($setting);
@@ -63,7 +63,6 @@ class SettingServiceImpl extends BaseService implements SettingService
         $this->setCache($name, $namespace, $setting);
 
 
-
         return $this->getSettingValue($setting);
     }
 
@@ -81,8 +80,8 @@ class SettingServiceImpl extends BaseService implements SettingService
         $this->getSettingDao()->deleteByNamespaceAndName($namespace, $name);
         $setting = [
             'namespace' => $namespace,
-            'name' => $name,
-            'value' => json_encode($value),
+            'name'      => $name,
+            'value'     => json_encode($value),
         ];
         $result = $this->getSettingDao()->create($setting);
         if ($result) {

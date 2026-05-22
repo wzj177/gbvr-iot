@@ -4,7 +4,7 @@ namespace Gb28181\GateWay\Traits;
 
 trait CurlTrait
 {
-    protected function curlPost($url, $data): bool|string
+    protected function curlPost($url, $data) : bool|string
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -37,7 +37,7 @@ trait CurlTrait
      * @param string $url
      * @return array|null
      */
-    protected function curlGet(string $url): ?array
+    protected function curlGet(string $url) : ?array
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);

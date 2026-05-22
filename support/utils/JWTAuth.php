@@ -23,7 +23,7 @@ class JWTAuth
      *
      * @return string
      */
-    public function auth($payload, $options = array())
+    public function auth($payload, $options = [])
     {
         if (isset($options['exp']) && isset($options['iat'])) {
             $payload['exp'] = $options['exp'];
@@ -47,7 +47,7 @@ class JWTAuth
             return false;
         }
 
-        list($header64, $payload64, $sign) = $jwtArray;
+        [$header64, $payload64, $sign] = $jwtArray;
 
         $header = json_decode(self::urlSafeBase64Decode($header64), true);
         if (empty($header['alg'])) {
@@ -85,7 +85,7 @@ class JWTAuth
      */
     public static function urlSafeBase64Decode($base64String)
     {
-        $data = str_replace(array('-', '_'), array('+', '/'), $base64String);
+        $data = str_replace(['-', '_'], ['+', '/'], $base64String);
         $mod4 = strlen($data) % 4;
         if ($mod4) {
             $data .= substr('====', $mod4);
@@ -103,14 +103,14 @@ class JWTAuth
     {
         $data = base64_encode($originString);
 
-        return str_replace(array('+', '/', '='), array('-', '_', ''), $data);
+        return str_replace(['+', '/', '='], ['-', '_', ''], $data);
     }
 
     protected function makePayload(array $payload)
     {
         $currentTime = time();
 
-        $defaultPayload = array(
+        $defaultPayload = [
             'iss' => '',
             'iat' => $currentTime,
             'exp' => $currentTime + 3600,
@@ -118,16 +118,16 @@ class JWTAuth
             'sub' => '',
             'nbf' => '',
             'jti' => '',
-        );
+        ];
 
         return array_merge($defaultPayload, $payload);
     }
 
     protected function makeHeader()
     {
-        return array(
+        return [
             'alg' => self::ALG,
             'typ' => self::TYP,
-        );
+        ];
     }
 }

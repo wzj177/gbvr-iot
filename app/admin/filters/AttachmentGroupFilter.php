@@ -9,22 +9,23 @@ use CoreW\Business\DataFilters\Filter;
 
 class AttachmentGroupFilter extends Filter
 {
-    protected $publicFields = [
-        'id',
-        'code',
-        'title',
-        'isDefault',
-        'parentId',
-        'level',
-        'sort',
-        'createdTime',
-        'updatedTime',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'code',
+            'title',
+            'isDefault',
+            'parentId',
+            'level',
+            'sort',
+            'createdTime',
+            'updatedTime',
+        ];
 
     /**
      * @return array
      */
-    public function publicFields(&$data): void
+    public function publicFields(&$data) : void
     {
         $data['isDefault'] = (int)$data['isDefault'];
         $data['isDefaultText'] = $data['isDefault'] === 1 ? '系统' : '';

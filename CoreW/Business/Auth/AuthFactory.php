@@ -12,10 +12,11 @@ use CoreW\Exception\UnexpectedValueException;
 
 class AuthFactory
 {
-    private static $handlerMap = [
-        'default' => DefaultTokenHandler::class,
-        'jwt' => JwtTokenHandler::class
-    ];
+    private static $handlerMap
+        = [
+            'default' => DefaultTokenHandler::class,
+            'jwt'     => JwtTokenHandler::class,
+        ];
 
     /**
      * @param $handler

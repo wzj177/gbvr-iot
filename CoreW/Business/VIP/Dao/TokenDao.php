@@ -6,7 +6,7 @@ namespace CoreW\Business\VIP\Dao;
 
 interface TokenDao
 {
-    public function get($id, array $options = array());
+    public function get($id, array $options = []);
 
     public function getByToken($token);
 

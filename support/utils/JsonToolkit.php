@@ -25,9 +25,9 @@ class JsonToolkit
             }
             if ($inEscape) {
                 $inEscape = false;
-            } elseif ($char === '"') {
+            } else if ($char === '"') {
                 $inQuotes = !$inQuotes;
-            } elseif (!$inQuotes) {
+            } else if (!$inQuotes) {
                 switch ($char) {
                     case '}':
                     case ']':
@@ -56,7 +56,7 @@ class JsonToolkit
                         $newLineLevel = null;
                         break;
                 }
-            } elseif ($char === '\\') {
+            } else if ($char === '\\') {
                 $inEscape = true;
             }
             if ($newLineLevel !== null) {

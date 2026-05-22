@@ -8,16 +8,16 @@ class MySQLPDOStorage implements Storage
 
     protected $table;
 
-    public function __construct(\PDO $pdo, array $options = array())
+    public function __construct(\PDO $pdo, array $options = [])
     {
         if (\PDO::ERRMODE_EXCEPTION !== $pdo->getAttribute(\PDO::ATTR_ERRMODE)) {
             throw new \InvalidArgumentException(sprintf('"%s" requires PDO error mode attribute be set to throw Exceptions (i.e. $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION))', __CLASS__));
         }
         $this->pdo = $pdo;
 
-        $options = array_replace(array(
+        $options = array_replace([
             'table' => 'rate_limit',
-        ), $options);
+        ], $options);
 
         $this->table = $options['table'];
     }

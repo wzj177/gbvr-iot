@@ -25,6 +25,8 @@ interface UserService
 
     public function getUserByNickname($nickname);
 
+    public function getUserByApiKey($apiKey);
+
     /**
      * 根据用户名/邮箱/手机号精确查找用户
      * @param $keyword
@@ -103,6 +105,8 @@ interface UserService
     public function markLoginFailed($userId, $ip);
 
     public function checkLoginForbidden($userId, $ip);
+
+    public function resetLoginFailed($userId);
 
     public function lockUser($id);
 

@@ -29,7 +29,7 @@ class GiiFactory
     public static function clear($path)
     {
         try {
-//            shell_exec("rm -rf {$path}"); -- 存在一个问题：shell会开启另外一个进程处理，在清空在重新生成时，当前进程可能获取到目录仍然存在
+            //            shell_exec("rm -rf {$path}"); -- 存在一个问题：shell会开启另外一个进程处理，在清空在重新生成时，当前进程可能获取到目录仍然存在
             self::delDir($path);
         } catch (\Throwable $e) {
             throw  GiiException::clearServiceFilesFailed($e->getMessage());

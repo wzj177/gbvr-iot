@@ -1,4 +1,5 @@
 <?php
+
 namespace app\middleware;
 
 use Webman\MiddlewareInterface;
@@ -11,5 +12,5 @@ class ApiSignatureCheckMiddleware implements MiddlewareInterface
     {
         return $next($request);
     }
-    
+
 }

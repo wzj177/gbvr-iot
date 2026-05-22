@@ -64,5 +64,5 @@ interface FileImplementor
      * @param $options
      * @return array|null
      */
-    public function storeRemoteFile($url, $path, $name = null, array  $options = []);
+    public function storeRemoteFile($url, $path, $name = null, array $options = []);
 }

@@ -21,11 +21,11 @@ class UploadController extends BaseController
         $group = $request->post('group', 'default');
         $file = $request->file($key);
         $dto = new FileUploadDto([
-            'file' => $file,
-            'type' => 'single_file_upload',
-            'group' => $group,
+            'file'   => $file,
+            'type'   => 'single_file_upload',
+            'group'  => $group,
             'userId' => $this->getVIPInfo()->getId(),
-            'client' => 'frontend'
+            'client' => 'frontend',
         ]);
         $result = $this->getAttachmentService()->uploadFile($dto);
 

@@ -5,7 +5,7 @@ namespace CoreW\Business\Setting\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\Setting\Dao\SettingDao;
 
-class SettingDaoImpl extends AdvancedDaoImpl implements SettingDao 
+class SettingDaoImpl extends AdvancedDaoImpl implements SettingDao
 {
 
     protected $table = 'gv_setting';
@@ -18,7 +18,7 @@ class SettingDaoImpl extends AdvancedDaoImpl implements SettingDao
     public function findByNameAndNamespace($name, $namespace)
     {
         return $this->getByFields([
-            'name' => $name,
+            'name'      => $name,
             'namespace' => $namespace,
         ]);
     }
@@ -27,23 +27,23 @@ class SettingDaoImpl extends AdvancedDaoImpl implements SettingDao
     {
         $sql = "SELECT * FROM {$this->table}";
 
-        return $this->db()->fetchAll($sql, array());
+        return $this->db()->fetchAll($sql, []);
     }
 
     public function deleteByName($name)
     {
-        return $this->db()->delete($this->table, array('name' => $name));
+        return $this->db()->delete($this->table, ['name' => $name]);
     }
 
     public function deleteByNamespaceAndName($namespace, $name)
     {
-        return $this->db()->delete($this->table, array('namespace' => $namespace, 'name' => $name));
+        return $this->db()->delete($this->table, ['namespace' => $namespace, 'name' => $name]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
-            'cache' => false,
+            'cache'      => false,
             'conditions' => [
                 'name = :name',
                 'namespace = :namespace',

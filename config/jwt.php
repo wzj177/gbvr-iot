@@ -14,7 +14,7 @@ return [
     | since RSA and ECDSA use a private/public key combo (See below).
     |
     */
-    'secret' => env('JWT_SECRET'),
+    'secret'            => env('JWT_SECRET'),
     /*
     |--------------------------------------------------------------------------
     | JWT Authentication Keys
@@ -42,7 +42,7 @@ return [
     | E.g. 'file://path/to/public/key'
     |
     */
-    'public_key' => env('JWT_PUBLIC_KEY', null),
+    'public_key'        => env('JWT_PUBLIC_KEY', null),
     /*
     |--------------------------------------------------------------------------
     | Private Key
@@ -53,12 +53,12 @@ return [
     | E.g. 'file://path/to/private/key'
     |
     */
-    'private_key' => env('JWT_PRIVATE_KEY', null),
+    'private_key'       => env('JWT_PRIVATE_KEY', null),
     /*
      *
      * The passphrase for your private key. Can be null if none set.
      */
-    'passphrase' => env('JWT_PASSPHRASE', null),
+    'passphrase'        => env('JWT_PASSPHRASE', null),
     /*
     |--------------------------------------------------------------------------
     | JWT time to live
@@ -74,7 +74,7 @@ return [
     | Notice: If you set this to null you should remove 'exp' element from 'required_claims' list.
     |
     */
-    'ttl' => env('JWT_TTL', 60),
+    'ttl'               => env('JWT_TTL', 60),
     /*
     |--------------------------------------------------------------------------
     | Refresh time to live
@@ -91,7 +91,7 @@ return [
     | systems in place to revoke the token if necessary.
     |
     */
-    'refresh_ttl' => env('JWT_REFRESH_TTL', 10080),
+    'refresh_ttl'       => env('JWT_REFRESH_TTL', 10080),
     /*
     |--------------------------------------------------------------------------
     | JWT hashing algorithm
@@ -103,7 +103,7 @@ return [
     | for possible values.
     |
     */
-    'algo' => env('JWT_ALGO', 'RS256'),
+    'algo'              => env('JWT_ALGO', 'RS256'),
     /*
     |--------------------------------------------------------------------------
     | Required Claims
@@ -114,7 +114,7 @@ return [
     | present in the payload.
     |
     */
-    'required_claims' => [
+    'required_claims'   => [
         'iss',
         'iat',
         'exp',
@@ -136,7 +136,7 @@ return [
     | Specify in seconds - only if you know you need it.
     |
     */
-    'leeway' => env('JWT_LEEWAY', 0),
+    'leeway'            => env('JWT_LEEWAY', 0),
     /*
     |--------------------------------------------------------------------------
     | Blacklist Enabled

@@ -13,7 +13,7 @@ class LoginSendSmsRateLimiter extends BaseRateLimiter implements RateLimiterInte
 
     const IP_MAX_ALLOW_ATTEMPT_ONE_HOUR = 2;
 
-//    const IP_MAX_ALLOW_ATTEMPT_ONE_MINUTE = 100;
+    //    const IP_MAX_ALLOW_ATTEMPT_ONE_MINUTE = 100;
 
     const SITE_MAX_ALLOW_ATTEMPT_ONE_DAY = 100;
 

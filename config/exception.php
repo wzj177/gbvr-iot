@@ -13,6 +13,6 @@
  */
 
 return [
-//    '' => support\exception\Handler::class,
-    '' => CoreW\Exception\ExceptionHandler::class
+    //    '' => support\exception\Handler::class,
+    '' => CoreW\Exception\ExceptionHandler::class,
 ];

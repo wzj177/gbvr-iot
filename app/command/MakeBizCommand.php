@@ -28,9 +28,9 @@ class MakeBizCommand extends Command
     protected function configure()
     {
         $this->addOption('id', '-i', InputOption::VALUE_REQUIRED, '业务名称')
-            ->addOption('table', '-t', InputOption::VALUE_OPTIONAL,'数据表名称')
-            ->addOption('namespace', '-s', InputOption::VALUE_OPTIONAL,'命名空间')
-            ->addOption('dao', '-d', InputOption::VALUE_OPTIONAL,'是否使用dao层');
+            ->addOption('table', '-t', InputOption::VALUE_OPTIONAL, '数据表名称')
+            ->addOption('namespace', '-s', InputOption::VALUE_OPTIONAL, '命名空间')
+            ->addOption('dao', '-d', InputOption::VALUE_OPTIONAL, '是否使用dao层');
     }
 
     /**
@@ -55,9 +55,9 @@ class MakeBizCommand extends Command
             $gii = GiiFactory::create('easy', $namespace, $this->getBiz());
             $path = $gii->render([
                 'tableName' => $table,
-                'bizId' => $bizId,
-                'prefix' => getenv('DB_PREFIX'),
-                'useDao' => $useDao
+                'bizId'     => $bizId,
+                'prefix'    => getenv('DB_PREFIX'),
+                'useDao'    => $useDao,
             ]);
             $output->writeln(ShellColor::showInfo("{$path}已创建"));
             return self::SUCCESS;

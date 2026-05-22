@@ -5,14 +5,14 @@ namespace CoreW\Business\Role\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\Role\Dao\RoleDao;
 
-class RoleDaoImpl extends AdvancedDaoImpl implements RoleDao 
+class RoleDaoImpl extends AdvancedDaoImpl implements RoleDao
 {
 
     protected $table = 'gv_role';
 
     public function getByCode($code)
     {
-        return $this->getByFields(array('code' => $code));
+        return $this->getByFields(['code' => $code]);
     }
 
     public function findByCodes($codes)
@@ -20,35 +20,41 @@ class RoleDaoImpl extends AdvancedDaoImpl implements RoleDao
         return $this->findInField('code', $codes);
     }
 
-    public function getByName($name)
+    public function findByIds(array $ids)
     {
-        return $this->getByFields(array('name' => $name));
+        return $this->findInField('id', $ids);
     }
 
-    public function declares():array
+    public function getByName($name)
+    {
+        return $this->getByFields(['name' => $name]);
+    }
+
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'data' => 'json',
-                'data_v2' => 'json',
-           ], 
-            'orderbys' => [ 
+            ],
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
             'conditions' => [
+                'id = :id',
+                'id IN (:ids)',
                 'name = :name',
                 'code = :code',
                 'code NOT IN (:excludeCodes)',
                 'code LIKE :codeLike',
                 'name LIKE :nameLike',
                 'createdUserId = :createdUserId',
-           ], 
-            'timestamps' => [ 
+            ],
+            'timestamps' => [
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
         ];
-    } 
+    }
 }

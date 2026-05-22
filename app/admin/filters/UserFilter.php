@@ -9,44 +9,47 @@ use support\utils\AssetHelper;
 
 class UserFilter extends Filter
 {
-    protected $simpleFields = [
-        'id',
-        'nickname',
-        'email',
-        'avatar',
-        'uuid',
-        'destroyed',
-        'roles',
-        'currentIp',
-        'verifiedMobile',
-        'loginTime',
-        'createdTime',
-        'loginIp',
-        'truename',
-        'locked'
-    ];
+    protected $simpleFields
+        = [
+            'id',
+            'nickname',
+            'email',
+            'avatar',
+            'uuid',
+            'destroyed',
+            'roles',
+            'currentIp',
+            'verifiedMobile',
+            'loginTime',
+            'createdTime',
+            'loginIp',
+            'truename',
+            'locked',
+        ];
 
-    protected $publicFields = [
-        'id',
-        'nickname',
-        'email',
-        'avatar',
-        'uuid',
-    ];
+    protected $publicFields
+        = [
+            'id',
+            'nickname',
+            'email',
+            'avatar',
+            'uuid',
+        ];
 
-    protected $authenticatedFields = [
-        'id',
-        'nickname',
-        'uuid',
-        'loginTime',
-        'loginIp',
-        'truename',
-        'roles',
-        'avatar'
-    ];
+    protected $authenticatedFields
+        = [
+            'id',
+            'nickname',
+            'uuid',
+            'loginTime',
+            'loginIp',
+            'truename',
+            'roles',
+            'avatar',
+        ];
 
 
-    protected $mode = self::SIMPLE_MODE;
+    protected string $mode = self::SIMPLE_MODE;
 
     protected function simpleFields(&$data)
     {

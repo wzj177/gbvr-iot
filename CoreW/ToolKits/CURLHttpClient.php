@@ -112,9 +112,9 @@ class CURLHttpClient
         }
         curl_close($ch);
         return [
-            'code' => $code,
-            'raw' => $content,
-            'response' => $this->extractResponseHeadersAndBody($content)
+            'code'     => $code,
+            'raw'      => $content,
+            'response' => $this->extractResponseHeadersAndBody($content),
         ];
     }
 
@@ -157,9 +157,9 @@ class CURLHttpClient
             $content = curl_multi_getcontent($ch);
             $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $result[] = [
-                'code' => $code,
-                'raw' => $content,
-                'response' => $this->extractResponseHeadersAndBody($content)
+                'code'     => $code,
+                'raw'      => $content,
+                'response' => $this->extractResponseHeadersAndBody($content),
             ];
             curl_multi_remove_handle($mh, $ch);
         }
@@ -200,9 +200,9 @@ class CURLHttpClient
         }
         curl_close($ch);
         return [
-            'code' => $code,
-            'raw' => $content,
-            'response' => $this->extractResponseHeadersAndBody($content)
+            'code'     => $code,
+            'raw'      => $content,
+            'response' => $this->extractResponseHeadersAndBody($content),
         ];
     }
 
@@ -252,7 +252,7 @@ class CURLHttpClient
         }
         return [
             'header' => $headers,
-            'body' => trim($rawBody),
+            'body'   => trim($rawBody),
         ];
     }
 }

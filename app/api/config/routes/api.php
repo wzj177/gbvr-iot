@@ -1,16 +1,18 @@
 <?php
 
+use app\admin\controller\SystemMonitoringController;
 use app\api\v1\controller\AuthController;
 use app\api\v1\controller\IotController;
 use app\api\v1\controller\ProductController;
 use app\api\v1\controller\VIPController;
 use app\api\v1\controller\PublicController;
-use app\middleware\api\CompanyIotMiddleware;
-use app\middleware\api\XAuthTokenIdentityMiddleware;
+use app\middleware\api\AuthIdentityMiddleware;
+use app\middleware\admin\AuthIdentityMiddleware as AdminAuthIdentityMiddleware;
 use app\middleware\ProductAnonymousVisitMiddleware;
 use support\Request;
 use Webman\Route;
 
+// 对外开放 openapi 接口
 Route::group('/api', function () {
     Route::group('/v1', function () {
         // 登录、注册
@@ -19,7 +21,7 @@ Route::group('/api', function () {
             Route::post('/register', [AuthController::class, 'register'])->name('api.register');
             Route::post('/login', [AuthController::class, 'login'])->name('api.login');
             Route::post('/email-login', [AuthController::class, 'emailLogin'])->name('api.email-login');
-//            Route::get('/captcha', [AuthController::class, 'captcha'])->name('api.captcha');
+            //            Route::get('/captcha', [AuthController::class, 'captcha'])->name('api.captcha');
             Route::post('/send-email-code', [AuthController::class, 'sendEmailLoginCode'])->name('api.send-login-email-code');
             Route::get('/config', [AuthController::class, 'config'])->name('api.auth-config');
             Route::post('/oauth2-qq-url', [AuthController::class, 'qqAuthUrl'])->name('api.auth-oauth2-qq-auth-url');
@@ -31,7 +33,7 @@ Route::group('/api', function () {
 
         // 退出
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.logout')->middleware([
-            XAuthTokenIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 会员中心
@@ -47,7 +49,7 @@ Route::group('/api', function () {
             Route::put('/edit/{id}', [VIPController::class, 'edit'])->name('api.vip.edit');
             Route::get('/products', [ProductController::class, 'myList'])->name('api.vip.products');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 作品
@@ -85,16 +87,16 @@ Route::group('/api', function () {
             Route::put('/config/{id:\d+}', [ProductController::class, 'setConfig'])->name('api.product-set-config');
             Route::get('/config/{id:\d+}/{key:\w+}', [ProductController::class, 'getConfig'])->name('api.product-get-config');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 物联网
-        Route::group('/iot', function() {
+        Route::group('/iot', function () {
             Route::get('/device/catalogs', [IotController::class, 'getDeviceCatalogs'])->name('iot.device.catalogs');
-           Route::get('/device/list', [IotController::class, 'getDeviceList'])->name('iot.device.list');
+            Route::get('/device/list', [IotController::class, 'getDeviceList'])->name('iot.device.list');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class,
-            CompanyIotMiddleware::class
+            //            XAuthTokenIdentityMiddleware::class,
+            //            CompanyIotMiddleware::class
         ]);
 
         // 作品:无需认证,游客也可访问
@@ -113,12 +115,12 @@ Route::group('/api', function () {
             Route::get('/iot/camera/live-url/{deviceCode}', [IotController::class, 'getCameraLiveUrl'])->name('iot.camera.live-url');
             Route::get('/iot/gis/tiles-url', [IotController::class, 'getGisTilesUrl'])->name('iot.gis.tiles-url');
         })->middleware([
-            ProductAnonymousVisitMiddleware::class
+            ProductAnonymousVisitMiddleware::class,
         ]);
 
         // 上传
         Route::post('/upload/file', [\app\api\v1\controller\UploadController::class, 'singleFile'])->name('api.common.upload.file')->middleware([
-            XAuthTokenIdentityMiddleware::class
+            AuthIdentityMiddleware::class,
         ]);
 
         // 邮箱验证
@@ -134,33 +136,68 @@ Route::group('/api', function () {
 
     Route::group('/v2', function () {
         Route::group('/gb', function () {
-            Route::post('/server/hock', [\app\api\v2\controller\GBServerHockController::class, 'index'])->middleware([
-                \app\middleware\GBHock::class
+            Route::post('/server/hook', [\app\api\v2\controller\GBServerHookController::class, 'index'])->middleware([
+                \app\middleware\GBHook::class,
             ]);
-            Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pullOnLineList']);
+            Route::get('/devices/pull', [\app\api\v2\controller\GB28181DeviceController::class, 'pushOnLineList']);
+
+            // Gateway config pull + heartbeat + register
+            Route::get('/gateway/config', [\app\api\v2\controller\GBGatewayConfigController::class, 'getConfig']);
+            Route::post('/gateway/heartbeat', [\app\api\v2\controller\GBGatewayConfigController::class, 'heartbeat']);
+            Route::post('/gateway/register', [\app\api\v2\controller\GBGatewayConfigController::class, 'register']);
         });
-        
-        // GB28181 设备管理
-        Route::group('/gb28181', function () {
-            // 设备列表
-            Route::get('/devices', [\app\api\v2\controller\GB28181DeviceController::class, 'index']);
-            // 设备详情
-            Route::get('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'show']);
-            // 设备通道列表
-            Route::get('/devices/{id}/channels', [\app\api\v2\controller\GB28181DeviceController::class, 'channels']);
-            // 查询设备目录（主动向设备发起Catalog查询）
-            Route::post('/devices/{id}/catalog', [\app\api\v2\controller\GB28181DeviceController::class, 'queryCatalog']);
-            // 删除设备
-            Route::delete('/devices/{id}', [\app\api\v2\controller\GB28181DeviceController::class, 'destroy']);
-            
-            // 流控制
-            Route::post('/channels/start-live', [\app\api\v2\controller\GB28181StreamController::class, 'startLive']);
-            Route::post('/channels/stop-live', [\app\api\v2\controller\GB28181StreamController::class, 'stopLive']);
-            Route::get('/channels/play-urls', [\app\api\v2\controller\GB28181StreamController::class, 'getPlayUrls']);
-            Route::post('/channels/playback', [\app\api\v2\controller\GB28181StreamController::class, 'startPlayback']);
-            Route::post('/channels/ptz', [\app\api\v2\controller\GB28181DeviceController::class, 'ptzControl']);
+
+        Route::group('/zlm_hook', function () {
+
+            // 流量报告事件
+            Route::post('/on_flow_report', [\app\api\v2\controller\ZLMHookController::class, 'onFlowReport'])->name('api.zlm_hook.on_flow_report');
+
+            // HTTP 访问鉴权事件
+            Route::any('/on_http_access', [\app\api\v2\controller\ZLMHookController::class, 'onHttpAccess'])->name('api.zlm_hook.on_http_access');
+
+            // 播放事件
+            Route::post('/on_play', [\app\api\v2\controller\ZLMHookController::class, 'onPlay'])->name('api.zlm_hook.on_play');
+
+            // 推流事件
+            Route::post('/on_publish', [\app\api\v2\controller\ZLMHookController::class, 'onPublish'])->name('api.zlm_hook.on_publish');
+
+            // MP4 录像完成事件
+            Route::post('/on_record_mp4', [\app\api\v2\controller\ZLMHookController::class, 'onRecordMp4'])->name('api.zlm_hook.on_record_mp4');
+
+            // HLS/TS 录像完成事件
+            Route::post('/on_record_ts', [\app\api\v2\controller\ZLMHookController::class, 'onRecordTs'])->name('api.zlm_hook.on_record_ts');
+
+            // RTSP 认证事件
+            Route::post('/on_rtsp_auth', [\app\api\v2\controller\ZLMHookController::class, 'onRtspAuth'])->name('api.zlm_hook.on_rtsp_auth');
+
+            // RTSP Realm 事件
+            Route::any('/on_rtsp_realm', [\app\api\v2\controller\ZLMHookController::class, 'onRtspRealm'])->name('api.zlm_hook.on_rtsp_realm');
+
+            // 服务器启动事件
+            Route::post('/on_server_started', [\app\api\v2\controller\ZLMHookController::class, 'onServerStarted'])->name('api.zlm_hook.on_server_started');
+
+            // on_server_keepalive
+            Route::post('/on_server_keepalive', [\app\api\v2\controller\ZLMHookController::class, 'onServerKeepalive'])->name('api.zlm_hook.on_server_keepalive');
+
+            // Shell 登录事件
+            Route::post('/on_shell_login', [\app\api\v2\controller\ZLMHookController::class, 'onShellLogin'])->name('api.zlm_hook.on_shell_login');
+
+            // 流注册/注销事件
+            Route::post('/on_stream_changed', [\app\api\v2\controller\ZLMHookController::class, 'onStreamChanged'])->name('api.zlm_hook.on_stream_changed');
+
+            // 流无人观看事件
+            Route::post('/on_stream_none_reader', [\app\api\v2\controller\ZLMHookController::class, 'onStreamNoneReader'])->name('api.zlm_hook.on_stream_none_reader');
+
+            // 流未找到事件
+            Route::post('/on_stream_not_found', [\app\api\v2\controller\ZLMHookController::class, 'onStreamNotFound'])->name('api.zlm_hook.on_stream_not_found');
+
+            // FFmpeg 拉流未找到事件
+            Route::post('/on_stream_not_found_ffmpeg', [\app\api\v2\controller\ZLMHookController::class, 'onStreamNotFoundFfmpeg'])->name('api.zlm_hook.on_stream_not_found_ffmpeg');
+
+            // RTP 超时事件
+            Route::post('/on_rtp_server_timeout', [\app\api\v2\controller\ZLMHookController::class, 'onRtpServerTimeout'])->name('api.zlm_hook.on_rtp_server_timeout');
         })->middleware([
-            XAuthTokenIdentityMiddleware::class
+            \app\middleware\ZLMHook::class,
         ]);
     });
 });

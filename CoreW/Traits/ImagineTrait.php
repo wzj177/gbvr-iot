@@ -14,7 +14,7 @@ trait ImagineTrait
         }
 
         if (extension_loaded('gmagick')) {
-            return  new \Imagine\Gmagick\Imagine();
+            return new \Imagine\Gmagick\Imagine();
         }
 
         return new \Imagine\Gd\Imagine();

@@ -44,7 +44,7 @@ class SystemLogServiceImpl extends BaseService implements SystemLogService
      */
     public function batchDelete($ids)
     {
-        if ( empty($ids)) {
+        if (empty($ids)) {
             return false;
         }
 
@@ -101,15 +101,15 @@ class SystemLogServiceImpl extends BaseService implements SystemLogService
     protected function addLog($level, $module, $action, $message, array $params = null)
     {
         $fields = [
-            'module' => $module,
-            'action' => $action,
-            'message' => $message,
-            'data' => empty($params) ? '' : (is_string($params) ? $params : json_encode($params)),
-            'userId' => !empty($params['userId']) ? $params['userId'] : 1,
-            'ip' => !empty($params['currentIp']) ? $params['currentIp'] : '127.0.0.1',
+            'module'      => $module,
+            'action'      => $action,
+            'message'     => $message,
+            'data'        => empty($params) ? [] : $params,
+            'userId'      => !empty($params['userId']) ? $params['userId'] : 1,
+            'ip'          => !empty($params['currentIp']) ? $params['currentIp'] : '127.0.0.1',
             'createdTime' => time(),
-            'level' => $level,
-            'side' => \config('app.id', 'common')
+            'level'       => $level,
+            'side'        => \config('app.id', 'common'),
         ];
         if (!empty($fields['ip']) && !\is_local_client($fields['ip'])) {
             $areaInfo = $this->bfw->offsetGet('ip2region')->parseIpToArea($fields['ip']);

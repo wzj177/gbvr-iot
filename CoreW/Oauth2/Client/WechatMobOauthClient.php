@@ -10,7 +10,7 @@ class WechatMobOauthClient extends AbstractOAuthClient
 
     public function getAuthorizationUrl(string $redirect_uri, string $response_type = 'code')
     {
-        $params = array();
+        $params = [];
         $params['appid'] = $this->config['key'];
         $params['redirect_uri'] = $redirect_uri;
         $params['response_type'] = $response_type;
@@ -21,31 +21,31 @@ class WechatMobOauthClient extends AbstractOAuthClient
 
     public function getAccessToken(string $code, string $redirect_uri)
     {
-        $params = array(
-            'appid' => $this->config['key'],
-            'secret' => $this->config['secret'],
-            'code' => $code,
+        $params = [
+            'appid'      => $this->config['key'],
+            'secret'     => $this->config['secret'],
+            'code'       => $code,
             'grant_type' => 'authorization_code',
-        );
+        ];
         $result = $this->getRequest(self::OAUTH_TOKEN_URL, $params);
         $rawToken = json_decode($result, true);
         $userInfo = $this->getUserInfo($rawToken);
 
         return [
-            'userId' => $userInfo['id'],
-            'expiredTime' => $rawToken['expires_in'],
+            'userId'       => $userInfo['id'],
+            'expiredTime'  => $rawToken['expires_in'],
             'access_token' => $rawToken['access_token'],
-            'token' => $rawToken['access_token'],
-            'openid' => $rawToken['openid'],
+            'token'        => $rawToken['access_token'],
+            'openid'       => $rawToken['openid'],
         ];
     }
 
     public function getUserInfo($token)
     {
         $params = [
-            'openid' => $token['openid'],
+            'openid'       => $token['openid'],
             'access_token' => $token['access_token'],
-            'lang' => 'zh_CN'
+            'lang'         => 'zh_CN',
         ];
         $result = $this->getRequest(self::USERINFO_URL, $params);
         $info = json_decode($result, true);

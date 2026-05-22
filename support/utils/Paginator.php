@@ -31,7 +31,7 @@ class Paginator
         $this->setPerPageCount($perPage);
 
 
-        $maxPage = ceil($total / $perPage) ?: 1;
+        $maxPage = ceil($total / $perPage) ? : 1;
         $this->setCurrentPage($page <= 0 ? 1 : ($page > $maxPage ? $maxPage : $page));
 
         $this->setBaseUrl($baseUrl);
@@ -53,7 +53,7 @@ class Paginator
 
     public function getPerPageCount()
     {
-        return (int) $this->perPageCount;
+        return (int)$this->perPageCount;
     }
 
     public function setCurrentPage($page)
@@ -83,7 +83,7 @@ class Paginator
             parse_str($urls['query'], $queries);
             $queries['page'] = '..page..';
         } else {
-            $queries = array('page' => '..page..');
+            $queries = ['page' => '..page..'];
         }
         $template .= '?' . http_build_query($queries);
 
@@ -102,7 +102,7 @@ class Paginator
 
     public function getCurrentPage()
     {
-        return (int) $this->currentPage;
+        return (int)$this->currentPage;
     }
 
     public function getFirstPage()
@@ -166,20 +166,20 @@ class Paginator
 
     public static function toArray(Paginator $paginator)
     {
-        return array(
-            'firstPage' => (int)$paginator->getFirstPage(),
+        return [
+            'firstPage'   => (int)$paginator->getFirstPage(),
             'currentPage' => (int)$paginator->getCurrentPage(),
-            'perPage' => (int)$paginator->getPerPageCount(),
-            'total' => (int)$paginator->getItemCount(),
-//            'firstPageUrl' => $paginator->getPageUrl($paginator->getFirstPage()),
-//            'previousPageUrl' => $paginator->getPageUrl($paginator->getPreviousPage()),
-            'pages' => $paginator->getPages(),
-//            'pageUrls' => array_map(function ($page) use ($paginator) {
-//                return $paginator->getPageUrl($page);
-//            }, $paginator->getPages()),
-//            'lastPageUrl' => $paginator->getPageUrl($paginator->getLastPage()),
-            'lastPage' => (int)$paginator->getLastPage(),
-//            'nextPageUrl' => $paginator->getPageUrl($paginator->getNextPage()),
-        );
+            'perPage'     => (int)$paginator->getPerPageCount(),
+            'total'       => (int)$paginator->getItemCount(),
+            //            'firstPageUrl' => $paginator->getPageUrl($paginator->getFirstPage()),
+            //            'previousPageUrl' => $paginator->getPageUrl($paginator->getPreviousPage()),
+            'pages'       => $paginator->getPages(),
+            //            'pageUrls' => array_map(function ($page) use ($paginator) {
+            //                return $paginator->getPageUrl($page);
+            //            }, $paginator->getPages()),
+            //            'lastPageUrl' => $paginator->getPageUrl($paginator->getLastPage()),
+            'lastPage'    => (int)$paginator->getLastPage(),
+            //            'nextPageUrl' => $paginator->getPageUrl($paginator->getNextPage()),
+        ];
     }
 }

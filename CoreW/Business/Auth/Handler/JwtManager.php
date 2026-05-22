@@ -143,10 +143,10 @@ class JwtManager
         $refreshToken = JWT::encode($payload, $this->getEncodeKey(), $this->algo, null, $headers);
 
         return [
-            'accessToken' => $accessToken,
-            'accessPayload' => $payload,
-            'refreshToken' => $refreshToken,
-            'refreshPayload' => $refreshPayload
+            'accessToken'    => $accessToken,
+            'accessPayload'  => $payload,
+            'refreshToken'   => $refreshToken,
+            'refreshPayload' => $refreshPayload,
         ];
     }
 
@@ -163,7 +163,7 @@ class JwtManager
         !isset($payload['iat']) && $payload['iat'] = time();
         !isset($payload['nbf']) && $payload['nbf'] = time();
         !isset($payload['exp']) && $payload['exp'] = time() + $this->ttl * 60;
-//        var_dump($this->ttl * 60, $payload['exp']);
+        //        var_dump($this->ttl * 60, $payload['exp']);
         !isset($payload['jti']) && $payload['jti'] = $payload['iss'] . $payload['userId'] . md5(uniqid('access_token') . time());
         if (!ArrayToolkit::requireds($payload, $this->required_claims)) {
             throw new BeforeValidException("payload must be have keys:" . implode(',', $this->required_claims));
@@ -206,7 +206,7 @@ class JwtManager
         } catch (BeforeValidException $e) {
             // provided JWT is trying to be used before "nbf" claim OR
             // provided JWT is trying to be used before "iat" claim.
-//            echo 'BeforeValidException:', $e->getMessage(), PHP_EOL;
+            //            echo 'BeforeValidException:', $e->getMessage(), PHP_EOL;
             return -1;
         } catch (ExpiredException $e) {
             // provided JWT is trying to be used after "exp" claim.

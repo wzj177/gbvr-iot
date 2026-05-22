@@ -35,12 +35,12 @@ class Sheet
         $spreadsheet->setActiveSheetIndex($workSheetIndex);
     }
 
-    public function getSpreadsheet(): Spreadsheet
+    public function getSpreadsheet() : Spreadsheet
     {
         return $this->spreadsheet;
     }
 
-    public function getWorkSheet(): Worksheet
+    public function getWorkSheet() : Worksheet
     {
         return $this->getSpreadsheet()->getActiveSheet();
     }
@@ -52,7 +52,7 @@ class Sheet
     {
         if (is_array($header)) {
             $this->header = $header;
-        } elseif ($header instanceof \Closure) {
+        } else if ($header instanceof \Closure) {
             $this->header = call_user_func($header);
         }
         $this->columnNumber = $this->getColumnNumber();
@@ -88,12 +88,12 @@ class Sheet
     {
         $workSheet = $this->getWorkSheet();
         $style = [
-            'font' => [
-                'bold' => true,
-                'size' => $bodySize,
-                'color' => ['argb' => 'FF0000']
+            'font'      => [
+                'bold'  => true,
+                'size'  => $bodySize,
+                'color' => ['argb' => 'FF0000'],
             ],
-            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_RIGHT]
+            'alignment' => ['horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_RIGHT],
         ];
         $lastIndex = $lastIndex + $num;
         $workSheet->getStyle('A' . $lastIndex)->applyFromArray($style);
@@ -105,9 +105,9 @@ class Sheet
     {
         if (!empty($this->title)) {
             $styleArray1 = [
-                'font' => [
-                    'bold' => false,
-                    'size' => $this->defaultStyle['titleSize'],
+                'font'      => [
+                    'bold'  => false,
+                    'size'  => $this->defaultStyle['titleSize'],
                     'color' => [
                         'argb' => '00000000',
                     ],
@@ -158,9 +158,9 @@ class Sheet
 
     /**
      * 求excel列的值
-     * @example  A AA BA CA
      * @param $col 数字列
      * @return string
+     * @example  A AA BA CA
      */
     protected function computeExcelCellWord($col)
     {

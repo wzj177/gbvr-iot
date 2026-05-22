@@ -12,6 +12,7 @@ use CoreW\Business\Attachment\Service\AttachmentService;
 use CoreW\Business\Attachment\Dao\AttachmentDao;
 use CoreW\Business\BizEnum;
 use CoreW\Business\Setting\Service\SettingService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Exception\NotFoundException;
 use Imagine\Image\Box;
@@ -122,10 +123,10 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
      */
     public function updateAttachment($id, array $fields)
     {
-//        $file = $this->getAttachmentById($id, false);
-//        if (empty($file)) {
-//            throw  new NotFoundException("附件不存在");
-//        }
+        //        $file = $this->getAttachmentById($id, false);
+        //        if (empty($file)) {
+        //            throw  new NotFoundException("附件不存在");
+        //        }
         $fields = ArrayToolkit::parts($fields, ['newFilename', 'videoCover', 'length', 'imgSize', 'transcodePath']);
 
         return $this->getAttachmentDao()->update($id, $fields);
@@ -220,37 +221,37 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         }
 
         // 前端使用promise.all()发起请求，会偶现并发情况，导致判断is_dir()后mkdir出现报错
-//        $lockFile = runtime_path('upload-snippet.lock');
-//        $fp = fopen($lockFile, 'w'); // 打开锁文件
-//        if (flock($fp, LOCK_EX)) { // 获取独占锁
-//            try {
-//                $chunkPath = $this->getUploadSnippetChunkPath() . DIRECTORY_SEPARATOR . $hash;
-//                if (!is_dir($chunkPath)) {
-//                    mkdir($chunkPath, 0777, true);
-//                }
-//            } catch (\Throwable $e) {
-//                throw $e;
-//            } finally {
-//                flock($fp, LOCK_UN); // 释放锁
-//            }
-//        } else {
-//            return false;
-//        }
-//
-//        fclose($fp); // 关闭锁文件句柄
+        //        $lockFile = runtime_path('upload-snippet.lock');
+        //        $fp = fopen($lockFile, 'w'); // 打开锁文件
+        //        if (flock($fp, LOCK_EX)) { // 获取独占锁
+        //            try {
+        //                $chunkPath = $this->getUploadSnippetChunkPath() . DIRECTORY_SEPARATOR . $hash;
+        //                if (!is_dir($chunkPath)) {
+        //                    mkdir($chunkPath, 0777, true);
+        //                }
+        //            } catch (\Throwable $e) {
+        //                throw $e;
+        //            } finally {
+        //                flock($fp, LOCK_UN); // 释放锁
+        //            }
+        //        } else {
+        //            return false;
+        //        }
+        //
+        //        fclose($fp); // 关闭锁文件句柄
         $chunkPath = $this->getUploadSnippetChunkPath(false) . DIRECTORY_SEPARATOR . $hash;
         // 切片文件
         $chunkFilename = sprintf("%s/%s-%s", $chunkPath, $hash, $index);
         // 仅用于本地存储，对象存储使用官方提供的前端组件和接口适应大文件
         $file->move($chunkFilename);
-//        $this->mergeTmpFile($chunkFilename, $hash);
-//        $queue = 'make-upload-chunk-tmp-file';
-//        Client::send($queue, [
-//            'hash' => $hash,
-//            'chunkFile' => $chunkFilename,
-//            'filename' => $filename,
-//            'chunkIndex' => $index
-//        ]);
+        //        $this->mergeTmpFile($chunkFilename, $hash);
+        //        $queue = 'make-upload-chunk-tmp-file';
+        //        Client::send($queue, [
+        //            'hash' => $hash,
+        //            'chunkFile' => $chunkFilename,
+        //            'filename' => $filename,
+        //            'chunkIndex' => $index
+        //        ]);
 
         return true;
     }
@@ -296,7 +297,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         try {
             $chunkFiles = [];
             $tmpFile = $chunkPath . '/tmp';
-//            echo 'tmp size:', filesize($tmpFile), '|file size:', $fields['size'], PHP_EOL;
+            //            echo 'tmp size:', filesize($tmpFile), '|file size:', $fields['size'], PHP_EOL;
             if (is_file($tmpFile) && filesize($tmpFile) === $fields['size']) {
                 // 如果写入了临时文件（一边分片一边写入的情况），同时临时文件的大小==上传文件的大小
                 if (!is_dir($fileDir)) {
@@ -320,17 +321,17 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
                 $webman = base_path('webman');
                 $cmd = "php {$webman} upload:merge-chunk {$fields['hash']} {$filepath}";
                 shell_exec($cmd);
-//                $fp = fopen($filepath, 'ab+');
-//                foreach ($chunkFiles as $chunkFile) {
-//                    $chunkFp = fopen($chunkFile, 'rb');
-////                    stream_copy_to_stream($chunkFp, $fp);
-//                    while (!feof($chunkFp)) {
-//                        fwrite($fp, fread($chunkFp, 1024 * 1024 * 5));
-//                    }
-//                    fclose($chunkFp);
-//                }
-//
-//                fclose($fp);
+                //                $fp = fopen($filepath, 'ab+');
+                //                foreach ($chunkFiles as $chunkFile) {
+                //                    $chunkFp = fopen($chunkFile, 'rb');
+                ////                    stream_copy_to_stream($chunkFp, $fp);
+                //                    while (!feof($chunkFp)) {
+                //                        fwrite($fp, fread($chunkFp, 1024 * 1024 * 5));
+                //                    }
+                //                    fclose($chunkFp);
+                //                }
+                //
+                //                fclose($fp);
             }
 
             if (!is_file($filepath)) {
@@ -339,31 +340,74 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
 
             $pathinfo = pathinfo($filepath);
             $type = $localFileImplementor->getAttachmentTypeByExt($pathinfo['extension']);
-            $attachment = [
-                'status' => 'ok',
-                'createUserId' => $fields['create_user_id'],
-                'createClient' => $fields['Client'],
-                'storage' => 'local',
-                'filename' => $fields['name'],
-                'fileSize' => filesize($filepath),
-                'groupCode' => $fields['group'],
-                'filepath' => $subPath,
-                'newFilename' => $pathinfo['filename'] . '.' . $ext,
-                'ext' => $pathinfo['extension'],
-                'metas' => '',
-                'type' => $type,
-                'hashId' => hash_file('sha256', $filepath)
-            ];
-            $row = $this->getAttachmentDao()->create($attachment);
-            $this->getLogService()->info('attachment', 'upload', '分片上传成功', $fields);
+
+            // 获取当前配置的存储引擎
+            $setting = $this->getSettingService()->get('attachment');
+            $storageType = empty($setting['type']) ? 'local' : $setting['type'];
+
+            // 根据 storage 类型处理文件
+            if ($storageType === 'local') {
+                // 本地存储：直接使用合并后的文件
+                $attachment = [
+                    'status'       => 'ok',
+                    'createUserId' => $fields['create_user_id'],
+                    'createClient' => $fields['Client'],
+                    'storage'      => 'local',
+                    'filename'     => $fields['name'],
+                    'fileSize'     => filesize($filepath),
+                    'groupCode'    => $fields['group'],
+                    'filepath'     => $subPath,
+                    'newFilename'  => $pathinfo['filename'] . '.' . $ext,
+                    'ext'          => $pathinfo['extension'],
+                    'metas'        => '',
+                    'type'         => $type,
+                    'hashId'       => hash_file('sha256', $filepath),
+                ];
+                $row = $this->getAttachmentDao()->create($attachment);
+                $finalFilepath = $subPath;
+            } else {
+                // 云存储：上传到 OSS 并删除本地临时文件
+                $implementor = $this->getSystemSettingFileImplementor();
+
+                // 创建临时的 UploadFile 对象用于云存储上传
+                $tmpUploadFile = new \Webman\Http\UploadFile($filepath, basename($filepath), mime_content_type($filepath), filesize($filepath), UPLOAD_ERR_OK);
+
+                // 上传到云存储
+                $ossFields = $implementor->store($tmpUploadFile, $path, $fields['hash'], [
+                    'group' => $fields['group'],
+                ]);
+
+                // 删除本地合并后的临时文件
+                @unlink($filepath);
+
+                $attachment = [
+                    'status'       => 'ok',
+                    'createUserId' => $fields['create_user_id'],
+                    'createClient' => $fields['Client'],
+                    'storage'      => $ossFields['storage'],
+                    'filename'     => $fields['name'],
+                    'fileSize'     => $ossFields['fileSize'],
+                    'groupCode'    => $fields['group'],
+                    'filepath'     => $ossFields['filepath'],
+                    'newFilename'  => $ossFields['newFilename'],
+                    'ext'          => $ossFields['ext'],
+                    'metas'        => $ossFields['metas'],
+                    'type'         => $ossFields['type'],
+                    'hashId'       => $ossFields['hashId'],
+                ];
+                $row = $this->getAttachmentDao()->create($attachment);
+                $finalFilepath = $ossFields['filepath'];
+            }
+
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '分片上传成功', $fields);
             $this->clearChunkFiles($chunkPath, $chunkFiles);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
 
-            return $this->responseFormat($row['id'], $subPath, $type);
+            return $this->responseFormat($row['id'], $finalFilepath, $type);
 
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', '分片上传失败:' . $e->getMessage(), $fields);
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '分片上传失败:' . $e->getMessage(), $fields);
             $this->clearChunkFiles($chunkPath, $chunkFiles);
             throw $e;
         }
@@ -410,7 +454,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
     {
         if (!\is_win_os()) {
             $command = "rsync -ah --progress '$tmpFile' '$filepath'";
-//            echo $command, PHP_EOL;
+            //            echo $command, PHP_EOL;
             exec($command, $output, $returnCode);
             if ($returnCode === 0) {
                 return true;
@@ -440,7 +484,8 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         // 这里需要处理逻辑：记录最后一次写入的分片号，如果当前的分片号<上次的分片号，则抛弃---需要使用循环
         $path = pathinfo($chunkFile, PATHINFO_DIRNAME);
         $tmpIndexFile = sprintf("%s/index_tmp", $path);
-        if (!is_file($tmpIndexFile) && touch($tmpIndexFile)) {}
+        if (!is_file($tmpIndexFile) && touch($tmpIndexFile)) {
+        }
         $tmpIndexFp = fopen($tmpIndexFile, 'r');
         if (flock($tmpIndexFp, LOCK_EX)) {
             try {
@@ -498,18 +543,18 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         try {
             empty($path) && $path = $this->getDefaultPath();
             $fields = $this->getSystemSettingFileImplementor()->storeBase64ImageFile($dto->base64Str, $path, $dto->name, [
-                'group' => $dto->group
+                'group' => $dto->group,
             ]);
             $fields['status'] = 'ok';
             $fields['createUserId'] = $dto->userId;
             $fields['createClient'] = $dto->client;
 
             $row = $this->getAttachmentDao()->create($fields);
-            $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
 
             return $this->responseFormat($row['id'], $fields['filepath'], $fields['type']);
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', 'base64上传失败:' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, 'base64上传失败:' . $e->getMessage());
             throw $e;
         }
     }
@@ -526,19 +571,19 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         try {
             empty($path) && $path = $this->getDefaultPath();
             $fields = $this->getSystemSettingFileImplementor()->storeRemoteFile($dto->url, $path, $dto->name, [
-                'group' => $dto->group
+                'group' => $dto->group,
             ]);
             $fields['status'] = 'ok';
             $fields['createUserId'] = $dto->userId;
             $fields['createClient'] = $dto->client;
 
             $row = $this->getAttachmentDao()->create($fields);
-            $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
             return $this->responseFormat($row['id'], $fields['filepath'], $fields['type']);
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', '上传失败:' . $e->getMessage(), ['url' => $dto->url]);
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传失败:' . $e->getMessage(), ['url' => $dto->url]);
             throw $e;
         }
     }
@@ -554,10 +599,10 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
     {
         try {
             $fields = $this->storeFile($dto);
-            if(isset($fields['firstStorage']) && $fields['firstStorage']) {
+            if (isset($fields['firstStorage']) && $fields['firstStorage']) {
                 unset($fields['firstStorage']);
                 $attachment = $this->getAttachmentDao()->create($fields);
-                $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+                $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
             } else {
                 $attachment = $this->getAttachmentDao()->getByHashId($fields['hashId']);
             }
@@ -570,7 +615,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
 
             return $file;
         } catch (\Throwable $e) {
-            $this->getLogService()->error('attachment', 'upload', '上传失败:' . $e->getMessage(), ['fileName' => $dto->file->getUploadName()]);
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传失败:' . $e->getMessage(), ['fileName' => $dto->file->getUploadName()]);
             throw $e;
         }
     }
@@ -593,18 +638,18 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             $dto->file = $file;
             $fields = $this->storeFile($dto);
             $row = $this->getAttachmentDao()->create($fields);
-            $this->getLogService()->info('attachment', 'upload', '上传成功', $fields);
+            $this->getLogService()->info(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_UPLOAD, '上传成功', $fields);
             //  文件上传后异步处理（获取音视频时长、视频封面、图片大小、【转码】）
             Client::send('file-after-upload-process', ['file_id' => $row['id']]);
             $items[] = $this->responseFormat($row['id'], $fields['filepath'], $fields['type'], $assetUri);
-//            try {
-//                $fields = $this->storeFile($file, $group, $path, null, $userId, $Client);
-//
-//                $rows[] = $this->responseFormat($fields['filepath'], $fields['type'], $assetUri);
-//            } catch (\Throwable $e) {
-//                $this->getLogService()->error('attachment', 'upload', '上传失败:' . $e->getMessage(), ['fileName' => $file->getUploadName()]);
-//                throw $e;
-//            }
+            //            try {
+            //                $fields = $this->storeFile($file, $group, $path, null, $userId, $Client);
+            //
+            //                $rows[] = $this->responseFormat($fields['filepath'], $fields['type'], $assetUri);
+            //            } catch (\Throwable $e) {
+            //                $this->getLogService()->error('attachment', 'upload', '上传失败:' . $e->getMessage(), ['fileName' => $file->getUploadName()]);
+            //                throw $e;
+            //            }
             //$this->getAttachmentDao()->batchCreate($rows)
         }
 
@@ -655,10 +700,10 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
 
         return [
             'fileId' => $fileId,
-            'path' => $filepath,
-            'type' => $fileCatalog,
-            'cover' => $fileCatalog === 'image' ? $url : AssetHelper::getAssetUrl("images/default/attachment/{$fileCatalog}.png"),
-            'url' => $url
+            'path'   => $filepath,
+            'type'   => $fileCatalog,
+            'cover'  => $fileCatalog === 'image' ? $url : AssetHelper::getAssetUrl("images/default/attachment/{$fileCatalog}.png"),
+            'url'    => $url,
         ];
     }
 
@@ -694,8 +739,8 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         $this->validateFile($dto->file);
         empty($dto->path) && $dto->path = $this->getDefaultPath();
         $fields = $this->getSystemSettingFileImplementor()->store($dto->file, $dto->path, $dto->name, [
-            'group' => $dto->group,
-            'isSaveThumbImage' => $dto->isSaveThumbImage,
+            'group'             => $dto->group,
+            'isSaveThumbImage'  => $dto->isSaveThumbImage,
             'thumbImageOptions' => $dto->thumbImageOptions,
         ]);
         $fields['status'] = 'ok';
@@ -741,7 +786,7 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
      * @param $uploadPath
      * @return bool
      */
-    public function unlinkFile($storage, $path, $uploadPath = null): bool
+    public function unlinkFile($storage, $path, $uploadPath = null) : bool
     {
         if (empty($path)) {
             return false;
@@ -773,10 +818,18 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
             return true;
         }
 
-        // 七牛
-        // 腾讯云
-
-        return true;
+        // 七牛、阿里云、腾讯云云存储删除
+        try {
+            $implementor = $this->getFileImplementor($storage);
+            $file = ['filepath' => $path];
+            return $implementor->deleteFile($file);
+        } catch (\Throwable $e) {
+            $this->getLogService()->error(LogEnum::MODULE_ATTACHMENT, LogEnum::ACTION_DELETE_ATTACHMENT, "云存储文件删除失败: " . $e->getMessage(), [
+                'storage' => $storage,
+                'path'    => $path,
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -791,7 +844,58 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         $type = empty($setting['type']) ? 'local' : $setting['type'];
         unset($setting['type']);
 
+        // 从数据库读取存储配置，覆盖 .env 配置
+        $storageSetting = $this->getSettingService()->get('storage');
+        if (!empty($storageSetting) && is_array($storageSetting)) {
+            $ossConfig = $this->getOssConfigFromDb($type, $storageSetting);
+            $setting = array_merge($setting, $ossConfig);
+        }
+
         return $this->getFileImplementor($type, $setting);
+    }
+
+    /**
+     * 从数据库存储配置映射到 OSS 配置格式
+     *
+     * @param string $type 存储类型
+     * @param array $storageSetting 数据库存储配置
+     * @return array OSS 配置数组
+     */
+    protected function getOssConfigFromDb($type, $storageSetting)
+    {
+        $config = [];
+
+        switch ($type) {
+            case BizEnum::STORAGE_TYPE_QINIU:
+                $config = [
+                    'access_key' => $storageSetting['qiniu_access_key'] ?? config('oss.qiniu.access_key'),
+                    'secret_key' => $storageSetting['qiniu_secret_key'] ?? config('oss.qiniu.secret_key'),
+                    'bucket'     => $storageSetting['qiniu_bucket'] ?? config('oss.qiniu.bucket'),
+                    'domain'     => $storageSetting['qiniu_url'] ?? config('oss.qiniu.domain'),
+                ];
+                break;
+
+            case BizEnum::STORAGE_TYPE_ALI:
+                $config = [
+                    'access_key_id'     => $storageSetting['ali_access_key'] ?? config('oss.aliyun.access_key_id'),
+                    'access_key_secret' => $storageSetting['ali_secret_key'] ?? config('oss.aliyun.access_key_secret'),
+                    'bucket'            => $storageSetting['ali_bucket'] ?? config('oss.aliyun.bucket'),
+                    'endpoint'          => $storageSetting['ali_url'] ?? config('oss.aliyun.endpoint'),
+                ];
+                break;
+
+            case BizEnum::STORAGE_TYPE_TENCENT:
+                $config = [
+                    'secret_id'  => $storageSetting['tencent_app_sercet'] ?? config('oss.tencent.secret_id'),
+                    'secret_key' => $storageSetting['tencent_seret_key'] ?? config('oss.tencent.secret_key'),
+                    'bucket'     => $storageSetting['tencent_bucket'] ?? config('oss.tencent.bucket'),
+                    'region'     => $storageSetting['tencent_bucket_location'] ?? config('oss.tencent.region'),
+                    'app_id'     => $storageSetting['tencent_app_id'] ?? config('oss.tencent.app_id'),
+                ];
+                break;
+        }
+
+        return $config;
     }
 
     /**
@@ -813,13 +917,6 @@ class AttachmentServiceImpl extends BaseService implements AttachmentService
         return $this->createService('Setting:SettingService');
     }
 
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
-    }
 
     /**
      * @return AttachmentGroupService

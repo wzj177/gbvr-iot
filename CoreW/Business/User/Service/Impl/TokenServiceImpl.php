@@ -17,10 +17,11 @@ use Webman\Config;
 
 class TokenServiceImpl extends BaseService implements TokenService
 {
-    private $storageMap = [
-        'db' => DbTokenStorage::class,
-        'redis' => RedisTokenStorage::class
-    ];
+    private array $storageMap
+        = [
+            'db'    => DbTokenStorage::class,
+            'redis' => RedisTokenStorage::class,
+        ];
 
     public function createToken(array $fields)
     {
@@ -44,10 +45,7 @@ class TokenServiceImpl extends BaseService implements TokenService
 
     public function verifyToken($type, $value)
     {
-//        var_dump($type, $value);
         $token = $this->getTokenStorage()->getByToken($value);
-//        var_dump($token);
-
         if (empty($token)) {
             return false;
         }
@@ -61,7 +59,7 @@ class TokenServiceImpl extends BaseService implements TokenService
         }
 
         if ($token['remainedTimes'] > 1) {
-            $this->getTokenStorage()->wave(array($token['id']), array('remainedTimes' => -1));
+            $this->getTokenStorage()->wave([$token['id']], ['remainedTimes' => -1]);
         }
 
         $this->_gcToken($token);
@@ -78,13 +76,6 @@ class TokenServiceImpl extends BaseService implements TokenService
         }
         $tokenStorage = $this->getTokenStorage();
         $tokenStorage->delete($tokenItem['id']);
-//        if ($tokenStorage instanceof DbTokenStorage) {
-//            $tokenStorage->delete($tokenItem['id']);
-//        }
-//
-//        if ($tokenStorage instanceof RedisTokenStorage) {
-//            $this->getTokenStorage()->deleteByToken($tokenItem);
-//        }
 
     }
 
@@ -128,7 +119,9 @@ class TokenServiceImpl extends BaseService implements TokenService
 
     protected function _makeTokenValue()
     {
-        $uuid = Uuid::uuid1();
+        do {
+            $uuid = Uuid::uuid4();
+        } while ($this->getTokenStorage()->getByToken($uuid->getHex()));
 
         return $uuid->getHex();
     }
@@ -142,9 +135,9 @@ class TokenServiceImpl extends BaseService implements TokenService
     /**
      * @return TokenStorageInterface
      */
-    public function getTokenStorage()
+    public function getTokenStorage() : TokenStorageInterface
     {
-        $storage = config('app.token_storage');
+        $storage = config('auth.token_storage');
         if (!isset($this->storageMap[$storage])) {
             throw new UnexpectedValueException('token storage not exist');
         }

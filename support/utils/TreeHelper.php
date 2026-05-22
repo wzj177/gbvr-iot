@@ -22,7 +22,7 @@ class TreeHelper
         // 将列表中的每个节点的引用存储在 $refer 数组中
         foreach ($list as $key => $data) {
             $refer[$data[$pk]] =& $list[$key];
-            $refer[$data[$pk]][$child] = array(); // 初始化 children 数组
+            $refer[$data[$pk]][$child] = []; // 初始化 children 数组
         }
 
         // 遍历列表，构建树形结构
@@ -49,7 +49,7 @@ class TreeHelper
         return $results;
     }
 
-    public static function getSelectOptions($tree = [], &$result = [], $key= 'name', $deep = 0, $separator = "　　")
+    public static function getSelectOptions($tree = [], &$result = [], $key = 'name', $deep = 0, $separator = "　　")
     {
         $deep++;
         foreach ($tree as $list) {
@@ -78,7 +78,7 @@ class TreeHelper
             if ($value[$pk] == $parent_id) {
                 $value['lv'] = $lv;
                 $result[] = $value;
-                $result = array_merge($result, self::spanningTree($data, $value['id'], $pk,$lv + 1));
+                $result = array_merge($result, self::spanningTree($data, $value['id'], $pk, $lv + 1));
             }
         }
 
@@ -160,7 +160,7 @@ class TreeHelper
      */
     public static function iterationParentTree($arr, $id, $key = 'parent_id')
     {
-        $tree = array();
+        $tree = [];
         while ($id) {
             foreach ($arr as $v) {
                 if ($v['id'] == $id) {
@@ -186,7 +186,7 @@ class TreeHelper
      */
     public static function iterationTree($arr, $parentId, $key = 'id')
     {
-        $tree = array();
+        $tree = [];
         while ($parentId) {
             foreach ($arr as $v) {
                 if ($v['parent_id'] == $parentId) {

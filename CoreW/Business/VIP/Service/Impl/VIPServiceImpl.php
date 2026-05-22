@@ -6,6 +6,7 @@ use CoreW\Business\BaseService;
 
 use CoreW\Business\BizEnum;
 use CoreW\Business\Common\CommonBizException;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\Auth\Handler\TokenHandlerInterface;
 use CoreW\Business\VIP\CurrentUser;
@@ -50,7 +51,7 @@ class VIPServiceImpl extends BaseService implements VIPService
         }
 
         return $this->getVIPDao()->update($userId, [
-            'usedSpaceSize' => (int)$vip['usedSpaceSize'] + $fileSize
+            'usedSpaceSize' => (int)$vip['usedSpaceSize'] + $fileSize,
         ]);
     }
 
@@ -70,7 +71,7 @@ class VIPServiceImpl extends BaseService implements VIPService
         }
 
         return $this->getVIPDao()->update($userId, [
-            'usedSpaceSize' => (int)$vip['usedSpaceSize'] - $fileSize
+            'usedSpaceSize' => (int)$vip['usedSpaceSize'] - $fileSize,
         ]);
     }
 
@@ -95,13 +96,13 @@ class VIPServiceImpl extends BaseService implements VIPService
         $key = md5($value . '_' . time());
         Redis::set($key, $value, $expireTime);
         $mailOptions = [
-            'to' => $email,
-            'toName' => '用户你好',
+            'to'       => $email,
+            'toName'   => '用户你好',
             'template' => 'email_login_send_email_code',
-            'params' => [
-                'code' => $code,
-                'duration' => 10
-            ]
+            'params'   => [
+                'code'     => $code,
+                'duration' => 10,
+            ],
         ];
         $mailFactory = $this->bfw->offsetGet('mail_factory');
         /** @var $mail AbstractMail */
@@ -111,7 +112,7 @@ class VIPServiceImpl extends BaseService implements VIPService
             return $key;
 
         } catch (\Throwable $e) {
-            $this->getSystemLogService()->warning('vip', 'send_email_login_code', "邮箱登录验证码发送失败：{$e->getMessage()}");
+            $this->getLogService()->warning(LogEnum::MODULE_VIP, LogEnum::ACTION_SEND_EMAIL_LOGIN_CODE, "邮箱登录验证码发送失败：{$e->getMessage()}");
             return null;
         }
 
@@ -160,7 +161,7 @@ class VIPServiceImpl extends BaseService implements VIPService
             'contactName',
             'contactMobile',
             'contactEmail',
-            'license'
+            'license',
         ]);
         if (!ArrayToolkit::requireds($fields, ['name', 'code', 'contactName', 'contactMobile'])) {
             throw CommonBizException::ERROR_PARAMETER();
@@ -224,14 +225,14 @@ class VIPServiceImpl extends BaseService implements VIPService
 
         if (BizEnum::VIP_COMPANY_STATUS_OK === $status) {
             $this->getVIPDao()->update($vipCompany['userId'], [
-                'role' => BizEnum::VIP_ROLE_COMPANY
+                'role' => BizEnum::VIP_ROLE_COMPANY,
             ]);
         }
 
         // TODO: 添加企业认证成功事件,推送审核结果
         return $this->getVIPCompanyDao()->update($vipCompany['id'], [
             'status' => $status,
-            'reason' => $reason
+            'reason' => $reason,
         ]);
     }
 
@@ -258,7 +259,7 @@ class VIPServiceImpl extends BaseService implements VIPService
      * @return int|mixed|null
      * @throws \CoreW\Dao\DaoException
      */
-    public function setCompanyIotConfig(int $companyId, int $userId, array $config): ?int
+    public function setCompanyIotConfig(int $companyId, int $userId, array $config) : ?int
     {
         $vipCompany = $this->getVIPCompanyDao()->get($companyId);
         if (empty($vipCompany)) {
@@ -275,7 +276,7 @@ class VIPServiceImpl extends BaseService implements VIPService
                 'api',
                 'serviceType',
                 'status',
-                'companyId'
+                'companyId',
             ]
         );
         // TODO: 增强验证
@@ -316,7 +317,7 @@ class VIPServiceImpl extends BaseService implements VIPService
         return array_merge($vip, $profile);
     }
 
-    public function getVIPByNickname(string $nickname): ?array
+    public function getVIPByNickname(string $nickname) : ?array
     {
         $vip = $this->getVIPDao()->getByNickname($nickname);
         if (empty($vip)) {
@@ -364,14 +365,14 @@ class VIPServiceImpl extends BaseService implements VIPService
         $vip = $this->createVIP([
             'nickname' => $nickname,
             'truename' => '内部会员_' . $nickname,
-            'avatar' => '',
-            'gender' => 'secret',
-            'email' => $this->generateEmail(),
-            'password' => $password
+            'avatar'   => '',
+            'gender'   => 'secret',
+            'email'    => $this->generateEmail(),
+            'password' => $password,
         ]);
         if ($vip) {
             return [
-                'password' => $password
+                'password' => $password,
             ];
         }
 
@@ -390,31 +391,31 @@ class VIPServiceImpl extends BaseService implements VIPService
         $user = $vip['nickname'] . "({$vip['email']})";
         try {
             $token = $this->makeToken('email-verify', [
-                'vipId' => $vip['id'],
-//            'duration' => 60,
+                'vipId'        => $vip['id'],
+                //            'duration' => 60,
                 'expired_time' => strtotime('+1 day'),
-                'data' => $vip['email']
+                'data'         => $vip['email'],
             ]);
             $nickname = $vip['nickname'];
             $verifyUrl = AssetHelper::absoluteUrl('api/v1/email-verify?token=' . $token['token']);
             $mailOptions = [
-                'to' => $vip['email'],
-                'toName' => $nickname,
+                'to'       => $vip['email'],
+                'toName'   => $nickname,
                 'template' => 'email_vip_verify_email',
-                'params' => [
-                    'vip_name' => $nickname,
-                    'verify_url' => $verifyUrl
-                ]
+                'params'   => [
+                    'vip_name'   => $nickname,
+                    'verify_url' => $verifyUrl,
+                ],
             ];
             $mailFactory = $this->bfw->offsetGet('mail_factory');
             /** @var $mail AbstractMail */
             $mail = $mailFactory($mailOptions);
             $mail->send();
-            $this->getSystemLogService()->info('VIP', 'email_verify_notification', '成功推送会员：' . $user . '邮箱验证通知');
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_EMAIL_VERIFY_NOTIFICATION, '成功推送会员：' . $user . '邮箱验证通知');
 
             return true;
         } catch (\Throwable $e) {
-            $this->getSystemLogService()->error('VIP', 'email_verify_notification', '失败推送会员：' . $user . '邮箱验证通知，' . $e->getMessage());
+            $this->getLogService()->error(LogEnum::MODULE_VIP, LogEnum::ACTION_EMAIL_VERIFY_NOTIFICATION, '失败推送会员：' . $user . '邮箱验证通知，' . $e->getMessage());
 
             return false;
         }
@@ -464,33 +465,33 @@ class VIPServiceImpl extends BaseService implements VIPService
         }
         $salt = StringToolkit::makeSalt();
         $data = [
-            'nickname' => $fields['nickname'],
-            'anonymous' => BizEnum::ENABLED,
+            'nickname'   => $fields['nickname'],
+            'anonymous'  => BizEnum::ENABLED,
             'inviteCode' => $fields['invite_code'] ?? '',
-            'phone' => $fields['phone'] ?? '',
-            'avatar' => $fields['avatar'] ?? '',
-            'email' => $fields['email'],
-            'uuid' => $this->generateUUID(),
-            'status' => BizEnum::ENABLED,
-            'integral' => config('app.api.register_user_send_integral'),
-            'spaceSize' => config('app.api.register_user_send_space_size'),
-            'salt' => $salt,
-            'password' => StringToolkit::getPasswordEncoder()->hash($fields['password'], $salt)
+            'phone'      => $fields['phone'] ?? '',
+            'avatar'     => $fields['avatar'] ?? '',
+            'email'      => $fields['email'],
+            'uuid'       => $this->generateUUID(),
+            'status'     => BizEnum::ENABLED,
+            'integral'   => config('app.api.register_user_send_integral'),
+            'spaceSize'  => config('app.api.register_user_send_space_size'),
+            'salt'       => $salt,
+            'password'   => StringToolkit::getPasswordEncoder()->hash($fields['password'], $salt),
         ];
         $requestIp = $fields['request_ip'] ?? '127.0.0.1';
         $this->beginTransaction();
         try {
             $vip = $this->getVIPDao()->create($data);
             $this->createVIPProfile($vip, $fields);
-            $this->getSystemLogService()->info('VIP', 'add_vip', '新增会员成功', [
-                'currentIp' => $requestIp
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_ADD_VIP, '新增会员成功', [
+                'currentIp' => $requestIp,
             ]);
             $this->commit();
             return $vip;
         } catch (\Throwable $e) {
             $this->rollback();
-            $this->getSystemLogService()->info('VIP', 'add_vip', '新增会员失败，' . $e->getMessage(), [
-                'currentIp' => $requestIp
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_ADD_VIP, '新增会员失败，' . $e->getMessage(), [
+                'currentIp' => $requestIp,
             ]);
             return null;
         }
@@ -562,11 +563,11 @@ class VIPServiceImpl extends BaseService implements VIPService
             $params = null;
             if (!empty($fields['requestIp'])) {
                 $params = [
-                    'currentIp' => $fields['requestIp']
+                    'currentIp' => $fields['requestIp'],
                 ];
             }
 
-            $this->getSystemLogService()->info('VIP', 'edit_vip_info', '会员修改个人失败，' . $e->getMessage(), $params);
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_EDIT_VIP_INFO, '会员修改个人失败，' . $e->getMessage(), $params);
             return false;
         }
 
@@ -618,7 +619,7 @@ class VIPServiceImpl extends BaseService implements VIPService
      * @param LoginFormDto $dto
      * @return array
      */
-    public function login(LoginFormDto $dto): array
+    public function login(LoginFormDto $dto) : array
     {
         if ($dto->mode === 'silent_login') {
             // 静默登录
@@ -651,7 +652,7 @@ class VIPServiceImpl extends BaseService implements VIPService
                     $user = $this->getVIPDao()->getByPhone($dto->username);
                 }
             }
-        } elseif ($dto->mode === 'email_code') {
+        } else if ($dto->mode === 'email_code') {
             if (!SimpleValidator::email($dto->username)) {
                 throw VIPException::LOGIN_EMAIL_CODE_USERNAME_ERROR();
             }
@@ -662,7 +663,7 @@ class VIPServiceImpl extends BaseService implements VIPService
 
             $this->validateEmailCode($dto->username, $dto->verifyKey, $dto->verifyCode);
             $user = $this->getVIPDao()->getByEmail($dto->username);
-        } elseif ($dto->mode === 'oauth2_qq') {
+        } else if ($dto->mode === 'oauth2_qq') {
             $user = $this->qqOauthLogin($dto);
         }
 
@@ -719,10 +720,10 @@ class VIPServiceImpl extends BaseService implements VIPService
                 $user = $this->createVIP([
                     'nickname' => $this->generateNickname('qq'),
                     'truename' => $qqAuth['userInfo']['name'],
-                    'avatar' => $qqAuth['userInfo']['avatar'],
-                    'gender' => $qqAuth['userInfo']['gender'],
-                    'email' => $this->generateEmail(),
-                    'password' => 'Aa@12345678'
+                    'avatar'   => $qqAuth['userInfo']['avatar'],
+                    'gender'   => $qqAuth['userInfo']['gender'],
+                    'email'    => $this->generateEmail(),
+                    'password' => 'Aa@12345678',
                 ]);
                 $this->bindVIP($bindType, $qqAuth['userInfo']['id'], $user['id'], $qqAuth);
                 $this->commit();
@@ -739,7 +740,7 @@ class VIPServiceImpl extends BaseService implements VIPService
                     ]);
                     $this->getProfileDao()->update($user['id'], [
                         'truename' => $qqAuth['userInfo']['name'],
-                        'gender' => $qqAuth['userInfo']['gender'],
+                        'gender'   => $qqAuth['userInfo']['gender'],
                     ]);
                 }
                 $this->commit();
@@ -833,7 +834,7 @@ class VIPServiceImpl extends BaseService implements VIPService
             $convertedType = $this->convertOAuthType($type);
             $this->getVIPBindDao()->deleteByTypeAndToId($convertedType, $toId);
             $this->dispatchEvent('vip.unbind', new Event($user, ['bind' => $bind, 'bindType' => $type, 'convertedType' => $convertedType]));
-            $this->getSystemLogService()->info('vip', 'unbind', sprintf('用户名%s解绑成功，操作用户为%s', $user['nickname']));
+            $this->getLogService()->info(LogEnum::MODULE_VIP, LogEnum::ACTION_UNBIND, sprintf('用户名%s解绑成功，操作用户为%s', $user['nickname']));
         }
 
         return $bind;
@@ -914,10 +915,10 @@ class VIPServiceImpl extends BaseService implements VIPService
         $convertedType = $this->convertOAuthType($type);
 
         $bind = $this->getVIPBindDao()->create([
-            'type' => $convertedType,
-            'fromId' => $fromId,
-            'toId' => $toId,
-            'token' => empty($token['token']) ? '' : $token['token'],
+            'type'        => $convertedType,
+            'fromId'      => $fromId,
+            'toId'        => $toId,
+            'token'       => empty($token['token']) ? '' : $token['token'],
             'createdTime' => time(),
             'expiredTime' => empty($token['expiredTime']) ? 0 : $token['expiredTime'],
         ]);
@@ -925,7 +926,7 @@ class VIPServiceImpl extends BaseService implements VIPService
         $this->dispatchEvent('vip.bind', new Event($user, ['bind' => $bind, 'bindType' => $type, 'convertedType' => $convertedType, 'token' => $token]));
     }
 
-    private function convertOAuthType($type): string
+    private function convertOAuthType($type) : string
     {
         return strpos($type, 'wechat_') !== false ? 'wechat' : $type;
     }
@@ -1010,14 +1011,14 @@ class VIPServiceImpl extends BaseService implements VIPService
     protected function createVIPProfile($vip, $fields = [])
     {
         $defaultFields = [
-            'mobile' => '',
-            'idcard' => '',
-            'truename' => '',
-            'company' => '',
-            'weixin' => '',
+            'mobile'          => '',
+            'idcard'          => '',
+            'truename'        => '',
+            'company'         => '',
+            'weixin'          => '',
             'wechat_nickname' => '',
-            'wechat_picture' => '',
-            'gender' => 'secret',
+            'wechat_picture'  => '',
+            'gender'          => 'secret',
         ];
         $profile = [];
         $profile['id'] = $vip['id'];
@@ -1077,9 +1078,9 @@ class VIPServiceImpl extends BaseService implements VIPService
     protected function validateFields($fields)
     {
         $rules = [
-            'nickname' => v::notEmpty()->setName('用户名'),
-            'email' => v::email()->setName('邮箱'),
-            'password' => v::callback(function ($value) {
+            'nickname'  => v::notEmpty()->setName('用户名'),
+            'email'     => v::email()->setName('邮箱'),
+            'password'  => v::callback(function ($value) {
                 return SimpleValidator::lowPassword($value);
             })->setTemplate('密码要求5-20位字符串'),
             'check_pwd' => v::callback(function ($value) use ($fields) {
@@ -1176,13 +1177,6 @@ class VIPServiceImpl extends BaseService implements VIPService
         return $this->createDao('VIP:VIPBindDao');
     }
 
-    /**
-     * @return SystemLogService
-     */
-    protected function getSystemLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
-    }
 
     /**
      * @return TokenService

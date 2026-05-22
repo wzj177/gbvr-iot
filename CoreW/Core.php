@@ -45,14 +45,14 @@ class Core implements Bootstrap
             Http::uploadTmpDir($config['upload_tmp_file']);
         }
         // 或者 'webman' === $worker->name && 0 == $worker->id &&
-//        if ('webman' === $worker->name && 0 == $worker->id && !empty($config['upload_tmp_file'])) {
-//            if (!is_dir($config['upload_tmp_file'])) {
-//                mkdir($config['upload_tmp_file'], 0777, true);
-//                @chmod($config['upload_tmp_file'], 0777);
-//            }
-//
-//            Http::uploadTmpDir($config['upload_tmp_file']);
-//        }
+        //        if ('webman' === $worker->name && 0 == $worker->id && !empty($config['upload_tmp_file'])) {
+        //            if (!is_dir($config['upload_tmp_file'])) {
+        //                mkdir($config['upload_tmp_file'], 0777, true);
+        //                @chmod($config['upload_tmp_file'], 0777);
+        //            }
+        //
+        //            Http::uploadTmpDir($config['upload_tmp_file']);
+        //        }
 
         self::registerBiz($worker);
     }
@@ -62,10 +62,10 @@ class Core implements Bootstrap
      * @param $arguments
      * @return mixed
      */
-//    public static function __callStatic($name, $arguments)
-//    {
-//        return static::$_instance->{$name}(... $arguments);
-//    }
+    //    public static function __callStatic($name, $arguments)
+    //    {
+    //        return static::$_instance->{$name}(... $arguments);
+    //    }
 
 
     public static function initCiBiz()
@@ -92,15 +92,15 @@ class Core implements Bootstrap
         }
         $options = array_merge(config('app.biz_config'), [
             'dbs.default' => $dbConn,
-            'dbs.options' => $connections
+            'dbs.options' => $connections,
         ]);
         $biz = new Bfw($options);
         $biz->register(new DefaultServiceProvider());
         $biz->register(new DoctrineServiceProvider());
         $biz->register(new MonologServiceProvider(), [
-            'monolog.logfile' => $biz['log_dir'] . '/' . date('Ym') . '/' . date('d') . '.log',
-            'monolog.level' => $biz['debug'] ? Logger::DEBUG : Logger::INFO,
-            'monolog.permission' => 0666
+            'monolog.logfile'    => $biz['log_dir'] . '/' . date('Ym') . '/' . date('d') . '.log',
+            'monolog.level'      => $biz['debug'] ? Logger::DEBUG : Logger::INFO,
+            'monolog.permission' => 0666,
         ]);
 
         $biz->register(new EventSubscriberProvider());
@@ -113,6 +113,8 @@ class Core implements Bootstrap
             self::dbKeepAlive($biz);
         }
         self::$_bizInstance = $biz;
+
+        return $biz;
     }
 
     /**
@@ -125,7 +127,7 @@ class Core implements Bootstrap
         $db = $biz['db'];
         //3600 * 7
         Timer::add(55, function () use ($db) {
-//            echo date('Y-m-d H:i:s') . '：db heartbeat select 1', PHP_EOL, PHP_EOL;
+            //            echo date('Y-m-d H:i:s') . '：db heartbeat select 1', PHP_EOL, PHP_EOL;
             $db->executeQuery('select 1');
         });
     }
@@ -133,7 +135,7 @@ class Core implements Bootstrap
     /**
      * @return Bfw
      */
-    public static function instance(): Bfw
+    public static function instance() : Bfw
     {
         return self::$_bizInstance ?? self::initCiBiz();
     }

@@ -29,7 +29,7 @@ class MediaSession
     /**
      * 开始推流
      */
-    public function start(): void
+    public function start() : void
     {
         if ($this->used) {
             return;
@@ -45,7 +45,7 @@ class MediaSession
     /**
      * 停止推流
      */
-    public function stop(): void
+    public function stop() : void
     {
         if (!$this->used) {
             return;
@@ -60,7 +60,7 @@ class MediaSession
     /**
      * 暂停/继续
      */
-    public function pause(bool $pause): void
+    public function pause(bool $pause) : void
     {
         $this->paused = $pause;
         $this->log(($pause ? "暂停" : "继续") . "推流 (did={$this->did})", 'INFO');
@@ -68,7 +68,7 @@ class MediaSession
         // TODO: 暂停/继续推流
     }
 
-    private function log(string $message, string $level = 'INFO'): void
+    private function log(string $message, string $level = 'INFO') : void
     {
     }
 }

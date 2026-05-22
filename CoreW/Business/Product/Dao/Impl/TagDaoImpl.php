@@ -11,30 +11,30 @@ class TagDaoImpl extends AdvancedDaoImpl implements TagDao
 {
     protected $table = 'gv_tag';
 
-    public function getAllByIds(array $ids): array
+    public function getAllByIds(array $ids) : array
     {
         return $this->findInField('id', $ids);
     }
 
-    public function getAllByTypeAndUserIdAndNames($type, $userId, $names): array
+    public function getAllByTypeAndUserIdAndNames($type, $userId, $names) : array
     {
-        $marks = str_repeat('?,', count($names) - 1).'?';
+        $marks = str_repeat('?,', count($names) - 1) . '?';
         $sql = "SELECT `id`, `type`, `name`, `userId` FROM {$this->table()} WHERE `type` = 
  ? AND `userId` = ? AND `name` IN ($marks);";
         return $this->db()->fetchAllAssociative($sql, array_merge([$type], [$userId], $names));
     }
 
-    public function getAllByNames(array $names): array
+    public function getAllByNames(array $names) : array
     {
         return $this->findInField('name', $names);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',

@@ -13,14 +13,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ZlmStart extends Command
 {
     protected static $defaultName = 'zlm:start';
-    protected static $defaultDescription = 'zlm start';
+    protected static $defaultDescription = 'zlm 启动（只适合信令服务和媒体服务在同一台机器上）';
 
     /**
      * @return void
      */
-    protected function configure(): void
+    protected function configure() : void
     {
-        $this->addArgument('name', InputArgument::OPTIONAL, 'Name description');
+        // force 如果已经运行则强制kill后启动
+        $this->addOption('force', '-f', InputOption::VALUE_NONE, '强制覆盖启动');
     }
 
     /**
@@ -28,12 +29,18 @@ class ZlmStart extends Command
      * @param OutputInterface $output
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $output->writeln('start zlm...');
         try {
             $maxRetry = 10;
             $mediaServer = new MediaServer(config('zlm'));
+            if ($input->getOption('force')) {
+                $output->writeln('kill zlm...');
+                $mediaServer->stopWithPidFile();
+                sleep(1);
+            }
+
             $mediaServer->start();
             while (!$mediaServer->isRunning()) {
                 if ($maxRetry-- <= 0) {

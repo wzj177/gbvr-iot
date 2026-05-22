@@ -21,7 +21,7 @@ class MonologServiceProvider implements ServiceProviderInterface, BootableProvid
             return $app['monolog'];
         };
 
-        $app['monolog.logger.class'] =  'Monolog\Logger';
+        $app['monolog.logger.class'] = 'Monolog\Logger';
 
         $app['monolog'] = function ($app) {
             $log = new $app['monolog.logger.class']($app['monolog.name']);
@@ -54,7 +54,7 @@ class MonologServiceProvider implements ServiceProviderInterface, BootableProvid
         };
 
         $app['monolog.handlers'] = function () use ($app, $defaultHandler) {
-            $handlers = array();
+            $handlers = [];
 
             // enables the default handler if a logfile was set or the monolog.handler service was redefined
             if ($app['monolog.logfile'] || $defaultHandler !== $app->raw('monolog.handler')) {

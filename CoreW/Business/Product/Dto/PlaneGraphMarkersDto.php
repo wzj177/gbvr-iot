@@ -15,10 +15,11 @@ class PlaneGraphMarkersDto
 
     public array $markers;
 
-    public array $center = [
-        "position" => ["x" => 0, "y" => 0],
-        "scale" => ["scaleW" => 1, "scaleY" => 1]
-    ];
+    public array $center
+        = [
+            "position" => ["x" => 0, "y" => 0],
+            "scale"    => ["scaleW" => 1, "scaleY" => 1],
+        ];
 
     public string $rotation = "0deg";
 

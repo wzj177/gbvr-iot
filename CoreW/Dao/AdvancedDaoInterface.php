@@ -6,7 +6,7 @@ namespace CoreW\Dao;
 
 interface AdvancedDaoInterface extends GeneralDaoInterface
 {
-    public function getAll(array $conditions, $orderBys = null, $columns = array());
+    public function getAll(array $conditions, $orderBys = null, $columns = []);
 
     public function batchDelete(array $conditions);
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace app\middleware;
 
 use Webman\MiddlewareInterface;
@@ -20,14 +21,14 @@ class AccessCorsControlMiddleware implements MiddlewareInterface
 
         $response->withHeaders([
             'Access-Control-Allow-Credentials' => 'true',
-            'Access-Control-Allow-Origin' => $request->header('origin', '*'),
-            'Access-Control-Allow-Methods' => $request->header('access-control-request-method', '*'),
-            'Access-Control-Allow-Headers' => $request->header('access-control-request-headers', '*'),
-//                'Access-Control-Allow-Origin' => '*',
-//                'Access-Control-Allow-Methods' => 'GET,POST,PUT,DELETE,OPTIONS',
-//                'Access-Control-Allow-Headers' => 'Content-Type,Authorization,X-Requested-With,Accept,Origin,X-Auth-Token',
+            'Access-Control-Allow-Origin'      => $request->header('origin', '*'),
+            'Access-Control-Allow-Methods'     => $request->header('access-control-request-method', '*'),
+            'Access-Control-Allow-Headers'     => $request->header('access-control-request-headers', '*'),
+            //                'Access-Control-Allow-Origin' => '*',
+            //                'Access-Control-Allow-Methods' => 'GET,POST,PUT,DELETE,OPTIONS',
+            //                'Access-Control-Allow-Headers' => 'Content-Type,Authorization,X-Requested-With,Accept,Origin,X-Auth-Token',
         ]);
         return $response;
     }
-    
+
 }

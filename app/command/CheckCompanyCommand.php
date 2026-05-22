@@ -35,7 +35,7 @@ class CheckCompanyCommand extends Command
      * @param OutputInterface $output
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output) : int
     {
         $output->writeln('未审核企业列表');
         // 创建一个新的 Table 实例
@@ -97,13 +97,13 @@ class CheckCompanyCommand extends Command
     {
         return $this->getBiz()->service('VIP:VIPService');
     }
-    
+
     /**
      * @return Gb28181Service
      */
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
-        return $this->getBiz()->service('GB:Gb28181Service');
+        return $this->getBiz()->offsetGet('gb28181_service');
     }
 
     /**
@@ -113,6 +113,6 @@ class CheckCompanyCommand extends Command
     {
         return Core::initCiBiz();
     }
-    
+
     // 移除原来的 generateSsrc 方法，改用 service 中的方法
 }

@@ -16,19 +16,19 @@ class ProductHotPointDaoImpl extends AdvancedDaoImpl implements ProductHotPointD
 
     public function deleteBySceneId(int $sceneId)
     {
-        return  $this->db()->delete($this->table(), array('sceneId' => $sceneId));
+        return $this->db()->delete($this->table(), ['sceneId' => $sceneId]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
-                'imgUrls' => 'delimiter',
-                'iconMarkerParams' => 'json',
-                'iconTitleMarkerParams' => 'json'
-//                'content' => 'json'
+                'imgUrls'               => 'delimiter',
+                'iconMarkerParams'      => 'json',
+                'iconTitleMarkerParams' => 'json',
+                //                'content' => 'json'
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
@@ -41,7 +41,7 @@ class ProductHotPointDaoImpl extends AdvancedDaoImpl implements ProductHotPointD
                 'createdTime >= :startTime',
                 'createdTime <= :endTime',
                 'productId = :productId',
-                'sceneId = :sceneId'
+                'sceneId = :sceneId',
             ],
             'timestamps' => [
                 'createdTime',

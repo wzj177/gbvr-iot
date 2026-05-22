@@ -17,7 +17,7 @@ class RequestGenerator
     {
     }
 
-    public static function getInstance(string $appSecret): RequestGenerator
+    public static function getInstance(string $appSecret) : RequestGenerator
     {
         if (!self::$instance) {
             self::$instance = new static($appSecret);
@@ -26,12 +26,12 @@ class RequestGenerator
         return self::$instance;
     }
 
-    public function generate(): array
+    public function generate() : array
     {
         $params = [
-            'time' => time(),
+            'time'  => time(),
             'nonce' => $this->generateNonce(),
-            'id' => time(),
+            'id'    => time(),
         ];
 
         $params['sign'] = $this->calculateSign(
@@ -42,7 +42,7 @@ class RequestGenerator
         return $params;
     }
 
-    private function generateNonce(): string
+    private function generateNonce() : string
     {
         try {
             return bin2hex(random_bytes(8));
@@ -52,7 +52,7 @@ class RequestGenerator
         }
     }
 
-    private function calculateSign(int $timestamp, string $nonce): string
+    private function calculateSign(int $timestamp, string $nonce) : string
     {
         $str = "time:{$timestamp},nonce:{$nonce},appSecret:{$this->appSecret}";
 

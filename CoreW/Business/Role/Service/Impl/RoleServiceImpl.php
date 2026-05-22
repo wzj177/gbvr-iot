@@ -5,10 +5,11 @@ namespace CoreW\Business\Role\Service\Impl;
 use CoreW\Business\BaseService;
 use support\utils\ArrayToolkit;
 use CoreW\Business\Role\Exception\RoleException;
-use CoreW\Business\Common\CommonException;
+use CoreW\Business\Common\CommonBizException;
 use CoreW\Business\Role\Service\RoleService;
 use CoreW\Business\Role\Dao\RoleDao;
 use CoreW\Business\Setting\Service\SettingService;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\SystemLog\Service\SystemLogService;
 use CoreW\Business\User\Service\UserService;
 
@@ -30,14 +31,16 @@ class RoleServiceImpl extends BaseService implements RoleService
         $role['createdTime'] = time();
         $user = $this->getCurrentUser();
         $role['createdUserId'] = $user['id'];
-        $role = ArrayToolkit::parts($role, ['name', 'code', 'data', 'data_v2', 'createdTime', 'createdUserId']);
+        $role = ArrayToolkit::parts($role, ['name', 'code', 'data', 'createdTime', 'createdUserId']);
 
         if (!ArrayToolkit::requireds($role, ['name', 'code'])) {
-            $this->createNewException(CommonException::ERROR_PARAMETER_MISSING());
+            throw CommonBizException::ERROR_PARAMETER_MISSING();
         }
 
-        if (!preg_match('/(^(?![^0-9a-zA-Z]+$))(?![0-9]+$).+/', $role['code'])) {
-            $this->createNewException(RoleException::CODE_NOT_ALLL_DIGITAL());
+        // 检查 code 是否已存在
+        $existing = $this->getRoleDao()->getByCode($role['code']);
+        if (!empty($existing)) {
+            throw CommonBizException::ERROR_PARAMETER_DUPLICATE();
         }
 
         return $this->getRoleDao()->create($role);
@@ -46,7 +49,7 @@ class RoleServiceImpl extends BaseService implements RoleService
     public function updateRole($id, array $fields)
     {
         $this->checkChangeRole($id);
-        $fields = ArrayToolkit::parts($fields, ['name', 'code', 'data', 'data_v2']);
+        $fields = ArrayToolkit::parts($fields, ['name', 'code', 'data']);
 
         if (isset($fields['code'])) {
             unset($fields['code']);
@@ -102,6 +105,15 @@ class RoleServiceImpl extends BaseService implements RoleService
         return $this->getRoleDao()->findByCodes($codes);
     }
 
+    public function findRolesByIds(array $ids)
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->getRoleDao()->findByIds($ids);
+    }
+
     /**
      * @param $tree '后台menus树结构数组'
      * @param array $permissions '分割散的树节点Array'
@@ -114,7 +126,7 @@ class RoleServiceImpl extends BaseService implements RoleService
     {
         foreach ($tree as &$child) {
             $permissions[$child['code']] = [
-                'code' => $child['code'],
+                'code'   => $child['code'],
                 'parent' => isset($child['parent']) ? $child['parent'] : null,
             ];
             if (isset($child['children'])) {
@@ -194,7 +206,7 @@ class RoleServiceImpl extends BaseService implements RoleService
 
         return [
             'ROLE_PARTER_ADMIN' => array_diff($superAdminRoles, $adminForbidRoles),
-            'ROLE_SUPER_ADMIN' => $superAdminRoles,
+            'ROLE_SUPER_ADMIN'  => $superAdminRoles,
         ];
     }
 
@@ -235,7 +247,7 @@ class RoleServiceImpl extends BaseService implements RoleService
 
         return [
             'ROLE_PARTER_ADMIN' => array_diff($superAdminV2Roles, $adminV2ForbidRoles),
-            'ROLE_SUPER_ADMIN' => $superAdminV2Roles,
+            'ROLE_SUPER_ADMIN'  => $superAdminV2Roles,
         ];
     }
 
@@ -275,7 +287,7 @@ class RoleServiceImpl extends BaseService implements RoleService
     private function initCreateRole($code, $role, $v2Role)
     {
         $userRoles = [
-            'ROLE_SUPER_ADMIN' => ['name' => '超级管理员', 'code' => 'ROLE_SUPER_ADMIN'],
+            'ROLE_SUPER_ADMIN'  => ['name' => '超级管理员', 'code' => 'ROLE_SUPER_ADMIN'],
             'ROLE_PARTER_ADMIN' => ['name' => '合作方', 'code' => 'ROLE_PARTER_ADMIN'],
         ];
         $userRole = $userRoles[$code];
@@ -284,7 +296,7 @@ class RoleServiceImpl extends BaseService implements RoleService
         $userRole['data_v2'] = $v2Role;
         $userRole['createdTime'] = time();
         $userRole['createdUserId'] = $this->getCurrentUser()->getId();
-        $this->getLogService()->info('role', 'init_create_role', '初始化四个角色"' . $userRole['name'] . '"', $userRole);
+        $this->getLogService()->info(LogEnum::MODULE_ROLE, LogEnum::ACTION_INIT_CREATE_ROLE, '初始化四个角色"' . $userRole['name'] . '"', $userRole);
 
         return $this->getRoleDao()->create($userRole);
     }
@@ -363,14 +375,6 @@ class RoleServiceImpl extends BaseService implements RoleService
     protected function getSettingService()
     {
         return $this->createService('Setting:SettingService');
-    }
-
-    /**
-     * @return SystemLogService
-     */
-    protected function getLogService()
-    {
-        return $this->createService('SystemLog:SystemLogService');
     }
 
     /**

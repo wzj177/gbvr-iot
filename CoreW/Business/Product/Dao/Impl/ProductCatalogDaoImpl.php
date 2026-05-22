@@ -15,7 +15,7 @@ class ProductCatalogDaoImpl extends AdvancedDaoImpl implements ProductCatalogDao
      * @param string $name
      * @return array|null
      */
-    public function getByName(string $name): ?array
+    public function getByName(string $name) : ?array
     {
         return $this->getByFields(['name' => $name]);
     }
@@ -24,17 +24,17 @@ class ProductCatalogDaoImpl extends AdvancedDaoImpl implements ProductCatalogDao
      * @param string $code
      * @return array|null
      */
-    public function getByCode(string $code): ?array
+    public function getByCode(string $code) : ?array
     {
         return $this->getByFields(['code' => $code]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
             ],
-            'orderbys' => [
+            'orderbys'   => [
                 'id',
                 'sort',
                 'parentId',

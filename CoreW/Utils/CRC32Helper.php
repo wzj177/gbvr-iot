@@ -10,7 +10,7 @@ class CRC32Helper
      * @param string $str
      * @return int
      */
-    public static function getCRC32(string $str): int
+    public static function getCRC32(string $str) : int
     {
         return crc32($str) & 0xffffffff;
     }

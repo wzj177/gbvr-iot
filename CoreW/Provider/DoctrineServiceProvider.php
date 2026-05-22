@@ -19,17 +19,17 @@ class DoctrineServiceProvider implements ServiceProviderInterface
      */
     public function register(Container $app)
     {
-        $app['db.default_options'] = array(
-            'driver' => 'pdo_mysql',
-            'dbname' => null,
-            'host' => 'localhost',
-            'user' => 'root',
-            'password' => null,
+        $app['db.default_options'] = [
+            'driver'       => 'pdo_mysql',
+            'dbname'       => null,
+            'host'         => 'localhost',
+            'user'         => 'root',
+            'password'     => null,
             'wrapperClass' => 'CoreW\Dao\Connection',
-        );
+        ];
 
         if (!empty($app['db.options']['slaves'])) {
-            $app['db.default_options'] = array_merge($app['db.default_options'], array('wrapperClass' => 'CoreW\Dao\MasterSlaveConnection'));
+            $app['db.default_options'] = array_merge($app['db.default_options'], ['wrapperClass' => 'CoreW\Dao\MasterSlaveConnection']);
         }
 
         $app['dbs.options.initializer'] = $app->protect(function () use ($app) {
@@ -42,7 +42,7 @@ class DoctrineServiceProvider implements ServiceProviderInterface
             $initialized = true;
 
             if (!isset($app['dbs.options'])) {
-                $app['dbs.options'] = array('mysql' => isset($app['db.options']) ? $app['db.options'] : array());
+                $app['dbs.options'] = ['mysql' => isset($app['db.options']) ? $app['db.options'] : []];
             }
 
 
@@ -109,7 +109,7 @@ class DoctrineServiceProvider implements ServiceProviderInterface
         $this->registerLock($app);
     }
 
-    private function registerShortcutForFirstDb($app): void
+    private function registerShortcutForFirstDb($app) : void
     {
         $app['db'] = function ($app) {
             $dbs = $app['dbs'];
@@ -130,7 +130,7 @@ class DoctrineServiceProvider implements ServiceProviderInterface
         };
     }
 
-    private function registerLock($app): void
+    private function registerLock($app) : void
     {
         $app['lock'] = function ($app) {
             return new Lock($app);

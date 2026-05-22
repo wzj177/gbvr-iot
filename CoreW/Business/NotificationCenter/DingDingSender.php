@@ -1,7 +1,7 @@
 <?php
 
 
-namespace  CoreW\NotificationCenter;
+namespace CoreW\NotificationCenter;
 
 
 use GuzzleHttp\Client;
@@ -33,7 +33,7 @@ class DingDingSender extends BaseSender implements SenderInterface
 
         $response = $this->getDingDingHttpClient()->post('/robot/send', [
             'query' => ['access_token' => $accessToken, 'timestamp' => $timestamp, 'sign' => $signStr],
-            'json' => $params
+            'json'  => $params,
         ]);
 
         $this->afterSendInfo = json_decode($response->getBody()->getContents(), true);
@@ -46,9 +46,9 @@ class DingDingSender extends BaseSender implements SenderInterface
         $msgType = $params['msgtype'];
         if ('text' === $msgType) {
             $params['text']['content'] = $message;
-        } elseif ('link' === $msgType) {
+        } else if ('link' === $msgType) {
             $params['link']['text'] = $message;
-        } elseif ('markdown' === $msgType) {
+        } else if ('markdown' === $msgType) {
             $params['markdown']['text'] = $message;
         }
     }
@@ -67,9 +67,9 @@ class DingDingSender extends BaseSender implements SenderInterface
     protected function getDingDingHttpClient()
     {
         return new Client([
-            'base_uri' => "https://oapi.dingtalk.com",
-            'timeout' => 10.0,
-            'connect_timeout' => 20
+            'base_uri'        => "https://oapi.dingtalk.com",
+            'timeout'         => 10.0,
+            'connect_timeout' => 20,
         ]);
     }
 

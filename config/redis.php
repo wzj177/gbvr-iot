@@ -13,58 +13,58 @@
  */
 
 return [
-    'default' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+    'default'     => [
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
-        'prefix' => 'easy_vr_'
+        'port'     => env('REDIS_PORT', 6379),
+        'prefix'   => 'gbvr_iot_',
     ],
     'admin_token' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
+        'port'     => env('REDIS_PORT', 6379),
         'database' => 14,
-        'prefix' => 'easy_vr_admin_'
+        'prefix'   => 'gbvr_iot_admin_',
     ],
-    'vip_token' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+    'vip_token'   => [
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
+        'port'     => env('REDIS_PORT', 6379),
         'database' => 13,
-        'prefix' => 'easy_vr_vip_'
+        'prefix'   => 'gbvr_iot_vip_',
     ],
-    'oauth' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+    'oauth'       => [
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
+        'port'     => env('REDIS_PORT', 6379),
         'database' => 12,
-        'prefix' => 'easy_vr_oauth_'
+        'prefix'   => 'gbvr_iot_oauth_',
     ],
-    'gb_gateway' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+    'gb_gateway'  => [
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
+        'port'     => env('REDIS_PORT', 6379),
         'database' => 11,
-        'prefix' => 'gbvr_iot_gb_gateway_'
+        'prefix'   => 'gbvr_iot_gb_gateway_',
     ],
-    'api_cache' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+    'api_cache'   => [
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
+        'port'     => env('REDIS_PORT', 6379),
         'database' => 1,
-        'prefix' => 'easy_vr_api_cache_'
+        'prefix'   => 'gbvr_iot_api_cache_',
     ],
-    'sdk_cache' => [
-        'host' => env('REDIS_HOST', '127.0.0.1'),
+    'sdk_cache'   => [
+        'host'     => env('REDIS_HOST', '127.0.0.1'),
         'password' => env('REDIS_PASSWORD', null),
-        'port' => env('REDIS_PORT', 6379),
+        'port'     => env('REDIS_PORT', 6379),
         'database' => 2,
-        'prefix' => 'easy_vr_sdk_cache_'
+        'prefix'   => 'gbvr_iot_sdk_cache_',
     ],
-//    'dao-cache' => [
-//        'host'     => '127.0.0.1',
-//        'password' => null,
-//        'port'     => 6379,
-//        'database' => 9,
-//    ],
+    //    'dao-cache' => [
+    //        'host'     => '127.0.0.1',
+    //        'password' => null,
+    //        'port'     => 6379,
+    //        'database' => 9,
+    //    ],
 ];

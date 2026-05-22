@@ -37,13 +37,13 @@ foreach ($folders as $folder) {
 Route::fallback(function (Request $request) {
     if (strtoupper($request->method()) === 'OPTIONS' && config('app.debug')) {
         $response = response('', 204);
-    } elseif ($request->isAjax()
+    } else if ($request->isAjax()
         || $request->isPjax()
         || ($request->header('content-type') && str_contains(strtolower($request->header('content-type')), 'application/json'))) {
         $response = json([
-            'code' => 4041001,
+            'code'    => 4041001,
             'message' => '404 not found!!!',
-            'data' => null
+            'data'    => null,
         ])->withStatus(404);
     } else {
         $response = view('404', ['error' => '404 not found!!!'])->withStatus(404);
@@ -52,9 +52,9 @@ Route::fallback(function (Request $request) {
     if (config('app.debug')) {
         $response->withHeaders([
             'Access-Control-Allow-Credentials' => 'true',
-            'Access-Control-Allow-Origin' => $request->header('origin', '*'),
-            'Access-Control-Allow-Methods' => $request->header('access-control-request-method', '*'),
-            'Access-Control-Allow-Headers' => $request->header('access-control-request-headers', '*'),
+            'Access-Control-Allow-Origin'      => $request->header('origin', '*'),
+            'Access-Control-Allow-Methods'     => $request->header('access-control-request-method', '*'),
+            'Access-Control-Allow-Headers'     => $request->header('access-control-request-headers', '*'),
         ]);
     }
 

@@ -83,15 +83,15 @@ class RowStrategy implements CacheStrategy
     private function saveRelKeys($primaryKey, $key, $lifetime)
     {
         $existRelKeys = $this->getRelKeys($primaryKey);
-        $existRelKeys = array_merge($existRelKeys, array($key));
-        $this->redis->set($primaryKey.':rel_keys', $existRelKeys, $lifetime);
+        $existRelKeys = array_merge($existRelKeys, [$key]);
+        $this->redis->set($primaryKey . ':rel_keys', $existRelKeys, $lifetime);
     }
 
     private function getRelKeys($primaryKey)
     {
-        $keys = $this->redis->get($primaryKey.':rel_keys');
+        $keys = $this->redis->get($primaryKey . ':rel_keys');
         if (empty($keys) || !is_array($keys)) {
-            $keys = array();
+            $keys = [];
         }
 
         return $keys;
@@ -103,7 +103,7 @@ class RowStrategy implements CacheStrategy
         foreach ($relKeys as $relKey) {
             $this->redis->del($relKey);
         }
-        $this->redis->del($primaryKey.':rel_keys');
+        $this->redis->del($primaryKey . ':rel_keys');
     }
 
     public function afterCreate(GeneralDaoInterface $dao, $method, $arguments, $row)
@@ -149,7 +149,7 @@ class RowStrategy implements CacheStrategy
 
     protected function getCacheKey(GeneralDaoInterface $dao, $metadata, $method, $arguments)
     {
-        $argumentsForKey = array();
+        $argumentsForKey = [];
 
         if (empty($metadata['cache_key_of_arg_index'][$method])) {
             return false;
@@ -161,11 +161,11 @@ class RowStrategy implements CacheStrategy
 
         $key = "dao:{$dao->table()}:{$method}:";
 
-        return $key.implode(',', $argumentsForKey);
+        return $key . implode(',', $argumentsForKey);
     }
 
     protected function getPrimaryCacheKey(GeneralDaoInterface $dao, $metadata, $id)
     {
-        return $this->getCacheKey($dao, $metadata, 'get', array($id));
+        return $this->getCacheKey($dao, $metadata, 'get', [$id]);
     }
 }

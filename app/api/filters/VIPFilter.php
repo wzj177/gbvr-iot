@@ -10,40 +10,42 @@ use support\utils\AssetHelper;
 
 class VIPFilter extends Filter
 {
-    protected $simpleFields = [
-        'id',
-        'uuid',
-        'destroyed',
-        'nickname',
-        'email',
-        'avatar',
-        'avatar_full',
-        'currentIp',
-        'phone',
-        'loginTime',
-        'createdTime',
-        'loginIp',
-        'status',
-        'truename',
-        'gender',
-        'birthday',
-        'intro',
-        'weixin',
-        'qq',
-        'wechat_nickname',
-        'wechat_picture',
-        'role',
-        'role_text'
-    ];
+    protected $simpleFields
+        = [
+            'id',
+            'uuid',
+            'destroyed',
+            'nickname',
+            'email',
+            'avatar',
+            'avatar_full',
+            'currentIp',
+            'phone',
+            'loginTime',
+            'createdTime',
+            'loginIp',
+            'status',
+            'truename',
+            'gender',
+            'birthday',
+            'intro',
+            'weixin',
+            'qq',
+            'wechat_nickname',
+            'wechat_picture',
+            'role',
+            'role_text',
+        ];
 
-    protected $publicFields = [
-        'uuid',
-        'nickname',
-        'email',
-        'phone',
-        'avatar',
-        'avatar_full',
-    ];
+    protected $publicFields
+        = [
+            'uuid',
+            'nickname',
+            'email',
+            'phone',
+            'avatar',
+            'avatar_full',
+        ];
 
 
     protected $mode = self::SIMPLE_MODE;

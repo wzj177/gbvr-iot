@@ -54,7 +54,7 @@ class Export
     /**
      * @return Spreadsheet
      */
-    public function getSpreadsheet(): Spreadsheet
+    public function getSpreadsheet() : Spreadsheet
     {
         return $this->spreadsheet;
     }
@@ -67,7 +67,7 @@ class Export
         $this->writer = new Wxlsx($this->spreadsheet);
     }
 
-    public function getWxlsx(): Wxlsx
+    public function getWxlsx() : Wxlsx
     {
         return $this->writer;
     }
@@ -128,9 +128,9 @@ class Export
         ob_flush();
         flush();
         $response->withHeaders([
-            'Content-Type' => 'application/vnd.ms-excel;charset=UTF-8',
+            'Content-Type'        => 'application/vnd.ms-excel;charset=UTF-8',
             'Content-Disposition' => sprintf("attachment; filename='%s'", $this->filename),
-            'Cache-Control' => 'max-age=0',
+            'Cache-Control'       => 'max-age=0',
         ])->withBody($content);
 
         return $response;

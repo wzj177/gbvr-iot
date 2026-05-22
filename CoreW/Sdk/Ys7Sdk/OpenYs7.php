@@ -57,51 +57,53 @@ class OpenYs7
      * 开发平台api错误
      * @var array
      */
-    public $errorMap = [
-        10001 => '参数为空或格式不正确',//appKey不能为空
-        10002 => '重新获取accessToken',
-        10005 => 'appKey被冻结',
-        10030 => 'appKey和appSecret不匹配',
-        20002 => '设备不存在',
-        20006 => '检查设备网络状况，稍后再试',
-        20007 => '检查设备是否在线',
-        20008 => '操作过于频繁，稍后再试',
-        20014 => 'deviceSerial不合法',
-        20018 => '该用户不拥有该设备, 检查设备是否属于当前账户',
-        20032 => '该用户下通道不存在',
-        49999 => '数据异常',
-        60000 => '设备不支持云台控制',
-        60001 => '用户无云台控制权限',
-        60002 => '设备云台旋转达到上限位',
-        60003 => '设备云台旋转达到下限位',
-        60004 => '设备云台旋转达到左限位',
-        60005 => '设备云台旋转达到右限位',
-        60006 => '云台当前操作失败，请稍候再试',
-        60009 => '正在调用预置点',
-        60020 => '不支持该命令,确认设备是否支持预览操作',
-        60061 => '账户流量已超出或未购买，限制开通',
-        60062 => '该通道直播已开通',
-        60068 => '设备响应超时'
-    ];
+    public $errorMap
+        = [
+            10001 => '参数为空或格式不正确',//appKey不能为空
+            10002 => '重新获取accessToken',
+            10005 => 'appKey被冻结',
+            10030 => 'appKey和appSecret不匹配',
+            20002 => '设备不存在',
+            20006 => '检查设备网络状况，稍后再试',
+            20007 => '检查设备是否在线',
+            20008 => '操作过于频繁，稍后再试',
+            20014 => 'deviceSerial不合法',
+            20018 => '该用户不拥有该设备, 检查设备是否属于当前账户',
+            20032 => '该用户下通道不存在',
+            49999 => '数据异常',
+            60000 => '设备不支持云台控制',
+            60001 => '用户无云台控制权限',
+            60002 => '设备云台旋转达到上限位',
+            60003 => '设备云台旋转达到下限位',
+            60004 => '设备云台旋转达到左限位',
+            60005 => '设备云台旋转达到右限位',
+            60006 => '云台当前操作失败，请稍候再试',
+            60009 => '正在调用预置点',
+            60020 => '不支持该命令,确认设备是否支持预览操作',
+            60061 => '账户流量已超出或未购买，限制开通',
+            60062 => '该通道直播已开通',
+            60068 => '设备响应超时',
+        ];
     /**
      *
      * 云台操作指令
      * @var array
      */
-    public $directionMap = [
-        0 => '上',
-        1 => '下',
-        2 => '左',
-        3 => '右',
-        4 => '左上',
-        5 => '左下',
-        6 => '右上',
-        7 => '右下',
-        8 => '放大',
-        9 => '缩小',
-        10 => '近焦距',
-        11 => '远焦距',
-    ];
+    public $directionMap
+        = [
+            0  => '上',
+            1  => '下',
+            2  => '左',
+            3  => '右',
+            4  => '左上',
+            5  => '左下',
+            6  => '右上',
+            7  => '右下',
+            8  => '放大',
+            9  => '缩小',
+            10 => '近焦距',
+            11 => '远焦距',
+        ];
     /**
      * @var null
      */
@@ -139,7 +141,7 @@ class OpenYs7
         $this->biz = $biz;
     }
 
-    protected function createStream(): StreamHandler
+    protected function createStream() : StreamHandler
     {
         $logFile = runtime_path() . '/logs/openYs7SDK/' . date('Ym') . '/' . date('d') . '.log';
         if (is_file($logFile)) {
@@ -181,7 +183,7 @@ class OpenYs7
     private function packageData($data = [])
     {
         $data = array_merge([
-            'accessToken' => $this->getAccessToken()
+            'accessToken' => $this->getAccessToken(),
         ], $data);
         return $data;
     }
@@ -261,7 +263,7 @@ class OpenYs7
 
     /**
      * 请求获取accessToken
-     * 
+     *
      * @return mixed
      * @throws Exception
      */
@@ -269,8 +271,8 @@ class OpenYs7
     {
         $url = $this->apiUri . '/token/get';
         $data = [
-            'appKey' => $this->appKey,
-            'appSecret' => $this->appSecret
+            'appKey'    => $this->appKey,
+            'appSecret' => $this->appSecret,
         ];
         $res = $this->send($url, $data);
         $data = $this->parseResponse($res);
@@ -290,7 +292,7 @@ class OpenYs7
         $url = $this->apiUri . '/device/list';
         $res = $this->send($url, $this->packageData([
             'pageStart' => $pageStart,
-            'pageSize' => $pageSize,
+            'pageSize'  => $pageSize,
         ]));
         $data = $this->parseResponse($res);
         return $data;
@@ -325,7 +327,7 @@ class OpenYs7
         $url = $this->apiUri . '/camera/list';
         $res = $this->send($url, $this->packageData([
             'pageStart' => $pageStart,
-            'pageSize' => $pageSize,
+            'pageSize'  => $pageSize,
         ]));
         $data = $this->parseResponse($res);
         return $data;
@@ -360,7 +362,7 @@ class OpenYs7
         $url = $this->apiUri . '/live/video/list';
         $res = $this->send($url, $this->packageData([
             'pageStart' => $pageStart,
-            'pageSize' => $pageSize,
+            'pageSize'  => $pageSize,
         ]));
         $data = $this->parseResponse($res);
         return $data;
@@ -372,11 +374,11 @@ class OpenYs7
         $urlType = isset($otherParams['type']) ? $otherParams['type'] : 1;
         $result = $this->send($url, $this->packageData([
             'deviceSerial' => $deviceSerial,
-            'channelNo' => isset($otherParams['channelNo']) ? $otherParams['channelNo'] : 1,
-            'protocol' => isset($otherParams['protocol']) ? $otherParams['protocol'] : 2,
-            'expireTime' => isset($otherParams['expireTime']) ? $otherParams['expireTime'] : 3600 * 24 * 1,
-            'quality' => isset($otherParams['quality']) ? $otherParams['quality'] : 2,
-            'type' => $urlType,
+            'channelNo'    => isset($otherParams['channelNo']) ? $otherParams['channelNo'] : 1,
+            'protocol'     => isset($otherParams['protocol']) ? $otherParams['protocol'] : 2,
+            'expireTime'   => isset($otherParams['expireTime']) ? $otherParams['expireTime'] : 3600 * 24 * 1,
+            'quality'      => isset($otherParams['quality']) ? $otherParams['quality'] : 2,
+            'type'         => $urlType,
         ]));
         $data = $this->parseResponse($result);
         if ((int)$urlType === 2) {
@@ -405,9 +407,9 @@ class OpenYs7
         $url = $this->apiUri . '/v2/live/address/disable';
         $result = $this->send($url, $this->packageData([
             'deviceSerial' => $deviceSerial,
-            'urlId' => $urlId,
-            'channelNo' => isset($otherParams['channelNo']) ? $otherParams['channelNo'] : 1,
-            'expireTime' => isset($otherParams['expireTime']) ? $otherParams['expireTime'] : 3600 * 24 * 1,
+            'urlId'        => $urlId,
+            'channelNo'    => isset($otherParams['channelNo']) ? $otherParams['channelNo'] : 1,
+            'expireTime'   => isset($otherParams['expireTime']) ? $otherParams['expireTime'] : 3600 * 24 * 1,
         ]));
 
         $data = $this->parseResponse($result);
@@ -424,7 +426,7 @@ class OpenYs7
     {
         $url = $this->apiUri . '/live/video/open';
         $res = $this->send($url, $this->packageData([
-            'source' => $source
+            'source' => $source,
         ]));
         $data = $this->parseResponse($res);
         return $data;
@@ -449,9 +451,9 @@ class OpenYs7
         $speed < 1 && $speed = 1;
         $params = [
             'deviceSerial' => $deviceSerial,
-            'channelNo' => $channelNo,
-            'direction' => $direction,
-            'speed' => $speed
+            'channelNo'    => $channelNo,
+            'direction'    => $direction,
+            'speed'        => $speed,
         ];
         $res = $this->send($url, $this->packageData($params));
         $data = $this->parseResponse($res);
@@ -476,8 +478,8 @@ class OpenYs7
         $url = $this->apiUri . '/device/ptz/stop';
         $res = $this->send($url, $this->packageData([
             'deviceSerial' => $deviceSerial,
-            'channelNo' => $channelNo,
-            'direction' => $direction,
+            'channelNo'    => $channelNo,
+            'direction'    => $direction,
         ]));
         $data = $this->parseResponse($res);
 
@@ -543,8 +545,8 @@ class OpenYs7
         $url = $this->apiUri . '/device/capture';
         $res = $this->send($url, $this->packageData([
             'deviceSerial' => $deviceSerial,
-            'channelNo' => $channelNo,
-            'quality' => $quality,
+            'channelNo'    => $channelNo,
+            'quality'      => $quality,
         ]));
         $data = $this->parseResponse($res);
         return $data;

@@ -83,7 +83,7 @@ class AttachmentController extends BaseController
         }
 
         $total = $this->getAttachmentService()->countAttachments($conditions);
-        list($offset, $limit) = $this->getOffsetAndLimit($request);
+        [$offset, $limit] = $this->getOffsetAndLimit($request);
         $sort = $this->getSort($request);
         $sort['id'] = 'DESC';
         $paginator = new Paginator($offset, $total, $request->uri(), $limit);
@@ -92,8 +92,8 @@ class AttachmentController extends BaseController
         $filter->filters($files);
 
         return $this->createSuccessJsonResponse([
-            'list' => $files,
-            'paginator' => Paginator::toArray($paginator)
+            'list'      => $files,
+            'paginator' => Paginator::toArray($paginator),
         ]);
     }
 
@@ -150,8 +150,8 @@ class AttachmentController extends BaseController
     public function uploadSnippet(Request $request)
     {
         $fields = v::input($request->post(), [
-            'index' => v::intVal()->setName('切片索引必须是正整数'),
-            'hash' => v::notEmpty()->setName('分片hashID必须存在'),
+            'index'    => v::intVal()->setName('切片索引必须是正整数'),
+            'hash'     => v::notEmpty()->setName('分片hashID必须存在'),
             'filename' => v::notEmpty()->setName('源文件名称名必须存在'),
         ]);
         $index = $fields['index'];
@@ -179,12 +179,12 @@ class AttachmentController extends BaseController
     public function mergeSnippetFile(Request $request)
     {
         $fields = v::input($request->post(), [
-            'name' => v::notEmpty()->setTemplate("上传文件名必须存在"),
-            'size' => v::numericVal()->setTemplate("文件大小必须是数字"),
+            'name'  => v::notEmpty()->setTemplate("上传文件名必须存在"),
+            'size'  => v::numericVal()->setTemplate("文件大小必须是数字"),
             'total' => v::callback(function ($value) {
                 return intval($value) > 0;
             })->setTemplate("切片总数参数异常"),
-            'hash' => v::notEmpty()->setName('分片hashID必须存在'),
+            'hash'  => v::notEmpty()->setName('分片hashID必须存在'),
         ]);
         $fields['create_user_id'] = $this->getCurrentUser()->getId();
         $fields['group'] = $request->post('group', 'default');
@@ -207,11 +207,11 @@ class AttachmentController extends BaseController
         $group = $request->post('group', 'default');
         $file = $request->file($key);
         $dto = new FileUploadDto([
-            'file' => $file,
-            'type' => 'single_file_upload',
-            'group' => $group,
+            'file'   => $file,
+            'type'   => 'single_file_upload',
+            'group'  => $group,
             'userId' => $this->getCurrentUser()->getId(),
-            'client' => 'backend'
+            'client' => 'backend',
         ]);
         $result = $this->getAttachmentService()->uploadFile($dto);
 
@@ -230,10 +230,10 @@ class AttachmentController extends BaseController
         $group = $request->post('group', 'default');
         $dto = new FileUploadDto([
             'base64Str' => $base64Str,
-            'type' => 'base64_upload',
-            'group' => $group,
-            'userId' => $this->getCurrentUser()->getId(),
-            'client' => 'backend'
+            'type'      => 'base64_upload',
+            'group'     => $group,
+            'userId'    => $this->getCurrentUser()->getId(),
+            'client'    => 'backend',
         ]);
         $result = $this->getAttachmentService()->uploadBase64Image($dto);
 
@@ -252,11 +252,11 @@ class AttachmentController extends BaseController
         $url = $request->post('url', '');
         $group = $request->post('group', 'default');
         $dto = new FileUploadDto([
-            'url' => $url,
-            'type' => 'remote_file_upload',
-            'group' => $group,
+            'url'    => $url,
+            'type'   => 'remote_file_upload',
+            'group'  => $group,
             'userId' => $this->getCurrentUser()->getId(),
-            'client' => 'backend'
+            'client' => 'backend',
         ]);
         $result = $this->getAttachmentService()->uploadRemoteFile($dto);
 
@@ -283,11 +283,11 @@ class AttachmentController extends BaseController
             $files = $request->file();
         }
         $dto = new FileUploadDto([
-            'files' => $files,
-            'type' => 'multi_file_upload',
-            'group' => $group,
+            'files'  => $files,
+            'type'   => 'multi_file_upload',
+            'group'  => $group,
             'userId' => $this->getCurrentUser()->getId(),
-            'client' => 'backend'
+            'client' => 'backend',
         ]);
         if ($this->getAttachmentService()->uploadFiles($dto)) {
             return $this->createSuccessJsonResponse();

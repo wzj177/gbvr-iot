@@ -15,7 +15,7 @@ class TokenDaoImpl extends GeneralDaoImpl implements TokenDao
     {
         $sql = "SELECT * FROM {$this->table} WHERE token = ? LIMIT 1";
 
-        return $this->db()->fetchAssoc($sql, [$token]) ?: null;
+        return $this->db()->fetchAssoc($sql, [$token]) ? : null;
     }
 
     public function findByVIPIdAndType($vipId, $type)
@@ -32,7 +32,7 @@ class TokenDaoImpl extends GeneralDaoImpl implements TokenDao
     {
         $sql = "SELECT * FROM {$this->table} WHERE type = ?  and expiredTime > ? order  by createdTime DESC  LIMIT 1";
 
-        return $this->db()->fetchAssoc($sql, [$type, time()]) ?: null;
+        return $this->db()->fetchAssoc($sql, [$type, time()]) ? : null;
     }
 
     public function deleteTopsByExpiredTime($expiredTime, int $limit)
@@ -51,18 +51,18 @@ class TokenDaoImpl extends GeneralDaoImpl implements TokenDao
     {
         $sql = "SELECT * FROM {$this->table} WHERE type = ?  and vipId = ? and expiredTime > ? order  by id DESC  LIMIT 1";
 
-        return $this->db()->fetchAssoc($sql, [$type, $vipId, time()]) ?: null;
+        return $this->db()->fetchAssoc($sql, [$type, $vipId, time()]) ? : null;
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
-            'cache' => false,
+            'cache'      => false,
             'serializes' => [
-                'data' => 'php'
+                'data' => 'php',
             ],
             'conditions' => [
-                'type = :type'
+                'type = :type',
             ],
         ];
     }

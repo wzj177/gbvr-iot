@@ -12,7 +12,7 @@ class IotDriverFactory
      * @return IotInterface
      * @throws \Exception
      */
-    public static function create(string $driverName, array $config): IotInterface
+    public static function create(string $driverName, array $config) : IotInterface
     {
         $driverList = config('iot');
         if (!isset($driverList[$driverName])) {

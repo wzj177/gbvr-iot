@@ -13,90 +13,186 @@
  */
 
 return [
-    'default' => [
+    'default'      => [
         'handlers' => [
             [
-                'class' => Monolog\Handler\RotatingFileHandler::class,
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
                 'constructor' => [
                     runtime_path() . '/logs/webman/' . date('Ym') . '/' . date('d') . '.log',
                     7, //$maxFiles
                     Monolog\Logger::DEBUG,
                 ],
-                'formatter' => [
-                    'class' => Monolog\Formatter\LineFormatter::class,
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
                     'constructor' => [null, 'Y-m-d H:i:s', true],
                 ],
-            ]
+            ],
         ],
     ],
     // console 通道
-    'console' => [
+    'console'      => [
         // 处理默认通道的handler，可以设置多个
         'handlers' => [
             [
                 // handler类的名字
-                'class' => Monolog\Handler\RotatingFileHandler::class,
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
                 // handler类的构造函数参数
                 'constructor' => [
                     runtime_path() . '/logs/console/' . date('Ym') . '/' . date('d') . '.log',
                     Monolog\Logger::DEBUG,
                 ],
                 // 格式相关
-                'formatter' => [
+                'formatter'   => [
                     // 格式化处理类的名字
-                    'class' => Monolog\Formatter\LineFormatter::class,
+                    'class'       => Monolog\Formatter\LineFormatter::class,
                     // 格式化处理类的构造函数参数
                     'constructor' => [null, 'Y-m-d H:i:s', true],
                 ],
-            ]
+            ],
         ],
     ],
-    'sip' => [
+    'sip'          => [
         'handlers' => [
             [
-                'class' => Monolog\Handler\RotatingFileHandler::class,
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
                 'constructor' => [
-                    runtime_path() . '/logs/sip.log',
+                    runtime_path() . '/logs/gbapihock.log',
                     7, //$maxFiles
                     Monolog\Logger::DEBUG,
                 ],
-                'formatter' => [
-                    'class' => Monolog\Formatter\LineFormatter::class,
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
                     'constructor' => [null, 'Y-m-d H:i:s', true],
-                ]
-            ]
-        ]
+                ],
+            ],
+        ],
     ],
-    'gb_sdk' => [
+    'gb_sdk'       => [
         'handlers' => [
             [
-                'class' => Monolog\Handler\RotatingFileHandler::class,
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
                 'constructor' => [
                     runtime_path() . '/logs/gb_sdk.log',
                     7, //$maxFiles
                     Monolog\Logger::DEBUG,
                 ],
-                'formatter' => [
-                    'class' => Monolog\Formatter\LineFormatter::class,
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
                     'constructor' => [null, 'Y-m-d H:i:s', true],
-                ]
-            ]
-        ]
+                ],
+            ],
+        ],
     ],
-    'zlm' => [
+    'gb_stream'    => [
         'handlers' => [
             [
-                'class' => Monolog\Handler\RotatingFileHandler::class,
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/gb_stream.log',
+                    7, //$maxFiles
+                    Monolog\Logger::DEBUG,
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                ],
+            ],
+        ],
+    ],
+    'zlm'          => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
                 'constructor' => [
                     runtime_path() . '/logs/zlm.log',
                     7, //$maxFiles
                     Monolog\Logger::DEBUG,
                 ],
-                'formatter' => [
-                    'class' => Monolog\Formatter\LineFormatter::class,
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
                     'constructor' => [null, 'Y-m-d H:i:s', true],
-                ]
-            ]
-        ]
-    ]
+                ],
+            ],
+        ],
+    ],
+    'zlm_hook'     => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/zlm_hook.log',
+                    7, //$maxFiles
+                    Monolog\Logger::DEBUG,
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                ],
+            ],
+        ],
+    ],
+    'queue'        => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/queue.log',
+                    7, //$maxFiles
+                    Monolog\Logger::DEBUG,
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [],
+                ],
+            ],
+        ],
+    ],
+    'crontab'      => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/crontab.log',
+                    7, //$maxFiles
+                    Monolog\Logger::DEBUG,
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                ],
+            ],
+        ],
+    ],
+    'auto_record'  => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/auto_record.log',
+                    30, //$maxFiles
+                    Monolog\Logger::DEBUG,
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                ],
+            ],
+        ],
+    ],
+    'stream_proxy' => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/stream_proxy.log',
+                    30, //$maxFiles
+                    Monolog\Logger::DEBUG,
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                ],
+            ],
+        ],
+    ],
 ];

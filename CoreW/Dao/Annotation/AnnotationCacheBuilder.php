@@ -24,7 +24,7 @@ class AnnotationCacheBuilder
 
     public function scanNamespace($namespace)
     {
-        $cache = array();
+        $cache = [];
         $reader = new AnnotationReader();
         $directories = $this->getNamespaceDirectories($namespace);
         foreach ($directories as $directory) {
@@ -32,7 +32,7 @@ class AnnotationCacheBuilder
             $finder->in($directory);
 
             foreach ($finder->files()->name('*.php') as $file) {
-                $class = $namespace.'\\'.str_replace(DIRECTORY_SEPARATOR, '\\', substr($file->getRelativePathname(), 0, -4));
+                $class = $namespace . '\\' . str_replace(DIRECTORY_SEPARATOR, '\\', substr($file->getRelativePathname(), 0, -4));
 
                 $classRef = new \ReflectionClass($class);
                 $isDao = $classRef->implementsInterface('CoreW\Dao\DaoInterface');
@@ -45,11 +45,11 @@ class AnnotationCacheBuilder
                     continue;
                 }
 
-                $cache[$class] = array(
-                    'strategy' => $annotation->getName(),
-                    'update_rel_fields' => array(),
-                    'methods' => array(),
-                );
+                $cache[$class] = [
+                    'strategy'          => $annotation->getName(),
+                    'update_rel_fields' => [],
+                    'methods'           => [],
+                ];
 
                 $methodRefs = $classRef->getMethods(\ReflectionMethod::IS_PUBLIC);
                 foreach ($methodRefs as $methodRef) {
@@ -59,16 +59,16 @@ class AnnotationCacheBuilder
                     }
 
                     $cache[$class]['update_rel_fields'] = array_merge($cache[$class]['update_rel_fields'], $annotation->getRelFields());
-                    $cache[$class]['methods'][$methodRef->getName()] = array(
+                    $cache[$class]['methods'][$methodRef->getName()] = [
                         'key' => $annotation->getKey(),
-                    );
+                    ];
 
                     $params = $methodRef->getParameters();
                 }
             }
         }
 
-//        var_dump($cache);
+        //        var_dump($cache);
     }
 
     public function getNamespaceDirectories($namespace)
@@ -77,7 +77,7 @@ class AnnotationCacheBuilder
             $namespace .= '\\';
         }
 
-        $directories = array();
+        $directories = [];
         $prefixes = $this->loader->getPrefixesPsr4();
         foreach ($prefixes as $prefix => $prefixDirectories) {
             if (0 !== strpos($namespace, $prefix)) {
@@ -85,7 +85,7 @@ class AnnotationCacheBuilder
             }
             $relativeDirectory = str_replace('\\', DIRECTORY_SEPARATOR, substr($namespace, strlen($prefix)));
             foreach ($prefixDirectories as $directory) {
-                $directories[] = $directory.DIRECTORY_SEPARATOR.$relativeDirectory;
+                $directories[] = $directory . DIRECTORY_SEPARATOR . $relativeDirectory;
             }
         }
 

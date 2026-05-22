@@ -10,28 +10,28 @@ use Respect\Validation\Exceptions\ValidationException;
 
 class ExceptionUtil
 {
-    public static function getErrorAndHttpCodeFromException($exception): array
+    public static function getErrorAndHttpCodeFromException($exception) : array
     {
         $error = [
-            'code' => $exception->getCode() ?: -1,
-            'data' => null,
+            'code'    => $exception->getCode() ? : -1,
+            'data'    => null,
             'message' => 'Internal server error',
         ];
         if (self::checkIsBusinessException($exception)) {
             $error['message'] = $exception->getMessage();
             $error['code'] = $exception->getCode();
             $httpCode = $exception->getStatusCode();
-        } elseif ($exception instanceof NotFoundExceptionInterface || $exception instanceof NotFoundException) {
+        } else if ($exception instanceof NotFoundExceptionInterface || $exception instanceof NotFoundException) {
             $error['message'] = 'Not Found';
-            $error['code'] = $exception->getCode() ?: CommonBizException::NOTFOUND_RESOURCE;
+            $error['code'] = $exception->getCode() ? : CommonBizException::NOTFOUND_RESOURCE;
             $httpCode = 404;
-        } elseif ($exception instanceof BadRequestHttpException || $exception instanceof ValidationException) {
+        } else if ($exception instanceof BadRequestHttpException || $exception instanceof ValidationException) {
             $error['message'] = $exception->getMessage();
             $error['code'] = CommonBizException::INPUT_PARAMETER_ERROR;
             $httpCode = 400;
         } else {
             $error['message'] = config('app.debug') ? $exception->getMessage() : 'Internal server error';
-            $error['code'] = $exception->getCode() ?: -1;
+            $error['code'] = $exception->getCode() ? : -1;
             $httpCode = 500;
         }
 

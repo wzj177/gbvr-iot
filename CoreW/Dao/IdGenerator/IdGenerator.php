@@ -6,7 +6,7 @@ interface IdGenerator
 {
     /**
      * 生成一个新的ID
-     * 
+     *
      * @param bool $encoded 是否编码
      * @return int|string
      */
@@ -14,7 +14,7 @@ interface IdGenerator
 
     /**
      * 编码ID，用于存储
-     * 
+     *
      * @param int|string $id
      * @return int|string
      */

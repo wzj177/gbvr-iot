@@ -8,11 +8,12 @@ use CoreW\Bfw;
 
 abstract class BaseProcessor
 {
-    protected $defaultSubPaths = [
-        'Dao' => ['Impl'],
-        'Exception' => [],
-        'Service' => ['Impl'],
-    ];
+    protected $defaultSubPaths
+        = [
+            'Dao'       => ['Impl'],
+            'Exception' => [],
+            'Service'   => ['Impl'],
+        ];
 
     protected $namespacePrefix;
     protected $biz;

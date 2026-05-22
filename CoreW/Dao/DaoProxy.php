@@ -48,7 +48,7 @@ class DaoProxy
     public function __call($method, $arguments)
     {
         $proxyMethod = $this->getProxyMethod($method);
-        if ($proxyMethod) {
+        if ($proxyMethod && method_exists($this, $proxyMethod)) {
             return $this->$proxyMethod($method, $arguments);
         } else {
             return $this->callRealDao($method, $arguments);
@@ -189,6 +189,14 @@ class DaoProxy
             $arguments[0][$declares['timestamps'][1]] = $time;
         }
 
+        if (isset($declares['datetime'][0])) {
+            $arguments[0][$declares['datetime'][0]] = date('Y-m-d H:i:s', $time);
+        }
+
+        if (isset($declares['datetime'][1])) {
+            $arguments[0][$declares['datetime'][1]] = date('Y-m-d H:i:s', $time);
+        }
+
         $this->serialize($arguments[0]);
         $row = $this->callRealDao($method, $arguments);
         $this->unserialize($row);
@@ -197,7 +205,7 @@ class DaoProxy
 
         $strategy = $this->buildCacheStrategy();
         if ($strategy) {
-            $this->buildCacheStrategy()->afterCreate($this->dao, $method, $arguments, $row);
+            $strategy->afterCreate($this->dao, $method, $arguments, $row);
         }
 
         return $row;
@@ -237,6 +245,14 @@ class DaoProxy
                 $row[$declares['timestamps'][1]] = $time;
             }
 
+            if (isset($declares['datetime'][0])) {
+                $row[$declares['datetime'][0]] = date('Y-m-d H:i:s', $time);
+            }
+
+            if (isset($declares['datetime'][1])) {
+                $row[$declares['datetime'][1]] = date('Y-m-d H:i:s', $time);
+            }
+
             $this->serialize($row);
             unset($row);
         }
@@ -264,7 +280,9 @@ class DaoProxy
             if (isset($declares['timestamps'][1])) {
                 $row[$declares['timestamps'][1]] = $time;
             }
-
+            if (isset($declares['datetime'][1])) {
+                $row[$declares['datetime'][1]] = date('Y-m-d H:i:s', $time);
+            }
             $this->serialize($row);
         }
 
@@ -294,7 +312,7 @@ class DaoProxy
 
         $strategy = $this->buildCacheStrategy();
         if ($strategy) {
-            $this->buildCacheStrategy()->afterWave($this->dao, $method, $arguments, $result);
+            $strategy->afterWave($this->dao, $method, $arguments, $result);
         }
 
         return $result;
@@ -316,6 +334,11 @@ class DaoProxy
             $arguments[$lastKey][$declares['timestamps'][1]] = time();
         }
 
+
+        if (isset($declares['datetime'][1])) {
+            $arguments[$lastKey][$declares['datetime'][1]] = date('Y-m-d H:i:s', time());
+        }
+
         $this->serialize($arguments[$lastKey]);
 
         $row = $this->callRealDao($method, $arguments);
@@ -332,7 +355,7 @@ class DaoProxy
 
         $strategy = $this->buildCacheStrategy();
         if ($strategy) {
-            $this->buildCacheStrategy()->afterUpdate($this->dao, $method, $arguments, $row);
+            $strategy->afterUpdate($this->dao, $method, $arguments, $row);
         }
 
         return $row;
@@ -346,7 +369,7 @@ class DaoProxy
 
         $strategy = $this->buildCacheStrategy();
         if ($strategy) {
-            $this->buildCacheStrategy()->afterDelete($this->dao, $method, $arguments);
+            $strategy->afterDelete($this->dao, $method, $arguments);
         }
 
         return $result;
@@ -354,7 +377,7 @@ class DaoProxy
 
     protected function callRealDao($method, $arguments)
     {
-        return call_user_func_array(array($this->dao, $method), $arguments);
+        return call_user_func_array([$this->dao, $method], $arguments);
     }
 
     protected function unserialize(&$row)
@@ -364,7 +387,7 @@ class DaoProxy
         }
 
         $declares = $this->dao->declares();
-        $serializes = empty($declares['serializes']) ? array() : $declares['serializes'];
+        $serializes = empty($declares['serializes']) ? [] : $declares['serializes'];
 
         foreach ($serializes as $key => $method) {
             if (!array_key_exists($key, $row)) {
@@ -385,7 +408,7 @@ class DaoProxy
     protected function serialize(&$row)
     {
         $declares = $this->dao->declares();
-        $serializes = empty($declares['serializes']) ? array() : $declares['serializes'];
+        $serializes = empty($declares['serializes']) ? [] : $declares['serializes'];
 
         foreach ($serializes as $key => $method) {
             if (!array_key_exists($key, $row)) {
@@ -411,7 +434,7 @@ class DaoProxy
 
         $strategy = $this->buildCacheStrategy();
         if ($strategy) {
-            $this->buildCacheStrategy()->flush($this->dao);
+            $strategy->flush($this->dao);
         }
     }
 

@@ -5,14 +5,14 @@ namespace CoreW\Business\Product\Dao\Impl;
 use CoreW\Dao\AdvancedDaoImpl;
 use CoreW\Business\Product\Dao\ProductSettingDao;
 
-class ProductSettingDaoImpl extends AdvancedDaoImpl implements ProductSettingDao 
+class ProductSettingDaoImpl extends AdvancedDaoImpl implements ProductSettingDao
 {
 
     protected $table = 'gv_product_setting';
 
     public function findByProductId(int $productId)
     {
-       return $this->findByFields(['productId' => $productId]);
+        return $this->findByFields(['productId' => $productId]);
     }
 
     public function getByProductIdAndKey(int $productId, string $key)
@@ -20,18 +20,18 @@ class ProductSettingDaoImpl extends AdvancedDaoImpl implements ProductSettingDao
         return $this->getByFields(['productId' => $productId, 'name' => $key]);
     }
 
-    public function declares():array
+    public function declares() : array
     {
         return [
             'serializes' => [
                 'val' => 'json',
-           ], 
-            'orderbys' => [ 
+            ],
+            'orderbys'   => [
                 'id',
                 'createdTime',
                 'updatedTime',
-           ], 
-            'conditions' => [ 
+            ],
+            'conditions' => [
                 'id = :id',
                 'id > :id_GT',
                 'id IN (:ids)',
@@ -40,11 +40,11 @@ class ProductSettingDaoImpl extends AdvancedDaoImpl implements ProductSettingDao
                 'createdTime <= :endTime',
                 'productId = :productId',
                 'name = :key',
-           ],
-            'timestamps' => [ 
+            ],
+            'timestamps' => [
                 'createdTime',
                 'updatedTime',
-           ], 
+            ],
         ];
-    } 
+    }
 }

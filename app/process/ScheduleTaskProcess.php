@@ -1,0 +1,40 @@
+<?php
+
+namespace app\process;
+
+use CoreW\Business\Devices\Task\Gb28181DeviceCatalogQueryTask;
+use CoreW\Business\MediaServer\Tasks\RefreshMediaServerStatusTask;
+use CoreW\Business\Record\Task\PlaybackRecordTask;
+use CoreW\Business\RecordMerge\Task\RecordMergeTask;
+use Workerman\Crontab\Crontab;
+
+class ScheduleTaskProcess
+{
+    public function onWorkerStart() : void
+    {
+        // 每分钟执行一次 - 报警录像任务
+        //        new Crontab('* */1 * * * *', function () {
+        //            AlarmRecordTaskExecutor::run();
+        //        });
+
+        // 每5秒执行一次 - 回放下载录像任务
+        new Crontab('*/5 * * * * *', function () {
+            PlaybackRecordTask::run();
+        });
+
+        // 每10秒执行一次 - 录像合并任务
+        new Crontab('*/10 * * * * *', function () {
+            RecordMergeTask::run();
+        });
+
+        // 每5分钟执行一次 - 获取国标设备目录任务
+        new Crontab('* */10 * * * *', function () {
+            Gb28181DeviceCatalogQueryTask::run();
+        });
+
+        // 每10分钟执行一次：刷新媒体服务器状态
+        new Crontab('* */10 * * * *', function () {
+            RefreshMediaServerStatusTask::run();
+        });
+    }
+}

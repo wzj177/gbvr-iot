@@ -8,6 +8,7 @@ use Webman\Http\UploadFile;
 interface AttachmentService
 {
     public function getAttachmentById($id, bool $map = true);
+
     public function getAttachmentByHashId(string $hashId, bool $map = false);
 
     public function countAttachments(array $conditions);
@@ -34,7 +35,7 @@ interface AttachmentService
      * @param $uploadPath
      * @return bool
      */
-    public function unlinkFile($storage, $path, $uploadPath = null): bool;
+    public function unlinkFile($storage, $path, $uploadPath = null) : bool;
 
     /**
      *

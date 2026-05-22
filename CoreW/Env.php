@@ -32,7 +32,7 @@ class Env
     /**
      * 获取整数
      */
-    public static function int(string $key, int $default = 0): int
+    public static function int(string $key, int $default = 0) : int
     {
         return (int)static::get($key, $default);
     }
@@ -40,7 +40,7 @@ class Env
     /**
      * 获取浮点数
      */
-    public static function float(string $key, float $default = 0.0): float
+    public static function float(string $key, float $default = 0.0) : float
     {
         return (float)static::get($key, $default);
     }
@@ -48,7 +48,7 @@ class Env
     /**
      * 获取布尔值（支持 'true', 'false', '1', '0', 'on', 'off' 等）
      */
-    public static function bool(string $key, bool $default = false): bool
+    public static function bool(string $key, bool $default = false) : bool
     {
         $value = static::get($key, $default);
 

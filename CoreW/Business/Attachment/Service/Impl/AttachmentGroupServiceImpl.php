@@ -71,9 +71,9 @@ class AttachmentGroupServiceImpl extends BaseService implements AttachmentGroupS
      */
     public function getTree(array $conditions, $mode = 'infinite_limit')
     {
-        $items = $this->getAttachmentGroupDao()->getAll($conditions, ['sort' => 'ASC'], ['id','code', 'title', 'parentId', 'isDefault', 'level']);
+        $items = $this->getAttachmentGroupDao()->getAll($conditions, ['sort' => 'ASC'], ['id', 'code', 'title', 'parentId', 'isDefault', 'level']);
         if ('infinite_limit' === $mode) {
-            return TreeHelper::referenceDeliveryTree($items,'id', 'parentId');
+            return TreeHelper::referenceDeliveryTree($items, 'id', 'parentId');
         }
 
         return TreeHelper::spanningTree($items, 0, 'parentId');
@@ -107,7 +107,7 @@ class AttachmentGroupServiceImpl extends BaseService implements AttachmentGroupS
             $parent_group = $this->getAttachmentGroupDao()->get($fields['parentId']);
             if (!empty($parent_group)) {
                 $fields['level'] = $parent_group['level'] + 1;
-                $fields['code']  = $this->generateCode($fields['parentId']);
+                $fields['code'] = $this->generateCode($fields['parentId']);
             }
         }
 
@@ -225,7 +225,7 @@ class AttachmentGroupServiceImpl extends BaseService implements AttachmentGroupS
             return $fix . $pid;
         }
 
-        return  $fix . str_pad('0', $max - $len, STR_PAD_LEFT) . $pid;
+        return $fix . str_pad('0', $max - $len, STR_PAD_LEFT) . $pid;
     }
 
     /**

@@ -8,7 +8,7 @@ use CoreW\Bfw;
 use CoreW\RateLimiter\RateLimiter;
 use CoreW\RateLimiter\TimeMachine;
 
-class LoginSendEmailCodeRateLimiter  extends BaseRateLimiter implements RateLimiterInterface
+class LoginSendEmailCodeRateLimiter extends BaseRateLimiter implements RateLimiterInterface
 {
 
     // 一个邮箱一小时允许发6次，每次有效期10分钟

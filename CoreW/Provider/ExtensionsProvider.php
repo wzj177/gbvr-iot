@@ -5,6 +5,9 @@ namespace CoreW\Provider;
 
 
 use CoreW\Bfw;
+use CoreW\Business\GB\Gb28181Service;
+use CoreW\Business\GB\Gb28181SendRtpPortService;
+use CoreW\Business\GB\SSRCFactory;
 use CoreW\Business\Ip2Region\Ip2Region;
 use CoreW\Business\Auth\AuthFactory;
 use CoreW\Sdk\AMapSdk\AMapClient;
@@ -12,6 +15,8 @@ use CoreW\Sdk\PSipGateway\Gb28181Client;
 use CoreW\Sdk\LeChangeSdk\Controller as LeChangeSdk;
 use CoreW\Sdk\Ys7Sdk\OpenYs7;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
+use FFMpeg\FFMpeg;
+use FFMpeg\FFProbe;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\RotatingFileHandler;
 use Monolog\Logger;
@@ -22,7 +27,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 
 class ExtensionsProvider implements ServiceProviderInterface
 {
-    public function register(Container $biz)
+    public function register(Container $biz) : void
     {
         $biz['ip2region'] = function () {
             return new Ip2Region();
@@ -55,18 +60,58 @@ class ExtensionsProvider implements ServiceProviderInterface
             }
             $handler = new RotatingFileHandler($config['log_file']);
             $handler->setFormatter(new LineFormatter(null, 'Y-m-d H:i:s', true));
-            $ffmpeg = \FFMpeg\FFMpeg::create([
-                'ffmpeg.binaries' => $config['ffmpeg_bin'],
-                'ffprobe.binaries' => $config['ffprobe_bin'],
-                'timeout' => $config['timeout'], // The timeout for the underlying process
-                'ffmpeg.threads' => $config['threads'],   // The number of threads that FFMpeg should use
-            ], new Logger('ffmpeg', [$handler]));
 
-            return $ffmpeg;
+            return FFMpeg::create([
+                'ffmpeg.binaries'  => $config['ffmpeg_bin'],
+                'ffprobe.binaries' => $config['ffprobe_bin'],
+                'timeout'          => $config['timeout'], // The timeout for the underlying process
+                'ffmpeg.threads'   => $config['threads'],   // The number of threads that FFMpeg should use
+            ], new Logger('ffmpeg', [$handler]));
+        };
+
+        $biz['ffprobe'] = function ($app) {
+            $config = config('ffmpeg');
+            if (empty($config['ffmpeg_bin'])) {
+                return null;
+            }
+
+            $handler = new RotatingFileHandler($config['log_file']);
+            $handler->setFormatter(new LineFormatter(null, 'Y-m-d H:i:s', true));
+
+            return FFProbe::create([
+                'ffmpeg.binaries'  => $config['ffmpeg_bin'],
+                'ffprobe.binaries' => $config['ffprobe_bin'],
+                'timeout'          => $config['timeout'], // The timeout for the underlying process
+                'ffmpeg.threads'   => $config['threads'],   // The number of threads that FFMpeg should use
+            ], new Logger('ffprobe', [$handler]));
+        };
+
+        $biz['gb28181_service'] = function ($app) {
+            return new Gb28181Service($app);
         };
 
         $biz['gb28181_gateway_sdk'] = function ($app) {
-            return new Gb28181Client(Redis::connection('gb_gateway'));
+            $client = new Gb28181Client(Redis::connection('gb_gateway'), config('gb28181'));
+
+            // 设置 gateway_id 自动解析器：根据 device_id 查找绑定的网关
+            $client->setGatewayIdResolver(function (string $deviceId) use ($app) {
+                try {
+                    $device = $app->service('Devices:DeviceService')->getDeviceByDeviceId($deviceId);
+                    return $device['gateway_id'] ?? null;
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            });
+
+            return $client;
+        };
+
+        $biz['gb28181_send_rtp_port_service'] = function ($app) {
+            return new Gb28181SendRtpPortService(Redis::connection('gb_gateway'), config('app.app_id'));
+        };
+
+        $biz['SSRCFactory'] = function ($app) {
+            return new SSRCFactory(Redis::connection('gb_gateway'), config('gb28181'), config('app.app_id'));
         };
 
         $biz['redis.api.cache'] = function ($biz) {
@@ -91,17 +136,32 @@ class ExtensionsProvider implements ServiceProviderInterface
 
         $biz['sip.le_change_sdk'] = function () {
             return function ($params, $debug) {
-                return new LeChangeSdk($params['appKey'], $params['appSecret'], $debug, $params['apiUrl'] ??  null);
+                return new LeChangeSdk($params['appKey'], $params['appSecret'], $debug, $params['apiUrl'] ?? null);
             };
         };
 
+        $biz['sip_gateway_service'] = function ($app) {
+            return new \CoreW\Business\SipGateway\Service\Impl\SipGatewayServiceImpl($app);
+        };
+
         $biz['zlm_sdk'] = function () {
-            return new ZLMClient([
-                'host' => config('zlm.host', '127.0.0.1'),
-                'port' => config('zlm.port', 80),
-                'secret' => config('zlm.secret', ''),
-                'debug' => config('zlm.debug', false),
-            ]);
+            return function ($params) {
+                return new ZLMClient([
+                    'host'       => $params['host'],
+                    'port'       => $params['port'],
+                    'https_port' => $params['https_port'],
+                    'secret'     => $params['secret'],
+                    'debug'      => $params['debug'] ?? config('app.debug'),
+                ]);
+            };
+        };
+
+        $biz['lock.redis'] = function () {
+            return new \CoreW\Business\Lock\RedisLock();
+        };
+
+        $biz['lock.file'] = function () {
+            return new \CoreW\Business\Lock\FileLock();
         };
     }
 }

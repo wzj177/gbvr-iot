@@ -13,7 +13,7 @@ class Timer
      * @param bool $persistent true = repeat, false = once
      * @return int Timer ID
      */
-    public static function add(float $seconds, callable $callback, array $args = [], bool $persistent = true): bool|int
+    public static function add(float $seconds, callable $callback, array $args = [], bool $persistent = true) : bool|int
     {
         if (!class_exists('Swoole\Timer')) {
             trigger_error("Timer requires Swoole extension", E_USER_ERROR);
@@ -39,7 +39,7 @@ class Timer
      * @param int $timerId Timer ID
      * @return bool
      */
-    public static function del(int $timerId): bool
+    public static function del(int $timerId) : bool
     {
         if (!class_exists('Swoole\Timer')) {
             return false;
@@ -53,7 +53,7 @@ class Timer
      *
      * @return void
      */
-    public static function delAll(): void
+    public static function delAll() : void
     {
         if (!class_exists('Swoole\Timer')) {
             return;
@@ -67,7 +67,7 @@ class Timer
      *
      * @return array
      */
-    public static function info(): array
+    public static function info() : array
     {
         if (!class_exists('Swoole\Timer')) {
             return ['count' => 0];

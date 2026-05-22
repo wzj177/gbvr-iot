@@ -2,7 +2,7 @@
 
 namespace CoreW\Exception;
 
-class ZlmException extends  ServiceException
+class ZlmException extends ServiceException
 {
 
 }

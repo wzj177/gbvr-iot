@@ -1,0 +1,720 @@
+{
+  "menus": [
+    {
+      "id": "dashboard",
+      "name": "仪表盘",
+      "icon": "House",
+      "path": "/dashboard",
+      "component": "Dashboard",
+      "title": "仪表盘",
+      "parentId": 0,
+      "sort": 1,
+      "type": "menu"
+    },
+    {
+      "id": "monitoring",
+      "name": "系统监控",
+      "icon": "TrendCharts",
+      "path": "/system-monitor",
+      "component": "",
+      "title": "系统监控",
+      "parentId": 0,
+      "sort": 2,
+      "type": "directory",
+      "children": [
+        {
+          "id": "system-stats",
+          "name": "系统统计",
+          "icon": "DataAnalysis",
+          "path": "/system-stats",
+          "component": "SystemStats",
+          "title": "系统统计",
+          "parentId": "monitoring",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "system-stats-api",
+              "name": "系统统计API",
+              "path": "/api/admin/system/stats",
+              "httpMethod": "GET",
+              "routeName": "system.stats",
+              "parentId": "system-stats",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "system-cpu-usage-api",
+              "name": "CPU使用率API",
+              "path": "/api/admin/system/cpu-usage",
+              "httpMethod": "GET",
+              "routeName": "system.cpu-usage",
+              "parentId": "system-stats",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "system-memory-usage-api",
+              "name": "内存使用率API",
+              "path": "/api/admin/system/memory-usage",
+              "httpMethod": "GET",
+              "routeName": "system.memory-usage",
+              "parentId": "system-stats",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "system-network-stats-api",
+              "name": "网络统计API",
+              "path": "/api/admin/system/network-stats",
+              "httpMethod": "GET",
+              "routeName": "system.network-stats",
+              "parentId": "system-stats",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "system-disk-stats-api",
+              "name": "磁盘统计API",
+              "path": "/api/admin/system/disk-stats",
+              "httpMethod": "GET",
+              "routeName": "system.disk-stats",
+              "parentId": "system-stats",
+              "sort": 5,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "system-logs",
+          "name": "系统日志",
+          "icon": "Document",
+          "path": "/system-logs",
+          "component": "SystemLogs",
+          "title": "系统日志",
+          "parentId": "monitoring",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "system-logs-list-api",
+              "name": "日志列表API",
+              "path": "/api/admin/system/logs",
+              "httpMethod": "GET",
+              "routeName": "system.logs",
+              "parentId": "system-logs",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "system-logs-detail-api",
+              "name": "日志详情API",
+              "path": "/api/admin/system/log/{id}",
+              "httpMethod": "GET",
+              "routeName": "system.log",
+              "parentId": "system-logs",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "system-logs-batch-delete-api",
+              "name": "批量删除API",
+              "path": "/api/admin/system/log/btch-dlt",
+              "httpMethod": "POST",
+              "routeName": "system.log.batch-delete",
+              "parentId": "system-logs",
+              "sort": 3,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "media-management",
+      "name": "流媒体管理",
+      "icon": "VideoCamera",
+      "path": "/media-management",
+      "component": "",
+      "title": "流媒体管理",
+      "parentId": 0,
+      "sort": 3,
+      "type": "directory",
+      "children": [
+        {
+          "id": "media-server-list",
+          "name": "流媒体服务器",
+          "icon": "Connection",
+          "path": "/media-servers",
+          "component": "MediaServerList",
+          "title": "流媒体服务器",
+          "parentId": "media-management",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "media-server-list-api",
+              "name": "服务器列表API",
+              "path": "/api/admin/media-server",
+              "httpMethod": "GET",
+              "routeName": "media-server.index",
+              "parentId": "media-server-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "media-server-create-api",
+              "name": "创建服务器API",
+              "path": "/api/admin/media-server",
+              "httpMethod": "POST",
+              "routeName": "media-server.store",
+              "parentId": "media-server-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "media-server-update-api",
+              "name": "更新服务器API",
+              "path": "/api/admin/media-server/{id}",
+              "httpMethod": "PUT",
+              "routeName": "media-server.update",
+              "parentId": "media-server-list",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "media-server-delete-api",
+              "name": "删除服务器API",
+              "path": "/api/admin/media-server/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "media-server.delete",
+              "parentId": "media-server-list",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "media-server-stats-api",
+              "name": "服务器统计API",
+              "path": "/api/admin/media-server/{id}/stats",
+              "httpMethod": "GET",
+              "routeName": "media-server.stats",
+              "parentId": "media-server-list",
+              "sort": 5,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gb-device",
+      "name": "国标设备",
+      "icon": "Monitor",
+      "path": "/gb-device",
+      "component": "",
+      "title": "国标设备",
+      "parentId": 0,
+      "sort": 4,
+      "type": "directory",
+      "children": [
+        {
+          "id": "device-list",
+          "name": "设备列表",
+          "icon": "List",
+          "path": "/devices",
+          "component": "DeviceList",
+          "title": "设备列表",
+          "parentId": "gb-device",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "device-list-api",
+              "name": "设备列表API",
+              "path": "/api/admin/gb28181/devices",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.devices.index",
+              "parentId": "device-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "device-show-api",
+              "name": "设备详情API",
+              "path": "/api/admin/gb28181/devices/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.devices.show",
+              "parentId": "device-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "device-update-api",
+              "name": "更新设备API",
+              "path": "/api/admin/gb28181/devices/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.gb28181.devices.update",
+              "parentId": "device-list",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "device-delete-api",
+              "name": "删除设备API",
+              "path": "/api/admin/gb28181/devices/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.gb28181.devices.destroy",
+              "parentId": "device-list",
+              "sort": 4,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "channel-list",
+          "name": "通道列表",
+          "icon": "Files",
+          "path": "/channels",
+          "component": "ChannelList",
+          "title": "通道列表",
+          "parentId": "gb-device",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "channel-list-api",
+              "name": "通道列表API",
+              "path": "/api/admin/gb28181/channels",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.channels.index",
+              "parentId": "channel-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "channel-show-api",
+              "name": "通道详情API",
+              "path": "/api/admin/gb28181/channels/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.channels.show",
+              "parentId": "channel-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "channel-update-api",
+              "name": "更新通道API",
+              "path": "/api/admin/gb28181/channels/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.gb28181.channels.update",
+              "parentId": "channel-list",
+              "sort": 3,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "alarm-management",
+      "name": "报警管理",
+      "icon": "Warning",
+      "path": "/alarm-management",
+      "component": "",
+      "title": "报警管理",
+      "parentId": 0,
+      "sort": 5,
+      "type": "directory",
+      "children": [
+        {
+          "id": "alarm-plan",
+          "name": "报警计划",
+          "icon": "Bell",
+          "path": "/alarm-plans",
+          "component": "AlarmPlanList",
+          "title": "报警计划",
+          "parentId": "alarm-management",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "alarm-plan-list-api",
+              "name": "计划列表API",
+              "path": "/api/admin/alarm-plan",
+              "httpMethod": "GET",
+              "routeName": "admin.alarm-plan.index",
+              "parentId": "alarm-plan",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-show-api",
+              "name": "计划详情API",
+              "path": "/api/admin/alarm-plan/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.alarm-plan.show",
+              "parentId": "alarm-plan",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-create-api",
+              "name": "创建计划API",
+              "path": "/api/admin/alarm-plan",
+              "httpMethod": "POST",
+              "routeName": "admin.alarm-plan.store",
+              "parentId": "alarm-plan",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-update-api",
+              "name": "更新计划API",
+              "path": "/api/admin/alarm-plan/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.alarm-plan.update",
+              "parentId": "alarm-plan",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-delete-api",
+              "name": "删除计划API",
+              "path": "/api/admin/alarm-plan/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.alarm-plan.destroy",
+              "parentId": "alarm-plan",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-bind-channel-api",
+              "name": "绑定通道API",
+              "path": "/api/admin/alarm-plan/{id}/channels",
+              "httpMethod": "POST",
+              "routeName": "admin.alarm-plan.bind-channels",
+              "parentId": "alarm-plan",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "alarm-plan-unbind-channel-api",
+              "name": "解绑通道API",
+              "path": "/api/admin/alarm-plan/{id}/channels/{channelId}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.alarm-plan.unbind-channel",
+              "parentId": "alarm-plan",
+              "sort": 7,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "alarm-event",
+          "name": "报警事件",
+          "icon": "WarnTriangleFilled",
+          "path": "/alarm-events",
+          "component": "AlarmEventList",
+          "title": "报警事件",
+          "parentId": "alarm-management",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "alarm-event-list-api",
+              "name": "事件列表API",
+              "path": "/api/v2/alarm/events",
+              "httpMethod": "GET",
+              "routeName": "api.v2.alarm.events.index",
+              "parentId": "alarm-event",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "alarm-event-show-api",
+              "name": "事件详情API",
+              "path": "/api/v2/alarm/events/{id}",
+              "httpMethod": "GET",
+              "routeName": "api.v2.alarm.events.show",
+              "parentId": "alarm-event",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "alarm-event-count-api",
+              "name": "事件统计API",
+              "path": "/api/admin/alarm-event/stats",
+              "httpMethod": "GET",
+              "routeName": "admin.alarm-event.stats",
+              "parentId": "alarm-event",
+              "sort": 3,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "permission",
+      "name": "权限管理",
+      "icon": "Lock",
+      "path": "/permission",
+      "component": "",
+      "title": "权限管理",
+      "parentId": 0,
+      "sort": 9,
+      "type": "directory",
+      "children": [
+        {
+          "id": "user-management",
+          "name": "用户管理",
+          "icon": "User",
+          "path": "/user-management",
+          "component": "UserManagement",
+          "title": "用户管理",
+          "parentId": "permission",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "user-list-api",
+              "name": "用户列表API",
+              "path": "/api/admin/user",
+              "httpMethod": "GET",
+              "routeName": "admin.user.index",
+              "parentId": "user-management",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "user-show-api",
+              "name": "用户详情API",
+              "path": "/api/admin/user/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.user.show",
+              "parentId": "user-management",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "user-create-api",
+              "name": "创建用户API",
+              "path": "/api/admin/user",
+              "httpMethod": "POST",
+              "routeName": "admin.user.store",
+              "parentId": "user-management",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "user-update-api",
+              "name": "更新用户API",
+              "path": "/api/admin/user/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.user.update",
+              "parentId": "user-management",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "user-delete-api",
+              "name": "删除用户API",
+              "path": "/api/admin/user/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.user.destroy",
+              "parentId": "user-management",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "user-assign-roles-api",
+              "name": "分配角色API",
+              "path": "/api/admin/user/{id}/roles",
+              "httpMethod": "POST",
+              "routeName": "admin.user.assign-roles",
+              "parentId": "user-management",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "user-reset-password-api",
+              "name": "重置密码API",
+              "path": "/api/admin/user/{id}/reset-password",
+              "httpMethod": "POST",
+              "routeName": "admin.user.reset-password",
+              "parentId": "user-management",
+              "sort": 7,
+              "type": "api"
+            },
+            {
+              "id": "user-toggle-lock-api",
+              "name": "锁定/解锁API",
+              "path": "/api/admin/user/{id}/toggle-lock",
+              "httpMethod": "POST",
+              "routeName": "admin.user.toggle-lock",
+              "parentId": "user-management",
+              "sort": 8,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "role-management",
+          "name": "角色管理",
+          "icon": "UserFilled",
+          "path": "/role-management",
+          "component": "RoleManagement",
+          "title": "角色管理",
+          "parentId": "permission",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "role-list-api",
+              "name": "角色列表API",
+              "path": "/api/admin/role",
+              "httpMethod": "GET",
+              "routeName": "admin.role.index",
+              "parentId": "role-management",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "role-show-api",
+              "name": "角色详情API",
+              "path": "/api/admin/role/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.role.show",
+              "parentId": "role-management",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "role-create-api",
+              "name": "创建角色API",
+              "path": "/api/admin/role",
+              "httpMethod": "POST",
+              "routeName": "admin.role.store",
+              "parentId": "role-management",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "role-update-api",
+              "name": "更新角色API",
+              "path": "/api/admin/role/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.role.update",
+              "parentId": "role-management",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "role-delete-api",
+              "name": "删除角色API",
+              "path": "/api/admin/role/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.role.destroy",
+              "parentId": "role-management",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "role-assign-menus-api",
+              "name": "分配菜单API",
+              "path": "/api/admin/role/{id}/menus",
+              "httpMethod": "POST",
+              "routeName": "admin.role.assign-menus",
+              "parentId": "role-management",
+              "sort": 6,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "menu-management",
+          "name": "菜单管理",
+          "icon": "Menu",
+          "path": "/menu-management",
+          "component": "MenuManagement",
+          "title": "菜单管理",
+          "parentId": "permission",
+          "sort": 3,
+          "type": "menu",
+          "children": [
+            {
+              "id": "menu-list-api",
+              "name": "菜单列表API",
+              "path": "/api/admin/menu",
+              "httpMethod": "GET",
+              "routeName": "admin.menu.index",
+              "parentId": "menu-management",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "menu-show-api",
+              "name": "菜单详情API",
+              "path": "/api/admin/menu/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.menu.show",
+              "parentId": "menu-management",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "menu-create-api",
+              "name": "创建菜单API",
+              "path": "/api/admin/menu",
+              "httpMethod": "POST",
+              "routeName": "admin.menu.store",
+              "parentId": "menu-management",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "menu-update-api",
+              "name": "更新菜单API",
+              "path": "/api/admin/menu/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.menu.update",
+              "parentId": "menu-management",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "menu-delete-api",
+              "name": "删除菜单API",
+              "path": "/api/admin/menu/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.menu.destroy",
+              "parentId": "menu-management",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "menu-tree-api",
+              "name": "菜单树API",
+              "path": "/api/admin/menu/tree",
+              "httpMethod": "GET",
+              "routeName": "admin.menu.tree",
+              "parentId": "menu-management",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "menu-sync-api",
+              "name": "同步菜单API",
+              "path": "/api/admin/menu/sync",
+              "httpMethod": "POST",
+              "routeName": "admin.menu.sync",
+              "parentId": "menu-management",
+              "sort": 7,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

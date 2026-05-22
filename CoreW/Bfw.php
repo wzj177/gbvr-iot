@@ -31,7 +31,7 @@ class Bfw extends Container
         $this['logger'] = null;
         $this['interceptors'] = new \ArrayObject();
         $this['migration.directories'] = new \ArrayObject();
-        $this['autoload.aliases'] = new \ArrayObject(array('' => "CoreW\\Business"));
+        $this['autoload.aliases'] = new \ArrayObject(['' => "CoreW\\Business"]);
         $this['dispatcher'] = function () {
             return new EventDispatcher();
         };
@@ -40,10 +40,10 @@ class Bfw extends Container
             return new ContainerAutoloader(
                 $bfw,
                 $bfw['autoload.aliases'],
-                array(
+                [
                     'service' => $bfw['autoload.object_maker.service'],
-                    'dao' => $bfw['autoload.object_maker.dao'],
-                )
+                    'dao'     => $bfw['autoload.object_maker.dao'],
+                ]
             );
         };
 
@@ -114,13 +114,13 @@ class Bfw extends Container
         foreach ($this->registers as $register) {
             if (is_string($register) && class_exists($register)) {
                 $this->register(new $register);
-            } elseif ($register instanceof ServiceProviderInterface) {
+            } else if ($register instanceof ServiceProviderInterface) {
                 $this->register($register);
-            } elseif (is_array($register)) {
-                list($pro, $values) = $register;
+            } else if (is_array($register)) {
+                [$pro, $values] = $register;
                 if (is_string($pro) && class_exists($pro)) {
                     $this->register(new $pro, $values);
-                } elseif ($pro instanceof ServiceProviderInterface) {
+                } else if ($pro instanceof ServiceProviderInterface) {
                     $this->register($pro, $values);
                 }
             }
@@ -138,7 +138,7 @@ class Bfw extends Container
      * @param array $values
      * @return $this|Bfw
      */
-    public function register(ServiceProviderInterface $provider, array $values = array())
+    public function register(ServiceProviderInterface $provider, array $values = [])
     {
         $this->providers[] = $provider;
         parent::register($provider, $values);

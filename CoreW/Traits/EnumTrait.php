@@ -43,7 +43,7 @@ trait EnumTrait
      * @param string $valueKey
      * @return array|array[]
      */
-    public static function dictToList(array $dicts, string $indexKey = 'key', string $valueKey = 'value'): array
+    public static function dictToList(array $dicts, string $indexKey = 'key', string $valueKey = 'value') : array
     {
         $items = [];
         if (empty($dicts)) {
@@ -52,7 +52,7 @@ trait EnumTrait
         foreach ($dicts as $key => $value) {
             $items[] = [
                 $indexKey => $key,
-                $valueKey => $value
+                $valueKey => $value,
             ];
         }
         return $items;
