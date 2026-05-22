@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS `gv_stream_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='GB28181流会话表';
 
 -- 添加索引优化查询性能
-ALTER TABLE `dgv_evices` ADD INDEX `idx_created_at` (`created_at`);
+ALTER TABLE `gv_evices` ADD INDEX `idx_created_at` (`created_at`);
 ALTER TABLE `gv_device_channels` ADD INDEX `idx_device_id` (`device_id`);
 ALTER TABLE `gv_stream_sessions` ADD INDEX `idx_started_at` (`started_at`);
 
