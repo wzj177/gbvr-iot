@@ -24,6 +24,11 @@ class UserDaoImpl extends AdvancedDaoImpl implements UserDao
         return $this->getByFields(['nickname' => $nickname]);
     }
 
+    public function getByApiKey($apiKey)
+    {
+        return $this->getByFields(['api_key' => $apiKey]);
+    }
+
     public function getUnDestroyedUserByNickname($nickname)
     {
         return $this->getByFields(['nickname' => $nickname, 'destroyed' => 0]);
@@ -293,6 +298,7 @@ class UserDaoImpl extends AdvancedDaoImpl implements UserDao
                 'type <> :noType',
                 '(UPPER(nickname) LIKE :keywords OR UPPER(email) LIKE :keywords OR UPPER(verifiedMobile) LIKE :keywords)',
                 'third_party_id = :thirdPartyId',
+                'api_key = :api_key',
             ],
         ];
     }

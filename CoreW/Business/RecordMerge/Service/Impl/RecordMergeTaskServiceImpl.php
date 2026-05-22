@@ -140,7 +140,6 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
             0,
             5
         );
-
         $processed = 0;
         foreach ($tasks as $task) {
             // CAS 原子抢占

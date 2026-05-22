@@ -792,4 +792,12 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     {
         return $this->createService('Devices:DeviceService');
     }
+
+    /**
+     * @return Gb28181Service
+     */
+    protected function getGb28181Service(): Gb28181Service
+    {
+        return $this->bfw->offsetGet('gb28181_service');
+    }
 }

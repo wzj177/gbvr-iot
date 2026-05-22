@@ -75,9 +75,29 @@ class AutoRecordProcess
             return;
         }
 
-        $planIds = ArrayToolkit::column($planList, 'id');
         $plans = ArrayToolkit::index($planList, 'id');
+        $workerKey = 'worker_' . $workerId;
+        // ==================== 国标设备处理 ====================
+        try {
+            $this->handleDeviceRecording($workerKey, $workerId, $plans);
+        } catch (\Throwable $e) {
+            $this->log()->error('[AutoRecord] handleDeviceRecording 错误: ' . $e->getMessage());
+        }
 
+        // ==================== 拉流设备处理 ====================
+        try {
+            $this->handleStreamProxyRecording($workerKey, $workerId, $plans);
+        } catch (\Throwable $e) {
+            $this->log()->error('[AutoRecord] handleStreamProxyRecording 错误: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 处理国标设备录像
+     */
+    protected function handleDeviceRecording(string $workerKey, int $workerId, array $plans) : void
+    {
+        $planIds = array_values(array_keys($plans));
         $videoChannels = $this->getOnlineVideoChannels($planIds);
         if (empty($videoChannels)) {
             $this->loopLog("[进程{$workerId}] 暂无已绑定录像计划的在线通道");
@@ -85,7 +105,6 @@ class AutoRecordProcess
         }
 
         $myChannels = $this->splitByWorker($videoChannels, $workerId);
-        $workerKey = 'worker_' . $workerId;
 
         foreach ($myChannels as $channel) {
             $vKey = $channel['stream_id'] ? : ($channel['device_id'] . '_' . $channel['channel_id']);
@@ -132,9 +151,6 @@ class AutoRecordProcess
                 $this->startRecording($workerKey, $vKey, $channel);
             }
         }
-
-        // ==================== 流代理录像处理 ====================
-        $this->handleStreamProxyRecording($workerKey, $workerId, $plans);
     }
 
     /**
@@ -257,15 +273,16 @@ class AutoRecordProcess
     protected function startRecording(string $workerKey, string $vKey, array $channel) : void
     {
         try {
-            $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
-
             // 流不存在则等待，AutoLiveStreamTask 会负责拉起流
-            if (!$this->checkStreamExists($zlmClient, '__defaultVhost__', 'rtp', $channel['stream_id'])) {
+            $mediaList = $this->getGb28181Service()->getMediaList($channel['media_server_id'], $channel['stream_id']);
+            if (empty($mediaList)) {
                 $this->loopLog('[AutoRecord] 流不存在，等待 AutoLive 拉起: ' . $vKey);
                 return;
             }
 
-            $result = $zlmClient->startRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
+            $result = $this->getGb28181Service()
+                ->getZlmClientByServerId($channel['media_server_id'])
+                ->startRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
 
             if ($result) {
                 self::$recordingItems[$workerKey][$vKey] = ['recording' => true];
@@ -293,8 +310,9 @@ class AutoRecordProcess
         unset(self::$recordingItems[$workerKey][$vKey]);
 
         try {
-            $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
-            $zlmClient->stopRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
+            $this->getGb28181Service()
+                ->getZlmClientByServerId($channel['media_server_id'])
+                ->stopRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
             $this->getDeviceService()->updateChannel($channel['id'], ['record_status' => 0]);
             $this->log()->info('[AutoRecord] 停止录制: ' . $vKey);
         } catch (\Throwable $e) {
@@ -302,20 +320,6 @@ class AutoRecordProcess
         }
     }
 
-    /**
-     * 检查流是否存在
-     */
-    protected function checkStreamExists($zlmClient, string $vhost, string $app, string $stream) : bool
-    {
-        try {
-            // ZLMClient 用 getMediaList 检查流是否存在（无 isStreamOnline 方法）
-            $list = $zlmClient->getMediaList($app, $stream);
-            return !empty($list);
-        } catch (\Throwable $e) {
-            $this->log()->error('[AutoRecord] 检查流状态异常: ' . $e->getMessage());
-            return false;
-        }
-    }
 
     /**
      * 进程退出时清理所有录制

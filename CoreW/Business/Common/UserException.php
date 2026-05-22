@@ -54,6 +54,10 @@ class UserException extends AbstractBizException
 
     const CREATE_TOKEN_WITH_REDIS_ACQUIRED_LOCK_FAILED = 5000133;
 
+    const API_KEY_MISSING = 4010150;
+    const API_KEY_INVALID = 4010151;
+    const API_KEY_DISABLED = 4030152;
+
     public function __construct($code)
     {
         $this->setMessages();
@@ -90,6 +94,9 @@ class UserException extends AbstractBizException
             self::TOKEN_PARAMS_FAILED                          => 'token不合法',
             self::CREATE_TOKEN_WITH_REDIS_ACQUIRED_LOCK_FAILED => 'token无法生成：获取锁失败',
             self::CLIENT_TYPE_INVALID                          => '第三方登录类型不存在',
+            self::API_KEY_MISSING                              => 'API Key 缺失，请提供 X-API-Key header',
+            self::API_KEY_INVALID                              => 'API Key 无效',
+            self::API_KEY_DISABLED                             => 'API 访问未启用',
         ];
     }
 }

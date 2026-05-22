@@ -77,6 +77,7 @@ class DeviceChannelsDaoImpl extends AdvancedDaoImpl implements DeviceChannelsDao
                 'record_plan_id = :record_plan_id',
                 'record_plan_id IN (:record_plan_ids)',
                 'record_status = :record_status',
+                'stream_id = :stream_id',
             ],
         ];
     }

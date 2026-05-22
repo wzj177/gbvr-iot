@@ -73,10 +73,10 @@ return [
     'AutoLiveStreamTask'                      => [
         'handler' => app\process\AutoLiveStreamTaskProcess::class,
     ],
-//    'AutoRecord'                              => [
-//        'handler' => app\process\AutoRecordProcess::class,
-//        'count'   => (int)getenv('TASK_RECORD_PROCESS_NUM') ? : 3,
-//    ],
+    'AutoRecord'                              => [
+        'handler' => app\process\AutoRecordProcess::class,
+        'count'   => (int)getenv('TASK_RECORD_PROCESS_NUM') ? : 3,
+    ],
     'StreamProxyHealthCheck'                  => [
         'handler' => app\process\StreamProxyHealthCheckProcess::class,
     ],

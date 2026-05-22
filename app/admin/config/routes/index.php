@@ -32,6 +32,7 @@ use app\middleware\admin\PermissionCheckMiddleware;
 use CoreW\CustomRoute as Route;
 use app\admin\controller\StreamProxyController;
 use app\admin\controller\SipGatewayController;
+use app\middleware\admin\OpenApiAuth;
 
 Route::group('/api/admin', function () {
     // 登录认证
@@ -99,6 +100,10 @@ Route::group('/api/admin', function () {
         Route::post('/{id:\d+}/toggle-lock', [UserController::class, 'toggleLock'])->name('admin.user.toggle-lock');
         Route::post('/batch-delete', [UserController::class, 'batchDelete'])->name('admin.user.batch-delete');
         Route::get('/role-options', [UserController::class, 'roleOptions'])->name('admin.user.role-options');
+
+        // API Key 管理
+        Route::post('/{id:\d+}/api-key', [UserController::class, 'generateApiKey'])->name('admin.user.generate-api-key');
+        Route::post('/{id:\d+}/api-key/toggle', [UserController::class, 'toggleApiKey'])->name('admin.user.toggle-api-key');
         //        Route::get('/menus', [UserController::class, 'getMenuAdmin'])->name('user.menus');
     })->middleware([
         //        BasicAuthIdentity::class,
@@ -311,7 +316,6 @@ Route::group('/api/admin', function () {
         // 云端录像文件
         Route::group('/recordings', function () {
             Route::get('', [GB28181RecordingController::class, 'index'])->name('admin.gb28181.recordings.index');
-            Route::get('/{id:\d+}', [GB28181RecordingController::class, 'show'])->name('admin.gb28181.recordings.show');
         });
 
         // 录像合并任务
@@ -428,6 +432,52 @@ Route::group('/api/admin', function () {
         Route::post('/unbind', [SipGatewayController::class, 'unbindDevices'])->name('admin.sip-gateways.unbind');
     })->middleware([
         AuthIdentityMiddleware::class,
+        PermissionCheckMiddleware::class,
+    ]);
+
+    // OpenAPI - 支持 API Key 认证的白名单路由
+    Route::group('/open-api', function () {
+        // 录像文件查询（按设备、通道、时间范围）
+        Route::get('/recordings', [GB28181RecordingController::class, 'index'])->name('admin.open-api.recordings.index');
+        Route::get('/recordings/{id:\d+}', [GB28181RecordingController::class, 'show'])->name('admin.open-api.recordings.show');
+
+        // 录像控制
+        Route::post('/recordings/start-record', [GB28181RecordingController::class, 'startRecord'])->name('admin.open-api.recordings.start-record');
+        Route::post('/recordings/stop-record', [GB28181RecordingController::class, 'stopRecord'])->name('admin.open-api.recordings.stop-record');
+
+        // 设备查询
+        Route::get('/devices', [GB28181DeviceController::class, 'index'])->name('admin.open-api.devices.index');
+        Route::get('/devices/{id:\d+}', [GB28181DeviceController::class, 'show'])->name('admin.open-api.devices.show');
+
+        // 通道查询
+        Route::get('/channels', [GB28181ChannelController::class, 'index'])->name('admin.open-api.channels.index');
+        Route::get('/channels/{id:\d+}', [GB28181ChannelController::class, 'show'])->name('admin.open-api.channels.show');
+
+        // 录像计划查询
+        Route::get('/record-plans', [GB28181RecordPlanController::class, 'index'])->name('admin.open-api.record-plans.index');
+        Route::get('/record-plans/{id:\d+}', [GB28181RecordPlanController::class, 'show'])->name('admin.open-api.record-plans.show');
+
+        // 流代理查询
+        Route::get('/stream-proxies', [StreamProxyController::class, 'index'])->name('admin.open-api.stream-proxies.index');
+        Route::get('/stream-proxies/{id:\d+}', [StreamProxyController::class, 'show'])->name('admin.open-api.stream-proxies.show');
+
+        // 设备树
+        Route::get('/devices/tree', [GB28181DeviceController::class, 'tree'])->name('admin.open-api.devices.tree');
+
+        // 直播控制
+        Route::post('/streams/start-live', [GB28181StreamController::class, 'startLive'])->name('admin.open-api.streams.start-live');
+        Route::post('/streams/stop-live', [GB28181StreamController::class, 'stopLive'])->name('admin.open-api.streams.stop-live');
+
+        // PTZ 控制
+        Route::post('/ptz/control', [GB28181PTZController::class, 'control'])->name('admin.open-api.ptz.control');
+
+        // 预置位管理
+        Route::get('/presets', [GB28181PTZController::class, 'getPresetList'])->name('admin.open-api.presets.list');
+        Route::post('/presets', [GB28181PTZController::class, 'setPreset'])->name('admin.open-api.presets.set');
+        Route::post('/presets/call', [GB28181PTZController::class, 'callPreset'])->name('admin.open-api.presets.call');
+        Route::post('/presets/delete', [GB28181PTZController::class, 'deletePreset'])->name('admin.open-api.presets.delete');
+    })->middleware([
+        OpenApiAuth::class,
         PermissionCheckMiddleware::class,
     ]);
 });

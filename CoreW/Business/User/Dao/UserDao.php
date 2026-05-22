@@ -12,6 +12,8 @@ interface UserDao extends AdvancedDaoInterface
 
     public function getByNickname($nickname);
 
+    public function getByApiKey($apiKey);
+
     public function getUnDestroyedUserByNickname($nickname);
 
     public function getUnDestroyedUserByNickNameOrVerifiedMobile($value);

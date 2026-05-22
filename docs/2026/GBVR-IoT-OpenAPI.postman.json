@@ -1,0 +1,657 @@
+{
+  "info": {
+    "name": "GBVR-IoT OpenAPI",
+    "description": "GBVR-IoT 平台开放 API 接口集合，支持录像管理、设备控制、直播、PTZ 等功能",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://your-domain.com",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "sk_live_your_api_key_here",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "录像管理",
+      "item": [
+        {
+          "name": "获取录像文件列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/recordings?device_id=&channel_id=&start_time=&end_time=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "recordings"],
+              "query": [
+                {
+                  "key": "device_id",
+                  "value": "",
+                  "description": "设备ID（可选）"
+                },
+                {
+                  "key": "channel_id",
+                  "value": "",
+                  "description": "通道ID（可选）"
+                },
+                {
+                  "key": "source_type",
+                  "value": "",
+                  "description": "录像来源类型（可选）"
+                },
+                {
+                  "key": "plan_id",
+                  "value": "",
+                  "description": "录像计划ID（可选）"
+                },
+                {
+                  "key": "stream_id",
+                  "value": "",
+                  "description": "流ID（可选）"
+                },
+                {
+                  "key": "media_server_id",
+                  "value": "",
+                  "description": "媒体服务器ID（可选）"
+                },
+                {
+                  "key": "start_time",
+                  "value": "",
+                  "description": "开始时间（可选）"
+                },
+                {
+                  "key": "end_time",
+                  "value": "",
+                  "description": "结束时间（可选）"
+                },
+                {
+                  "key": "start",
+                  "value": "0",
+                  "description": "分页起始位置"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "获取录像文件列表，支持多条件筛选和分页"
+          },
+          "response": []
+        },
+        {
+          "name": "获取录像文件详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/recordings/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "recordings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "录像文件ID"
+                }
+              ]
+            },
+            "description": "根据ID获取录像文件详细信息"
+          },
+          "response": []
+        },
+        {
+          "name": "开始录像",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\",\n  \"type\": 1,\n  \"customized_path\": \"\",\n  \"max_second\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/recordings/start-record",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "recordings", "start-record"]
+            },
+            "description": "手动开始指定通道的录像\n\n**前提条件：**\n1. 通道必须开启自动直播(auto_live=1)\n2. 通道不能绑定到启用的录像计划\n3. 通道必须配置 stream_id 和媒体服务器\n\n**参数说明：**\n- device_id: 设备ID\n- channel_id: 通道ID\n- type: 录像类型(0=HLS, 1=MP4，默认1)\n- customized_path: 自定义录像保存路径(可选)\n- max_second: MP4切片时间(秒)，0=使用配置(可选)\n\n**错误提示：**\n- 通道未开启自动直播\n- 通道已绑定到启用的录像计划\n- 通道未配置 stream_id\n- 通道未配置媒体服务器"
+          },
+          "response": []
+        },
+        {
+          "name": "停止录像",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\",\n  \"type\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/recordings/stop-record",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "recordings", "stop-record"]
+            },
+            "description": "手动停止指定通道的录像\n\n**参数说明：**\n- device_id: 设备ID\n- channel_id: 通道ID\n- type: 录像类型(0=HLS, 1=MP4，默认1)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "设备管理",
+      "item": [
+        {
+          "name": "获取设备列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/devices?start=0&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "devices"],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "0",
+                  "description": "分页起始位置"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "获取GB28181设备列表"
+          },
+          "response": []
+        },
+        {
+          "name": "获取设备详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/devices/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "devices", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "设备ID"
+                }
+              ]
+            },
+            "description": "根据ID获取设备详细信息"
+          },
+          "response": []
+        },
+        {
+          "name": "获取设备树",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/devices/tree",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "devices", "tree"]
+            },
+            "description": "获取设备树形结构数据"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "通道管理",
+      "item": [
+        {
+          "name": "获取通道列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/channels?device_id=&start=0&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "channels"],
+              "query": [
+                {
+                  "key": "device_id",
+                  "value": "",
+                  "description": "设备ID（可选）"
+                },
+                {
+                  "key": "start",
+                  "value": "0",
+                  "description": "分页起始位置"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "获取设备通道列表"
+          },
+          "response": []
+        },
+        {
+          "name": "获取通道详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/channels/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "channels", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "通道ID"
+                }
+              ]
+            },
+            "description": "根据ID获取通道详细信息"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "直播控制",
+      "item": [
+        {
+          "name": "开始直播",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/streams/start-live",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "streams", "start-live"]
+            },
+            "description": "开始指定通道的直播"
+          },
+          "response": []
+        },
+        {
+          "name": "停止直播",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/streams/stop-live",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "streams", "stop-live"]
+            },
+            "description": "停止指定通道的直播"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "PTZ控制",
+      "item": [
+        {
+          "name": "PTZ方向控制",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\",\n  \"command\": \"LEFT\",\n  \"speed\": 50,\n  \"zoom_speed\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/ptz/control",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "ptz", "control"]
+            },
+            "description": "PTZ摄像机方向控制（上下左右、变焦等）"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "预置位管理",
+      "item": [
+        {
+          "name": "获取预置位列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/presets?device_id=&channel_id=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "presets"],
+              "query": [
+                {
+                  "key": "device_id",
+                  "value": "",
+                  "description": "设备ID"
+                },
+                {
+                  "key": "channel_id",
+                  "value": "",
+                  "description": "通道ID"
+                }
+              ]
+            },
+            "description": "获取PTZ预置位列表"
+          },
+          "response": []
+        },
+        {
+          "name": "设置预置位",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\",\n  \"preset_id\": 1,\n  \"preset_name\": \"预置位1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/presets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "presets"]
+            },
+            "description": "设置PTZ预置位"
+          },
+          "response": []
+        },
+        {
+          "name": "调用预置位",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\",\n  \"preset_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/presets/call",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "presets", "call"]
+            },
+            "description": "调用PTZ预置位"
+          },
+          "response": []
+        },
+        {
+          "name": "删除预置位",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"34020000001320000001\",\n  \"channel_id\": \"34020000001320000001\",\n  \"preset_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/presets/delete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "presets", "delete"]
+            },
+            "description": "删除PTZ预置位"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "录像计划",
+      "item": [
+        {
+          "name": "获取录像计划列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/record-plans?start=0&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "record-plans"],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "0",
+                  "description": "分页起始位置"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "获取录像计划列表"
+          },
+          "response": []
+        },
+        {
+          "name": "获取录像计划详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/record-plans/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "record-plans", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "录像计划ID"
+                }
+              ]
+            },
+            "description": "根据ID获取录像计划详情"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "流代理管理",
+      "item": [
+        {
+          "name": "获取流代理列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/stream-proxies?start=0&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "stream-proxies"],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "0",
+                  "description": "分页起始位置"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "获取流代理列表"
+          },
+          "response": []
+        },
+        {
+          "name": "获取流代理详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/open-api/stream-proxies/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "open-api", "stream-proxies", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "流代理ID"
+                }
+              ]
+            },
+            "description": "根据ID获取流代理详情"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 namespace app\admin\controller;
 
 use app\admin\BaseController;
+use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\User\Service\UserService;
 use CoreW\Business\Role\Service\RoleService;
 use support\Request;
@@ -319,6 +320,63 @@ class UserController extends BaseController
         }
 
         return $roles;
+    }
+
+    /**
+     * 生成 API Key
+     * POST /api/admin/user/{id}/api-key
+     */
+    public function generateApiKey(Request $request, $id) : Response
+    {
+        $user = $this->getUserService()->getUser($id);
+        if (empty($user)) {
+            return $this->createErrorJsonResponse('用户不存在');
+        }
+
+        // 生成唯一的 API Key：sk_live_32位随机字符串
+        do {
+            $apiKey = 'sk_live_' . bin2hex(random_bytes(16));
+            $existingUser = $this->getUserService()->getUserByApiKey($apiKey);
+        } while ($existingUser !== null);
+
+        $user = $this->getUserService()->updateUser((int)$id, [
+            'api_key'      => $apiKey,
+            'api_enabled'  => 1,
+        ]);
+
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_UPDATE_USER, '生成API Key', ['id' => $id]);
+
+        return $this->createSuccessJsonResponse([
+            'api_key'     => $user['api_key'],
+            'api_enabled' => $user['api_enabled'],
+        ], 'API Key 生成成功');
+    }
+
+    /**
+     * 切换 API 访问启用状态
+     * POST /api/admin/user/{id}/api-key/toggle
+     */
+    public function toggleApiKey(Request $request, $id) : Response
+    {
+        $user = $this->getUserService()->getUser($id);
+        if (empty($user)) {
+            return $this->createErrorJsonResponse('用户不存在');
+        }
+
+        if (empty($user['api_key'])) {
+            return $this->createErrorJsonResponse('请先生成 API Key');
+        }
+
+        $newStatus = $user['api_enabled'] ? 0 : 1;
+        $this->getUserService()->updateUser((int)$id, [
+            'api_enabled' => $newStatus,
+        ]);
+
+        $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_UPDATE_USER, $newStatus ? '启用API访问' : '禁用API访问', ['id' => $id]);
+
+        return $this->createSuccessJsonResponse([
+            'api_enabled' => $newStatus,
+        ], $newStatus ? 'API 访问已启用' : 'API 访问已禁用');
     }
 
     /**

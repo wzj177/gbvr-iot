@@ -213,6 +213,13 @@ class UserServiceImpl extends BaseService implements UserService
         return !$user ? null : UserSerialize::unserialize($user);
     }
 
+    public function getUserByApiKey($apiKey)
+    {
+        $user = $this->getUserDao()->getByApiKey($apiKey);
+
+        return !$user ? null : UserSerialize::unserialize($user);
+    }
+
     /**
      * 根据用户名/邮箱/手机号精确查找用户
      * @param $keyword

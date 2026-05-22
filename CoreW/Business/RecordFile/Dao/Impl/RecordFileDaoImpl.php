@@ -17,6 +17,7 @@ class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
             'orderbys'   => [
                 'id',
                 'created_at',
+                'start_time'
             ],
             'timestamps' => [
                 'created_at',
@@ -144,10 +145,20 @@ class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
 
         $sql = "SELECT rf.*,
                        d.device_name AS device_name,
-                       dc.channel_name AS channel_name_latest
+                       dc.channel_name AS channel_name_latest,
+                       COALESCE(ps.plan_total_size, 0) AS plan_total_size,
+                       COALESCE(ps.plan_recorded_days, 0) AS plan_recorded_days
                 FROM {$this->table()} rf
                 LEFT JOIN gv_devices d ON rf.device_id = d.device_id
                 LEFT JOIN gv_device_channels dc ON rf.device_id = dc.device_id AND rf.channel_id = dc.channel_id
+                LEFT JOIN (
+                    SELECT plan_id,
+                           SUM(file_size) AS plan_total_size,
+                           COUNT(DISTINCT record_date) AS plan_recorded_days
+                    FROM {$this->table()}
+                    WHERE delete_at IS NULL AND plan_id > 0
+                    GROUP BY plan_id
+                ) ps ON rf.plan_id = ps.plan_id
                 WHERE {$whereClause}
                 ORDER BY {$orderByClause}
                 LIMIT {$start}, {$limit}";
