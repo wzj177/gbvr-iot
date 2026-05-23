@@ -76,20 +76,16 @@ class GB28181ChannelController extends BaseController
         // 为每个通道附加媒体服务器和设备信息
         foreach ($channels as &$channel) {
             // 媒体服务器信息
-            if (!empty($channel['media_server_id']) && isset($mediaServerMap[$channel['media_server_id']])) {
-                $channel['media_server'] = $mediaServerMap[$channel['media_server_id']];
-            } else {
-                $channel['media_server'] = null;
-            }
-
+            $channel['media_server'] = $mediaServerMap[$channel['media_server_id']] ?? null;
+            $device = $deviceMap[$channel['device_id']] ?? null;
+            $channel['device_name'] = '';
+            $channel['device_ip'] = '';
             // 设备名称
-            if (!empty($channel['device_id']) && isset($deviceMap[$channel['device_id']])) {
-                $device = $deviceMap[$channel['device_id']];
+            if ($device) {
                 $channel['device_name'] = !empty($device['device_name'])
                     ? $device['device_name']
                     : ($device['show_name'] ?? '');
-            } else {
-                $channel['device_name'] = '';
+                $channel['device_ip'] = $device['ip'];
             }
         }
 

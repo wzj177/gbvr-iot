@@ -41,6 +41,8 @@ class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
                 'channel_id = :channel_id',
                 'plan_id = :plan_id',
                 'record_date = :record_date',
+                'record_date >= :record_date_GE',
+                'record_date <= :record_date_LE',
                 'delete_at IS NULL',
             ],
         ];
@@ -93,76 +95,13 @@ class RecordFileDaoImpl extends AdvancedDaoImpl implements RecordFileDao
     }
 
     /**
-     * 查询录像文件（带设备和通道信息）
+     * 根据ID列表查询录像文件
      */
-    public function searchWithDeviceInfo(array $conditions, array $orderBys, int $start, int $limit) : array
+    public function findByIds(array $ids) : array
     {
-        // 构建 WHERE 条件
-        $whereClauses = ['rf.delete_at IS NULL'];
-        $params = [];
-
-        if (!empty($conditions['id'])) {
-            $whereClauses[] = 'rf.id = ?';
-            $params[] = $conditions['id'];
+        if (empty($ids)) {
+            return [];
         }
-        if (!empty($conditions['device_id'])) {
-            $whereClauses[] = 'rf.device_id = ?';
-            $params[] = $conditions['device_id'];
-        }
-        if (!empty($conditions['channel_id'])) {
-            $whereClauses[] = 'rf.channel_id = ?';
-            $params[] = $conditions['channel_id'];
-        }
-        if (!empty($conditions['source_type'])) {
-            $whereClauses[] = 'rf.source_type = ?';
-            $params[] = $conditions['source_type'];
-        }
-        if (isset($conditions['plan_id'])) {
-            $whereClauses[] = 'rf.plan_id = ?';
-            $params[] = $conditions['plan_id'];
-        }
-        if (!empty($conditions['stream_id'])) {
-            $whereClauses[] = 'rf.stream_id = ?';
-            $params[] = $conditions['stream_id'];
-        }
-        if (!empty($conditions['media_server_id'])) {
-            $whereClauses[] = 'rf.media_server_id = ?';
-            $params[] = $conditions['media_server_id'];
-        }
-
-        $whereClause = implode(' AND ', $whereClauses);
-
-        // 构建 ORDER BY
-        $orderByClause = 'rf.id DESC';
-        if (!empty($orderBys)) {
-            $orderParts = [];
-            foreach ($orderBys as $field => $direction) {
-                $direction = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
-                $orderParts[] = "rf.{$field} {$direction}";
-            }
-            $orderByClause = implode(', ', $orderParts);
-        }
-
-        $sql = "SELECT rf.*,
-                       d.device_name AS device_name,
-                       dc.channel_name AS channel_name_latest,
-                       COALESCE(ps.plan_total_size, 0) AS plan_total_size,
-                       COALESCE(ps.plan_recorded_days, 0) AS plan_recorded_days
-                FROM {$this->table()} rf
-                LEFT JOIN gv_devices d ON rf.device_id = d.device_id
-                LEFT JOIN gv_device_channels dc ON rf.device_id = dc.device_id AND rf.channel_id = dc.channel_id
-                LEFT JOIN (
-                    SELECT plan_id,
-                           SUM(file_size) AS plan_total_size,
-                           COUNT(DISTINCT record_date) AS plan_recorded_days
-                    FROM {$this->table()}
-                    WHERE delete_at IS NULL AND plan_id > 0
-                    GROUP BY plan_id
-                ) ps ON rf.plan_id = ps.plan_id
-                WHERE {$whereClause}
-                ORDER BY {$orderByClause}
-                LIMIT {$start}, {$limit}";
-
-        return $this->db()->fetchAllAssociative($sql, $params);
+        return $this->findInField('id', $ids);
     }
 }

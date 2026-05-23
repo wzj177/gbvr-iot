@@ -23,13 +23,7 @@ interface RecordFileDao extends AdvancedDaoInterface
     public function softDeleteByPlanIdAndDate(int $planId, string $recordDate) : int;
 
     /**
-     * 查询录像文件（带设备和通道信息）
-     *
-     * @param array $conditions 查询条件
-     * @param array $orderBys 排序
-     * @param int $start 起始位置
-     * @param int $limit 每页数量
-     * @return array
+     * 根据ID列表查询录像文件
      */
-    public function searchWithDeviceInfo(array $conditions, array $orderBys, int $start, int $limit) : array;
+    public function findByIds(array $ids) : array;
 }

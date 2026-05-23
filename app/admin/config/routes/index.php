@@ -316,6 +316,7 @@ Route::group('/api/admin', function () {
         // 云端录像文件
         Route::group('/recordings', function () {
             Route::get('', [GB28181RecordingController::class, 'index'])->name('admin.gb28181.recordings.index');
+            Route::post('/batch-delete', [GB28181RecordingController::class, 'batchDestroy'])->name('admin.gb28181.recordings.batch-delete');
         });
 
         // 录像合并任务
@@ -440,10 +441,12 @@ Route::group('/api/admin', function () {
         // 录像文件查询（按设备、通道、时间范围）
         Route::get('/recordings', [GB28181RecordingController::class, 'index'])->name('admin.open-api.recordings.index');
         Route::get('/recordings/{id:\d+}', [GB28181RecordingController::class, 'show'])->name('admin.open-api.recordings.show');
+        Route::post('/recordings/batch-delete', [GB28181RecordingController::class, 'batchDestroy'])->name('admin.open-api.recordings.batch-delete');
 
         // 录像控制
         Route::post('/recordings/start-record', [GB28181RecordingController::class, 'startRecord'])->name('admin.open-api.recordings.start-record');
         Route::post('/recordings/stop-record', [GB28181RecordingController::class, 'stopRecord'])->name('admin.open-api.recordings.stop-record');
+        Route::get('/recordings/is-recording', [GB28181RecordingController::class, 'isRecording'])->name('admin.open-api.recordings.is-recording');
 
         // 设备查询
         Route::get('/devices', [GB28181DeviceController::class, 'index'])->name('admin.open-api.devices.index');
