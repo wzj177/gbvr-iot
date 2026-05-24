@@ -161,7 +161,7 @@ class GB28181RecordingController extends BaseController
             }
 
             // 调用 ZLM startRecord（带重试，流可能尚未完全就绪）
-            $maxRetry = 3;
+            $maxRetry = 5;
             $retryInterval = 1000000; // 1秒
             $result = false;
             $lastError = '';
