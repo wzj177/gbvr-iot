@@ -383,7 +383,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     'address'      => $item['Address'] ?? '',
                     'parental'     => $item['Parental'] ?? 0,
                     'parent_id'    => $item['ParentID'] ?? '',
-                    'safety_way'   => $item['SafetyWay'] ?? 0,
+                    'safety_way'   => !empty($item['SafetyWay']) ? intval($item['SafetyWay']) : 0,
                     'register_way' => $item['RegisterWay'] ?? 1,
                     'cert_num'     => $item['CertNum'] ?? '',
                     'certifiable'  => $item['Certifiable'] ?? 0,
