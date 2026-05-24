@@ -16,7 +16,7 @@ class ReaddMediaServersTable extends Migration
 
         $sql = "CREATE TABLE `gv_media_servers` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `server_id` varchar(32) NOT NULL COMMENT '服务器唯一标识',
+  `server_id` varchar(64) NOT NULL COMMENT '服务器唯一标识',
   `name` varchar(100) NOT NULL COMMENT '服务器名称',
   `type` varchar(20) NOT NULL DEFAULT 'zlm' COMMENT '流媒体类型: zlm, srs, other',
   `support_gb28181` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否支持GB28181协议（0=不支持，1=支持）',
