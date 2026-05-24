@@ -160,15 +160,39 @@ class GB28181RecordingController extends BaseController
                 ]);
             }
 
-            // 调用 ZLM startRecord
-            $result = $zlmClient->startRecord(
-                '__defaultVhost__',
-                'rtp',
-                $channel['stream_id'],
-                $type,
-                $customizedPath,
-                $maxSecond
-            );
+            // 调用 ZLM startRecord（带重试，流可能尚未完全就绪）
+            $maxRetry = 3;
+            $retryInterval = 1000000; // 1秒
+            $result = false;
+            $lastError = '';
+
+            for ($i = 0; $i < $maxRetry; $i++) {
+                $result = $zlmClient->startRecord(
+                    BizEnum::ZLM_DEFAULT_VHOST,
+                    'rtp',
+                    $channel['stream_id'],
+                    $type,
+                    $customizedPath,
+                    $maxSecond
+                );
+
+                if ($result) {
+                    break;
+                }
+
+                $lastError = "第 " . ($i + 1) . " 次尝试失败";
+                $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_START_RECORDING, 'startRecord 重试', [
+                    'device_id'  => $deviceId,
+                    'channel_id' => $channelId,
+                    'stream_id'  => $channel['stream_id'],
+                    'attempt'    => $i + 1,
+                    'max_retry'  => $maxRetry,
+                ]);
+
+                if ($i < $maxRetry - 1) {
+                    usleep($retryInterval);
+                }
+            }
 
             if ($result) {
                 // 更新通道录像状态
@@ -194,7 +218,7 @@ class GB28181RecordingController extends BaseController
                     'record_status'   => 1,
                 ], $force ? '录像已强制重启' : '录像已启动');
             } else {
-                return $this->createErrorJsonResponse('启动录像失败，ZLM 调用失败');
+                return $this->createErrorJsonResponse('启动录像失败，已重试 ' . $maxRetry . ' 次。可能原因：流尚未就绪或ZLM异常，请稍后再试');
             }
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_START_RECORDING, '手动开始录像异常', [

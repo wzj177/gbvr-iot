@@ -255,6 +255,29 @@ class GB28181ChannelController extends BaseController
         }
     }
 
+    public function batchSetAutoLive(Request $request)
+    {
+        $ids = $request->post('ids', []);
+        $autoLive = $request->post('auto_live', 0);
+        if (empty($ids) || !is_array($ids)) {
+            return $this->createErrorJsonResponse('请选择要设置的通道');
+        }
+        if (!in_array($autoLive, [0, 1])) {
+            return $this->createErrorJsonResponse('请选择是否自动直播');
+        }
+        try {
+            $affectedRows = $this->getDeviceService()->batchUpdateChannels($ids, [
+                'auto_live' => $autoLive,
+            ]);
+            return $this->createSuccessJsonResponse([
+                'successCount' => $affectedRows,
+                'message'      => "成功设置 {$affectedRows} 个通道自动直播",
+            ]);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('批量设置通道自动直播失败: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function filterChannelTypes()
     {
         $items = [

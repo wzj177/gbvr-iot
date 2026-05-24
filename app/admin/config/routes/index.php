@@ -267,6 +267,7 @@ Route::group('/api/admin', function () {
             Route::put('/{id}', [GB28181ChannelController::class, 'update'])->name('admin.gb28181.channels.update');
             Route::delete('/{id}', [GB28181ChannelController::class, 'destroy'])->name('admin.gb28181.channels.destroy');
             Route::put('/batch/bind-media', [GB28181ChannelController::class, 'batchBindMedia'])->name('admin.gb28181.channels.batch-bind-media');
+            Route::put('/batch/set-auto-live', [GB28181ChannelController::class, 'batchSetAutoLive'])->name('admin.gb28181.channels.batch-set-auto-live');
             Route::get('/type/filters', [GB28181ChannelController::class, 'filterChannelTypes'])->name('admin.gb28181.devices.filter-channel-types');
             Route::get('/type/options', [GB28181ChannelController::class, 'channelTypeOptions'])->name('admin.gb28181.channels.type-options');
             Route::post('/codec-info', [GB28181ChannelController::class, 'getUrlCodecInfo'])->name('admin.gb28181.channels.codec-info');
