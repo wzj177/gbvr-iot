@@ -308,7 +308,13 @@ class ZLMClient
         $vhost = '__defaultVhost__';
         $domain = $this->host;
         //!empty($accessDomain) ? $accessDomain :
-
+        if (!empty($accessDomain)) {
+            $accessDomain = str_replace([
+                'http://',
+                'https://',
+            ], '', $accessDomain);
+            $domain = $accessDomain;
+        }
 
         return [
             //            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}?vhost={$vhost}",
