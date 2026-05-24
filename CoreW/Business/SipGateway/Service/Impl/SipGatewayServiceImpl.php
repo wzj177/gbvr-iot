@@ -14,6 +14,8 @@ use support\utils\ArrayToolkit;
 
 class SipGatewayServiceImpl extends BaseService implements SipGatewayService
 {
+    private const TRANSPORT_OPTIONS = ['UDP', 'TCP', 'ALL'];
+
     public function createGateway(array $data) : array
     {
         if (!ArrayToolkit::requireds($data, ['gateway_id', 'gateway_name', 'server_id', 'server_domain'])) {
@@ -34,6 +36,12 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
             throw SipGatewayException::DUPLICATE_HOST_PORT();
         }
 
+        // 验证 transport
+        $transport = strtoupper($data['transport'] ?? 'UDP');
+        if (!in_array($transport, self::TRANSPORT_OPTIONS)) {
+            throw SipGatewayException::INVALID_PARAMETER();
+        }
+
         $now = date('Y-m-d H:i:s');
         $fields = ArrayToolkit::parts($data, [
             'gateway_id', 'gateway_name', 'server_id', 'server_domain',
@@ -48,6 +56,7 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
 
         $fields['sip_host'] = $sipHost;
         $fields['sip_port'] = $sipPort;
+        $fields['transport'] = $transport;
         $fields['status'] = $data['status'] ?? 'active';
         $fields['device_count'] = 0;
         $fields['created_at'] = $now;
@@ -80,6 +89,15 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
             if (!empty($existing) && $existing['id'] !== $id) {
                 throw SipGatewayException::DUPLICATE_HOST_PORT();
             }
+        }
+
+        // 验证 transport
+        if (isset($data['transport'])) {
+            $transport = strtoupper($data['transport']);
+            if (!in_array($transport, self::TRANSPORT_OPTIONS)) {
+                throw SipGatewayException::INVALID_PARAMETER();
+            }
+            $data['transport'] = $transport;
         }
 
         $fields = ArrayToolkit::parts($data, [
@@ -413,7 +431,8 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
         $fields['server_domain'] = $data['server_domain'] ?? '';
         $fields['sip_host']      = $data['sip_host'] ?? '0.0.0.0';
         $fields['sip_port']      = (int)($data['sip_port'] ?? 5060);
-        $fields['transport']     = $data['transport'] ?? 'UDP';
+        $transport = strtoupper($data['transport'] ?? 'UDP');
+        $fields['transport']     = in_array($transport, self::TRANSPORT_OPTIONS) ? $transport : 'UDP';
         $fields['status']        = 'active';
         $fields['device_count']  = 0;
         $fields['last_seen_at']  = $now;
