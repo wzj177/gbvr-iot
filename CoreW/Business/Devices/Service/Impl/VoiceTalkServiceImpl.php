@@ -23,6 +23,7 @@ use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Dao\DaoProxy;
 use Ramsey\Uuid\Uuid;
+use CoreW\Business\BizEnum;
 
 /**
  * GB28181 语音对讲服务实现
@@ -417,7 +418,7 @@ class VoiceTalkServiceImpl extends BaseService implements VoiceTalkService
                     // 先检查流是否存在，不存在则跳过 stopSendRtp
                     $streamReady = $this->isStreamReady($session['media_server_id'], $app, $session['stream']);
                     if ($streamReady) {
-                        $zlmClient->stopSendRtp('__defaultVhost__', $app, $session['stream'], $session['ssrc']);
+                        $zlmClient->stopSendRtp(BizEnum::ZLM_DEFAULT_VHOST, $app, $session['stream'], $session['ssrc']);
                     }
                     //                    else {
                     //                        $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_VOICE_TALK,

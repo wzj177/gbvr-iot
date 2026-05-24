@@ -86,7 +86,7 @@ CREATE TABLE `gv_device_channels` (
   `status` enum('online','expired','unregistered') NOT NULL DEFAULT 'unregistered' COMMENT '通道状态',
   `stream_status` enum('idle','pushing','failed') DEFAULT 'idle' COMMENT ' 流状态',
   `enabled` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否启用',
-  `media_server_id` varchar(32) NOT NULL DEFAULT 'none' COMMENT '媒体服务器ID',
+  `media_server_id` varchar(64) NOT NULL DEFAULT 'none' COMMENT '媒体服务器ID',
   `dept_id` varchar(24) NOT NULL DEFAULT '' COMMENT '部门代码（上报上级使用）',
   `dept_name` varchar(64) NOT NULL DEFAULT '' COMMENT '部门名称',
   `parent_dept_id` varchar(24) NOT NULL DEFAULT '' COMMENT '上级部门代码',

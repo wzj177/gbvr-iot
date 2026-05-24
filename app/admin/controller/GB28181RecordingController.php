@@ -12,6 +12,7 @@ use CoreW\Business\SystemLog\LogEnum;
 use support\Request;
 use support\utils\Paginator;
 use CoreW\Business\Devices\Enums\DeviceStatusEnum;
+use CoreW\Business\BizEnum;
 
 /**
  * GB28181 云端录像文件控制器 - 管理后台
@@ -143,7 +144,7 @@ class GB28181RecordingController extends BaseController
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
 
             // 检查 ZLM 是否正在录制
-            $isRecording = $zlmClient->isRecording('__defaultVhost__', 'rtp', $channel['stream_id'], $type);
+            $isRecording = $zlmClient->isRecording(BizEnum::ZLM_DEFAULT_VHOST, 'rtp', $channel['stream_id'], $type);
 
             if ($isRecording && !$force) {
                 return $this->createErrorJsonResponse('该通道正在录制中，如需重新开始请设置 force=true');
@@ -151,7 +152,7 @@ class GB28181RecordingController extends BaseController
 
             // 正在录制且 force=true，先停止
             if ($isRecording && $force) {
-                $zlmClient->stopRecord('__defaultVhost__', 'rtp', $channel['stream_id'], $type);
+                $zlmClient->stopRecord(BizEnum::ZLM_DEFAULT_VHOST, 'rtp', $channel['stream_id'], $type);
                 $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_STOP_RECORDING, '强制停止录像（force重启）', [
                     'device_id'  => $deviceId,
                     'channel_id' => $channelId,
@@ -239,7 +240,7 @@ class GB28181RecordingController extends BaseController
         try {
             // 调用 ZLM stopRecord
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
-            $zlmClient->stopRecord('__defaultVhost__', 'rtp', $channel['stream_id'], $type);
+            $zlmClient->stopRecord(BizEnum::ZLM_DEFAULT_VHOST, 'rtp', $channel['stream_id'], $type);
 
             // 更新通道录像状态
             $this->getDeviceService()->updateChannel($channel['id'], ['record_status' => 0]);

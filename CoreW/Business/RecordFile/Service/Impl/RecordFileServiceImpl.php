@@ -12,6 +12,7 @@ use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Dao\DaoProxy;
 use support\Redis;
 use CoreW\Business\MediaServer\Service\MediaServerService;
+use CoreW\Business\BizEnum;
 
 class RecordFileServiceImpl extends BaseService implements RecordFileService
 {
@@ -26,7 +27,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
     {
         $streamId = $hookData['stream'] ?? '';
         $app = $hookData['app'] ?? '';
-        $vhost = $hookData['vhost'] ?? '__defaultVhost__';
+        $vhost = $hookData['vhost'] ?? BizEnum::ZLM_DEFAULT_VHOST;
 
         if (empty($streamId)) {
             $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, 'stream_id为空', $hookData);

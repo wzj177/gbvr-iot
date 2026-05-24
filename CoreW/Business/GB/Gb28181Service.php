@@ -21,6 +21,7 @@ use CoreW\Utils\CRC32Helper;
 use Ramsey\Uuid\Uuid;
 use support\Log;
 use support\utils\ArrayToolkit;
+use CoreW\Business\BizEnum;
 
 class Gb28181Service
 {
@@ -297,7 +298,7 @@ class Gb28181Service
             return false;
         }
 
-        $this->getZlmClientByServerId($session['media_server_id'])->stopSendRtp('__defaultVhost__', $session['app'] ?? $session['mode'], $session['stream'], $session['ssrc']);
+        $this->getZlmClientByServerId($session['media_server_id'])->stopSendRtp(BizEnum::ZLM_DEFAULT_VHOST, $session['app'] ?? $session['mode'], $session['stream'], $session['ssrc']);
 
         // 调用 GB28181Client 的 stopVoiceTalk 方法
         $result = $this->getGb28181Client()->stopVoiceTalk(

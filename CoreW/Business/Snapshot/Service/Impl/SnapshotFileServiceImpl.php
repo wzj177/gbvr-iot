@@ -7,6 +7,7 @@ use CoreW\Business\Snapshot\Dao\SnapshotFileDao;
 use CoreW\Business\Snapshot\Service\SnapshotFileService;
 use CoreW\Dao\DaoProxy;
 use support\Log;
+use CoreW\Business\BizEnum;
 
 class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
 {
@@ -46,7 +47,7 @@ class SnapshotFileServiceImpl extends BaseService implements SnapshotFileService
 
             $app = $streamInfo['app'];
             $stream = $streamInfo['stream'];
-            $vhost = $streamInfo['vhost'] ?? '__defaultVhost__';
+            $vhost = $streamInfo['vhost'] ?? BizEnum::ZLM_DEFAULT_VHOST;
 
             // 调用 ZLM getSnap 抓拍
             $snapResult = $this->getZlmClient()->getSnap($vhost, $app, $stream, 0, 0);

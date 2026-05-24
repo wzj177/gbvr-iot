@@ -15,6 +15,8 @@ use CoreW\Dao\DaoProxy;
 use CoreW\Exception\ZlmException;
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Redis;
+use CoreW\Business\BizEnum;
+use CoreW\Business\Devices\Service\DeviceService;
 
 class RecordTaskServiceImpl extends BaseService implements RecordTaskService
 {
@@ -34,8 +36,8 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             'task_type'       => RecordTaskTypeEnum::ALARM->value,
             'device_id'       => $deviceId,
             'channel_id'      => $channelId,
-            'media_server_id' => $this->getGb28181Service()->getMediaServerId(),
-            'vhost'           => '__defaultVhost__',
+            'media_server_id' => $channel['media_server_id'],
+            'vhost'           => BizEnum::ZLM_DEFAULT_VHOST,
             'app'             => 'rtp',
             'start_time'      => $startTimestamp,
             'end_time'        => $endTimestamp,
@@ -64,7 +66,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
             'device_id'       => $deviceId,
             'channel_id'      => $channelId,
             'media_server_id' => $channel['media_server_id'],
-            'vhost'           => '__defaultVhost__',
+            'vhost'           => BizEnum::ZLM_DEFAULT_VHOST,
             'app'             => 'rtp',
             'stream_id'       => $streamId,
             'ssrc'            => $ssrc,
@@ -788,7 +790,10 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
         return $this->createDao('Record:RecordTaskDao');
     }
 
-    protected function getDeviceService()
+    /**
+     * @return DeviceService
+     */
+    protected function getDeviceService() : DeviceService
     {
         return $this->createService('Devices:DeviceService');
     }
@@ -796,7 +801,7 @@ class RecordTaskServiceImpl extends BaseService implements RecordTaskService
     /**
      * @return Gb28181Service
      */
-    protected function getGb28181Service(): Gb28181Service
+    protected function getGb28181Service() : Gb28181Service
     {
         return $this->bfw->offsetGet('gb28181_service');
     }

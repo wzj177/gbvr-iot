@@ -306,7 +306,9 @@ class ZLMClient
     {
         // TODO: 读取 zlm config
         $vhost = '__defaultVhost__';
-        $domain = !empty($accessDomain) ? $accessDomain : $this->host;
+        $domain = $this->host;
+        //!empty($accessDomain) ? $accessDomain :
+
 
         return [
             //            'rtsp' => "rtsp://{$this->host}:{$rtspPort}/{$app}/{$streamId}?vhost={$vhost}",

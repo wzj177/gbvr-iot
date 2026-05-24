@@ -210,6 +210,7 @@ class MediaServerController extends BaseController
             'area_id',        // 区域ID
             'remark',         // 备注
             'record_path',     // 录制路径
+            'access_domain',   // 访问域名
         ];
 
         // 过滤只允许更新的字段
