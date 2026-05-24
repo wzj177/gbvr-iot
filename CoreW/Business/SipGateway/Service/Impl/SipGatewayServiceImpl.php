@@ -52,6 +52,7 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
         $fields['device_count'] = 0;
         $fields['created_at'] = $now;
         $fields['updated_at'] = $now;
+        $fields['debug'] = isset($data['debug']) ? intval($data['debug']) : 0;
 
         return $this->getSipGatewayDao()->create($fields);
     }
@@ -93,6 +94,7 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
         ]);
 
         $fields['updated_at'] = date('Y-m-d H:i:s');
+        $fields['debug'] = isset($data['debug']) ? intval($data['debug']) : 0;
 
         $this->getSipGatewayDao()->update($id, $fields);
 
