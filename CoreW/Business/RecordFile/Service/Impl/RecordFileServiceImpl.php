@@ -275,7 +275,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             return '';
         }
 
-        $host = $server['host'];
+        $host = $server['access_domain'] ?? $server['host'];
         $httpsPort = (int)($server['https_port'] ?? 443);
         $app = $file['app'] ?? 'rtp';
         $streamId = $file['stream_id'] ?? '';
