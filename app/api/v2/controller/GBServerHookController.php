@@ -676,7 +676,7 @@ class GBServerHookController extends BaseController
                 'manufacturer' => $info['Manufacturer'] ?? $device['manufacturer'],
                 'model'        => $info['Model'] ?? $device['model'],
                 'firmware'     => $info['Firmware'] ?? $device['firmware'],
-                'sum_num'      => $info['Channel'] ?? $device['sum_num'],
+                'sum_num'      => !empty($info['Channel']) ? intval($info['Channel']) : $device['sum_num'] ?? 1,
             ]);
 
             Log::channel('sip')->info('Device Info changed', [
