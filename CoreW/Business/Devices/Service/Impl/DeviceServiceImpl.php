@@ -422,7 +422,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             if ($count > 0) {
                 $this->updateDevice($device['id'], [
                     'sum_num'     => $count,
-                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name'],
+                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name'] ?? '',
                 ]);
             }
 
