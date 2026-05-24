@@ -375,6 +375,7 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
             $fields['status']       = 'active';
             $fields['last_seen_at'] = $now;
             $fields['updated_at']   = $now;
+            $fields['debug'] = isset($fields['debug']) ? intval($fields['debug']) : 0;
 
             if (isset($fields['sip_port'])) {
                 $fields['sip_port'] = (int)$fields['sip_port'];
