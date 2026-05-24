@@ -94,7 +94,7 @@ class GBGatewayConfigController extends BaseController
             'redis_config'             => $post['redis_config'] ?? [],
             'api_config'               => $post['api_config'] ?? [],
             'log_level'                => $post['log_level'] ?? 'INFO',
-            'debug'                    => $post['debug'] ?? false,
+            'debug'                    => $post['debug'] ? intval($post['debug']) : 0,
             'pid'                      => $post['pid'] ?? null,
             'ip'                       => $post['ip'] ?? null,
         ];

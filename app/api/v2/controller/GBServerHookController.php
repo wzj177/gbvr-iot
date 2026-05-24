@@ -152,7 +152,7 @@ class GBServerHookController extends BaseController
 
     /**
      * 处理设备返回的配置查询结果
-     *
+     * @deprecated
      * 设备返回 XML:
      * <Response><CmdType>ConfigDownload</CmdType><BasicParam>...</BasicParam></Response>
      */
