@@ -99,12 +99,8 @@ class GBGatewayConfigController extends BaseController
             'ip'                       => $post['ip'] ?? null,
         ];
 
-        try {
-            $gateway = $this->getSipGatewayService()->registerGateway($data);
-            return $this->createSuccessJsonResponse($gateway);
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('注册失败：' . $e->getMessage(), null, -1, 500);
-        }
+        $gateway = $this->getSipGatewayService()->registerGateway($data);
+        return $this->createSuccessJsonResponse($gateway);
     }
 
     protected function getSipGatewayService() : SipGatewayService
