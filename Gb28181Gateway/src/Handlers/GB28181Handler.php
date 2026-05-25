@@ -26,6 +26,7 @@ use Gb28181\GateWay\Message\CommandType\ConfigDownloadCommand;
 use Gb28181\GateWay\Traits\CurlTrait;
 use Gb28181\GateWay\Wrappers\CallbackWrapper;
 use Gb28181\GateWay\Libs\Logger;
+use Gb28181\GateWay\Libs\ClientRedis;
 use Gb28181Gateway\src\Message\CommandType\DeviceSubscribeCommand;
 use Gb28181Gateway\src\Message\CommandType\DeviceToServerSubscribeHandler;
 
@@ -335,11 +336,15 @@ class GB28181Handler
             $this->log("Command result: " . json_encode($result, JSON_UNESCAPED_UNICODE), 'DEBUG');
         }
 
-        // TODO: 将结果推送到 Redis 或回调接口
         if (!$result['success']) {
             $msg = $result['error'] ?? 'Unknown error';
             if (isset($result['message'])) {
                 $msg = $result['message'];
+            }
+            // Device not found 说明设备连接在另一个传输进程（UDP/TCP），重新入队让对方处理
+            if (str_contains($msg, 'Device not found')) {
+                $this->requeueCommand($message);
+                return;
             }
             $this->log("Command failed: {$msg}", 'ERROR');
         }
@@ -348,6 +353,31 @@ class GB28181Handler
             'scene' => 'gateway_cmd_after',
             'body'  => $result, // 替换为你要发送的实际数据
         ]);
+    }
+
+    /**
+     * 将命令重新推回队列尾部，供另一个传输进程（UDP/TCP）消费
+     */
+    private function requeueCommand(array $message) : void
+    {
+        $redisConfig = $this->config['redis'] ?? [];
+        if (empty($redisConfig)) {
+            $this->log("requeueCommand: no redis config, command dropped", 'ERROR');
+            return;
+        }
+
+        $baseQueue = $redisConfig['queue_name'] ?? 'gb28181:commands';
+        $gatewayId = $this->config['gateway_id'] ?? '';
+        $queueKey  = $baseQueue . ($gatewayId ? ':' . $gatewayId : '');
+
+        try {
+            $redis = new ClientRedis($redisConfig);
+            $redis->connect();
+            $redis->rPush($queueKey, json_encode($message));
+            $this->log("Command requeued: action={$message['action']}, device={$message['device_id']}, queue={$queueKey}", 'DEBUG');
+        } catch (\Throwable $e) {
+            $this->log("requeueCommand failed: " . $e->getMessage(), 'ERROR');
+        }
     }
 
     /**
