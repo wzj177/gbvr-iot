@@ -43,13 +43,11 @@ class Gb28181Server extends Command
         $action = $input->getArgument('action');
         $debug = $input->getOption('debug');
         $tcp = $input->getOption('tcp');
-        if ($debug !== null) {
-            $this->debug = $debug;
-        }
-
-        if ($tcp !== null) {
+        $this->debug = $debug;
+        if ($tcp) {
             $this->mode = 'TCP';
         }
+
         match ($action) {
             'start' => $this->startServer($input, $output),
             'stop' => $this->stopServer($input, $output),
