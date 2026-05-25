@@ -444,13 +444,19 @@ class GB28181Handler
         }
 
         $heartbeatUrl = preg_replace('#/server/hook$#', '/gateway/heartbeat', $this->config['api_hock_url']);
+        $transport = 'UDP';
+        if (isset($this->config['transport'])) {
+            $transport = $this->config['transport'];
+        } else if (isset($this->config['mode'])) {
+            $transport = $this->config['mode'];
+        }
 
         $payload = [
             'gateway_id'   => $gatewayId,
             'pid'          => getmypid(),
             'ip'           => gethostbyname(gethostname()),
             'device_count' => count($this->deviceManager->getOnlineDevices()),
-            'transport'    => $this->config['transport'] ?? 'UDP',
+            'transport'    => $transport,
         ];
 
         try {
