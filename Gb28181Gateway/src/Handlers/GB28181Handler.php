@@ -450,6 +450,7 @@ class GB28181Handler
             'pid'          => getmypid(),
             'ip'           => gethostbyname(gethostname()),
             'device_count' => count($this->deviceManager->getOnlineDevices()),
+            'transport'    => $this->config['transport'] ?? 'UDP',
         ];
 
         try {

@@ -236,6 +236,12 @@ php webman make:biz -i Student -s students
 - 发送邮件任务：
 - 会员邮箱验证任务：
 
+
+## gbs启动
+- 如果是UDP监听：`cp config/gb28181.php.example config/gb28181.php`
+- 如果是TCP监听：`cp config/gb28181_tcp.php.example config/gb28181_tcp.php`
+- UDP启动：`php webman gb28181:server start`
+- TCP启动：`php webman gb28181:server start --tcp`
 ## 注意
 ### daoProxy
 当开启了dao层缓存后，在dao里面以以下单词开头命名或直接命名的方法会被代理从而缓存dao层拿到的db数据，因为会走daoProxy

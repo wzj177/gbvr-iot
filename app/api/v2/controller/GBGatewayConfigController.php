@@ -44,6 +44,7 @@ class GBGatewayConfigController extends BaseController
             'pid'          => $request->post('pid'),
             'ip'           => $request->post('ip'),
             'device_count' => $request->post('device_count', 0),
+            'transport'    => $request->post('transport', 'UDP'),
         ];
 
         $result = $this->getSipGatewayService()->updateHeartbeat($gatewayId, $info);

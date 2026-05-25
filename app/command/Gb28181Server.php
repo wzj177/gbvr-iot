@@ -20,6 +20,8 @@ class Gb28181Server extends Command
 
     private bool $debug = false;
 
+    private string $mode = 'UDP';
+
     /**
      * @return void
      */
@@ -27,6 +29,7 @@ class Gb28181Server extends Command
     {
         $this
             ->addArgument('action', InputArgument::REQUIRED, '启动动作：start, stop, or status')
+            ->addOption('tcp', 't', InputOption::VALUE_NONE, '以TCP方式启动')
             ->addOption('debug', 'd', InputOption::VALUE_NONE, '是否开启调试模式');
     }
 
@@ -39,8 +42,13 @@ class Gb28181Server extends Command
     {
         $action = $input->getArgument('action');
         $debug = $input->getOption('debug');
+        $tcp = $input->getOption('tcp');
         if ($debug !== null) {
             $this->debug = $debug;
+        }
+
+        if ($tcp !== null) {
+            $this->mode = 'TCP';
         }
         match ($action) {
             'start' => $this->startServer($input, $output),
@@ -54,7 +62,7 @@ class Gb28181Server extends Command
 
     private function startServer(InputInterface $input, OutputInterface $output) : void
     {
-        $config = config('gb28181');
+        $config = $this->mode === 'UDP' ? config('gb28181') : config('gb28181_tcp');
         $config['debug'] = $this->debug;
 
         $sipOptions = [
@@ -83,7 +91,7 @@ class Gb28181Server extends Command
         $handlerConfig['api_hock_url'] = $config['api']['hock_url'];
         $handlerConfig['api_pull_url'] = $config['api']['pull_url'];
         $handlerConfig['api_hock_token'] = $config['api']['token'];
-        $handlerConfig['mq_type'] = $config['mq_type'] ??  'redis';
+        $handlerConfig['mq_type'] = $config['mq_type'] ?? 'redis';
         $handlerConfig['sip_host'] = $config['listen_addr'];
         // RabbitMQ 配置展开到 mq_config
         if (($handlerConfig['mq_type'] === 'rabbitmq') && !empty($config['rabbitmq'])) {
@@ -119,7 +127,7 @@ class Gb28181Server extends Command
 
     private function stopServer(InputInterface $input, OutputInterface $output) : void
     {
-        $pidFile = config('gb28181.pid_file');
+        $pidFile = $this->mode === 'UDP' ? config('gb28181.pid_file') : config('gb28181_tcp.pid_file');
         if (!file_exists($pidFile)) {
             $output->writeln("错误: PID 文件不存在: {$pidFile}\n");
             $output->writeln("提示: 服务器可能未运行，或 PID 文件路径不正确\n");
@@ -159,7 +167,7 @@ class Gb28181Server extends Command
     private function statusServer(InputInterface $input, OutputInterface $output) : void
     {
         // 检查 PID 文件是否存在
-        $pidFile = config('gb28181.pid_file');
+        $pidFile = $this->mode === 'UDP' ? config('gb28181.pid_file') : config('gb28181_tcp.pid_file');
         if (!file_exists($pidFile)) {
             $output->writeln("错误: PID 文件不存在: {$pidFile}\n");
             $output->writeln("提示: 服务器可能未运行，或 PID 文件路径不正确\n");
