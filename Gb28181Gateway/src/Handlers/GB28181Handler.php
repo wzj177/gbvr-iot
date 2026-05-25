@@ -743,7 +743,7 @@ class GB28181Handler
         $apiResult = $result['api_result'] ?? null;
         if (!$apiResult || empty($result['success'])) {
             $this->log("广播 broadcast_setup_rtp 失败，发送 500: taskId={$taskId}", 'ERROR');
-            $this->sipServer->sendResponse($tid, 500, 'Internal Server Error');
+            $this->sipServer->sendCallAnswer($tid, 500, null, 'Internal Server Error');
             $this->commandDispatcher->removePendingBroadcast($broadcastKey);
             return;
         }
@@ -753,7 +753,7 @@ class GB28181Handler
         if (!$streamReady) {
             // 流已不存在（前端停止推流），回复 410 Gone
             $this->log("广播流已不存在，回复 410 Gone: sessionId={$sessionId}, streamId={$streamId}", 'WARNING');
-            $this->sipServer->sendResponse($tid, 410, 'Gone - Stream not available');
+            $this->sipServer->sendCallAnswer($tid, 410, null, 'Gone - Stream not available');
             $this->commandDispatcher->removePendingBroadcast($broadcastKey);
 
             // 投递 stopAudioBroadcast 清理任务
@@ -1176,7 +1176,7 @@ class GB28181Handler
         $device = $this->deviceManager->getDevice($deviceId);
         if (!$device || !$device['registered']) {
             $this->log("设备未注册: {$deviceId}", 'ERROR');
-            $this->sipServer->sendResponse($tid, 404, 'Not Found');
+            $this->sipServer->sendCallAnswer($tid, 404, null, 'Not Found');
             return;
         }
 
@@ -1188,7 +1188,7 @@ class GB28181Handler
             // Subject 含 broadcast 但没有 pendingBroadcast，说明没有等待中的广播
             // WVP 对齐：回复 403 Forbidden
             $this->log("广播 INVITE 但无待处理广播: deviceId={$deviceId}, 回复 403", 'WARNING');
-            $this->sipServer->sendResponse($tid, 403, 'Forbidden - No pending broadcast');
+            $this->sipServer->sendCallAnswer($tid, 403, null, 'Forbidden - No pending broadcast');
             return;
         }
 
@@ -1197,8 +1197,8 @@ class GB28181Handler
         } else {
             // 常规视频INVITE(目前简化处理)
             $this->log("视频INVITE: {$deviceId} -> {$channelId}");
-            $this->sipServer->sendResponse($tid, 180, 'Ringing');
-            $this->sipServer->sendResponse($tid, 200, 'OK');
+            $this->sipServer->sendCallAnswer($tid, 180, null, 'Ringing');
+            $this->sipServer->sendCallAnswer($tid, 200, null, 'OK');
             $this->log("视频会话已建立");
         }
     }
@@ -2201,7 +2201,7 @@ class GB28181Handler
         // === Talk 模式：需要解析设备 SDP ===
         if (!$sdpBody) {
             $this->log("Talk模式INVITE缺少SDP", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request - Missing SDP');
+            $this->sipServer->sendCallAnswer($event->getTid(), 400, null, 'Bad Request - Missing SDP');
             return;
         }
 
@@ -2209,7 +2209,7 @@ class GB28181Handler
         $deviceSdp = \ExoSip::parseSdp($sdpBody);
         if (!$deviceSdp) {
             $this->log("SDP解析失败", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request - Invalid SDP');
+            $this->sipServer->sendCallAnswer($event->getTid(), 400, null, 'Bad Request - Invalid SDP');
             return;
         }
 
@@ -2220,7 +2220,7 @@ class GB28181Handler
 
         if (!$deviceIp || !$devicePort) {
             $this->log("设备SDP缺少IP或端口", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request - Missing IP/Port');
+            $this->sipServer->sendCallAnswer($event->getTid(), 400, null, 'Bad Request - Missing IP/Port');
             return;
         }
 
@@ -2298,7 +2298,7 @@ class GB28181Handler
 
         // === 第二步（WVP 对齐）：回复 100 Trying ===
         // 告知设备服务端正在处理，防止设备因超时重传 INVITE
-        $this->sipServer->sendResponse($tid, 100, 'Trying');
+        $this->sipServer->sendCallAnswer($tid, 100, null, 'Trying');
         $this->log("广播 INVITE: 已回复 100 Trying, fromDevice={$fromDeviceId}, channelId={$channelId}");
 
         // === 第三步（WVP 对齐）：解析设备 SDP ===
@@ -2363,7 +2363,7 @@ class GB28181Handler
 
         } catch (\Exception $e) {
             $this->log("广播 INVITE: 投递 Task 失败: {$e->getMessage()}", 'ERROR');
-            $this->sipServer->sendResponse($tid, 500, 'Internal Server Error');
+            $this->sipServer->sendCallAnswer($tid, 500, null, 'Internal Server Error');
             $this->commandDispatcher->removePendingBroadcast($broadcastKey);
         }
     }
