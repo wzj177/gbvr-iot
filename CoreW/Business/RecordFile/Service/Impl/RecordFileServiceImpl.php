@@ -13,6 +13,7 @@ use CoreW\Dao\DaoProxy;
 use support\Redis;
 use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Business\BizEnum;
+use support\utils\ArrayToolkit;
 
 class RecordFileServiceImpl extends BaseService implements RecordFileService
 {
@@ -296,12 +297,8 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
         }
 
         $servers = $this->getMediaServerService()->findServersByServerIds($serverIds);
-        $map = [];
-        foreach ($servers as $server) {
-            $map[$server['server_id']] = $server;
-        }
 
-        return $map;
+        return ArrayToolkit::index($servers, 'server_id');
     }
 
     protected function getMediaServerService() : MediaServerService

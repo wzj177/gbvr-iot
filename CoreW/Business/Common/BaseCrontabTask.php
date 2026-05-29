@@ -4,6 +4,7 @@ namespace CoreW\Business\Common;
 
 use CoreW\Core;
 use support\Log;
+use CoreW\Business\RecordMerge\Task\RecordMergeTask;
 
 abstract class BaseCrontabTask implements CrontabTaskInterface
 {
@@ -13,13 +14,11 @@ abstract class BaseCrontabTask implements CrontabTaskInterface
 
     public static function run() : void
     {
-        if (static::$_instance === null) {
-            static::$_instance = new static();
-        }
+        static::$_instance = new static();
         try {
             static::$_instance->execute();
         } catch (\Throwable $e) {
-            Log::channel('crontab')->error("Execute Crontab Task Job Error:{$e->getMessage()}");
+            static::$_instance->log()->error("Execute Crontab Task Job Error:{$e->getMessage()}");
         }
     }
 

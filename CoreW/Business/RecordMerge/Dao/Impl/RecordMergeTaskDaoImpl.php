@@ -34,6 +34,7 @@ class RecordMergeTaskDaoImpl extends AdvancedDaoImpl implements RecordMergeTaskD
                 'id IN (:ids)',
                 'device_id = :device_id',
                 'channel_id = :channel_id',
+                'media_server_id = :media_server_id',
                 'status = :status',
                 'status IN (:statuses)',
                 'start_time >= :start_time_gte',

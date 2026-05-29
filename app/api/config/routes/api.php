@@ -52,6 +52,9 @@ Route::group('/api', function () {
             AuthIdentityMiddleware::class,
         ]);
 
+        // 录像合并文件
+        Route::get('/record-merge/{mediaServerId}/{filename}', [\app\api\v1\controller\RecordMergeFileController::class, 'serveFile'])->name('api.record-merge.file');
+
         // 作品
         Route::group('/product', function () {
             Route::get('/types', [ProductController::class, 'typeList'])->name('api.product-type-list');

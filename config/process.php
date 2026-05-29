@@ -67,9 +67,9 @@ return [
     'CleanupRtpPortAndClearStreamSessionTask' => [
         'handler' => app\process\CleanupRtpPortAndClearStreamSessionTaskProcess::class,
     ],
-    'SubscriptionRenewTask'                   => [
-        'handler' => app\process\SubscriptionRenewTaskProcess::class,
-    ],
+//    'SubscriptionRenewTask'                   => [
+//        'handler' => app\process\SubscriptionRenewTaskProcess::class,
+//    ],
     'AutoLiveStreamTask'                      => [
         'handler' => app\process\AutoLiveStreamTaskProcess::class,
     ],
