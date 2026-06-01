@@ -86,44 +86,24 @@
           ]
         },
         {
-          "id": "system-logs",
-          "name": "系统日志",
-          "icon": "Document",
-          "path": "/system-logs",
-          "component": "SystemLogs",
-          "title": "系统日志",
+          "id": "device-stats",
+          "name": "设备统计",
+          "icon": "DataLine",
+          "path": "/device-stats",
+          "component": "DeviceStats",
+          "title": "设备统计",
           "parentId": "monitoring",
           "sort": 2,
           "type": "menu",
           "children": [
             {
-              "id": "system-logs-list-api",
-              "name": "日志列表API",
-              "path": "/api/admin/system/logs",
+              "id": "device-stats-api",
+              "name": "设备统计API",
+              "path": "/api/admin/gb28181/device-stats",
               "httpMethod": "GET",
-              "routeName": "system.logs",
-              "parentId": "system-logs",
+              "routeName": "admin.gb28181.system.device-stats",
+              "parentId": "device-stats",
               "sort": 1,
-              "type": "api"
-            },
-            {
-              "id": "system-logs-detail-api",
-              "name": "日志详情API",
-              "path": "/api/admin/system/log/{id}",
-              "httpMethod": "GET",
-              "routeName": "system.log",
-              "parentId": "system-logs",
-              "sort": 2,
-              "type": "api"
-            },
-            {
-              "id": "system-logs-batch-delete-api",
-              "name": "批量删除API",
-              "path": "/api/admin/system/log/btch-dlt",
-              "httpMethod": "POST",
-              "routeName": "system.log.batch-delete",
-              "parentId": "system-logs",
-              "sort": 3,
               "type": "api"
             }
           ]
@@ -165,7 +145,7 @@
             {
               "id": "media-server-create-api",
               "name": "创建服务器API",
-              "path": "/api/admin/media-server",
+              "path": "/api/admin/media-server/add",
               "httpMethod": "POST",
               "routeName": "media-server.store",
               "parentId": "media-server-list",
@@ -201,8 +181,60 @@
               "parentId": "media-server-list",
               "sort": 5,
               "type": "api"
+            },
+            {
+              "id": "media-server-get-config-api",
+              "name": "获取配置API",
+              "path": "/api/admin/media-server/{id}/config",
+              "httpMethod": "GET",
+              "routeName": "media-server.get-config",
+              "parentId": "media-server-list",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "media-server-set-config-api",
+              "name": "设置配置API",
+              "path": "/api/admin/media-server/{id}/config",
+              "httpMethod": "POST",
+              "routeName": "media-server.set-config",
+              "parentId": "media-server-list",
+              "sort": 7,
+              "type": "api"
+            },
+            {
+              "id": "media-server-restart-api",
+              "name": "重启服务器API",
+              "path": "/api/admin/media-server/{id}/restart",
+              "httpMethod": "POST",
+              "routeName": "media-server.restart",
+              "parentId": "media-server-list",
+              "sort": 8,
+              "type": "api"
             }
           ]
+        },
+        {
+          "id": "media-server-config",
+          "name": "网关配置",
+          "icon": "Setting",
+          "path": "/media-server-config/:id",
+          "component": "MediaServerConfig",
+          "title": "网关配置",
+          "parentId": "media-management",
+          "sort": 2,
+          "type": "path"
+        },
+        {
+          "id": "media-server-stats",
+          "name": "状态查询",
+          "icon": "DataAnalysis",
+          "path": "/media-server-stats/:id",
+          "component": "MediaServerStats",
+          "title": "状态查询",
+          "parentId": "media-management",
+          "sort": 3,
+          "type": "path"
         }
       ]
     },
@@ -312,28 +344,569 @@
               "type": "api"
             }
           ]
+        },
+        {
+          "id": "ptz-control",
+          "name": "云台控制",
+          "icon": "VideoCamera",
+          "path": "/ptz-control",
+          "component": "PTZControl",
+          "title": "云台控制",
+          "parentId": "gb-device",
+          "sort": 3,
+          "type": "menu",
+          "children": [
+            {
+              "id": "ptz-control-api",
+              "name": "云台控制API",
+              "path": "/api/admin/gb28181/devices/ptz",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.ptz.control",
+              "parentId": "ptz-control",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "ptz-presets-list-api",
+              "name": "预置位列表API",
+              "path": "/api/admin/gb28181/presets",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.presets.list",
+              "parentId": "ptz-control",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "ptz-presets-set-api",
+              "name": "设置预置位API",
+              "path": "/api/admin/gb28181/presets",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.presets.set",
+              "parentId": "ptz-control",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "ptz-presets-call-api",
+              "name": "调用预置位API",
+              "path": "/api/admin/gb28181/presets/call",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.presets.call",
+              "parentId": "ptz-control",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "ptz-presets-delete-api",
+              "name": "删除预置位API",
+              "path": "/api/admin/gb28181/presets/delete",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.presets.delete",
+              "parentId": "ptz-control",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "ptz-scan-api",
+              "name": "自动扫描API",
+              "path": "/api/admin/gb28181/devices/scan",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.ptz.scan",
+              "parentId": "ptz-control",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "ptz-streams-start-live-api",
+              "name": "开始直播API",
+              "path": "/api/admin/gb28181/streams/start-live",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.streams.start-live",
+              "parentId": "ptz-control",
+              "sort": 7,
+              "type": "api"
+            },
+            {
+              "id": "ptz-streams-stop-live-api",
+              "name": "停止直播API",
+              "path": "/api/admin/gb28181/streams/stop-live",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.streams.stop-live",
+              "parentId": "ptz-control",
+              "sort": 8,
+              "type": "api"
+            }
+          ]
         }
       ]
     },
     {
-      "id": "alarm-management",
-      "name": "报警管理",
-      "icon": "Warning",
-      "path": "/alarm-management",
+      "id": "stream-proxy-mgmt",
+      "name": "推拉流管理",
+      "icon": "Connection",
+      "path": "/stream-proxy-mgmt",
       "component": "",
-      "title": "报警管理",
+      "title": "推拉流管理",
       "parentId": 0,
       "sort": 5,
       "type": "directory",
       "children": [
         {
-          "id": "alarm-plan",
+          "id": "stream-proxy-list",
+          "name": "设备列表",
+          "icon": "List",
+          "path": "/stream-proxy",
+          "component": "StreamProxyList",
+          "title": "设备列表",
+          "parentId": "stream-proxy-mgmt",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "stream-proxy-index-api",
+              "name": "列表API",
+              "path": "/api/admin/stream-proxies",
+              "httpMethod": "GET",
+              "routeName": "admin.stream-proxies.index",
+              "parentId": "stream-proxy-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-create-api",
+              "name": "创建API",
+              "path": "/api/admin/stream-proxies",
+              "httpMethod": "POST",
+              "routeName": "admin.stream-proxies.create",
+              "parentId": "stream-proxy-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-show-api",
+              "name": "详情API",
+              "path": "/api/admin/stream-proxies/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.stream-proxies.show",
+              "parentId": "stream-proxy-list",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-update-api",
+              "name": "更新API",
+              "path": "/api/admin/stream-proxies/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.stream-proxies.update",
+              "parentId": "stream-proxy-list",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-delete-api",
+              "name": "删除API",
+              "path": "/api/admin/stream-proxies/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.stream-proxies.destroy",
+              "parentId": "stream-proxy-list",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-start-api",
+              "name": "启动API",
+              "path": "/api/admin/stream-proxies/{id}/start",
+              "httpMethod": "POST",
+              "routeName": "admin.stream-proxies.start",
+              "parentId": "stream-proxy-list",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-stop-api",
+              "name": "停止API",
+              "path": "/api/admin/stream-proxies/{id}/stop",
+              "httpMethod": "POST",
+              "routeName": "admin.stream-proxies.stop",
+              "parentId": "stream-proxy-list",
+              "sort": 7,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-restart-api",
+              "name": "重启API",
+              "path": "/api/admin/stream-proxies/{id}/restart",
+              "httpMethod": "POST",
+              "routeName": "admin.stream-proxies.restart",
+              "parentId": "stream-proxy-list",
+              "sort": 8,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "stream-proxy-logs",
+          "name": "日志列表",
+          "icon": "Document",
+          "path": "/stream-proxy-logs",
+          "component": "StreamProxyLogList",
+          "title": "日志列表",
+          "parentId": "stream-proxy-mgmt",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "stream-proxy-logs-api",
+              "name": "日志列表API",
+              "path": "/api/admin/stream-proxy-logs",
+              "httpMethod": "GET",
+              "routeName": "admin.stream-proxy-logs.index",
+              "parentId": "stream-proxy-logs",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "stream-proxy-logs-cleanup-api",
+              "name": "清理日志API",
+              "path": "/api/admin/stream-proxy-logs/cleanup",
+              "httpMethod": "POST",
+              "routeName": "admin.stream-proxy-logs.cleanup",
+              "parentId": "stream-proxy-logs",
+              "sort": 2,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "video",
+      "name": "云端录像",
+      "icon": "VideoPlay",
+      "path": "/video",
+      "component": "VideoManagement",
+      "title": "云端录像",
+      "parentId": 0,
+      "sort": 6,
+      "type": "directory",
+      "children": [
+        {
+          "id": "video-list",
+          "name": "录像回放",
+          "icon": "VideoCamera",
+          "path": "/video-list",
+          "component": "VideoPlayback",
+          "title": "录像回放",
+          "parentId": "video",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "device-tree-api",
+              "name": "设备树API",
+              "path": "/api/admin/gb28181/devices/tree",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.devices.tree",
+              "parentId": "video-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "streams-start-playback-api",
+              "name": "开始回放API",
+              "path": "/api/admin/gb28181/streams/playback/start",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.streams.start-playback",
+              "parentId": "video-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "streams-stop-playback-api",
+              "name": "停止回放API",
+              "path": "/api/admin/gb28181/streams/playback/stop",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.streams.stop-playback",
+              "parentId": "video-list",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "streams-start-live-api",
+              "name": "开始直播API",
+              "path": "/api/admin/gb28181/streams/start-live",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.streams.start-live",
+              "parentId": "video-list",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "streams-stop-live-api",
+              "name": "停止直播API",
+              "path": "/api/admin/gb28181/streams/stop-live",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.streams.stop-live",
+              "parentId": "video-list",
+              "sort": 5,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "video-player",
+          "name": "视频播放",
+          "icon": "Play",
+          "path": "/video-playback/:deviceId",
+          "component": "VideoTimeline",
+          "title": "视频播放",
+          "parentId": "video",
+          "sort": 2,
+          "type": "path"
+        },
+        {
+          "id": "record-plan",
+          "name": "录像计划",
+          "icon": "Calendar",
+          "path": "/record-plan",
+          "component": "RecordPlanList",
+          "title": "录像计划",
+          "parentId": "video",
+          "sort": 3,
+          "type": "menu",
+          "children": [
+            {
+              "id": "record-plan-index-api",
+              "name": "计划列表API",
+              "path": "/api/admin/gb28181/record-plans",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.record-plans.index",
+              "parentId": "record-plan",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-show-api",
+              "name": "计划详情API",
+              "path": "/api/admin/gb28181/record-plans/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.record-plans.show",
+              "parentId": "record-plan",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-store-api",
+              "name": "创建计划API",
+              "path": "/api/admin/gb28181/record-plans",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.record-plans.store",
+              "parentId": "record-plan",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-update-api",
+              "name": "更新计划API",
+              "path": "/api/admin/gb28181/record-plans/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.gb28181.record-plans.update",
+              "parentId": "record-plan",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-delete-api",
+              "name": "删除计划API",
+              "path": "/api/admin/gb28181/record-plans/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.gb28181.record-plans.destroy",
+              "parentId": "record-plan",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-toggle-api",
+              "name": "启停计划API",
+              "path": "/api/admin/gb28181/record-plans/{id}/toggle",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.record-plans.toggle",
+              "parentId": "record-plan",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-bind-channels-api",
+              "name": "绑定通道API",
+              "path": "/api/admin/gb28181/record-plans/{id}/channels",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.record-plans.bind-channels",
+              "parentId": "record-plan",
+              "sort": 7,
+              "type": "api"
+            },
+            {
+              "id": "record-plan-unbind-channels-api",
+              "name": "解绑通道API",
+              "path": "/api/admin/gb28181/record-plans/channels/unbind",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.record-plans.unbind-channels",
+              "parentId": "record-plan",
+              "sort": 8,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "cloud-recordings",
+          "name": "录像文件",
+          "icon": "Film",
+          "path": "/cloud-recordings",
+          "component": "RecordingsList",
+          "title": "录像文件",
+          "parentId": "video",
+          "sort": 4,
+          "type": "menu",
+          "children": [
+            {
+              "id": "recordings-index-api",
+              "name": "录像列表API",
+              "path": "/api/admin/gb28181/recordings",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.recordings.index",
+              "parentId": "cloud-recordings",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "recordings-batch-delete-api",
+              "name": "批量删除API",
+              "path": "/api/admin/gb28181/recordings/batch-delete",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.recordings.batch-delete",
+              "parentId": "cloud-recordings",
+              "sort": 2,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "record-tasks",
+          "name": "回放下载",
+          "icon": "List",
+          "path": "/record-tasks",
+          "component": "RecordTaskList",
+          "title": "回放下载",
+          "parentId": "video",
+          "sort": 5,
+          "type": "menu",
+          "children": [
+            {
+              "id": "record-tasks-index-api",
+              "name": "任务列表API",
+              "path": "/api/admin/gb28181/record-tasks",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.record-tasks.index",
+              "parentId": "record-tasks",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "record-tasks-delete-api",
+              "name": "删除任务API",
+              "path": "/api/admin/gb28181/record-tasks/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.gb28181.record-tasks.destroy",
+              "parentId": "record-tasks",
+              "sort": 2,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "record-merge",
+          "name": "录像合并",
+          "icon": "Merge",
+          "path": "/record-merge",
+          "component": "RecordMergeList",
+          "title": "录像合并",
+          "parentId": "video",
+          "sort": 6,
+          "type": "menu",
+          "children": [
+            {
+              "id": "record-merge-index-api",
+              "name": "合并列表API",
+              "path": "/api/admin/gb28181/record-merge-tasks",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.record-merge-tasks.index",
+              "parentId": "record-merge",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "record-merge-show-api",
+              "name": "合并详情API",
+              "path": "/api/admin/gb28181/record-merge-tasks/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.gb28181.record-merge-tasks.show",
+              "parentId": "record-merge",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "record-merge-store-api",
+              "name": "创建合并API",
+              "path": "/api/admin/gb28181/record-merge-tasks",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.record-merge-tasks.store",
+              "parentId": "record-merge",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "record-merge-cancel-api",
+              "name": "取消合并API",
+              "path": "/api/admin/gb28181/record-merge-tasks/{id}/cancel",
+              "httpMethod": "POST",
+              "routeName": "admin.gb28181.record-merge-tasks.cancel",
+              "parentId": "record-merge",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "record-merge-delete-api",
+              "name": "删除合并API",
+              "path": "/api/admin/gb28181/record-merge-tasks/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.gb28181.record-merge-tasks.destroy",
+              "parentId": "record-merge",
+              "sort": 5,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "alarms",
+      "name": "报警管理",
+      "icon": "Bell",
+      "path": "/alarms",
+      "component": "",
+      "title": "报警管理",
+      "parentId": 0,
+      "sort": 8,
+      "type": "directory",
+      "children": [
+        {
+          "id": "alarm-plans",
           "name": "报警计划",
-          "icon": "Bell",
+          "icon": "Calendar",
           "path": "/alarm-plans",
           "component": "AlarmPlanList",
           "title": "报警计划",
-          "parentId": "alarm-management",
+          "parentId": "alarms",
           "sort": 1,
           "type": "menu",
           "children": [
@@ -343,7 +916,7 @@
               "path": "/api/admin/alarm-plan",
               "httpMethod": "GET",
               "routeName": "admin.alarm-plan.index",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 1,
               "type": "api"
             },
@@ -353,7 +926,7 @@
               "path": "/api/admin/alarm-plan/{id}",
               "httpMethod": "GET",
               "routeName": "admin.alarm-plan.show",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 2,
               "type": "api"
             },
@@ -363,7 +936,7 @@
               "path": "/api/admin/alarm-plan",
               "httpMethod": "POST",
               "routeName": "admin.alarm-plan.store",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 3,
               "type": "api"
             },
@@ -373,7 +946,7 @@
               "path": "/api/admin/alarm-plan/{id}",
               "httpMethod": "PUT",
               "routeName": "admin.alarm-plan.update",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 4,
               "type": "api"
             },
@@ -383,7 +956,7 @@
               "path": "/api/admin/alarm-plan/{id}",
               "httpMethod": "DELETE",
               "routeName": "admin.alarm-plan.destroy",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 5,
               "type": "api"
             },
@@ -393,7 +966,7 @@
               "path": "/api/admin/alarm-plan/{id}/channels",
               "httpMethod": "POST",
               "routeName": "admin.alarm-plan.bind-channels",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 6,
               "type": "api"
             },
@@ -403,20 +976,20 @@
               "path": "/api/admin/alarm-plan/{id}/channels/{channelId}",
               "httpMethod": "DELETE",
               "routeName": "admin.alarm-plan.unbind-channel",
-              "parentId": "alarm-plan",
+              "parentId": "alarm-plans",
               "sort": 7,
               "type": "api"
             }
           ]
         },
         {
-          "id": "alarm-event",
+          "id": "alarm-events",
           "name": "报警事件",
-          "icon": "WarnTriangleFilled",
+          "icon": "Warning",
           "path": "/alarm-events",
           "component": "AlarmEventList",
           "title": "报警事件",
-          "parentId": "alarm-management",
+          "parentId": "alarms",
           "sort": 2,
           "type": "menu",
           "children": [
@@ -426,7 +999,7 @@
               "path": "/api/v2/alarm/events",
               "httpMethod": "GET",
               "routeName": "api.v2.alarm.events.index",
-              "parentId": "alarm-event",
+              "parentId": "alarm-events",
               "sort": 1,
               "type": "api"
             },
@@ -436,7 +1009,7 @@
               "path": "/api/v2/alarm/events/{id}",
               "httpMethod": "GET",
               "routeName": "api.v2.alarm.events.show",
-              "parentId": "alarm-event",
+              "parentId": "alarm-events",
               "sort": 2,
               "type": "api"
             },
@@ -446,8 +1019,299 @@
               "path": "/api/admin/alarm-event/stats",
               "httpMethod": "GET",
               "routeName": "admin.alarm-event.stats",
-              "parentId": "alarm-event",
+              "parentId": "alarm-events",
               "sort": 3,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "map",
+      "name": "电子地图",
+      "icon": "MapLocation",
+      "path": "/map",
+      "component": "ElectronicMap",
+      "title": "电子地图",
+      "parentId": 0,
+      "sort": 9,
+      "type": "menu",
+      "children": [
+        {
+          "id": "map-devices-api",
+          "name": "地图设备API",
+          "path": "/api/admin/gb28181/map/devices",
+          "httpMethod": "GET",
+          "routeName": "admin.gb28181.map.devices",
+          "parentId": "map",
+          "sort": 1,
+          "type": "api"
+        },
+        {
+          "id": "map-update-position-api",
+          "name": "更新位置API",
+          "path": "/api/admin/gb28181/map/devices/{id}/position",
+          "httpMethod": "PUT",
+          "routeName": "admin.gb28181.map.update-position",
+          "parentId": "map",
+          "sort": 2,
+          "type": "api"
+        }
+      ]
+    },
+    {
+      "id": "sip-gateway",
+      "name": "SIP 网关管理",
+      "icon": "Connection",
+      "path": "/sip-gateway",
+      "component": "",
+      "title": "SIP 网关管理",
+      "parentId": 0,
+      "sort": 10,
+      "type": "directory",
+      "children": [
+        {
+          "id": "sip-gateway-list",
+          "name": "网关列表",
+          "icon": "List",
+          "path": "/sip-gateway-list",
+          "component": "SipGatewayList",
+          "title": "网关列表",
+          "parentId": "sip-gateway",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "sip-gateway-index-api",
+              "name": "网关列表API",
+              "path": "/api/admin/sip-gateways",
+              "httpMethod": "GET",
+              "routeName": "admin.sip-gateways.index",
+              "parentId": "sip-gateway-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-show-api",
+              "name": "网关详情API",
+              "path": "/api/admin/sip-gateways/{id}",
+              "httpMethod": "GET",
+              "routeName": "admin.sip-gateways.show",
+              "parentId": "sip-gateway-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-store-api",
+              "name": "创建网关API",
+              "path": "/api/admin/sip-gateways",
+              "httpMethod": "POST",
+              "routeName": "admin.sip-gateways.store",
+              "parentId": "sip-gateway-list",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-update-api",
+              "name": "更新网关API",
+              "path": "/api/admin/sip-gateways/{id}",
+              "httpMethod": "PUT",
+              "routeName": "admin.sip-gateways.update",
+              "parentId": "sip-gateway-list",
+              "sort": 4,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-delete-api",
+              "name": "删除网关API",
+              "path": "/api/admin/sip-gateways/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "admin.sip-gateways.destroy",
+              "parentId": "sip-gateway-list",
+              "sort": 5,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-toggle-api",
+              "name": "启停网关API",
+              "path": "/api/admin/sip-gateways/{id}/toggle",
+              "httpMethod": "POST",
+              "routeName": "admin.sip-gateways.toggle",
+              "parentId": "sip-gateway-list",
+              "sort": 6,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-bind-api",
+              "name": "绑定设备API",
+              "path": "/api/admin/sip-gateways/bind",
+              "httpMethod": "POST",
+              "routeName": "admin.sip-gateways.bind",
+              "parentId": "sip-gateway-list",
+              "sort": 7,
+              "type": "api"
+            },
+            {
+              "id": "sip-gateway-unbind-api",
+              "name": "解绑设备API",
+              "path": "/api/admin/sip-gateways/unbind",
+              "httpMethod": "POST",
+              "routeName": "admin.sip-gateways.unbind",
+              "parentId": "sip-gateway-list",
+              "sort": 8,
+              "type": "api"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "name": "系统管理",
+      "icon": "Setting",
+      "path": "/system",
+      "component": "",
+      "title": "系统管理",
+      "parentId": 0,
+      "sort": 11,
+      "type": "directory",
+      "children": [
+        {
+          "id": "system-logs",
+          "name": "系统日志",
+          "icon": "Document",
+          "path": "/system-logs",
+          "component": "SystemLogs",
+          "title": "系统日志",
+          "parentId": "system",
+          "sort": 1,
+          "type": "menu",
+          "children": [
+            {
+              "id": "system-logs-list-api",
+              "name": "日志列表API",
+              "path": "/api/admin/system/logs",
+              "httpMethod": "GET",
+              "routeName": "system.logs",
+              "parentId": "system-logs",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "system-logs-detail-api",
+              "name": "日志详情API",
+              "path": "/api/admin/system/log/{id}",
+              "httpMethod": "GET",
+              "routeName": "system.log",
+              "parentId": "system-logs",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "system-logs-batch-delete-api",
+              "name": "批量删除API",
+              "path": "/api/admin/system/log/btch-dlt",
+              "httpMethod": "POST",
+              "routeName": "system.log.batch-delete",
+              "parentId": "system-logs",
+              "sort": 3,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "attachment-list",
+          "name": "附件管理",
+          "icon": "Files",
+          "path": "/attachments",
+          "component": "AttachmentList",
+          "title": "附件管理",
+          "parentId": "system",
+          "sort": 2,
+          "type": "menu",
+          "children": [
+            {
+              "id": "attachment-list-api",
+              "name": "附件列表API",
+              "path": "/api/admin/attachment/index",
+              "httpMethod": "GET",
+              "routeName": "attachment.list",
+              "parentId": "attachment-list",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "attachment-upload-api",
+              "name": "上传附件API",
+              "path": "/api/admin/attachment/upload",
+              "httpMethod": "POST",
+              "routeName": "attachment.upload",
+              "parentId": "attachment-list",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "attachment-delete-api",
+              "name": "删除附件API",
+              "path": "/api/admin/attachment/{id}",
+              "httpMethod": "DELETE",
+              "routeName": "attachment.delete",
+              "parentId": "attachment-list",
+              "sort": 3,
+              "type": "api"
+            }
+          ]
+        },
+        {
+          "id": "system-settings",
+          "name": "系统设置",
+          "icon": "Tools",
+          "path": "/system-settings",
+          "component": "SystemSettings",
+          "title": "系统设置",
+          "parentId": "system",
+          "sort": 3,
+          "type": "menu",
+          "children": [
+            {
+              "id": "setting-view-api",
+              "name": "获取设置API",
+              "path": "/api/admin/setting/view/{key}",
+              "httpMethod": "GET",
+              "routeName": "setting.get",
+              "parentId": "system-settings",
+              "sort": 1,
+              "type": "api"
+            },
+            {
+              "id": "setting-basic-api",
+              "name": "基本设置API",
+              "path": "/api/admin/setting/basic",
+              "httpMethod": "POST",
+              "routeName": "setting.basic",
+              "parentId": "system-settings",
+              "sort": 2,
+              "type": "api"
+            },
+            {
+              "id": "setting-auth-api",
+              "name": "认证设置API",
+              "path": "/api/admin/setting/auth",
+              "httpMethod": "POST",
+              "routeName": "setting.auth",
+              "parentId": "system-settings",
+              "sort": 3,
+              "type": "api"
+            },
+            {
+              "id": "setting-storage-api",
+              "name": "存储设置API",
+              "path": "/api/admin/setting/storage",
+              "httpMethod": "POST",
+              "routeName": "setting.storage",
+              "parentId": "system-settings",
+              "sort": 4,
               "type": "api"
             }
           ]
@@ -462,7 +1326,7 @@
       "component": "",
       "title": "权限管理",
       "parentId": 0,
-      "sort": 9,
+      "sort": 12,
       "type": "directory",
       "children": [
         {
