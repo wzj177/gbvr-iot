@@ -1,5 +1,28 @@
 # GBVR-IOT
-基于php-exosip2 + webman 实现的国标x协议视频管理平台
+
+基于 [php-exosip](https://github.com/wzj177/php-exosip) + [Webman](https://www.workerman.net/doc/webman) 实现的国标 GB28181 协议视频管理平台
+
+> 前端管理界面：[PHP-GB28181-UI](https://github.com/wzj177/PHP-GB28181-UI)
+>
+> PHP SIP 扩展：[php-exosip](https://github.com/wzj177/php-exosip)
+
+## 效果预览
+
+<!-- 预留效果图位置 -->
+<!-- ![设备管理](docs/screenshots/device-list.png) -->
+<!-- ![实时预览](docs/screenshots/live-preview.png) -->
+<!-- ![VR全景](docs/screenshots/vr-panorama.png) -->
+<!-- ![一张图](docs/screenshots/map-overview.png) -->
+
+> 效果图待补充，可放置到 `docs/screenshots/` 目录
+
+## 演示站点
+
+<!-- 预留演示站点位置 -->
+<!-- 演示地址：https://demo.gbvr-iot.example.com -->
+<!-- 账号：admin / 密码：admin123 -->
+
+> 演示站点待部署
 
 ## 核心功能
 - 完整的gb信令服务
@@ -246,6 +269,13 @@ php webman make:biz -i Student -s students
 ### daoProxy
 当开启了dao层缓存后，在dao里面以以下单词开头命名或直接命名的方法会被代理从而缓存dao层拿到的db数据，因为会走daoProxy
 `'get', 'find', 'search', 'count', 'create', 'batchCreate', 'batchUpdate', 'batchDelete', 'update', 'wave', 'delete'`
+
+## 相关仓库
+
+| 仓库 | 说明 |
+|------|------|
+| [php-exosip](https://github.com/wzj177/php-exosip) | PHP C 扩展，封装 eXosip2 提供 SIP 服务端/客户端能力 |
+| [PHP-GB28181-UI](https://github.com/wzj177/PHP-GB28181-UI) | 管理后台前端（Vue.js），设备管理、实时预览、云台控制等 |
 
 ## 工具和资料
 

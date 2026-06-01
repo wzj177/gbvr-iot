@@ -1609,31 +1609,6 @@ class SipEvent {
      * @see ExoSip::parseSdp() Static method for parsing any SDP string
      */
     public function getSdp(): ?array {}
-    
-    /**
-     * Get file descriptor (TCP mode only)
-     * 
-     * Returns the TCP connection file descriptor for this event.
-     * Used in TCP mode for connection binding and management.
-     * 
-     * @return int File descriptor (>0 for TCP), 0 for UDP
-     * 
-     * @example
-     * ```php
-     * $sip->onRegister = function($event) use ($deviceManager) {
-     *     $mode = $this->getConfig()['mode'] ?? 'udp';
-     *     
-     *     if ($mode === 'tcp' || $mode === 'tls') {
-     *         $fd = $event->getFd();
-     *         if ($fd > 0) {
-     *             $deviceId = extractDeviceId($event);
-     *             $deviceManager->bindConnection($deviceId, $fd);
-     *         }
-     *     }
-     * };
-     * ```
-     */
-    public function getFd(): int {}
 }
 
 /**
@@ -1772,25 +1747,32 @@ class SipSession {
     public function getCallId(): int {}
     
     /**
+     * Get Dialog-ID from session
+     *
+     * @return int eXosip dialog_id
+     */
+    public function getDialogId(): int {}
+
+    /**
      * Get From URI
-     * 
+     *
      * @return string|null From URI
      */
     public function getFromUri(): ?string {}
-    
+
     /**
      * Get To URI
-     * 
+     *
      * @return string|null To URI
      */
     public function getToUri(): ?string {}
-    
+
     /**
      * Get session state/type
-     * 
+     *
      * NOTE: Currently returns an integer (session type) from the internal SessionInfo structure.
      * This is NOT a state string like "active", "idle", etc.
-     * 
+     *
      * @return int Session type (internal value)
      */
     public function getState(): int {}
