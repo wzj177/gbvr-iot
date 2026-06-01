@@ -19,7 +19,7 @@ GB28181 协议视频管理平台
 
 ## 演示站点
 
-- 演示地址：http://wanzij.cn:8888
+- 演示地址：https://gbs.wanzij.cn
 - 账号：admin / 密码：qwe123456@vr
 
 > 演示站点待部署
