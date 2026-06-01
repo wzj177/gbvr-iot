@@ -14,6 +14,8 @@ use support\utils\ArrayToolkit;
 
 class SipGatewayServiceImpl extends BaseService implements SipGatewayService
 {
+    private const TRANSPORT_OPTIONS = ['UDP', 'TCP', 'ALL'];
+
     public function createGateway(array $data) : array
     {
         if (!ArrayToolkit::requireds($data, ['gateway_id', 'gateway_name', 'server_id', 'server_domain'])) {
@@ -34,6 +36,12 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
             throw SipGatewayException::DUPLICATE_HOST_PORT();
         }
 
+        // 验证 transport
+        $transport = strtoupper($data['transport'] ?? 'UDP');
+        if (!in_array($transport, self::TRANSPORT_OPTIONS)) {
+            throw SipGatewayException::INVALID_PARAMETER();
+        }
+
         $now = date('Y-m-d H:i:s');
         $fields = ArrayToolkit::parts($data, [
             'gateway_id', 'gateway_name', 'server_id', 'server_domain',
@@ -48,10 +56,12 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
 
         $fields['sip_host'] = $sipHost;
         $fields['sip_port'] = $sipPort;
+        $fields['transport'] = $transport;
         $fields['status'] = $data['status'] ?? 'active';
         $fields['device_count'] = 0;
         $fields['created_at'] = $now;
         $fields['updated_at'] = $now;
+        $fields['debug'] = isset($data['debug']) ? intval($data['debug']) : 0;
 
         return $this->getSipGatewayDao()->create($fields);
     }
@@ -81,6 +91,15 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
             }
         }
 
+        // 验证 transport
+        if (isset($data['transport'])) {
+            $transport = strtoupper($data['transport']);
+            if (!in_array($transport, self::TRANSPORT_OPTIONS)) {
+                throw SipGatewayException::INVALID_PARAMETER();
+            }
+            $data['transport'] = $transport;
+        }
+
         $fields = ArrayToolkit::parts($data, [
             'gateway_id', 'gateway_name', 'server_id', 'server_domain',
             'sip_host', 'sip_port', 'transport', 'public_ip',
@@ -93,6 +112,7 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
         ]);
 
         $fields['updated_at'] = date('Y-m-d H:i:s');
+        $fields['debug'] = isset($data['debug']) ? intval($data['debug']) : 0;
 
         $this->getSipGatewayDao()->update($id, $fields);
 
@@ -232,21 +252,23 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
             return false;
         }
 
+        $transport = strtoupper($info['transport'] ?? 'UDP');
         $fields = [
             'last_seen_at' => date('Y-m-d H:i:s'),
             'updated_at'   => date('Y-m-d H:i:s'),
-            'status'       => 'active',
         ];
 
-        if (isset($info['pid'])) {
-            $fields['pid'] = (int)$info['pid'];
+        // 按 transport 类型更新对应状态
+        if ($transport === 'TCP') {
+            $fields['tcp_status'] = 'active';
+            $fields['tcp_pid']    = (int)($info['pid'] ?? 0) ?: null;
+        } else {
+            $fields['status'] = 'active';
+            $fields['pid']    = (int)($info['pid'] ?? 0) ?: null;
         }
-        if (isset($info['ip'])) {
-            $fields['ip'] = $info['ip'];
-        }
-        if (isset($info['device_count'])) {
-            $fields['device_count'] = (int)$info['device_count'];
-        }
+
+        $fields['ip']           = $info['ip'] ?? $gateway['ip'];
+        $fields['device_count'] = (int)($info['device_count'] ?? 0);
 
         $this->getSipGatewayDao()->update($gateway['id'], $fields);
 
@@ -266,10 +288,21 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
 
             $lastSeen = strtotime($gateway['last_seen_at']);
             if ($lastSeen < $threshold) {
-                $this->getSipGatewayDao()->update($gateway['id'], [
-                    'status'     => 'inactive',
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
+                $fields = ['updated_at' => date('Y-m-d H:i:s')];
+                // UDP 心跳超时
+                if ($gateway['status'] === 'active') {
+                    $fields['status'] = 'inactive';
+                }
+                // TCP 心跳超时
+                if (($gateway['tcp_status'] ?? 'inactive') === 'active') {
+                    $fields['tcp_status'] = 'inactive';
+                }
+                // transport 回退
+                if ($gateway['transport'] === 'ALL') {
+                    $fields['transport'] = 'UDP';
+                }
+
+                $this->getSipGatewayDao()->update($gateway['id'], $fields);
                 $offlineGateways[] = $gateway['gateway_id'];
             }
         }
@@ -354,53 +387,59 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
         }
 
         $gatewayId = $data['gateway_id'];
+        $transport = strtoupper($data['transport'] ?? 'UDP');
+        if (!in_array($transport, ['UDP', 'TCP'])) {
+            $transport = 'UDP';
+        }
         $existing = $this->getSipGatewayDao()->getByGatewayId($gatewayId);
 
         $now = date('Y-m-d H:i:s');
 
         if ($existing) {
-            // 已存在：更新所有 Gateway 上报的配置字段 + 运行时字段
+            // 已存在：更新配置字段
             $fields = ArrayToolkit::parts($data, [
                 'gateway_name', 'server_id', 'server_domain',
-                'sip_host', 'sip_port', 'transport', 'public_ip',
+                'sip_host', 'sip_port', 'public_ip',
                 'device_password', 'authentication', 'sip_username',
                 'register_expires', 'keepalive_interval', 'heartbeat_timeout',
                 'keepalive_lost_number', 'catalog_auto_query', 'encoding_type',
                 'task_worker_num', 'timer_interval', 'max_devices',
                 'broadcast_push_after_ack', 'mq_type', 'mq_config',
                 'redis_config', 'api_config', 'log_level', 'debug',
-                'pid', 'ip',
             ]);
 
-            $fields['status']       = 'active';
+            // 按 transport 类型分别更新 PID/状态
+            if ($transport === 'TCP') {
+                $fields['tcp_pid']    = isset($data['pid']) ? (int)$data['pid'] : null;
+                $fields['tcp_status'] = 'active';
+            } else {
+                $fields['pid']    = isset($data['pid']) ? (int)$data['pid'] : null;
+                $fields['status'] = 'active';
+            }
+
+            $fields['ip']         = $data['ip'] ?? $existing['ip'];
             $fields['last_seen_at'] = $now;
             $fields['updated_at']   = $now;
 
-            if (isset($fields['sip_port'])) {
-                $fields['sip_port'] = (int)$fields['sip_port'];
-            }
-            if (isset($fields['authentication'])) {
-                $fields['authentication'] = (int)(bool)$fields['authentication'];
-            }
-            if (isset($fields['pid'])) {
-                $fields['pid'] = (int)$fields['pid'];
-            }
+            // UDP+TCP 都活跃 → transport=ALL
+            $udpActive = ($transport === 'UDP') || ($existing['status'] === 'active');
+            $tcpActive = ($transport === 'TCP') || ($existing['tcp_status'] === 'active');
+            $fields['transport'] = ($udpActive && $tcpActive) ? 'ALL' : $transport;
 
             $this->getSipGatewayDao()->update($existing['id'], $fields);
             return $this->getSipGatewayDao()->get($existing['id']);
         }
 
-        // 不存在：创建新记录（完整字段写入）
+        // 不存在：创建新记录
         $fields = ArrayToolkit::parts($data, [
             'gateway_id', 'gateway_name', 'server_id', 'server_domain',
-            'sip_host', 'sip_port', 'transport', 'public_ip',
+            'sip_host', 'sip_port', 'public_ip',
             'device_password', 'authentication', 'sip_username',
             'register_expires', 'keepalive_interval', 'heartbeat_timeout',
             'keepalive_lost_number', 'catalog_auto_query', 'encoding_type',
             'task_worker_num', 'timer_interval', 'max_devices',
             'broadcast_push_after_ack', 'mq_type', 'mq_config',
             'redis_config', 'api_config', 'log_level', 'debug',
-            'pid', 'ip',
         ]);
 
         // 必填/默认值兜底
@@ -410,20 +449,24 @@ class SipGatewayServiceImpl extends BaseService implements SipGatewayService
         $fields['server_domain'] = $data['server_domain'] ?? '';
         $fields['sip_host']      = $data['sip_host'] ?? '0.0.0.0';
         $fields['sip_port']      = (int)($data['sip_port'] ?? 5060);
-        $fields['transport']     = $data['transport'] ?? 'UDP';
-        $fields['status']        = 'active';
+        $fields['transport']     = $transport;
         $fields['device_count']  = 0;
         $fields['last_seen_at']  = $now;
         $fields['created_at']    = $now;
         $fields['updated_at']    = $now;
 
-        // 类型修正
-        if (isset($fields['authentication'])) {
-            $fields['authentication'] = (int)(bool)$fields['authentication'];
+        // 按 transport 类型设置 PID/状态
+        if ($transport === 'TCP') {
+            $fields['status']      = 'inactive';
+            $fields['tcp_pid']     = isset($data['pid']) ? (int)$data['pid'] : null;
+            $fields['tcp_status']  = 'active';
+        } else {
+            $fields['status']      = 'active';
+            $fields['pid']         = isset($data['pid']) ? (int)$data['pid'] : null;
+            $fields['tcp_status']  = 'inactive';
         }
-        if (isset($fields['pid'])) {
-            $fields['pid'] = (int)$fields['pid'];
-        }
+
+        $fields['ip'] = $data['ip'] ?? null;
 
         return $this->getSipGatewayDao()->create($fields);
     }

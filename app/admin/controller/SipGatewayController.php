@@ -51,47 +51,25 @@ class SipGatewayController extends BaseController
 
     public function store(Request $request) : Response
     {
-        try {
-            $fields = $request->post();
-            $gateway = $this->getSipGatewayService()->createGateway($fields);
+        $fields = $request->post();
+        $gateway = $this->getSipGatewayService()->createGateway($fields);
 
-            return $this->createSuccessJsonResponse($gateway, '创建成功', 201);
-        } catch (SipGatewayException $e) {
-            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
-        } catch (CommonBizException $e) {
-            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('创建失败：' . $e->getMessage(), null, -1, 500);
-        }
+        return $this->createSuccessJsonResponse($gateway, '创建成功');
     }
 
     public function update(Request $request, $id) : Response
     {
-        try {
-            $fields = $request->post();
-            $gateway = $this->getSipGatewayService()->updateGateway((int)$id, $fields);
+        $fields = $request->post();
+        $gateway = $this->getSipGatewayService()->updateGateway((int)$id, $fields);
 
-            return $this->createSuccessJsonResponse($gateway, '更新成功');
-        } catch (SipGatewayException $e) {
-            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
-        } catch (CommonBizException $e) {
-            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('更新失败：' . $e->getMessage(), null, -1, 500);
-        }
+        return $this->createSuccessJsonResponse($gateway, '更新成功');
     }
 
     public function destroy(Request $request, $id) : Response
     {
-        try {
-            $this->getSipGatewayService()->deleteGateway((int)$id);
+        $this->getSipGatewayService()->deleteGateway((int)$id);
 
-            return $this->createSuccessJsonResponse(null, '删除成功');
-        } catch (SipGatewayException $e) {
-            return $this->createErrorJsonResponse($e->getMessage(), null, $e->getCode(), 400);
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('删除失败：' . $e->getMessage(), null, -1, 500);
-        }
+        return $this->createSuccessJsonResponse(null, '删除成功');
     }
 
     public function toggle(Request $request, $id) : Response

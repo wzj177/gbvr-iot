@@ -12,6 +12,8 @@ use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Dao\DaoProxy;
 use support\Redis;
 use CoreW\Business\MediaServer\Service\MediaServerService;
+use CoreW\Business\BizEnum;
+use support\utils\ArrayToolkit;
 
 class RecordFileServiceImpl extends BaseService implements RecordFileService
 {
@@ -26,7 +28,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
     {
         $streamId = $hookData['stream'] ?? '';
         $app = $hookData['app'] ?? '';
-        $vhost = $hookData['vhost'] ?? '__defaultVhost__';
+        $vhost = $hookData['vhost'] ?? BizEnum::ZLM_DEFAULT_VHOST;
 
         if (empty($streamId)) {
             $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, 'stream_id为空', $hookData);
@@ -75,8 +77,8 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             $channels = $this->getDeviceService()->searchChannels(['stream_id' => $streamId], [], 0, 1);
             $channel = $channels[0] ?? null;
 
-            if (!$channel || empty($channel['record_plan_id'])) {
-                $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '找不到 stream_id 对应的通道或通道未绑定录像计划', [
+            if (!$channel) {
+                $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '找不到 stream_id 对应的通道', [
                     'stream_id' => $streamId,
                     'app'       => $app,
                 ]);
@@ -86,9 +88,9 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             $deviceId = $channel['device_id'];
             $channelId = $channel['channel_id'];
             $sourceType = 'cloud_plan';
-            $sourceId = (int)$channel['record_plan_id'];
+            $sourceId = $channel['record_plan_id'] ?? 0;
             $sourceDesc = '云端录像';
-            $planId = (int)$channel['record_plan_id'];
+            $planId = $sourceId;
 
         } else {
             // ===== 流代理录像（StreamProxy 绑定录像计划）=====
@@ -192,13 +194,49 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
 
     public function searchRecordFilesWithDeviceInfo(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array
     {
-        $list = $this->getRecordFileDao()->searchWithDeviceInfo($conditions, $orderBys, $start, $limit);
+        $list = $this->getRecordFileDao()->search($conditions, $orderBys, $start, $limit);
         $list = $this->formatFiles($list, $this->buildMediaServerMap($list));
         foreach ($list as &$recordFile) {
             unset($recordFile['video_path']);
         }
 
         return $list;
+    }
+
+    public function batchDeleteByIds(array $ids) : array
+    {
+        if (empty($ids)) {
+            return ['deleted' => 0, 'file_errors' => 0];
+        }
+
+        // 查询记录，获取 video_path
+        $files = $this->getRecordFileDao()->findByIds($ids);
+
+        $fileErrors = 0;
+        foreach ($files as $file) {
+            $videoPath = $file['video_path'] ?? '';
+            if (!empty($videoPath) && file_exists($videoPath)) {
+                if (!@unlink($videoPath)) {
+                    $fileErrors++;
+                    $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, 'batch_delete', '删除录像文件失败', [
+                        'id'         => $file['id'],
+                        'video_path' => $videoPath,
+                        'error'      => error_get_last()['message'] ?? 'unknown',
+                    ]);
+                }
+            }
+        }
+
+        // 删除数据库记录
+        $this->getRecordFileDao()->batchDelete(['ids' => $ids]);
+
+        $this->getLogService()->info(LogEnum::MODULE_RECORD_FILE, 'batch_delete', '批量删除录像文件', [
+            'ids'         => $ids,
+            'db_deleted'  => 1,
+            'file_errors' => $fileErrors,
+        ]);
+
+        return ['deleted' => count($ids), 'file_errors' => $fileErrors];
     }
 
 
@@ -215,12 +253,6 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             $file['end_time_formatted'] = $file['end_time'] ? date('Y-m-d H:i:s', $file['end_time']) : null;
             $file['duration_formatted'] = $file['duration'] ? gmdate('H:i:s', $file['duration']) : null;
             $file['file_size_mb'] = $file['file_size'] ? round($file['file_size'] / 1048576, 2) : 0;
-
-            // 使用实时查询的通道名称，如果没有则使用存储的历史名称
-            $file['channel_name_display'] = $file['channel_name_latest'] ?? $file['channel_name'] ?? '';
-            $file['device_name'] = $file['device_name'] ?? '';
-
-            // 生成录像播放 URL
             $file['video_url'] = $this->buildVideoUrl($file, $mediaServersMap);
 
             return $file;
@@ -244,7 +276,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             return '';
         }
 
-        $host = $server['host'];
+        $host = $server['access_domain'] ?? $server['host'];
         $httpsPort = (int)($server['https_port'] ?? 443);
         $app = $file['app'] ?? 'rtp';
         $streamId = $file['stream_id'] ?? '';
@@ -265,15 +297,11 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
         }
 
         $servers = $this->getMediaServerService()->findServersByServerIds($serverIds);
-        $map = [];
-        foreach ($servers as $server) {
-            $map[$server['server_id']] = $server;
-        }
 
-        return $map;
+        return ArrayToolkit::index($servers, 'server_id');
     }
 
-    protected function getMediaServerService(): MediaServerService
+    protected function getMediaServerService() : MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
     }

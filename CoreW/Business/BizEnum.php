@@ -362,4 +362,5 @@ class BizEnum
     }
 
 
+    const ZLM_DEFAULT_VHOST = '__defaultVhost__';
 }

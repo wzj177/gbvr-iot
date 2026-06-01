@@ -57,4 +57,12 @@ interface RecordFileService
      * @return array
      */
     public function searchRecordFilesWithDeviceInfo(array $conditions, array $orderBys = [], int $start = 0, int $limit = 20) : array;
+
+    /**
+     * 批量删除录像文件（同时删除磁盘文件）
+     *
+     * @param array $ids 录像文件ID列表
+     * @return array ['deleted' => 成功删除数, 'file_errors' => 文件删除失败数]
+     */
+    public function batchDeleteByIds(array $ids) : array;
 }

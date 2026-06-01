@@ -12,6 +12,7 @@ use CoreW\Business\MediaServer\Strategy\MediaServerStrategyFactory;
 use CoreW\Business\Record\Service\RecordPlanService;
 use support\utils\ArrayToolkit;
 use support\Log;
+use CoreW\Business\BizEnum;
 
 class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 {
@@ -57,14 +58,14 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             // Validate custom stream ID (alphanumeric, dash, underscore only)
             if (!preg_match('/^[a-zA-Z0-9_-]+$/', $fields['stream'])) {
                 throw new StreamProxyException(
-                    StreamProxyException::ERROR_PARAMETER,
+                    4001102,
                     'Stream ID must contain only alphanumeric characters, dash and underscore'
                 );
             }
         }
 
         $fields['app'] = $fields['app'] ?? ($fields['type'] === 'pull' ? 'proxy' : 'push');
-        $fields['vhost'] = $fields['vhost'] ?? '__defaultVhost__';
+        $fields['vhost'] = $fields['vhost'] ?? BizEnum::ZLM_DEFAULT_VHOST;
 
         // Check for duplicate app/stream combination
         $existing = $this->getStreamProxyDao()->search([

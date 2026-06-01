@@ -6,6 +6,7 @@ use app\admin\BaseController;
 use CoreW\Business\Menu\Service\MenuService;
 use support\Request;
 use support\Response;
+use CoreW\Business\SystemLog\LogEnum;
 
 class MenuController extends BaseController
 {
@@ -98,7 +99,7 @@ class MenuController extends BaseController
      */
     public function sync(Request $request) : Response
     {
-        $menuFile = base_path('docs/menu.json');
+        $menuFile = base_path('migrations/seeders/default-menu.json');
         if (!file_exists($menuFile)) {
             return $this->createErrorJsonResponse('菜单文件不存在');
         }

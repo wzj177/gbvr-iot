@@ -7,9 +7,13 @@ use CoreW\Business\RecordMerge\Dao\RecordMergeTaskDao;
 use CoreW\Business\RecordMerge\Exception\RecordMergeException;
 use CoreW\Business\RecordMerge\Service\RecordMergeTaskService;
 use CoreW\Business\RecordFile\Dao\RecordFileDao;
+use CoreW\Business\Devices\Service\DeviceService;
+use CoreW\Business\GB\Service\Gb28181Service;
 use CoreW\Dao\DaoInterface;
 use CoreW\Dao\DaoProxy;
 use support\Log;
+use support\utils\ArrayToolkit;
+use CoreW\Business\MediaServer\Service\MediaServerService;
 
 class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskService
 {
@@ -25,42 +29,22 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
             throw RecordMergeException::MERGE_ALREADY_EXISTS();
         }
 
-        // 查询时间范围内的录像文件
-        $files = $this->getRecordFileDao()->search(
-            [
-                'device_id'  => $deviceId,
-                'channel_id' => $channelId,
-            ],
-            ['start_time' => 'ASC'],
-            0,
-            1000
-        );
-
-        // 过滤出时间范围内的文件
-        $matchedFiles = [];
-        foreach ($files as $file) {
-            $fileStart = (int)$file['start_time'];
-            $fileEnd = (int)$file['end_time'];
-            // 文件时间段与查询范围有交集
-            if ($fileStart < $endTime && $fileEnd > $startTime) {
-                $matchedFiles[] = $file;
-            }
+        // 获取通道信息（包含 media_server_id）
+        $channel = $this->getDeviceService()->getChannelByChannelId($channelId);
+        if (empty($channel)) {
+            throw RecordMergeException::CHANNEL_NOT_FOUND();
         }
 
-        if (empty($matchedFiles)) {
-            throw RecordMergeException::NO_FILES_IN_RANGE();
-        }
-
-        $fileIds = array_column($matchedFiles, 'id');
         $now = date('Y-m-d H:i:s');
 
         $fields = [
             'device_id'         => $deviceId,
             'channel_id'        => $channelId,
+            'media_server_id'   => $channel['media_server_id'],
             'start_time'        => $startTime,
             'end_time'          => $endTime,
-            'source_file_ids'   => $fileIds,
-            'source_file_count' => count($fileIds),
+            'source_file_ids'   => [],
+            'source_file_count' => 0,
             'status'            => 'pending',
             'output_path'       => '',
             'output_file_size'  => 0,
@@ -152,7 +136,7 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
                 $this->doMerge($task);
                 $processed++;
             } catch (\Throwable $e) {
-                Log::channel('default')->error("RecordMerge: task #{$task['id']} failed: " . $e->getMessage());
+                Log::channel('crontab')->error("RecordMerge: task #{$task['id']} failed: " . $e->getMessage());
                 $this->getRecordMergeTaskDao()->update((int)$task['id'], [
                     'status'        => 'failed',
                     'error_message' => mb_substr($e->getMessage(), 0, 500),
@@ -182,91 +166,93 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
     }
 
     /**
-     * 执行 FFmpeg 合并
+     * 执行 FFmpeg 合并（从 ZLM HTTP URL）
      */
     private function doMerge(array $task) : void
     {
-        $fileIds = $task['source_file_ids'] ?? [];
-        if (empty($fileIds)) {
-            throw new \RuntimeException('源文件ID列表为空');
+        $mediaServerId = (int)($task['media_server_id'] ?? 0);
+        if ($mediaServerId === 0) {
+            throw new \RuntimeException('任务缺少 media_server_id');
         }
 
-        // 查询源文件
-        $files = $this->getRecordFileDao()->search(
-            ['ids' => $fileIds],
-            ['start_time' => 'ASC'],
-            0,
-            1000
+        // 获取通道信息
+        $channel = $this->getDeviceService()->getChannelByChannelId($task['channel_id']);
+        if (empty($channel)) {
+            throw new \RuntimeException('通道不存在');
+        }
+
+        // 获取 ZLM Client
+        $zlmClient = $this->getZlmClientByServerId($mediaServerId);
+        $mediaServer = $this->getMediaServerService()->getMediaServer($mediaServerId);
+
+        // 获取录像文件列表（ZLM 返回本地路径数组）
+        $period = date('Y-m-d', (int)$task['start_time']);
+        $files = $zlmClient->getMp4RecordFile(
+            '__defaultVhost__',
+            $channel['app'],
+            $channel['stream_id'],
+            $period
         );
 
         if (empty($files)) {
-            throw new \RuntimeException('未找到源录像文件');
+            throw new \RuntimeException('ZLM 无录像文件');
         }
 
-        // 检查文件是否都存在
-        $validFiles = [];
-        foreach ($files as $file) {
-            $path = $file['video_path'] ?? '';
-            if (!empty($path) && file_exists($path)) {
-                $validFiles[] = $file;
+        // 过滤出时间范围内的文件
+        $startTime = (int)$task['start_time'];
+        $endTime = (int)$task['end_time'];
+        $matchedFiles = [];
+
+        foreach ($files as $filePath) {
+            $file = $this->parseZlmRecordPath($filePath);
+            $fileTime = strtotime($file['record_date']);
+
+            if ($fileTime >= $startTime && $fileTime < $endTime) {
+                $matchedFiles[] = $file;
             }
         }
 
-        if (empty($validFiles)) {
-            throw new \RuntimeException('所有源录像文件均不可访问');
+        if (empty($matchedFiles)) {
+            throw new \RuntimeException('指定时间范围内无录像文件');
         }
 
-        // 按时间排序
-        usort($validFiles, fn($a, $b) => (int)$a['start_time'] <=> (int)$b['start_time']);
+        // 构建输入 HTTP URL
+        $inputUrls = [];
+        $mediaServersMap = [$mediaServer['id'] => $mediaServer];
 
-        // 生成 concat 文件列表
-        $concatListPath = sys_get_temp_dir() . '/merge_' . $task['id'] . '_' . uniqid() . '.txt';
-        $fp = fopen($concatListPath, 'w');
-        foreach ($validFiles as $file) {
-            // ffmpeg concat 格式：file 'path'
-            fwrite($fp, "file '" . addslashes($file['video_path']) . "'\n");
+        foreach ($matchedFiles as $file) {
+            $inputUrls[] = $this->buildVideoUrl($file, $mediaServersMap);
         }
-        fclose($fp);
 
-        // 生成输出路径
-        $outputDir = dirname($validFiles[0]['video_path']) . '/merge';
+        // 生成本地输出路径
+        $outputDir = storage_path('record_merge/' . $mediaServerId);
         if (!is_dir($outputDir)) {
-            @mkdir($outputDir, 0755, true);
+            mkdir($outputDir, 0755, true);
         }
+        $outputFile = $outputDir . '/merged_' . date('Ymd_His') . '_' . $task['id'] . '.mp4';
+        $relativePath = 'record_merge/' . $mediaServerId . '/' . basename($outputFile);
 
-        $outputPath = $outputDir . '/merge_' . $task['id'] . '_' . date('YmdHis') . '.mp4';
+        // FFmpeg concat（HTTP URL 输入）
+        $ffmpegCmd = $this->buildFfmpegConcatCommand($inputUrls, $outputFile);
 
-        // FFmpeg concat demuxer（-c copy 不重编码，速度极快）
-        $ffmpegCmd = sprintf(
-            'ffmpeg -y -f concat -safe 0 -i %s -c copy %s 2>&1',
-            escapeshellarg($concatListPath),
-            escapeshellarg($outputPath)
-        );
-
-        exec($ffmpegCmd, $output, $returnCode);
-
-        // 清理临时文件
-        @unlink($concatListPath);
+        exec($ffmpegCmd . ' 2>&1', $output, $returnCode);
 
         if ($returnCode !== 0) {
-            @unlink($outputPath);
-            throw new \RuntimeException('FFmpeg合并失败: ' . implode("\n", array_slice($output, -5)));
+            @unlink($outputFile);
+            throw new \RuntimeException('FFmpeg 合并失败: ' . implode("\n", array_slice($output, -5)));
         }
 
-        if (!file_exists($outputPath)) {
+        if (!file_exists($outputFile)) {
             throw new \RuntimeException('合并后文件不存在');
         }
 
-        $fileSize = filesize($outputPath);
-        $totalDuration = 0;
-        foreach ($validFiles as $file) {
-            $totalDuration += (int)($file['duration'] ?? 0);
-        }
+        $fileSize = filesize($outputFile);
+        $totalDuration = ($endTime - $startTime);
 
         // 更新任务为完成
         $this->getRecordMergeTaskDao()->update((int)$task['id'], [
             'status'           => 'done',
-            'output_path'      => $outputPath,
+            'output_path'      => $relativePath,
             'output_file_size' => $fileSize,
             'output_duration'  => $totalDuration,
             'finished_at'      => date('Y-m-d H:i:s'),
@@ -274,9 +260,93 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
         ]);
     }
 
+    /**
+     * 解析 ZLM 录像路径
+     * 输入: /path/to/record/{app}/{stream_id}/{record_date}/{filename}
+     */
+    private function parseZlmRecordPath(string $filePath) : array
+    {
+        $parts = explode('/', trim($filePath, '/'));
+        $recordIndex = array_search('record', $parts);
+
+        if ($recordIndex === false || $recordIndex + 4 >= count($parts)) {
+            return [
+                'app' => '',
+                'stream_id' => '',
+                'record_date' => '',
+                'file_name' => '',
+            ];
+        }
+
+        return [
+            'app' => $parts[$recordIndex + 1] ?? '',
+            'stream_id' => $parts[$recordIndex + 2] ?? '',
+            'record_date' => $parts[$recordIndex + 3] ?? '',
+            'file_name' => $parts[$recordIndex + 4] ?? '',
+        ];
+    }
+
+    /**
+     * 构建 FFmpeg concat 命令（HTTP URL 输入）
+     */
+    private function buildFfmpegConcatCommand(array $inputUrls, string $outputFile) : string
+    {
+        $listFile = sys_get_temp_dir() . '/ffmpeg_concat_' . getmypid() . '_' . time() . '.txt';
+        $listContent = '';
+
+        foreach ($inputUrls as $url) {
+            $listContent .= "file '{$url}'\n";
+        }
+
+        file_put_contents($listFile, $listContent);
+
+        // 注册清理函数
+        register_shutdown_function(function() use ($listFile) {
+            @unlink($listFile);
+        });
+
+        return sprintf(
+            'ffmpeg -y -f concat -safe 0 -i %s -c copy %s',
+            escapeshellarg($listFile),
+            escapeshellarg($outputFile)
+        );
+    }
+
+    /**
+     * 构建录像播放 URL
+     */
+    private function buildVideoUrl(array $file, array $mediaServersMap) : string
+    {
+        $mediaServer = current($mediaServersMap);
+        if (empty($mediaServer)) {
+            return '';
+        }
+
+        $protocol = $mediaServer['https_port'] ? 'https' : 'http';
+        $port = $mediaServer['https_port'] ?: $mediaServer['http_port'];
+
+        return sprintf(
+            '%s://%s:%d/record/%s/%s/%s/%s',
+            $protocol,
+            $mediaServer['host'],
+            $port,
+            $file['app'],
+            $file['stream_id'],
+            $file['record_date'],
+            $file['file_name']
+        );
+    }
+
     private function formatTasks(array $tasks) : array
     {
         return array_map(fn($t) => $this->formatTask($t), $tasks);
+    }
+
+    private function buildMediaServerMap(array $serverIds) : array
+    {
+        $servers = $this->getMediaServerService()->findServersByServerIds($serverIds);
+
+        return ArrayToolkit::index($servers, 'server_id');
     }
 
     private function formatTask(array $task) : array
@@ -284,8 +354,51 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
         $task['start_time_formatted'] = date('Y-m-d H:i:s', (int)$task['start_time']);
         $task['end_time_formatted'] = date('Y-m-d H:i:s', (int)$task['end_time']);
         $task['output_duration_formatted'] = $task['output_duration'] ? gmdate('H:i:s', (int)$task['output_duration']) : null;
+
         $task['output_file_size_mb'] = $task['output_file_size'] ? round($task['output_file_size'] / 1048576, 2) : 0;
+
+        // 构建播放 URL（如果是相对路径）
+        if (!empty($task['output_path']) && strpos($task['output_path'], '/') !== 0) {
+            $mediaServerId = (int)($task['media_server_id'] ?? 0);
+            if ($mediaServerId > 0) {
+                $mediaServer = $this->getMediaServerService()->getMediaServer($mediaServerId);
+                if ($mediaServer) {
+                    $protocol = $mediaServer['https_port'] ? 'https' : 'http';
+                    $host = $mediaServer['host'] ?? 'localhost';
+                    $port = $mediaServer['https_port'] ?: $mediaServer['http_port'];
+                    $task['output_url'] = sprintf(
+                        '%s://%s:%d/%s',
+                        $protocol,
+                        $host,
+                        $port,
+                        $task['output_path']
+                    );
+                }
+            }
+        }
+
         return $task;
+    }
+
+
+    protected function getMediaServerService() : MediaServerService
+    {
+        return $this->createService('MediaServer:MediaServerService');
+    }
+
+    protected function getDeviceService() : DeviceService
+    {
+        return $this->createService('Devices:DeviceService');
+    }
+
+    protected function getZlmClientByServerId(int $serverId)
+    {
+        return $this->getGb28181Service()->getZlmClientByServerId($serverId);
+    }
+
+    protected function getGb28181Service() : Gb28181Service
+    {
+        return $this->createService('GB:Gb28181Service');
     }
 
     protected function getRecordMergeTaskDao() : RecordMergeTaskDao|DaoInterface|DaoProxy

@@ -3,6 +3,7 @@
 namespace CoreW\Business\MediaServer\Strategy;
 
 use support\Log;
+use CoreW\Business\BizEnum;
 
 /**
  * SRS 流媒体服务器策略实现
@@ -167,7 +168,7 @@ class SRSStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__') : bool
+    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = BizEnum::ZLM_DEFAULT_VHOST) : bool
     {
         try {
             $baseUrl = "http://{$serverConfig['host']}:{$serverConfig['port']}";

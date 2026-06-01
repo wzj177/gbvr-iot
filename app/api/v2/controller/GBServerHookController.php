@@ -152,7 +152,7 @@ class GBServerHookController extends BaseController
 
     /**
      * 处理设备返回的配置查询结果
-     *
+     * @deprecated
      * 设备返回 XML:
      * <Response><CmdType>ConfigDownload</CmdType><BasicParam>...</BasicParam></Response>
      */
@@ -676,7 +676,7 @@ class GBServerHookController extends BaseController
                 'manufacturer' => $info['Manufacturer'] ?? $device['manufacturer'],
                 'model'        => $info['Model'] ?? $device['model'],
                 'firmware'     => $info['Firmware'] ?? $device['firmware'],
-                'sum_num'      => $info['Channel'] ?? $device['sum_num'],
+                'sum_num'      => !empty($info['Channel']) ? intval($info['Channel']) : $device['sum_num'] ?? 1,
             ]);
 
             Log::channel('sip')->info('Device Info changed', [

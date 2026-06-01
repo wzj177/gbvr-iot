@@ -14,3 +14,6 @@
 .claude/
 docs/
 php-exosip
+
+config/gb28181_tcp.php
+config/gb28181.php

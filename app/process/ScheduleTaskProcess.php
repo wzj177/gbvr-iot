@@ -7,6 +7,7 @@ use CoreW\Business\MediaServer\Tasks\RefreshMediaServerStatusTask;
 use CoreW\Business\Record\Task\PlaybackRecordTask;
 use CoreW\Business\RecordMerge\Task\RecordMergeTask;
 use Workerman\Crontab\Crontab;
+use CoreW\Business\Subscribe\Task\SubscriptionRenewTask;
 
 class ScheduleTaskProcess
 {
@@ -22,11 +23,6 @@ class ScheduleTaskProcess
             PlaybackRecordTask::run();
         });
 
-        // 每10秒执行一次 - 录像合并任务
-        new Crontab('*/10 * * * * *', function () {
-            RecordMergeTask::run();
-        });
-
         // 每5分钟执行一次 - 获取国标设备目录任务
         new Crontab('* */10 * * * *', function () {
             Gb28181DeviceCatalogQueryTask::run();
@@ -35,6 +31,16 @@ class ScheduleTaskProcess
         // 每10分钟执行一次：刷新媒体服务器状态
         new Crontab('* */10 * * * *', function () {
             RefreshMediaServerStatusTask::run();
+        });
+
+        // 每10秒执行一次 - 录像合并任务
+        new Crontab('*/10 * * * * *', function () {
+            RecordMergeTask::run();
+        });
+
+        // 每10分钟执行一次
+        new Crontab('*/10 * * * *', function () {
+            SubscriptionRenewTask::run();
         });
     }
 }

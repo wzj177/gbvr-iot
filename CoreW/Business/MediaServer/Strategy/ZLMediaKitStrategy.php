@@ -4,6 +4,7 @@ namespace CoreW\Business\MediaServer\Strategy;
 
 use CoreW\Sdk\ZLMediaKit\ZLMClient;
 use support\Log;
+use CoreW\Business\BizEnum;
 
 /**
  * ZLMediaKit 流媒体服务器策略实现
@@ -263,7 +264,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
 
         try {
             $result = $client->addStreamProxy(
-                $proxyConfig['vhost'] ?? '__defaultVhost__',
+                $proxyConfig['vhost'] ?? BizEnum::ZLM_DEFAULT_VHOST,
                 $proxyConfig['app'] ?? 'proxy',
                 $proxyConfig['stream'],
                 $proxyConfig['url'],
@@ -327,7 +328,7 @@ class ZLMediaKitStrategy implements MediaServerStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__') : bool
+    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = BizEnum::ZLM_DEFAULT_VHOST) : bool
     {
         $client = $this->getClient($serverConfig);
 

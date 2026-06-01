@@ -76,20 +76,16 @@ class GB28181ChannelController extends BaseController
         // 为每个通道附加媒体服务器和设备信息
         foreach ($channels as &$channel) {
             // 媒体服务器信息
-            if (!empty($channel['media_server_id']) && isset($mediaServerMap[$channel['media_server_id']])) {
-                $channel['media_server'] = $mediaServerMap[$channel['media_server_id']];
-            } else {
-                $channel['media_server'] = null;
-            }
-
+            $channel['media_server'] = $mediaServerMap[$channel['media_server_id']] ?? null;
+            $device = $deviceMap[$channel['device_id']] ?? null;
+            $channel['device_name'] = '';
+            $channel['device_ip'] = '';
             // 设备名称
-            if (!empty($channel['device_id']) && isset($deviceMap[$channel['device_id']])) {
-                $device = $deviceMap[$channel['device_id']];
+            if ($device) {
                 $channel['device_name'] = !empty($device['device_name'])
                     ? $device['device_name']
                     : ($device['show_name'] ?? '');
-            } else {
-                $channel['device_name'] = '';
+                $channel['device_ip'] = $device['ip'];
             }
         }
 
@@ -256,6 +252,29 @@ class GB28181ChannelController extends BaseController
             ]);
 
             return $this->createErrorJsonResponse('批量绑定媒体服务器失败: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function batchSetAutoLive(Request $request)
+    {
+        $ids = $request->post('ids', []);
+        $autoLive = $request->post('auto_live', 0);
+        if (empty($ids) || !is_array($ids)) {
+            return $this->createErrorJsonResponse('请选择要设置的通道');
+        }
+        if (!in_array($autoLive, [0, 1])) {
+            return $this->createErrorJsonResponse('请选择是否自动直播');
+        }
+        try {
+            $affectedRows = $this->getDeviceService()->batchUpdateChannels($ids, [
+                'auto_live' => $autoLive,
+            ]);
+            return $this->createSuccessJsonResponse([
+                'successCount' => $affectedRows,
+                'message'      => "成功设置 {$affectedRows} 个通道自动直播",
+            ]);
+        } catch (\Exception $e) {
+            return $this->createErrorJsonResponse('批量设置通道自动直播失败: ' . $e->getMessage(), 500);
         }
     }
 

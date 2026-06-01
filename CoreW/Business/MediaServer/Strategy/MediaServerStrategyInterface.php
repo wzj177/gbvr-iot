@@ -2,6 +2,8 @@
 
 namespace CoreW\Business\MediaServer\Strategy;
 
+use CoreW\Business\BizEnum;
+
 /**
  * 媒体服务器策略接口
  *
@@ -94,5 +96,5 @@ interface MediaServerStrategyInterface
      * @param string $vhost 虚拟主机（可选）
      * @return bool
      */
-    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = '__defaultVhost__') : bool;
+    public function isStreamOnline(array $serverConfig, string $app, string $stream, string $vhost = BizEnum::ZLM_DEFAULT_VHOST) : bool;
 }

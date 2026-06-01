@@ -19,6 +19,7 @@ use support\utils\DeviceToolkit;
 
 /**
  * Class Request
+ * @property array mediaServer
  * @package support
  */
 class Request extends \Webman\Http\Request

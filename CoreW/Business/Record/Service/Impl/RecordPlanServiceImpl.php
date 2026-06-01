@@ -221,11 +221,11 @@ class RecordPlanServiceImpl extends BaseService implements RecordPlanService
     public function getBoundChannels(int $planId) : array
     {
         return $this->getDeviceService()->searchChannels(
-            ['record_plan_id' => $planId],
-            [],
-            0,
-            PHP_INT_MAX
-        );
+        ['record_plan_id' => $planId],
+        [],
+        0,
+        PHP_INT_MAX
+    );
     }
 
     public function getPlansWithRanges() : array

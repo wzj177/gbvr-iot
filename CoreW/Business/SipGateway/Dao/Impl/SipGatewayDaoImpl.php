@@ -40,7 +40,7 @@ class SipGatewayDaoImpl extends AdvancedDaoImpl implements SipGatewayDao
                 'created_at',
                 'last_seen_at',
             ],
-            'timestamps' => [
+            'datetime' => [
                 'created_at',
                 'updated_at',
             ],

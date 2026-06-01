@@ -44,6 +44,7 @@ class GBGatewayConfigController extends BaseController
             'pid'          => $request->post('pid'),
             'ip'           => $request->post('ip'),
             'device_count' => $request->post('device_count', 0),
+            'transport'    => $request->post('transport', 'UDP'),
         ];
 
         $result = $this->getSipGatewayService()->updateHeartbeat($gatewayId, $info);
@@ -94,17 +95,13 @@ class GBGatewayConfigController extends BaseController
             'redis_config'             => $post['redis_config'] ?? [],
             'api_config'               => $post['api_config'] ?? [],
             'log_level'                => $post['log_level'] ?? 'INFO',
-            'debug'                    => $post['debug'] ?? false,
+            'debug'                    => $post['debug'] ? intval($post['debug']) : 0,
             'pid'                      => $post['pid'] ?? null,
             'ip'                       => $post['ip'] ?? null,
         ];
 
-        try {
-            $gateway = $this->getSipGatewayService()->registerGateway($data);
-            return $this->createSuccessJsonResponse($gateway);
-        } catch (\Exception $e) {
-            return $this->createErrorJsonResponse('注册失败：' . $e->getMessage(), null, -1, 500);
-        }
+        $gateway = $this->getSipGatewayService()->registerGateway($data);
+        return $this->createSuccessJsonResponse($gateway);
     }
 
     protected function getSipGatewayService() : SipGatewayService

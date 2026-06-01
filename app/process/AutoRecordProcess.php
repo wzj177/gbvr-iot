@@ -229,6 +229,15 @@ class AutoRecordProcess
     {
         try {
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($proxy['media_server_id']);
+
+            // 先检查 ZLM 实际录制状态（防止进程重启后内存状态丢失）
+            $isRecording = $zlmClient->isRecording($proxy['vhost'], $proxy['app'], $proxy['stream']);
+            if ($isRecording) {
+                self::$recordingItems[$workerKey][$vKey] = ['recording' => true];
+                $this->loopLog('[AutoRecord] 流代理ZLM已在录制，同步内存状态: ' . $vKey);
+                return;
+            }
+
             $result = $zlmClient->startRecord($proxy['vhost'], $proxy['app'], $proxy['stream']);
 
             if ($result) {
@@ -280,9 +289,18 @@ class AutoRecordProcess
                 return;
             }
 
-            $result = $this->getGb28181Service()
-                ->getZlmClientByServerId($channel['media_server_id'])
-                ->startRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
+            $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
+
+            // 先检查 ZLM 实际录制状态（防止进程重启后内存状态丢失导致重复调用）
+            $isRecording = $zlmClient->isRecording('__defaultVhost__', 'rtp', $channel['stream_id']);
+            if ($isRecording) {
+                // ZLM 已在录制，同步内存状态即可
+                self::$recordingItems[$workerKey][$vKey] = ['recording' => true];
+                $this->loopLog('[AutoRecord] ZLM已在录制，同步内存状态: ' . $vKey);
+                return;
+            }
+
+            $result = $zlmClient->startRecord('__defaultVhost__', 'rtp', $channel['stream_id']);
 
             if ($result) {
                 self::$recordingItems[$workerKey][$vKey] = ['recording' => true];

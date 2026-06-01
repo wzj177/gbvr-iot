@@ -11,6 +11,8 @@ use CoreW\Business\RecordFile\Service\RecordFileService;
 use CoreW\Business\SystemLog\LogEnum;
 use support\Request;
 use support\utils\Paginator;
+use CoreW\Business\Devices\Enums\DeviceStatusEnum;
+use CoreW\Business\BizEnum;
 
 /**
  * GB28181 云端录像文件控制器 - 管理后台
@@ -46,11 +48,11 @@ class GB28181RecordingController extends BaseController
 
         //start_time
         if ($request->get('start_time')) {
-            $conditions['start_time'] = strtotime($request->get('start_time'));
+            $conditions['record_date_GE'] = date('Y-m-d', strtotime($request->get('start_time')));
         }
 
         if ($request->get('end_time')) {
-            $conditions['end_time'] = strtotime($request->get('end_time'));
+            $conditions['record_date_LE'] = date('Y-m-d', strtotime($request->get('end_time')));
         }
 
         $total = $this->getRecordFileService()->countRecordFiles($conditions);
@@ -97,6 +99,7 @@ class GB28181RecordingController extends BaseController
         $type = (int)($request->post('type', 1)); // 0为hls，1为mp4，默认mp4
         $customizedPath = $request->post('customized_path', ''); // 自定义录像保存路径
         $maxSecond = (int)($request->post('max_second', 0)); // mp4切片时间(秒)，0=使用配置
+        $force = (bool)($request->post('force', false)); // 是否强制重启录像
 
         if (empty($deviceId) || empty($channelId)) {
             return $this->createErrorJsonResponse('device_id 和 channel_id 参数必须提供');
@@ -112,6 +115,11 @@ class GB28181RecordingController extends BaseController
         // 检查是否有 stream_id
         if (empty($channel['stream_id'])) {
             return $this->createErrorJsonResponse('通道未配置 stream_id，无法录像');
+        }
+
+        // 不在线
+        if ($channel['status'] != DeviceStatusEnum::ONLINE->value) {
+            return $this->createErrorJsonResponse('通道未在线，无法录像');
         }
 
         // 检查媒体服务器
@@ -133,41 +141,84 @@ class GB28181RecordingController extends BaseController
         }
 
         try {
-            // 调用 ZLM startRecord
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
-            $result = $zlmClient->startRecord(
-                '__defaultVhost__',
-                'rtp',
-                $channel['stream_id'],
-                $type,
-                $customizedPath,
-                $maxSecond
-            );
+
+            // 检查 ZLM 是否正在录制
+            $isRecording = $zlmClient->isRecording(BizEnum::ZLM_DEFAULT_VHOST, 'rtp', $channel['stream_id'], $type);
+
+            if ($isRecording && !$force) {
+                return $this->createErrorJsonResponse('该通道正在录制中，如需重新开始请设置 force=true');
+            }
+
+            // 正在录制且 force=true，先停止
+            if ($isRecording && $force) {
+                $zlmClient->stopRecord(BizEnum::ZLM_DEFAULT_VHOST, 'rtp', $channel['stream_id'], $type);
+                $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_STOP_RECORDING, '强制停止录像（force重启）', [
+                    'device_id'  => $deviceId,
+                    'channel_id' => $channelId,
+                    'stream_id'  => $channel['stream_id'],
+                ]);
+            }
+
+            // 调用 ZLM startRecord（带重试，流可能尚未完全就绪）
+            $maxRetry = 5;
+            $retryInterval = 1000000; // 1秒
+            $result = false;
+            $lastError = '';
+
+            for ($i = 0; $i < $maxRetry; $i++) {
+                $result = $zlmClient->startRecord(
+                    BizEnum::ZLM_DEFAULT_VHOST,
+                    'rtp',
+                    $channel['stream_id'],
+                    $type,
+                    $customizedPath,
+                    $maxSecond
+                );
+
+                if ($result) {
+                    break;
+                }
+
+                $lastError = "第 " . ($i + 1) . " 次尝试失败";
+                $this->getLogService()->warning(LogEnum::MODULE_GB28181, LogEnum::ACTION_START_RECORDING, 'startRecord 重试', [
+                    'device_id'  => $deviceId,
+                    'channel_id' => $channelId,
+                    'stream_id'  => $channel['stream_id'],
+                    'attempt'    => $i + 1,
+                    'max_retry'  => $maxRetry,
+                ]);
+
+                if ($i < $maxRetry - 1) {
+                    usleep($retryInterval);
+                }
+            }
 
             if ($result) {
                 // 更新通道录像状态
                 $this->getDeviceService()->updateChannel($channel['id'], ['record_status' => 1]);
 
                 $this->getLogService()->info(LogEnum::MODULE_GB28181, LogEnum::ACTION_START_RECORDING, '手动开始录像', [
-                    'device_id'  => $deviceId,
-                    'channel_id' => $channelId,
-                    'stream_id'  => $channel['stream_id'],
-                    'type'       => $type,
-                    'customized_path' => $customizedPath ?: 'default',
-                    'max_second' => $maxSecond ?: 'default',
+                    'device_id'       => $deviceId,
+                    'channel_id'      => $channelId,
+                    'stream_id'       => $channel['stream_id'],
+                    'type'            => $type,
+                    'customized_path' => $customizedPath ? : '',
+                    'max_second'      => $maxSecond ? : 0,
+                    'force'           => $force,
                 ]);
 
                 return $this->createSuccessJsonResponse([
-                    'device_id'     => $deviceId,
-                    'channel_id'    => $channelId,
-                    'stream_id'     => $channel['stream_id'],
-                    'type'          => $type,
-                    'customized_path' => $customizedPath ?: null,
-                    'max_second'    => $maxSecond ?: null,
-                    'record_status' => 1,
-                ], '录像已启动');
+                    'device_id'       => $deviceId,
+                    'channel_id'      => $channelId,
+                    'stream_id'       => $channel['stream_id'],
+                    'type'            => $type,
+                    'customized_path' => $customizedPath ? : '',
+                    'max_second'      => $maxSecond ? : 0,
+                    'record_status'   => 1,
+                ], $force ? '录像已强制重启' : '录像已启动');
             } else {
-                return $this->createErrorJsonResponse('启动录像失败，ZLM 调用失败');
+                return $this->createErrorJsonResponse('启动录像失败，已重试 ' . $maxRetry . ' 次。可能原因：流尚未就绪或ZLM异常，请稍后再试');
             }
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_GB28181, LogEnum::ACTION_START_RECORDING, '手动开始录像异常', [
@@ -213,7 +264,7 @@ class GB28181RecordingController extends BaseController
         try {
             // 调用 ZLM stopRecord
             $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
-            $zlmClient->stopRecord('__defaultVhost__', 'rtp', $channel['stream_id'], $type);
+            $zlmClient->stopRecord(BizEnum::ZLM_DEFAULT_VHOST, 'rtp', $channel['stream_id'], $type);
 
             // 更新通道录像状态
             $this->getDeviceService()->updateChannel($channel['id'], ['record_status' => 0]);
@@ -243,11 +294,72 @@ class GB28181RecordingController extends BaseController
     }
 
     /**
+     * 查询录像状态
+     * GET /api/admin/open-api/recordings/is-recording
+     */
+    public function isRecording(Request $request) : \support\Response
+    {
+        $deviceId = $request->get('device_id');
+        $channelId = $request->get('channel_id');
+        $type = (int)($request->get('type', 1));
+
+        if (empty($deviceId) || empty($channelId)) {
+            return $this->createErrorJsonResponse('device_id 和 channel_id 参数必须提供');
+        }
+
+        $channel = $this->getDeviceService()->getChannelByDeviceAndChannel($deviceId, $channelId);
+
+        if (empty($channel)) {
+            return $this->createErrorJsonResponse('通道不存在', null, -1, 404);
+        }
+
+        if (empty($channel['stream_id'])) {
+            return $this->createErrorJsonResponse('通道未配置 stream_id');
+        }
+
+        if (empty($channel['media_server_id']) || $channel['media_server_id'] === 'none') {
+            return $this->createErrorJsonResponse('通道未配置媒体服务器');
+        }
+
+        try {
+            $zlmClient = $this->getGb28181Service()->getZlmClientByServerId($channel['media_server_id']);
+            $isRecording = $zlmClient->isRecording('__defaultVhost__', 'rtp', $channel['stream_id'], $type);
+
+            return $this->createSuccessJsonResponse([
+                'device_id'    => $deviceId,
+                'channel_id'   => $channelId,
+                'stream_id'    => $channel['stream_id'],
+                'type'         => $type,
+                'is_recording' => $isRecording === null ? false : $isRecording,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->createErrorJsonResponse('查询录像状态失败: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * @return RecordFileService
      */
     private function getRecordFileService() : RecordFileService
     {
         return $this->createService('RecordFile:RecordFileService');
+    }
+
+    /**
+     * 批量删除录像文件
+     * DELETE /api/admin/gb28181/recordings/batch
+     */
+    public function batchDestroy(Request $request) : \support\Response
+    {
+        $ids = $request->post('ids', []);
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->createErrorJsonResponse('ids 参数必须提供且为数组');
+        }
+
+        $result = $this->getRecordFileService()->batchDeleteByIds($ids);
+
+        return $this->createSuccessJsonResponse($result, "删除完成，成功 {$result['deleted']} 条，文件删除失败 {$result['file_errors']} 条");
     }
 
     /**

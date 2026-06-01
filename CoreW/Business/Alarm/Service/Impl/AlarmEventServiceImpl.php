@@ -254,9 +254,9 @@ class AlarmEventServiceImpl extends BaseService implements AlarmEventService
         $table = 'gv_alarm_event';
 
         // 获取今天、本周、本月的开始时间戳
-        $todayStart = strtotime(date('Y-m-d 00:00:00'));
-        $weekStart = strtotime(date('Y-m-d 00:00:00', strtotime('this week Monday')));
-        $monthStart = strtotime(date('Y-m-01 00:00:00'));
+        $todayStart = date('Y-m-d 00:00:00');
+        $weekStart = date('Y-m-d 00:00:00', strtotime('this week Monday'));
+        $monthStart = date('Y-m-01 00:00:00');
 
         // 统计总数
         $total = (int)$db->fetchOne("SELECT COUNT(*) FROM {$table}");

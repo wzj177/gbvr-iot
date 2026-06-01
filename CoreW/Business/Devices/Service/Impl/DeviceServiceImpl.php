@@ -381,17 +381,17 @@ class DeviceServiceImpl extends BaseService implements DeviceService
                     'civil_code'   => $item['CivilCode'] ?? '',
                     'block'        => $item['Block'] ?? '',
                     'address'      => $item['Address'] ?? '',
-                    'parental'     => $item['Parental'] ?? 0,
+                    'parental'     => !empty($item['Parental']) ? intval($item['Parental']) : 0,
                     'parent_id'    => $item['ParentID'] ?? '',
-                    'safety_way'   => $item['SafetyWay'] ?? 0,
-                    'register_way' => $item['RegisterWay'] ?? 1,
+                    'safety_way'   => !empty($item['SafetyWay']) ? intval($item['SafetyWay']) : 0,
+                    'register_way' => !empty($item['RegisterWay']) ? intval($item['RegisterWay']) : 1,
                     'cert_num'     => $item['CertNum'] ?? '',
-                    'certifiable'  => $item['Certifiable'] ?? 0,
+                    'certifiable'  => !empty($item['Certifiable']) ? intval($item['Certifiable']) : 0,
                     'ip_address'   => $item['IpAddress'] ?? '',
                     'err_code'     => $item['ErrCode'] ?? 0,
                     'end_time'     => $item['EndTime'] ?? '',
-                    'secrecy'      => $item['Secrecy'] ?? 0,
-                    'port'         => $item['Port'] ?? 0,
+                    'secrecy'      => !empty($item['Secrecy']) ? intval($item['Secrecy']) : 0,
+                    'port'         => !empty($item['Port'] ) ? intval($item['Port'] ) : 0,
                     'password'     => $item['Password'] ?? '',
                     'status'       => ($item['Status'] ?? 'OFF') === 'ON' ? DeviceStatusEnum::ONLINE->value : DeviceStatusEnum::UNREGISTERED->value,
                     'lng'          => $item['Longitude'] ?? 0.0,
@@ -422,7 +422,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
             if ($count > 0) {
                 $this->updateDevice($device['id'], [
                     'sum_num'     => $count,
-                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name'],
+                    'device_name' => empty($devices['device_name']) && $count === 1 ? $channels[0]['channel_name'] : $devices['device_name'] ?? '',
                 ]);
             }
 
