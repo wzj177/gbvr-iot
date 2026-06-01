@@ -256,6 +256,18 @@ stopwaitsecs=10
 ```
 
 ### step 3 - zlm
+#### zlm 下载编译
+```
+# 参考：https://docs.zlmediakit.com/zh/guide/install/start.html#_3-2%E3%80%81%E5%AE%89%E8%A3%85%E7%BC%96%E8%AF%91%E5%99%A8
+git clone --depth 1 https://gitee.com/xia-chu/ZLMediaKit
+git submodule update --init
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/C=CN/ST=Beijing/L=Beijing/O=MyCompany/CN=localhost"
+cat key.pem cert.pem > ssl_prod.pem
+rm -f key.pem cert.pem
+mkdir -p build && cd build
+cmake .. -DENABLE_WEBRTC=true
+mv ssl_prod.pem /www/gbs/backend/config/zlm
+```
 #### 使用supervisor启动
 `/www/gbs/backend/config/zlm` 这个在项目目录里，可以自行配置
 
@@ -363,6 +375,26 @@ server {
 }
 
 ```
+
+### step7 - 端口开放(如果自己改了，以自己的为准)
+
+```
+tcp/udp port range : 30000-35000 | 50000-60000
+tcp/udp port: 15060
+tcp:
+tcp        0      0 0.0.0.0:8888            0.0.0.0:*               LISTEN      135408/nginx: maste
+tcp6       0      0 :::19350                :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::3000                 :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::3001                 :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::8843                 :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::8887                 :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::8600                 :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::10000                :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::3478                 :::*                    LISTEN      134811/MediaServer
+tcp6       0      0 :::5540                 :::*                    LISTEN      134811/MediaServer
+
+```
+
 ## 相关仓库
 
 | 仓库                                                         | 说明                                   |
