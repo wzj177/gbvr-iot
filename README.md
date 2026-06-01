@@ -1,6 +1,7 @@
 # GBVR-IOT
 
-基于 [php-exosip](https://github.com/wzj177/php-exosip) + [Webman](https://www.workerman.net/doc/webman) 实现的国标 GB28181 协议视频管理平台
+基于 [php-exosip](https://github.com/wzj177/php-exosip) + [Webman](https://www.workerman.net/doc/webman) 实现的国标
+GB28181 协议视频管理平台
 
 > 前端管理界面：[PHP-GB28181-UI](https://github.com/wzj177/PHP-GB28181-UI)
 >
@@ -18,38 +19,64 @@
 
 ## 演示站点
 
-<!-- 预留演示站点位置 -->
-<!-- 演示地址：https://demo.gbvr-iot.example.com -->
-<!-- 账号：admin / 密码：admin123 -->
+- 演示地址：http://wanzij.cn:8888
+- 账号：admin / 密码：qwe123456@vr
 
 > 演示站点待部署
 
 ## 核心功能
-- 完整的gb信令服务
+
+### 已完成的功能
+
+- 完整的国标信令服务：设备直播、本地录像回放、本地录像回放下载、设备云台控制、设备位置上报等、报警事件
+- 云端录像：录像查询、录像下载、录像回放器、录像合并
+- 信令网关支持：TCP/UDP两种传输协议；集群部署；支持GB2011、GB2016、GB2022版本协议
 - 流媒体服务：对接zlm/srs，支持国标摄像头rtp推流，集成非GB28181设备的拉流功能，实现除GB28181 Rtp流以外的其他流类型的拉取与转换
-- 云端录像
-- 国标级联
-- VR：支持倒入全景并提供摄像头点位标记等，实现3D VR + 实时预览
 - 一张图：以高德/lefleat等地图sdk，实现设备一张图（设备点位、区域、预警）
-- AI：视频文搜、视频行为算法
+- AI：视频文搜（见xx项目）
+
+### 进行中功能
+
+- 国标级联：扩展层已经实现完整的sipClient，php层面有完整的胶水类，待完善一个完整客户端长链接
+- VR：支持倒入全景并提供摄像头点位标记等，实现3D VR + 实时预览
+
+### 未测试到的功能
+
+- 语音对讲：流程参考wvp，苦于没有测试的国标设备，所以这部分需要开发者测试，有问题请提issue
+- 录像合并：目前排期中，主要未测试到流媒体和国标api分离机器部署
+- 信令：有很多新老版本的信令已经实现，大部分指令参考wvp和AI的搜索完善，但是苦于没有测试的国标设备，所以这部分需要开发者测试，有问题请提issue
+- 报警事件：苦于没有测试的国标设备，所以这部分需要开发者测试，有问题请提issue
+
+---
+
 ## 快速开始
+
 ### 安装
+
 #### 环境要求
+
 - PHP >= 7.2
 - Composer >= 2.0
 - 内存至少 4GB （系统会使用ImageMagick处理全景图片，生成对应全景图片的低分辨率图：如果全景图片在20mb以上就会有很大的内存开销，如果内存不足会导致生成低分辨率图失败的可能）
+
 #### composer 安装
+
 ```shell script
 composer config -g --unset repos.packagist
 ```
+
 #### 包安装
+
 ```shell script
 composer install -vvv
 ```
+
 #### 修改环境配置文件`.env`，将自己的环境参数配置（一定阅读`.env.example`的注释)
+
 ```shell script
 cp .env.example .env
 ```
+
 #### 系统初始化
 
 - 数据迁移
@@ -57,12 +84,15 @@ cp .env.example .env
 ```shell
 bin/phpmig migrate 
 ```
-   
+
 - 系统初始化
+
 ```shell
 php webman system:init 
 ```
+
 #### 运行系统
+
 ```shell script
 php start.php start 
 php start.php stop
@@ -72,213 +102,270 @@ php start.php restart
 php start.php restart -d
 php start.php reload
 ```
-### 基础配置
-
-#### 数据库
-
-- 多数据库
-默认是单数据库；首先配置文件是和webman保持一致的，在`config/database.php`下，配置方式和webman一样就行
-
-- 使用默认db
-```php
-$biz['db']->exec()
-```
-- 使用其它db
-```php
-$biz['dbs']['mysql2']->exec()
-```
-
-#### redis
-- 开启dao层缓存
-
-`config/redis.php`配置如下：增加dao-cache
-```php
-return [
-    'default' => [
-        'host' => '127.0.0.1',
-        'password' => null,
-        'port' => 6379,
-        'database' => 0,
-    ],
-    'dao-cache' => [
-        'host'     => '127.0.0.1',
-        'password' => null,
-        'port'     => 6379,
-        'database' => 9,
-    ],
-];
-```
-
-#### 认证
-- 开启jwt认证（开启jwt认证后，将按照jwt标准实行，因此header头的token信息将换成 Authorization: Bearer Token;如有需要更完善的jwt，可以对接下工具和资料下的第一个认证插件链接)
-
-  修改配置文件`.env`
-   ```php
-  AUTH_TOKEN_HANDLER='jwt'
-  JWT_SECRET=''
-  JWT_PUBLIC_KEY=''
-  JWT_PRIVATE_KEY=''
-  JWT_TTL=60
-  JWT_REFRESH_TTL=null
-  JWT_ALGO=RS256
-  JWT_LEEWAY=0
-  JWT_BLACKLIST_ENABLED=true
-  ```
-- 如何开启多端认证
-  修改`config/app.php`文件,将jwt_的主要参数配置到对应端:
-```php
-    'api' => [
-        'auth_ttl' => '{默认token登录过期时间：7天}', 
-        'jwt_ttl' => '{jwt access token 过期时间，如果设置则会覆盖默认的jwt配置}'
-        'jwt_refresh_ttl' => '{jwt refresh token 过期时间，如果设置则会覆盖默认的jwt配置}',
-        'jwt_secret' => '',
-        'jwt_private_key' => '',
-        'jwt_public_key' => '',
-    ],
-    '其它端' => [
-        //
-    ],
-```
-- 切换认证存储方式为redis（目前支持db和redis，默认为db）
-  修改配置文件`.env`:
-```
-AUTH_TOKEN_STORAGE='redis'
-```
-### nginx
-```shell
-upstream webman-vr {
-    server 127.0.0.1:8886;
-    keepalive 10240;
-}
-server {
-    server_name vr.com.cn;
-    listen 80;
-    access_log /var/logs/nginx/vr.com.cn.access.log;
-    error_log  /var/logs/nginx/vr.com.cn.error.log;
-    # 装修前端静态资源目录
-    root /www/wwwroot/vr.com.cn/public/front;
-    client_max_body_size 50m;
-    client_body_buffer_size 2m;
-    # ssl 配置
-    # 处理 /api-static/ 的请求
-    location ^~ /api-static {
-        alias /www/wwwroot/vr.com.cn/public/api-static/;  # 指向实际的静态资源目录
-        # 其他配置，例如缓存或 CORS 设置
-        expires 30d;  # 缓存设置，30天过期
-        add_header Cache-Control "public";
-        try_files $uri $uri/ =404;
-    }
-    # 处理 /uploads/ 的请求
-    location ^~ /uploads {
-        alias /www/wwwroot/vr.com.cn/public/uploads/;  # 指向实际的静态资源目录
-        # 其他配置，例如缓存或 CORS 设置
-        expires 30d;  # 缓存设置，30天过期
-        add_header Cache-Control "public";
-        try_files $uri $uri/ =404;
-    }
-    # 运营管理后台静态资源目录
-    location ^~ /admin-ui {
-        alias /www/wwwroot/vr.com.cn/public/admin-ui/;
-        try_files $uri $uri/ /admin-ui/index.html;
-    }
-    # 处理静态文件的请求
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-    # 开放api、运营管理后台的请求
-    location ~ ^/(api|admin)/ {
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header Host $host;
-          proxy_set_header X-Forwarded-Proto $scheme;
-          proxy_http_version 1.1;
-          proxy_set_header Connection "";
-          proxy_buffering  on;
-          proxy_buffer_size 500M;
-          proxy_buffers 4 500M;
-          proxy_busy_buffers_size 500M;
-          proxy_temp_file_write_size 500M;
-          if (!-f $request_filename){
-              proxy_pass http://webman-vr;
-          }
-    }
-    # 大文件下载借用 fpm, 需要修改.env 配置内的安全参数:BIG_FILE_DOWNLOAD_REFERER_WHITE_LIST='文件分段下载，download.php 允许来源访问白名单(多个 url 以英文｜分割)' 
-    location ^~ admin/download.php {
-            fastcgi_pass   unix:/var/run/php/php7.4-fpm.sock;
-            fastcgi_index  index.php;
-            fastcgi_split_path_info  ^((?U).+\.php)(/?.+)$;
-            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-            fastcgi_param  PATH_INFO  $fastcgi_path_info;
-            fastcgi_param  PATH_TRANSLATED  $document_root$fastcgi_path_info;
-            include        fastcgi_params;
-            try_files $uri =404;
-#            try_files $uri =404;
-#            fastcgi_pass  unix:/tmp/php-cgi-74.sock;
-#            fastcgi_index index.php;
-#            include fastcgi.conf;
-#            include pathinfo.conf;
-    }
-       
-  }
-    }
-```
-
-### 常用业务指令
-
-#### 生成内部会员命令
-```shell
-php webman make:vip
-```
-#### 审核公司命令
-```shell
-php webman company:check
-```
-#### 生成业务层指令
-```shell
-# 例如:生成商品业务层
-php webman make:biz -i Goods 
-# 例如:在某个插件目录下生成业务层
-php webman make:biz -i Coupon --namespace {plugin}\Business\Coupon
-# 例如: 生成学生业务层并指定数据表名称
-php webman make:biz -i Student -s students
-```
-
-#### 生成业务dao层指令
-`一般用于已经生成的service层追加关联的业务dao`
-```shell
-# 例如:生成product 下 catalog dao
- php webman make:biz-dao -i Product -d ProductCatalog 
-```
-
-## 系统消息队列任务表
-- 删除全景场景任务：
-- 生成大文件分片任务：
-- 清理大文件分片上传的临时片段文件：
-- 文件上传后异步任务：对视频文件进行取帧、计算时长等
-- 全景图片矢量图分片任务：
-- 删除文件任务：
-- 发送邮件任务：
-- 会员邮箱验证任务：
-
 
 ## gbs启动
+
+### 网关和api在同一台服务器
+
 - 如果是UDP监听：`cp config/gb28181.php.example config/gb28181.php`
 - 如果是TCP监听：`cp config/gb28181_tcp.php.example config/gb28181_tcp.php`
 - UDP启动：`php webman gb28181:server start`
 - TCP启动：`php webman gb28181:server start --tcp`
-## 注意
-### daoProxy
-当开启了dao层缓存后，在dao里面以以下单词开头命名或直接命名的方法会被代理从而缓存dao层拿到的db数据，因为会走daoProxy
-`'get', 'find', 'search', 'count', 'create', 'batchCreate', 'batchUpdate', 'batchDelete', 'update', 'wave', 'delete'`
 
+### 网关和api不在同一台服务器
+#### composer.json 和谐
+```json
+{
+  "autoload": {
+    "psr-4": {
+      "Gb28181\\GateWay\\": "./Gb28181Gateway/src"
+    },
+    "files": [
+    ]
+  }
+}
+```
+
+### 编写`gbs.php`
+
+
+这部分参考：[gbs](./gb28181_server.php) 或者参考webman gb28181:server指令的处理
+
+### 启动
+```bash
+php gbs.php start
+```
+## 线上部署实操
+
+### step 1 - api
+```bash
+mkdir -p /www/gbs
+cd /www/gbs
+mkdir backend
+mkdir frontend
+cd backend
+git clone https://github.com/wzj177/gbvr.git .
+composer install -vvv
+cp .env.example .env
+# 修改配置
+php webman system:init
+cd ../frontend
+# 上传dist.zip
+unzip dist.zip
+cp -r dist/* ./
+rm -rf dist.zip  dist
+cd ..
+chown -R www-data:www-data frontend
+# 服务启动
+php webman restart -d
+# 代码更新重载
+php webman reload
+```
+
+- gbs 结构
+```
+drwxr-xr-x 15 root     root     4096 May 25 11:33 backend/
+drwxr-xr-x  4 www-data www-data 4096 Jun  1 17:34 frontend/
+```
+- frontend 结构
+```
+drwxr-xr-x 2 www-data www-data 4096 May 24 20:57 assets/
+-rw-r--r-- 1 www-data www-data 1265 May 24 20:57 index.html
+drwxr-xr-x 4 www-data www-data 4096 May 24 20:57 static/
+```
+### step 2 - gbs
+```bash
+cd backend
+# udp
+cp config/gb28181.php.example config/gb28181.php
+# 改网关配置
+# 测试
+php webman gb28181:server start -d
+# tcp
+cp config/gb28181_tcp.php.example config/gb28181_tcp.php
+# 改网关配置
+# 测试
+php webman gb28181:server start --tcp -d
+```
+
+#### 使用supervisor启动
+
+- udp
+```conf
+[program:gbs_server]
+directory=/www/gbs/backend
+
+command=php webman gb28181:server start -d
+;command=php webman gb28181:server start 如果不开启debug
+autostart=true
+autorestart=true
+startsecs=3
+startretries=3
+
+user=root
+numprocs=1
+
+redirect_stderr=true
+stdout_logfile=/var/log/supervisor/gbs.out.log
+stderr_logfile=/var/log/supervisor/gbs.err.log
+stdout_logfile_maxbytes=50MB
+stdout_logfile_backups=10
+
+stopasgroup=true
+killasgroup=true
+
+; 关键：优雅停止
+stopsignal=QUIT
+stopwaitsecs=10
+
+; 如果你的 stop 必须执行命令（备用方案）
+; stopsignal=TERM
+```
+
+- tcp
+```conf
+[program:gbs_tcp_server]
+directory=/www/gbs/backend
+
+command=php webman gb28181:server start --tcp -d
+
+autostart=true
+autorestart=true
+startsecs=3
+startretries=3
+
+user=root
+numprocs=1
+
+redirect_stderr=true
+stdout_logfile=/var/log/supervisor/gbs_tcp.out.log
+stderr_logfile=/var/log/supervisor/gbs_tcp.err.log
+stdout_logfile_maxbytes=50MB
+stdout_logfile_backups=10
+
+stopasgroup=true
+killasgroup=true
+
+; 关键：优雅停止
+stopsignal=QUIT
+stopwaitsecs=10
+
+; 如果你的 stop 必须执行命令（备用方案）
+; stopsignal=TERM
+
+```
+
+### step 3 - zlm
+#### 使用supervisor启动
+`/www/gbs/backend/config/zlm` 这个在项目目录里，可以自行配置
+
+```conf
+[program:zlmediakit]
+; 直接指定二进制绝对路径和参数
+command=/www/ZLMediaKit/release/linux/Debug/MediaServer -c /www/gbs/backend/config/zlm/config-prod.ini -s /www/gbs/backend/config/zlm/ssl_prod.pem
+
+; 工作目录：确保 ZLM 能找到相对路径的资源（如 www 目录、日志目录等）
+directory=/www/ZLMediaKit/release/linux/Debug
+
+; 自动启动与重启
+autostart=true
+autorestart=true
+
+; 启动成功判定时间（秒），给 ZLM 一点初始化时间
+startsecs=5
+
+; 运行用户：root 以便绑定 80/443 等特权端口
+user=root
+
+; 日志配置
+stdout_logfile=/var/log/supervisor/zlmediakit.out.log
+stderr_logfile=/var/log/supervisor/zlmediakit.err.log
+
+; 停止信号
+stopsignal=TERM
+stopwaitsecs=10
+```
+---
+## 建议
+
+- 如果不想自己去编译exosip扩展，建议在php-exosip仓库 release
+  去下载指定版本，详情参考：[php-exosip](https://github.com/wzj177/php-exosip)。目前主要版本是php8.2，其他php版本开发者可以自己拉代码编译。
+
+
+### step 4 - supervisor 命令
+```bash
+  supervisorctl reread
+  supervisorctl update
+  supervisorctl status
+```
+
+### step5 - gbs status
+```bash
+php webman gb28181:server status
+php webman gb28181:server status --tcp
+```
+
+### step6 - nginx
+
+```conf
+upstream webman {
+    # Webman 默认端口通常是 8787，请根据你的实际启动端口修改
+    # 你提供的配置是 8886，这里保持一致
+    server 127.0.0.1:8886;
+    keepalive 10240;
+}
+
+server {
+    listen 8888;
+    server_name localhost; # 如果有域名，改为你的域名，如 example.com
+    # Vue3 静态资源根目录
+    root /www/gbs/frontend;
+    index index.html;
+    access_log /var/log/nginx/vue-gbs_access.log;
+    # 错误日志：记录 Nginx 处理过程中的错误（如权限拒绝、上游连接失败等）
+    error_log /var/log/nginx/vue-gbs_error.log;
+    # 1. 处理 API 请求 (反向代理到 Webman)
+    # ^~ 表示优先匹配，一旦匹配成功不再进行正则匹配
+    location ^~ /api {
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+
+        # 如果请求的文件不存在（通常 API 都是虚拟路径，肯定不存在），则转发
+        # 注意：对于纯 API 代理，通常不需要 if (!-f)，直接 proxy_pass 即可
+        # 但保留你的逻辑也没问题
+        if (!-f $request_filename) {
+            proxy_pass http://webman;
+        }
+    }
+
+    # 2. 处理 Vue Router 的 History 模式
+    # 如果访问的路径不是文件也不是目录，全部重定向到 index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 3. 静态资源缓存优化 (可选)
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # 4. 禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+
+```
 ## 相关仓库
 
-| 仓库 | 说明 |
-|------|------|
-| [php-exosip](https://github.com/wzj177/php-exosip) | PHP C 扩展，封装 eXosip2 提供 SIP 服务端/客户端能力 |
-| [PHP-GB28181-UI](https://github.com/wzj177/PHP-GB28181-UI) | 管理后台前端（Vue.js），设备管理、实时预览、云台控制等 |
-
-## 工具和资料
-
-- [Lcobucci/jwt Integration For webman](https://www.workerman.net/plugin/45)
-- [接口设计](https://www.easemob.com/news/6806)
-- [在线生成公钥私钥对，RSA公私钥生成-ME2在线工具](http://www.metools.info/code/c80.html)
+| 仓库                                                         | 说明                                   |
+|------------------------------------------------------------|--------------------------------------|
+| [php-exosip](https://github.com/wzj177/php-exosip)         | PHP C 扩展，封装 eXosip2 提供 SIP 服务端/客户端能力 |
+| [PHP-GB28181-UI](https://github.com/wzj177/PHP-GB28181-UI) | 管理后台前端（Vue.js），设备管理、实时预览、云台控制等       |
