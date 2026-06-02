@@ -19,7 +19,7 @@ GB28181 协议视频管理平台
 
 ## 演示站点
 
-- 演示地址：http://wanzij.cn:8888
+- 演示地址：https://gbs.wanzij.cn
 - 账号：admin / 密码：qwe123456@vr
 
 > 演示站点待部署
@@ -256,6 +256,7 @@ stopwaitsecs=10
 ```
 
 ### step 3 - zlm
+
 #### zlm 下载编译
 ```
 # 参考：https://docs.zlmediakit.com/zh/guide/install/start.html#_3-2%E3%80%81%E5%AE%89%E8%A3%85%E7%BC%96%E8%AF%91%E5%99%A8
@@ -266,7 +267,15 @@ cat key.pem cert.pem > ssl_prod.pem
 rm -f key.pem cert.pem
 mkdir -p build && cd build
 cmake .. -DENABLE_WEBRTC=true
+make -j4
 mv ssl_prod.pem /www/gbs/backend/config/zlm
+```
+#### ffmpeg 安装
+```shell
+# ubuntu/debain
+apt-get install ffmpeg
+# centos/redhat
+yum install ffmpeg
 ```
 #### 使用supervisor启动
 `/www/gbs/backend/config/zlm` 这个在项目目录里，可以自行配置
