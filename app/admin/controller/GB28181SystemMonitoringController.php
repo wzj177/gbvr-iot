@@ -25,7 +25,7 @@ class GB28181SystemMonitoringController extends BaseController
     {
         try {
             // 设备概览统计
-            ['total_count' => $totalCount, 'online_count' => $onlineCount, 'unregister_count' => $unRegisterCount, 'expired_count' => $expiredCount] = $this->getDeviceService()->summaryDevices([]);
+            ['total_count' => $totalCount, 'online_count' => $onlineCount, 'unregister_count' => $unRegisterCount, 'expired_count' => $expiredCount] = $this->getDeviceService()->summaryDevices(['sum_num_GT' => 0]);
 
             // 获取所有设备用于详细统计
             $allDevices = $this->getDeviceService()->searchDevices([], [], 0, 1000);
