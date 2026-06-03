@@ -359,6 +359,20 @@ class DeviceManager
     }
 
     /**
+     * 获取在线设备数量（轻量，不创建数组）
+     */
+    public function countOnline() : int
+    {
+        $count = 0;
+        foreach ($this->devices as $device) {
+            if ($device->isOnline()) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
      * 获取所有设备列表
      *
      * @return array
