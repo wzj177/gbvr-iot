@@ -584,7 +584,7 @@ class DeviceManager
                 json_encode($cacheData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
             );
 
-            $this->log("设备缓存已保存: {$cacheData['count']} 个设备", 'DEBUG');
+//            $this->log("设备缓存已保存: {$cacheData['count']} 个设备", 'DEBUG');
         } catch (\Exception $e) {
             $this->log("保存缓存失败: {$e->getMessage()}", 'ERROR');
         }

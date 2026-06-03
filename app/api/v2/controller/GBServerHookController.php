@@ -228,6 +228,11 @@ class GBServerHookController extends BaseController
             // 发送设备信息查询请求，在handleDeviceInfo收到设备信息后，处理
             $this->getGb28181Service()->queryDeviceInfo($deviceId);
 
+            // 兜底：通过 Redis 队列发送 catalog 查询
+            // Gateway 端 handleRegister 也会直接发 SIP queryCatalog，但高并发下可能发送失败且无重试
+            // 这里通过队列再发一次，确保 catalog 查询不丢失
+            $this->getGb28181Service()->queryCatalog($deviceId);
+
             Log::channel('sip')->info('Device registered', [
                 'device_id'  => $deviceId,
                 'status'     => $device['status'] ?? 'unknown',
