@@ -9,22 +9,22 @@ GB28181 协议视频管理平台
 
 ## 效果预览
 
-![设备列表](docs/screenshots/device_list.jpg)
-![设备分析](docs/screenshots/device_ana.jpg)
-![通道列表](docs/screenshots/channel_list.jpg)
-![通道播放与云台控制](docs/screenshots/channel_player_ptz.jpg)
-![云台控制](docs/screenshots/ptz.jpg)
-![拉流管理](docs/screenshots/pull_stream.jpg)
-![地图总览](docs/screenshots/map.jpg)
-![系统配置](docs/screenshots/sys.jpg)
-![系统分析](docs/screenshots/sys_ana.jpg)
-![压力测试](docs/screenshots/yace.jpg)
-![压力测试结果](docs/screenshots/yace_liu.jpg)
-![ZLM配置](docs/screenshots/zlm_config.jpg)
+![设备列表](screenshots/device_list.jpg)
+![设备分析](screenshots/device_ana.jpg)
+![通道列表](screenshots/channel_list.jpg)
+![通道播放与云台控制](screenshots/channel_player_ptz.jpg)
+![云台控制](screenshots/ptz.jpg)
+![拉流管理](screenshots/pull_stream.jpg)
+![地图总览](screenshots/map.jpg)
+![系统配置](screenshots/sys.jpg)
+![系统分析](screenshots/sys_ana.jpg)
+![压力测试](screenshots/yace.jpg)
+![压力测试结果](screenshots/yace_liu.jpg)
+![ZLM配置](screenshots/zlm_config.jpg)
 
 
 ---
-> 更多[>>>](./docs/screenshots)
+> 更多[>>>](./screenshots)
 ## 演示站点
 
 - 演示地址：https://gbs.wanzij.cn
