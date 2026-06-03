@@ -287,46 +287,36 @@ class GB28181Handler
             $this->registerGateway($gatewayId);
         }
 
-        // 启动命令订阅器 Long Task（2个进程，各消费不同队列）
-        // lt_id=0 → priority队列（注册后触发的设备发现/订阅命令）
-        // lt_id=1 → normal队列（实时视频/回放/PTZ等用户操作命令）
-        $longTaskCallback = function () use ($server, $config, $debug) {
-            $lid = $server->longtaskGetId();
+        // 启动 2 个 Long Task 进程，分别消费 priority 和 normal 队列
+        // 使用 foreach + 闭包变量捕获，不依赖 C 扩展的 longtaskGetId()
+        // LongTask #0: 消费 priority 队列（设备发现/目录/订阅）
+        // LongTask #1: 消费 normal 队列（实时视频/回放/PTZ）
+        $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
+        $gatewaySuffix = !empty($config['gateway_id']) ? ':' . $config['gateway_id'] : '';
 
-            $transportType = $config['mq_type'] ?? 'redis';
-            $this->log("[LongTask-{$lid}] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}");
+        $queueMap = [
+            0 => $baseQueueName . ':priority' . $gatewaySuffix,
+            1 => $baseQueueName . ':normal' . $gatewaySuffix,
+        ];
 
-            // 根据 mq_type 创建 Transport
-            if ($transportType === 'redis') {
-                $transportConfig = $config['redis'] ?? [];
-            } else {
-                $transportConfig = $config['mq_config'] ?? [];
-            }
+        foreach ($queueMap as $lid => $queueKey) {
+            $server->startLongTask(function () use ($server, $config, $debug, $lid, $queueKey) {
+                $transportType = $config['mq_type'] ?? 'redis';
+                $this->log("[LongTask#{$lid}] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}, queue={$queueKey}");
 
-            $transport = TransportFactory::create($transportType, $transportConfig);
+                // 根据 mq_type 创建 Transport
+                if ($transportType === 'redis') {
+                    $transportConfig = $config['redis'] ?? [];
+                } else {
+                    $transportConfig = $config['mq_config'] ?? [];
+                }
 
-            // 拼接完整队列名：queue_name + ':' + 分类后缀 + ':' + gateway_id
-            $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
-            $gatewayId = $config['gateway_id'] ?? '';
-            $suffix = $gatewayId ? ':' . $gatewayId : '';
+                $transport = TransportFactory::create($transportType, $transportConfig);
 
-            // LongTask 队列映射：lt_id => 队列分类后缀
-            $queueMap = [
-                0 => ':priority',  // 设备发现/目录/订阅等注册后续命令
-                1 => ':normal',    // 实时视频/回放/PTZ等用户操作命令
-            ];
-
-            $queueSuffix = $queueMap[$lid] ?? ':normal';
-            $queueKey = $baseQueueName . $queueSuffix . $suffix;
-
-            $this->log("[LongTask-{$lid}] Consuming queue: {$queueKey}");
-
-            $subscriber = new CommandSubscriber($transport, $debug);
-            $subscriber->run($server, $queueKey, 1);
-        };
-
-        $server->startLongTask($longTaskCallback);
-        $server->startLongTask($longTaskCallback);
+                $subscriber = new CommandSubscriber($transport, $debug);
+                $subscriber->run($server, $queueKey, 1);
+            });
+        }
     }
 
     /**
@@ -602,7 +592,7 @@ class GB28181Handler
      */
     public function handleTask($taskId, $taskData) : array
     {
-        $this->log("Task #{$taskId} processing", 'DEBUG');
+        //        $this->log("Task #{$taskId} processing", 'DEBUG');
         if (empty($taskData)) {
             return [
                 'success' => false,
@@ -715,7 +705,7 @@ class GB28181Handler
      */
     public function handleTaskFinish($taskId, $result) : void
     {
-//        $this->log("Task #{$taskId} finished", 'DEBUG');
+        //        $this->log("Task #{$taskId} finished", 'DEBUG');
 
         $action = $result['action'] ?? '';
 
@@ -1103,7 +1093,7 @@ class GB28181Handler
      */
     public function handleMessage(\SipEvent $event) : void
     {
-//        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
+        //        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
         $body = $event->getBody();
         $fromUri = $event->getFromUri();
         $deviceId = $this->extractDeviceId($fromUri);

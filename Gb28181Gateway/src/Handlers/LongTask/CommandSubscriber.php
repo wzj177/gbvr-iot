@@ -30,10 +30,10 @@ class CommandSubscriber
      * 运行订阅循环（在 Long Task 进程中调用）
      *
      * @param \ExoSip $server SIP 服务器实例，用于 sendToWorker()
-     * @param string $queueKey 队列键名
+     * @param string|array $queueKeys 队列键名（支持多队列，按优先级顺序，BLPOP 从第一个非空队列弹出）
      * @param int $timeout pop 超时时间（秒）
      */
-    public function run(\ExoSip $server, string $queueKey = 'gb28181:commands', int $timeout = 1) : void
+    public function run(\ExoSip $server, string|array $queueKeys = 'gb28181:commands', int $timeout = 1) : void
     {
         // 设置信号处理器
         pcntl_async_signals(true);
@@ -46,7 +46,8 @@ class CommandSubscriber
         $healthCheckInterval = 10;
 
         $this->logger->info("[CommandSubscriber] Started (PID: " . getmypid() . ")", 'CommandSubscriber');
-        $this->logger->info("[CommandSubscriber] transport={$this->transport->getType()}, queue={$queueKey}", 'CommandSubscriber');
+        $queueKeysArray = (array)$queueKeys;
+        $this->logger->info("[CommandSubscriber] transport={$this->transport->getType()}, queues=" . implode(', ', $queueKeysArray), 'CommandSubscriber');
 
         while (!$this->shouldExit) {
             try {
@@ -61,7 +62,8 @@ class CommandSubscriber
                 }
 
                 // Pop message from queue（transport 内部会自动重连）
-                $result = $this->transport->pop([$queueKey], $timeout);
+                // BLPOP 多队列按顺序优先消费：priority 队列非空则先消费 priority
+                $result = $this->transport->pop($queueKeysArray, $timeout);
 
                 if ($result && is_array($result)) {
                     $message = $result[1] ?? '';
