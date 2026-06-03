@@ -28,9 +28,8 @@ class Gb28181DeviceStatusCheckTask extends BaseCrontabTask
                 }
             }
 
-            Log::channel('crontab')->info("定期检测设备状态完成", $devices);
         } catch (\Exception $e) {
-            Log::channel('crontab')->error("定期检测设备状态异常: " . $e->getMessage());
+            $this->log()->error("定期检测设备状态异常: " . $e->getMessage());
         }
     }
 

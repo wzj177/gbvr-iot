@@ -16,8 +16,11 @@ class GBHook implements MiddlewareInterface
         $clientIp = $request->getRealIp();
         // 检查客户端IP是否在允许列表中
         if (!$this->checkAllowedIp($clientIp, $allowIps)) {
-            var_dump(1);
             return response('IP Not Allowed', 403);
+        }
+
+        if ($clientIp === '127.0.0.1') {
+            return $next($request);
         }
 
         // 从请求头获取token
@@ -27,8 +30,10 @@ class GBHook implements MiddlewareInterface
             return response('Unauthorized', 401);
         }
 
-        // 验证token
-        if (!password_verify($apiHookSecret . $serverDomain, $token)) {
+        // 使用 hash_equals + hash_hmac 验证 token（替代 password_verify/bcrypt）
+        // hook 是内网可信通道，无需 bcrypt 级别的 CPU 开销
+        $expected = hash_hmac('sha256', $serverDomain, $apiHookSecret);
+        if (!hash_equals($expected, $token)) {
             return response('Invalid token', 401);
         }
 

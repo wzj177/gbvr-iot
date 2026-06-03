@@ -30,8 +30,11 @@ class GenerateGBApiHockToken extends Command
     {
         $apiHookSecret = config('app.gb.api_hock_secret');
         $serverDomain = config('gb28181.server_domain');
-        $token = password_hash($apiHookSecret . $serverDomain, PASSWORD_DEFAULT);
+        $token = hash_hmac('sha256', $serverDomain, $apiHookSecret);
         $output->writeln("Token: {$token}");
+        $output->writeln("");
+        $output->writeln("Update config/gb28181.php api.token with the value above.");
+        $output->writeln("Also update .env API_HOOK_SECRET if using env-based config.");
 
         return self::SUCCESS;
     }

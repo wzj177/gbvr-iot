@@ -287,28 +287,36 @@ class GB28181Handler
             $this->registerGateway($gatewayId);
         }
 
-        // 启动命令订阅器 Long Task
-        $server->startLongTask(function () use ($server, $config, $debug) {
-            $transportType = $config['mq_type'] ?? 'redis';
-            $this->log("[LongTask] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}");
+        // 启动 2 个 Long Task 进程，分别消费 priority 和 normal 队列
+        // 使用 foreach + 闭包变量捕获，不依赖 C 扩展的 longtaskGetId()
+        // LongTask #0: 消费 priority 队列（设备发现/目录/订阅）
+        // LongTask #1: 消费 normal 队列（实时视频/回放/PTZ）
+        $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
+        $gatewaySuffix = !empty($config['gateway_id']) ? ':' . $config['gateway_id'] : '';
 
-            // 根据 mq_type 创建 Transport
-            if ($transportType === 'redis') {
-                $transportConfig = $config['redis'] ?? [];
-            } else {
-                $transportConfig = $config['mq_config'] ?? [];
-            }
+        $queueMap = [
+            0 => $baseQueueName . ':priority' . $gatewaySuffix,
+            1 => $baseQueueName . ':normal' . $gatewaySuffix,
+        ];
 
-            $transport = TransportFactory::create($transportType, $transportConfig);
+        foreach ($queueMap as $lid => $queueKey) {
+            $server->startLongTask(function () use ($server, $config, $debug, $lid, $queueKey) {
+                $transportType = $config['mq_type'] ?? 'redis';
+                $this->log("[LongTask#{$lid}] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}, queue={$queueKey}");
 
-            // 拼接完整队列名：queue_name + ':' + gateway_id
-            $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
-            $gatewayId = $config['gateway_id'] ?? '';
-            $queueKey = $baseQueueName . ($gatewayId ? ':' . $gatewayId : '');
+                // 根据 mq_type 创建 Transport
+                if ($transportType === 'redis') {
+                    $transportConfig = $config['redis'] ?? [];
+                } else {
+                    $transportConfig = $config['mq_config'] ?? [];
+                }
 
-            $subscriber = new CommandSubscriber($transport, $debug);
-            $subscriber->run($server, $queueKey, 1);
-        });
+                $transport = TransportFactory::create($transportType, $transportConfig);
+
+                $subscriber = new CommandSubscriber($transport, $debug);
+                $subscriber->run($server, $queueKey, 1);
+            });
+        }
     }
 
     /**
@@ -368,7 +376,11 @@ class GB28181Handler
 
         $baseQueue = $redisConfig['queue_name'] ?? 'gb28181:commands';
         $gatewayId = $this->config['gateway_id'] ?? '';
-        $queueKey  = $baseQueue . ($gatewayId ? ':' . $gatewayId : '');
+        $suffix = $gatewayId ? ':' . $gatewayId : '';
+
+        // 按action分类到对应队列
+        $queueSuffix = $this->classifyAction($message['action'] ?? '');
+        $queueKey = $baseQueue . $queueSuffix . $suffix;
 
         try {
             $redis = new ClientRedis($redisConfig);
@@ -378,6 +390,21 @@ class GB28181Handler
         } catch (\Throwable $e) {
             $this->log("requeueCommand failed: " . $e->getMessage(), 'ERROR');
         }
+    }
+
+    /**
+     * 根据action类型返回队列分类后缀
+     */
+    public static function classifyAction(string $action) : string
+    {
+        return match ($action) {
+            'query_catalog', 'query_device_info', 'query_device_status',
+            'device_update', 'subscribe_catalog', 'subscribe_alarm',
+            'subscribe_mobile_position', 'unsubscribe_catalog',
+            'unsubscribe_alarm', 'unsubscribe_mobile_position',
+            'refresh_subscribe' => ':priority',
+            default => ':normal',
+        };
     }
 
     /**
@@ -565,7 +592,7 @@ class GB28181Handler
      */
     public function handleTask($taskId, $taskData) : array
     {
-        $this->log("Task #{$taskId} processing", 'DEBUG');
+        //        $this->log("Task #{$taskId} processing", 'DEBUG');
         if (empty($taskData)) {
             return [
                 'success' => false,
@@ -678,7 +705,7 @@ class GB28181Handler
      */
     public function handleTaskFinish($taskId, $result) : void
     {
-        $this->log("Task #{$taskId} finished", 'DEBUG');
+        //        $this->log("Task #{$taskId} finished", 'DEBUG');
 
         $action = $result['action'] ?? '';
 
@@ -1066,7 +1093,7 @@ class GB28181Handler
      */
     public function handleMessage(\SipEvent $event) : void
     {
-//        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
+        //        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
         $body = $event->getBody();
         $fromUri = $event->getFromUri();
         $deviceId = $this->extractDeviceId($fromUri);

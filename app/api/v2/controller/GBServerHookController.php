@@ -35,7 +35,10 @@ class GBServerHookController extends BaseController
         $scene = $request->post('scene');
         $body = $request->post('body', []);
 
-        if ($scene !== 'sip_xml') {
+        // 高频场景跳过日志写磁盘，避免 I/O 阻塞事件循环
+        // 生产环境心跳/sip_xml 量级大，写日志意义不大
+        $skipLogScenes = ['sip_xml', 'update_heartbeat'];
+        if (!in_array($scene, $skipLogScenes, true)) {
             Log::channel('sip')->info('GBServer Hook Received', [
                 'scene' => $scene,
                 'body'  => $body,
@@ -91,6 +94,12 @@ class GBServerHookController extends BaseController
 
     private function handleSipXml(array $body) : void
     {
+        // SIP XML 日志默认关闭，通过 .env SIP_XML_LOG_ENABLED=true 开启
+        // 生产环境建议关闭，避免每个 hook 请求同步写磁盘阻塞事件循环
+        if (!getenv('SIP_XML_LOG_ENABLED')) {
+            return;
+        }
+
         $deviceId = $body['device_id'] ?? '';
         if (!$deviceId) {
             return;

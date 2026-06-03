@@ -29,14 +29,8 @@ class RefreshMediaServerStatusTask extends BaseCrontabTask
 
                     // 避免干扰，延迟一下
                     usleep(100000); // 100ms
-
-                    Log::channel('crontab')->info('Media server status sync job dispatched', [
-                        'server_id' => $server['server_id'],
-                        'name'      => $server['name'],
-                        'status'    => $server['status'],
-                    ]);
                 } catch (\Exception $e) {
-                    Log::channel('crontab')->error('Failed to dispatch media server status sync job', [
+                    $this->log()->error('Failed to dispatch media server status sync job', [
                         'server_id' => $server['server_id'],
                         'name'      => $server['name'],
                         'error'     => $e->getMessage(),
@@ -44,7 +38,7 @@ class RefreshMediaServerStatusTask extends BaseCrontabTask
                 }
             }
         } catch (\Exception $e) {
-            Log::channel('crontab')->error('Refresh media server status task failed', [
+            $this->log()->error('Refresh media server status task failed', [
                 'error' => $e->getMessage(),
             ]);
         }
