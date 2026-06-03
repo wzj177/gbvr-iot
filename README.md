@@ -186,6 +186,8 @@ php gbs.php start
 
 ## 线上部署实操
 
+** 前端代码可以在前端仓库release下载最新的，也可以自己打包 **
+
 ### step 1 - api
 ```bash
 mkdir -p /www/gbs
