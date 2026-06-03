@@ -715,7 +715,7 @@ class GB28181Handler
      */
     public function handleTaskFinish($taskId, $result) : void
     {
-        $this->log("Task #{$taskId} finished", 'DEBUG');
+//        $this->log("Task #{$taskId} finished", 'DEBUG');
 
         $action = $result['action'] ?? '';
 

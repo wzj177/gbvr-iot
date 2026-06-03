@@ -71,7 +71,7 @@ class AutoRecordProcess
     {
         $planList = $this->getRecordPlanService()->getPlansWithRanges();
         if (empty($planList)) {
-            $this->loopLog("[进程{$workerId}] 暂无可用录像计划");
+//            $this->loopLog("[进程{$workerId}] 暂无可用录像计划");
             return;
         }
 
