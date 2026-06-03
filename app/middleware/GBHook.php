@@ -19,6 +19,10 @@ class GBHook implements MiddlewareInterface
             return response('IP Not Allowed', 403);
         }
 
+        if ($clientIp === '127.0.0.1') {
+            return $next($request);
+        }
+
         // 从请求头获取token
         $token = $request->header('X-Token', '');
         // 如果没有token或者token为空，则返回401错误
