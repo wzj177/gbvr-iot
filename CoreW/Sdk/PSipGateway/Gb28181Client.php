@@ -16,6 +16,24 @@ class Gb28181Client
     private string $queueName = 'gb28181:commands';
 
     /**
+     * 优先级action列表：注册后触发的设备发现/订阅命令
+     * 这些命令由 LongTask-0 消费 :priority 队列
+     */
+    private const PRIORITY_ACTIONS = [
+        'query_catalog',
+        'query_device_info',
+        'query_device_status',
+        'device_update',
+        'subscribe_catalog',
+        'subscribe_alarm',
+        'subscribe_mobile_position',
+        'unsubscribe_catalog',
+        'unsubscribe_alarm',
+        'unsubscribe_mobile_position',
+        'refresh_subscribe',
+    ];
+
+    /**
      * gateway_id 解析器：传入 deviceId，返回 gateway_id 或 null
      * @var callable|null
      */
@@ -70,9 +88,13 @@ class Gb28181Client
         ];
 
         try {
-            $queueName = $gatewayId
-                ? "gb28181:commands:{$gatewayId}"
-                : $this->queueName;
+            // 按action分类到不同队列后缀（:priority / :normal）
+            $queueSuffix = in_array($action, self::PRIORITY_ACTIONS, true) ? ':priority' : ':normal';
+
+            // 队列名拼接顺序：baseQueue + 分类后缀 + gateway_id
+            // 与 Gateway 侧 GB28181Handler::handleWorkerStart 保持一致
+            $gatewaySuffix = $gatewayId ? ":{$gatewayId}" : '';
+            $queueName = $this->queueName . $queueSuffix . $gatewaySuffix;
 
             // 推送到 Redis 队列
             $result = $this->redis->lPush($queueName, json_encode($command, JSON_UNESCAPED_UNICODE));

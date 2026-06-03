@@ -1128,7 +1128,34 @@ class ExoSip {
      * ```
      */
     public function startLongTask(callable $callback): bool {}
-    
+
+    /**
+     * Get the current Long Task process slot ID
+     *
+     * Returns the slot index (0, 1, 2, ...) when called from a Long Task process.
+     * Returns -1 when called from Master, Worker, or Task processes.
+     *
+     * Use this to assign different Redis queues to different Long Task processes:
+     *
+     * ```php
+     * $sip->onWorkerStart = function(ExoSip $server) {
+     *     // Start 2 Long Task processes (requires long_task_worker_num = 2)
+     *     $server->startLongTask(function() use ($server) {
+     *         $lid = $server->longtaskGetId();  // 0 or 1
+     *         $queueMap = [
+     *             0 => 'gb:cmd:priority',
+     *             1 => 'gb:cmd:normal',
+     *         ];
+     *         $queue = $queueMap[$lid] ?? 'gb:cmd:normal';
+     *         // consume from $queue...
+     *     });
+     * };
+     * ```
+     *
+     * @return int Slot ID (0-based) in Long Task process, -1 otherwise
+     */
+    public function longtaskGetId(): int {}
+
     /**
      * Get process status (internal call, from running process)
      * 

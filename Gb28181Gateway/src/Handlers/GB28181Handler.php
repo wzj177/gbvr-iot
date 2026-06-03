@@ -287,10 +287,14 @@ class GB28181Handler
             $this->registerGateway($gatewayId);
         }
 
-        // 启动命令订阅器 Long Task
-        $server->startLongTask(function () use ($server, $config, $debug) {
+        // 启动命令订阅器 Long Task（2个进程，各消费不同队列）
+        // lt_id=0 → priority队列（注册后触发的设备发现/订阅命令）
+        // lt_id=1 → normal队列（实时视频/回放/PTZ等用户操作命令）
+        $longTaskCallback = function () use ($server, $config, $debug) {
+            $lid = $server->longtaskGetId();
+
             $transportType = $config['mq_type'] ?? 'redis';
-            $this->log("[LongTask] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}");
+            $this->log("[LongTask-{$lid}] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}");
 
             // 根据 mq_type 创建 Transport
             if ($transportType === 'redis') {
@@ -301,14 +305,28 @@ class GB28181Handler
 
             $transport = TransportFactory::create($transportType, $transportConfig);
 
-            // 拼接完整队列名：queue_name + ':' + gateway_id
+            // 拼接完整队列名：queue_name + ':' + 分类后缀 + ':' + gateway_id
             $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
             $gatewayId = $config['gateway_id'] ?? '';
-            $queueKey = $baseQueueName . ($gatewayId ? ':' . $gatewayId : '');
+            $suffix = $gatewayId ? ':' . $gatewayId : '';
+
+            // LongTask 队列映射：lt_id => 队列分类后缀
+            $queueMap = [
+                0 => ':priority',  // 设备发现/目录/订阅等注册后续命令
+                1 => ':normal',    // 实时视频/回放/PTZ等用户操作命令
+            ];
+
+            $queueSuffix = $queueMap[$lid] ?? ':normal';
+            $queueKey = $baseQueueName . $queueSuffix . $suffix;
+
+            $this->log("[LongTask-{$lid}] Consuming queue: {$queueKey}");
 
             $subscriber = new CommandSubscriber($transport, $debug);
             $subscriber->run($server, $queueKey, 1);
-        });
+        };
+
+        $server->startLongTask($longTaskCallback);
+        $server->startLongTask($longTaskCallback);
     }
 
     /**
@@ -368,7 +386,11 @@ class GB28181Handler
 
         $baseQueue = $redisConfig['queue_name'] ?? 'gb28181:commands';
         $gatewayId = $this->config['gateway_id'] ?? '';
-        $queueKey  = $baseQueue . ($gatewayId ? ':' . $gatewayId : '');
+        $suffix = $gatewayId ? ':' . $gatewayId : '';
+
+        // 按action分类到对应队列
+        $queueSuffix = $this->classifyAction($message['action'] ?? '');
+        $queueKey = $baseQueue . $queueSuffix . $suffix;
 
         try {
             $redis = new ClientRedis($redisConfig);
@@ -378,6 +400,21 @@ class GB28181Handler
         } catch (\Throwable $e) {
             $this->log("requeueCommand failed: " . $e->getMessage(), 'ERROR');
         }
+    }
+
+    /**
+     * 根据action类型返回队列分类后缀
+     */
+    public static function classifyAction(string $action) : string
+    {
+        return match ($action) {
+            'query_catalog', 'query_device_info', 'query_device_status',
+            'device_update', 'subscribe_catalog', 'subscribe_alarm',
+            'subscribe_mobile_position', 'unsubscribe_catalog',
+            'unsubscribe_alarm', 'unsubscribe_mobile_position',
+            'refresh_subscribe' => ':priority',
+            default => ':normal',
+        };
     }
 
     /**

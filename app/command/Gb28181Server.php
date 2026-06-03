@@ -70,7 +70,7 @@ class Gb28181Server extends Command
             'mode'                 => $config['transport'],
             'debug'                => $config['debug'],
             'task_worker_num'      => $config['task_worker_num'],
-            'long_task_worker_num' => 1,
+            'long_task_worker_num' => 2,
             'pid_file'             => $config['pid_file'],
             'sipId'                => $config['server_id'],
             'sipRealm'             => $config['server_domain'],
