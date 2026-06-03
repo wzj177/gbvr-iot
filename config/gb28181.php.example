@@ -291,6 +291,6 @@ return [
     'api'      => [
         'hock_url' => 'http://127.0.0.1:8886/api/v2/gb/server/hook',
         'pull_url' => 'http://127.0.0.1:8886/api/v2/gb/devices/pull',
-        'token'    => '$2y$10$DfjYrMs2Vvl2t3xw65LQXO3dZbs085qr7XJMzAnhSQixKnPejzgTm',
+        'token'    => 'd6b6183b8735f51ab251ea9f47580c208b6ea8889d871d80e1d032e191111a61',
     ],
 ];
