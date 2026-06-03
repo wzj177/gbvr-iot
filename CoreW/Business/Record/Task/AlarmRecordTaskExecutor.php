@@ -15,8 +15,6 @@ class AlarmRecordTaskExecutor extends BaseCrontabTask
 {
     public function execute() : void
     {
-        $this->log()->info('AlarmRecordTaskExecutor started');
-
         try {
             /** @var RecordTaskService $recordTaskService */
             $recordTaskService = $this->getBfw()->service('Record:RecordTaskService');
@@ -27,10 +25,10 @@ class AlarmRecordTaskExecutor extends BaseCrontabTask
             // 2. 停止超时的录像
             $stoppedCount = $recordTaskService->stopExpiredRecordings();
 
-            $this->log()->info('AlarmRecordTaskExecutor completed', [
-                'processed_count' => $processedCount,
-                'stopped_count'   => $stoppedCount,
-            ]);
+//            $this->log()->info('AlarmRecordTaskExecutor completed', [
+//                'processed_count' => $processedCount,
+//                'stopped_count'   => $stoppedCount,
+//            ]);
 
         } catch (\Exception $e) {
             $this->log()->error('AlarmRecordTaskExecutor failed', [

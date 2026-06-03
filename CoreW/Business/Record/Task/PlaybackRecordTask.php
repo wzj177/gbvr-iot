@@ -31,11 +31,11 @@ class PlaybackRecordTask extends BaseCrontabTask
         // 3. 完成完成中的任务（兜底机制，处理 hook 未触发的情况）
         $completedCount = $recordTaskService->completeFinalizingTasks();
 
-        $this->log()->info('PlaybackRecordTaskProcess completed', [
-            'started_count'   => $startedCount,
-            'stopped_count'   => $stoppedCount,
-            'completed_count' => $completedCount,
-        ]);
+//        $this->log()->info('PlaybackRecordTaskProcess completed', [
+//            'started_count'   => $startedCount,
+//            'stopped_count'   => $stoppedCount,
+//            'completed_count' => $completedCount,
+//        ]);
         //        echo 'PlaybackRecordTaskProcess completed', ':started_count=', $startedCount, ',stopped_count=', $stoppedCount, ',completed_count=', $completedCount,PHP_EOL;
     }
 }

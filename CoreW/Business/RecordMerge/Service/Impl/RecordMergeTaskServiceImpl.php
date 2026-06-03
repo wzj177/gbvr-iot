@@ -136,7 +136,6 @@ class RecordMergeTaskServiceImpl extends BaseService implements RecordMergeTaskS
                 $this->doMerge($task);
                 $processed++;
             } catch (\Throwable $e) {
-                Log::channel('crontab')->error("RecordMerge: task #{$task['id']} failed: " . $e->getMessage());
                 $this->getRecordMergeTaskDao()->update((int)$task['id'], [
                     'status'        => 'failed',
                     'error_message' => mb_substr($e->getMessage(), 0, 500),

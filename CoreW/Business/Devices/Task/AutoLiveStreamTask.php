@@ -118,14 +118,14 @@ class AutoLiveStreamTask extends BaseCrontabTask
         try {
             $result = $this->stopLiveVideoCore($channel);
 
-            if ($result) {
-                $this->log()->info('[AutoLive] 自动停流', [
-                    'device_id'  => $channel['device_id'],
-                    'channel_id' => $channel['channel_id'],
-                    'stream_id'  => $channel['stream_id'],
-                    'reason'     => $reason,
-                ]);
-            }
+//            if ($result) {
+//                $this->log()->info('[AutoLive] 自动停流', [
+//                    'device_id'  => $channel['device_id'],
+//                    'channel_id' => $channel['channel_id'],
+//                    'stream_id'  => $channel['stream_id'],
+//                    'reason'     => $reason,
+//                ]);
+//            }
         } catch (\Throwable $e) {
             $this->log()->error('[AutoLive] 停流失败', [
                 'stream_id' => $channel['stream_id'] ?? '',

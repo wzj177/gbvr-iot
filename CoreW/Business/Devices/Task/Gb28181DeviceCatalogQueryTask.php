@@ -45,7 +45,7 @@ class Gb28181DeviceCatalogQueryTask extends BaseCrontabTask
 
             //            Log::channel('crontab')->info("定期发送设备目录查询完成");
         } catch (\Exception $e) {
-            Log::channel('crontab')->error("定期发送设备目录查询异常: " . $e->getMessage());
+            $this->log()->error("定期发送设备目录查询异常: " . $e->getMessage());
         }
     }
 

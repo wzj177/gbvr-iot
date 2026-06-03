@@ -47,11 +47,11 @@ class CleanupRtpPortAndClearStreamSessionTask extends BaseCrontabTask
             }
         }
 
-        $this->log()->info('Cleanup task completed', [
-            'total'   => count($sessions),
-            'cleaned' => $cleanupCount,
-            'skipped' => $skipCount,
-        ]);
+//        $this->log()->info('Cleanup task completed', [
+//            'total'   => count($sessions),
+//            'cleaned' => $cleanupCount,
+//            'skipped' => $skipCount,
+//        ]);
     }
 
     /**
