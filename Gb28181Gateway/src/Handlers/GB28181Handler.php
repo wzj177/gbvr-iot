@@ -287,34 +287,50 @@ class GB28181Handler
             $this->registerGateway($gatewayId);
         }
 
-        // 启动 2 个 Long Task 进程，分别消费 priority 和 normal 队列
-        // 使用 foreach + 闭包变量捕获，不依赖 C 扩展的 longtaskGetId()
-        // LongTask #0: 消费 priority 队列（设备发现/目录/订阅）
-        // LongTask #1: 消费 normal 队列（实时视频/回放/PTZ）
+        // 启动命令订阅器 Long Task
         $baseQueueName = $config['redis']['queue_name'] ?? 'gb28181:commands';
         $gatewaySuffix = !empty($config['gateway_id']) ? ':' . $config['gateway_id'] : '';
+        $longTaskNum = $config['long_task_worker_num'] ?? 1;
 
-        $queueMap = [
-            0 => $baseQueueName . ':priority' . $gatewaySuffix,
-            1 => $baseQueueName . ':normal' . $gatewaySuffix,
-        ];
-
-        foreach ($queueMap as $lid => $queueKey) {
-            $server->startLongTask(function () use ($server, $config, $debug, $lid, $queueKey) {
+        if ($longTaskNum >= 2) {
+            // 双进程模式：分别消费 priority 和 normal 队列
+            // 使用 foreach + 闭包变量捕获，不依赖 C 扩展的 longtaskGetId()
+            $queueMap = [
+                0 => $baseQueueName . ':priority' . $gatewaySuffix,
+                1 => $baseQueueName . ':normal' . $gatewaySuffix,
+            ];
+            foreach ($queueMap as $lid => $queueKey) {
+                $server->startLongTask(function () use ($server, $config, $debug, $lid, $queueKey) {
+                    $transportType = $config['mq_type'] ?? 'redis';
+                    $this->log("[LongTask#{$lid}] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}, queue={$queueKey}");
+                    if ($transportType === 'redis') {
+                        $transportConfig = $config['redis'] ?? [];
+                    } else {
+                        $transportConfig = $config['mq_config'] ?? [];
+                    }
+                    $transport = TransportFactory::create($transportType, $transportConfig);
+                    $subscriber = new CommandSubscriber($transport, $debug);
+                    $subscriber->run($server, $queueKey, 1);
+                });
+            }
+        } else {
+            // 单进程模式：BLPOP 双队列，priority 优先消费
+            $queueKeys = [
+                $baseQueueName . ':priority' . $gatewaySuffix,
+                $baseQueueName . ':normal' . $gatewaySuffix,
+            ];
+            $server->startLongTask(function () use ($server, $config, $debug, $queueKeys) {
                 $transportType = $config['mq_type'] ?? 'redis';
-                $this->log("[LongTask#{$lid}] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}, queue={$queueKey}");
-
-                // 根据 mq_type 创建 Transport
+                $this->log("[LongTask] Command Subscriber started (PID: " . getmypid() . "), transport={$transportType}");
+                $this->log("[LongTask] Consuming queues (priority first): " . implode(', ', $queueKeys));
                 if ($transportType === 'redis') {
                     $transportConfig = $config['redis'] ?? [];
                 } else {
                     $transportConfig = $config['mq_config'] ?? [];
                 }
-
                 $transport = TransportFactory::create($transportType, $transportConfig);
-
                 $subscriber = new CommandSubscriber($transport, $debug);
-                $subscriber->run($server, $queueKey, 1);
+                $subscriber->run($server, $queueKeys, 1);
             });
         }
     }
@@ -518,7 +534,7 @@ class GB28181Handler
 
         try {
             $this->curlPost($heartbeatUrl, $payload);
-            $this->log("Gateway heartbeat sent: gateway_id={$gatewayId}, device_count={$payload['device_count']}", 'DEBUG');
+//            $this->log("Gateway heartbeat sent: gateway_id={$gatewayId}, device_count={$payload['device_count']}", 'DEBUG');
         } catch (\Throwable $e) {
             $this->log("Gateway heartbeat failed: {$e->getMessage()}", 'ERROR');
         }

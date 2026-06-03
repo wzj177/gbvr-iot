@@ -64,6 +64,13 @@ return [
      */
     'task_worker_num'               => 4,
 
+    /**
+     * 长任务进程数（用于消息队列消费）
+     * 1: 单进程，BLPOP 双队列（priority + normal）优先级消费
+     * 2: 双进程，分别消费 priority 和 normal 队列（推荐，设备发现不受视频请求阻塞）
+     */
+    'long_task_worker_num'          => 1,
+
     // ========== GB28181 国标编码 ==========
 
     /**
