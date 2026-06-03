@@ -454,7 +454,7 @@ class GB28181Handler
                         'timeout'        => $this->config['heartbeat_timeout'],
                         'timestamp'      => $now,
                     ]);
-                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
+//                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
                 }
             }
         }
