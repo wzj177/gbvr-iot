@@ -454,7 +454,7 @@ class GB28181Handler
                         'timeout'        => $this->config['heartbeat_timeout'],
                         'timestamp'      => $now,
                     ]);
-                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
+//                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
                 }
             }
         }
@@ -528,7 +528,7 @@ class GB28181Handler
             'gateway_id'   => $gatewayId,
             'pid'          => getmypid(),
             'ip'           => gethostbyname(gethostname()),
-            'device_count' => count($this->deviceManager->getOnlineDevices()),
+            'device_count' => $this->deviceManager->countOnline(),
             'transport'    => $transport,
         ];
 
@@ -2520,11 +2520,9 @@ class GB28181Handler
     public function getStats() : array
     {
         $managerStats = $this->deviceManager->getStats();
-        $allDevices = $this->deviceManager->getAllDevices();
-        $totalDevices = count($allDevices);
 
         return [
-            'total_devices'        => $totalDevices,
+            'total_devices'        => $managerStats['total'] ?? 0,
             'online_devices'       => $managerStats['online'] ?? 0,
             'unregistered_devices' => $managerStats['unregistered'] ?? 0,
             'timeout_devices'      => $managerStats['timeout'] ?? 0,

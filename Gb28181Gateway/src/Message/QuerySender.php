@@ -461,10 +461,7 @@ class QuerySender
             // 获取订阅 ID
             $subscriptionId = $device->getSubscriptionId($eventType);
             if ($subscriptionId === null) {
-                $this->logger->warning('取消订阅失败：未找到订阅记录', [
-                    'device_id'  => $deviceId,
-                    'event_type' => $eventType,
-                ]);
+                $this->logger->warning("取消订阅失败：未找到订阅记录 device_id={$deviceId} event_type={$eventType}");
                 return;
             }
 
@@ -493,10 +490,7 @@ class QuerySender
             // 获取订阅 ID
             $subscriptionId = $device->getSubscriptionId($eventType);
             if ($subscriptionId === null) {
-                $this->logger->warning('取消订阅失败：未找到订阅记录', [
-                    'device_id'  => $deviceId,
-                    'event_type' => $eventType,
-                ]);
+                $this->logger->warning("取消订阅失败：未找到订阅记录 device_id={$deviceId} event_type={$eventType}");
                 return;
             }
 

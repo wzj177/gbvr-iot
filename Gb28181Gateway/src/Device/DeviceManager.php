@@ -224,7 +224,7 @@ class DeviceManager
                 $device->markTimeout();
                 $timeSinceHeartbeat = $now - $device->lastHeartbeat;
 
-                $this->log("设备心跳超时: {$deviceId}, 距离上次心跳: {$timeSinceHeartbeat}秒", 'ERROR');
+//                $this->log("设备心跳超时: {$deviceId}, 距离上次心跳: {$timeSinceHeartbeat}秒", 'ERROR');
                 $timeoutDevices[] = $device->toArray();
             } // 预警（超过一半时间没心跳）
             else if ($device->isOnline()) {
@@ -356,6 +356,20 @@ class DeviceManager
     {
         $device = $this->devices[$deviceId] ?? null;
         return $device ? $device->toArray() : null;
+    }
+
+    /**
+     * 获取在线设备数量（轻量，不创建数组）
+     */
+    public function countOnline() : int
+    {
+        $count = 0;
+        foreach ($this->devices as $device) {
+            if ($device->isOnline()) {
+                $count++;
+            }
+        }
+        return $count;
     }
 
     /**

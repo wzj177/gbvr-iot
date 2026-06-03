@@ -539,6 +539,7 @@ tcp6       0      0 :::5540                 :::*                    LISTEN      
 - [wvp](https://doc.wvp-pro.cn/#/)
 - [exosip](https://www.exosip.org/)
 - [akstream](https://github.com/chatop2020/AKStream)
+- [easygbs](www.easygbs.com)
 ## 友情链接
 
 [![LINUXDO](https://img.shields.io/badge/%E7%A4%BE%E5%8C%BA-LINUXDO-0086c9?style=for-the-badge&labelColor=555555)](https://linux.do)
