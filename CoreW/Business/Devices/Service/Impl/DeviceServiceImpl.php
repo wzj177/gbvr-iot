@@ -16,6 +16,7 @@ use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\User\CurrentUserInterface;
 use CoreW\Dao\DaoProxy;
 use support\exception\NotFoundException;
+use CoreW\Business\Devices\Enums\DeviceCategoryEnum;
 
 class DeviceServiceImpl extends BaseService implements DeviceService
 {
@@ -135,7 +136,7 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         $now = date('Y-m-d H:i:s');
 
         // 自动解析设备分类（从设备ID第10-13位）
-        $category = \CoreW\Business\Devices\Enums\DeviceCategoryEnum::parseFromDeviceId($deviceId);
+        $category = DeviceCategoryEnum::parseFromDeviceId($deviceId);
 
         $deviceData = [
             'status'            => DeviceStatusEnum::ONLINE->value,
