@@ -28,7 +28,6 @@ use Gb28181\GateWay\Wrappers\CallbackWrapper;
 use Gb28181\GateWay\Libs\Logger;
 use Gb28181\GateWay\Libs\ClientRedis;
 use Gb28181Gateway\src\Message\CommandType\DeviceSubscribeCommand;
-use Gb28181Gateway\src\Message\CommandType\DeviceToServerSubscribeHandler;
 
 /**
  * GB28181 信令网关核心处理类
@@ -1389,39 +1388,32 @@ class GB28181Handler
         }
 
         $this->log("处理订阅: {$deviceId}, Event: {$eventType}, Expires: {$expires}");
-        $handler = new DeviceToServerSubscribeHandler();
-        switch (strtolower($eventType)) {
-            case 'catalog':
-                $handler->handleCatalogSubscribe($event, $deviceId, $expires, $body);
-                break;
 
-            case 'alarm':
-                $handler->handleAlarmSubscribe($event, $deviceId, $expires, $body);
-                break;
+        $subscriptionType = $this->mapEventToSubscriptionType($eventType);
+        $subscription = [
+            'device_id'   => $deviceId,
+            'type'        => $subscriptionType ?? $eventType,
+            'event'       => $eventType,
+            'call_id'     => $callId,
+            'dialog_id'   => $dialogId,
+            'expires'     => $expires,
+            'expire_time' => time() + $expires,
+            'created_at'  => time(),
+        ];
 
-            case 'mobileposition':
-            case 'presence':
-                $handler->andleMobilePositionSubscribe($event, $deviceId, $expires, $body);
-                break;
+        $this->deviceManager->addSubscription($deviceId, $subscriptionType ?? $eventType, $subscription);
 
-            default:
-                // 未知订阅类型，仍然接受但记录日志
-                $this->log("未知订阅类型: {$eventType}", 'WARNING');
+        $this->postTask('subscribe', [
+            'device_id'  => $deviceId,
+            'event_type' => $eventType,
+            'expires'    => $expires,
+            'call_id'    => $callId,
+            'dialog_id'  => $dialogId,
+            'timestamp'  => time(),
+        ]);
 
-                $this->sipServer->sendNotifyResponse($event->getTid(), 200);
-
-                // 通知业务系统
-                $this->postTask('subscription_unknown', [
-                    'device_id'  => $deviceId,
-                    'event_type' => $eventType,
-                    'expires'    => $expires,
-                    'call_id'    => $callId,
-                    'dialog_id'  => $dialogId,
-                    'body'       => $body,
-                    'timestamp'  => time(),
-                ]);
-                break;
-        }
+        $this->sipServer->sendNotifyResponse($event->getTid(), 200);
+        $this->log("✓ 订阅成功: {$deviceId}, Event: {$eventType}, Expires: {$expires}");
     }
 
     /**
