@@ -832,7 +832,23 @@ class ExoSip {
      * @see subscribe() To create subscription that triggers NOTIFY
      */
     public function sendNotifyResponse(int $tid, int $code): bool {}
-    
+
+    /**
+     * Send response to outgoing subscription NOTIFY (as subscriber)
+     *
+     * When platform subscribes to a device (e.g., catalog, alarm, position),
+     * the device sends NOTIFY back. This method responds to those NOTIFY events.
+     *
+     * Uses eXosip_subscription_build_answer (outgoing subscription API).
+     * - sendNotifyResponse(): For incoming SUBSCRIBE (device subscribes to us)
+     * - sendSubscriptionResponse(): For outgoing NOTIFY (we subscribe to device)
+     *
+     * @param int $tid Transaction ID from EXOSIP_SUBSCRIPTION_NOTIFY event
+     * @param int $code Response code (200 for OK)
+     * @return bool True on success, false on failure
+     */
+    public function sendSubscriptionResponse(int $tid, int $code): bool {}
+
     /**
      * Send NOTIFY request to subscriber (as event source) (GB28181)
      * 

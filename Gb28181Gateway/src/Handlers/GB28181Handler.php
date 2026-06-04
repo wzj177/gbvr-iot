@@ -1116,14 +1116,14 @@ class GB28181Handler
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             $this->log("设备未注册: {$deviceId}", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            $this->sendMsgResponse($event->getTid(), 404, "MESSAGE/404 device={$deviceId}");
             return;
         }
 
         // 检查 body 是否为空
         if (empty($body)) {
             $this->log("收到空消息体，忽略", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            $this->sendMsgResponse($event->getTid(), 200, "MESSAGE/200-empty device={$deviceId}");
             return;
         }
 
@@ -1139,7 +1139,7 @@ class GB28181Handler
             if ($this->config['debug']) {
                 $this->log("原始 Body: " . $body, 'DEBUG');
             }
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
+            $this->sendMsgResponse($event->getTid(), 400, "MESSAGE/400-xml device={$deviceId}");
             return;
         }
 
@@ -1164,7 +1164,7 @@ class GB28181Handler
 
         } catch (\InvalidArgumentException $e) {
             $this->log("未知命令: " . $e->getMessage(), 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            $this->sendMsgResponse($event->getTid(), 200, "MESSAGE/200-unknown device={$deviceId}");
         }
     }
 
@@ -1480,7 +1480,7 @@ class GB28181Handler
 
         if (!$device) {
             $this->log("NOTIFY 来自未注册设备: {$deviceId}", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            $this->sipServer->sendSubscriptionResponse($event->getTid(), 404);
             return;
         }
 
@@ -1527,7 +1527,7 @@ class GB28181Handler
         }
 
         // 兜底：返回 200 OK
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
     }
 
 
@@ -1553,7 +1553,7 @@ class GB28181Handler
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             $this->log("设备未注册: {$deviceId}", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
             return;
         }
 
@@ -1570,7 +1570,7 @@ class GB28181Handler
         // 消息体为空时直接返回
         if (empty($body)) {
             $this->log("{$eventTypeDesc}通知消息体为空", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+            $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
             return;
         }
 
@@ -1580,7 +1580,7 @@ class GB28181Handler
 
         if (!$xml) {
             $this->log("{$eventTypeDesc}通知 XML 解析失败", 'ERROR');
-            $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
+            $this->sipServer->sendSubscriptionResponse($event->getTid(), 400);
             return;
         }
 
@@ -1625,7 +1625,7 @@ class GB28181Handler
 
         $this->log("✓ {$eventTypeDesc}通知已处理: {$deviceId}");
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
     }
 
     /**
@@ -1677,7 +1677,7 @@ class GB28181Handler
         }
 
         // 发送 200 OK
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
     }
 
 
@@ -1697,18 +1697,12 @@ class GB28181Handler
         if ($code >= 200 && $code < 300) {
             //  成功响应
             if ($code == 200) {
-                // INVITE 的 200 OK（含 SDP）- EXOSIP_CALL_ANSWERED=8
-                // 注意: EXOSIP_CALL_RINGING=7 是 180 Ringing（临时响应），不应处理
-                // ACK 只应在收到最终响应（200 OK）时发送（RFC 3261 Section 13.2.2.4）
                 if ($type == EXOSIP_CALL_ANSWERED) {
                     $this->handleInviteResponse($event);
-                } // MESSAGE 的 200 OK（查询命令已接收）
-                else if ($type == EXOSIP_MESSAGE_ANSWERED || $type == EXOSIP_CALL_MESSAGE_ANSWERED) {
+                } else if ($type == EXOSIP_MESSAGE_ANSWERED || $type == EXOSIP_CALL_MESSAGE_ANSWERED) {
                     $this->handleMessageResponse($event);
-                } else {
-                    if ($this->config['debug'] ?? false) {
-                        $this->log("请求成功: Type=$type Code=$code (未处理)", 'DEBUG');
-                    }
+                } else if ($type == EXOSIP_SUBSCRIPTION_ANSWERED) {
+                    $this->handleSubscribeResponse($event);
                 }
             }
         } else if ($code >= 100 && $code < 200) {
@@ -1725,6 +1719,12 @@ class GB28181Handler
                 $type == EXOSIP_MESSAGE_SERVERFAILURE ||
                 $type == EXOSIP_MESSAGE_GLOBALFAILURE) {
                 $this->log("MESSAGE 请求失败,可能是设备不支持该命令", 'WARNING');
+            } else if ($type == EXOSIP_SUBSCRIPTION_REQUESTFAILURE ||
+                       $type == EXOSIP_SUBSCRIPTION_SERVERFAILURE ||
+                       $type == EXOSIP_SUBSCRIPTION_GLOBALFAILURE) {
+                $callId = $event->getCallId();
+                $deviceId = $this->extractDeviceId($event->getToUri());
+                $this->log("SUBSCRIBE 失败: device={$deviceId}, code={$code}, call_id={$callId}", 'WARNING');
             }
         }
     }
@@ -1910,6 +1910,26 @@ class GB28181Handler
         }
     }
 
+    private function handleSubscribeResponse(\SipEvent $event) : void
+    {
+        $code = $event->getCode();
+        $callId = $event->getCallId();
+        $dialogId = $event->getDialogId();
+        $toUri = $event->getToUri();
+        $deviceId = $this->extractDeviceId($toUri);
+        $expires = $event->getExpires();
+
+        $this->log("收到 SUBSCRIBE 200 OK: device={$deviceId}, call_id={$callId}, dialog_id={$dialogId}, expires={$expires}");
+
+        $this->postTask('subscribe_response', [
+            'device_id'  => $deviceId,
+            'call_id'    => $callId,
+            'dialog_id'  => $dialogId,
+            'expires'    => $expires,
+            'timestamp'  => time(),
+        ]);
+    }
+
     /**
      * 处理超时事件
      */
@@ -1962,7 +1982,7 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "Keepalive device={$deviceId}");
     }
 
     private function handleRecordInfo(\SipEvent $event, string $deviceId, array $data) : void
@@ -1973,7 +1993,7 @@ class GB28181Handler
             'timestamp'   => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "RecordInfo device={$deviceId}");
     }
 
     /**
@@ -2020,7 +2040,7 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "Catalog device={$deviceId}");
     }
 
     /**
@@ -2050,7 +2070,7 @@ class GB28181Handler
             'timestamp'   => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "DeviceInfo device={$deviceId}");
     }
 
     public function handleDeviceControl(\SipEvent $event, string $deviceId, array $result)
@@ -2058,7 +2078,7 @@ class GB28181Handler
         $resultStr = json_encode($result);
         $this->log("设备控制: $deviceId, result={$resultStr}");
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "DeviceControl device={$deviceId}");
     }
 
     /**
@@ -2080,7 +2100,7 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "DeviceStatus device={$deviceId}");
     }
 
     /**
@@ -2105,7 +2125,7 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "Alarm device={$deviceId}");
     }
 
     // handleMobilePositionReport
@@ -2120,7 +2140,7 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        $this->sendMsgResponse($event->getTid(), 200, "MobilePosition device={$deviceId}");
     }
 
 
@@ -2163,11 +2183,10 @@ class GB28181Handler
                 $this->handleMediaStatusReport($event, $deviceId, $result);
                 break;
             case 'Broadcast':
-                // 设备确认收到广播通知（Response: OK），后续设备会主动发送 INVITE
                 $broadcastResult = $result['result'] ?? 'unknown';
                 $broadcastChannelId = $result['channel_id'] ?? '';
                 $this->log("广播响应: 设备={$deviceId}, 通道={$broadcastChannelId}, 结果={$broadcastResult}");
-                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                $this->sendMsgResponse($event->getTid(), 200, "Broadcast device={$deviceId}");
                 break;
             case 'PresetQuery':
                 $this->log("预置位查询响应: $deviceId, 数量=" . ($result['num'] ?? 0));
@@ -2177,7 +2196,7 @@ class GB28181Handler
                     'num'         => $result['num'] ?? 0,
                     'timestamp'   => time(),
                 ]);
-                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                $this->sendMsgResponse($event->getTid(), 200, "PresetQuery device={$deviceId}");
                 break;
             case 'ConfigDownload':
                 $this->log("配置查询响应: $deviceId");
@@ -2187,11 +2206,11 @@ class GB28181Handler
                     'basic_param' => $result['basic_param'] ?? [],
                     'timestamp'   => time(),
                 ]);
-                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                $this->sendMsgResponse($event->getTid(), 200, "ConfigDownload device={$deviceId}");
                 break;
             default:
                 $this->log("未处理的命令: $cmdType", 'WARNING');
-                $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+                $this->sendMsgResponse($event->getTid(), 200, "Unknown cmd={$cmdType} device={$deviceId}");
         }
     }
 
@@ -2924,6 +2943,18 @@ class GB28181Handler
         $this->log("语音对讲会话已建立: {$deviceId}/{$channelId}, Dialog-ID: {$dialogId}, Stream: {$streamId}");
     }
 
+
+    /**
+     * 发送 MESSAGE 响应（带失败日志）
+     */
+    private function sendMsgResponse(int $tid, int $code, string $context = '') : bool
+    {
+        $result = $this->sipServer->sendResponse($tid, $code);
+        if (!$result) {
+            $this->log("sendResponse failed: tid={$tid}, code={$code}, context={$context}", 'WARNING');
+        }
+        return $result;
+    }
 
     /**
      * 日志输出
