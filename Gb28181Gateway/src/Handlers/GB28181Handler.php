@@ -1156,7 +1156,9 @@ class GB28181Handler
             ]);
 
             $cmdType = $result['cmd_type'] ?? 'Unknown';
-            $this->log("收到消息: $deviceId -> $cmdType");
+            if ($cmdType !== 'Keepalive') {
+                $this->log("收到消息: $deviceId -> $cmdType");
+            }
 
             // 根据命令类型分发处理
             $this->dispatchCommand($event, $deviceId, $result);
@@ -1360,7 +1362,7 @@ class GB28181Handler
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             $this->log("SUBSCRIBE 来自未注册设备: {$deviceId}", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 404, 'Not Found');
+            $this->sipServer->sendNotifyResponse($event->getTid(), 404);
             return;
         }
 
@@ -1382,15 +1384,12 @@ class GB28181Handler
                 'timestamp'  => time(),
             ]);
 
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => 0,
-            ]);
+            $this->sipServer->sendNotifyResponse($event->getTid(), 200);
             return;
         }
 
         $this->log("处理订阅: {$deviceId}, Event: {$eventType}, Expires: {$expires}");
         $handler = new DeviceToServerSubscribeHandler();
-        // 根据 Event 类型处理不同的订阅
         switch (strtolower($eventType)) {
             case 'catalog':
                 $handler->handleCatalogSubscribe($event, $deviceId, $expires, $body);
@@ -1409,9 +1408,7 @@ class GB28181Handler
                 // 未知订阅类型，仍然接受但记录日志
                 $this->log("未知订阅类型: {$eventType}", 'WARNING');
 
-                $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                    'Expires' => $expires,
-                ]);
+                $this->sipServer->sendNotifyResponse($event->getTid(), 200);
 
                 // 通知业务系统
                 $this->postTask('subscription_unknown', [
@@ -1961,18 +1958,13 @@ class GB28181Handler
      */
     private function handleKeepalive(\SipEvent $event, string $deviceId, array $data) : void
     {
-        $this->log("心跳: $deviceId");
-
-        // 更新心跳时间（用于超时检测）
         $this->deviceManager->recordHeartbeat($deviceId);
 
-        // 可选：检查设备状态
         $status = $data['status'] ?? 'OK';
         if ($status !== 'OK') {
             $this->log("设备状态异常: $deviceId - $status", 'WARNING');
         }
 
-        // 异步更新心跳到 Redis/数据库
         $this->postTask('update_heartbeat', [
             'device_id' => $deviceId,
             'timestamp' => time(),
