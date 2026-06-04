@@ -28,7 +28,7 @@ class RefreshMediaServerStatusTask extends BaseCrontabTask
                     ]);
 
                     // 避免干扰，延迟一下
-                    usleep(100000); // 100ms
+                    usleep(500000); // 100ms
                 } catch (\Exception $e) {
                     $this->log()->error('Failed to dispatch media server status sync job', [
                         'server_id' => $server['server_id'],
