@@ -1408,7 +1408,27 @@ class SipEvent {
      * ```
      */
     public function getDialogId(): int {}
-    
+
+    /**
+     * Get Subscription-ID from event (eXosip2 sid)
+     *
+     * For SUBSCRIBE response events (EXOSIP_SUBSCRIPTION_ANSWERED etc.), eXosip2
+     * sets cid=0 and places the subscription identifier in sid. Use this method
+     * to retrieve the subscription_id that matches the value returned by
+     * sip_send_subscribe() / pendingSubscribes keys.
+     *
+     * @return int eXosip subscription_id (sid from eXosip_event_t), 0 for non-SUBSCRIBE events
+     *
+     * @example
+     * ```php
+     * // In SUBSCRIBE 200 OK handler
+     * $subscriptionId = $event->getSubscriptionId(); // matches pendingSubscribes key
+     * $dialogId = $event->getDialogId();
+     * $this->commandDispatcher->handleSubscriptionResponse($subscriptionId, $dialogId, $code);
+     * ```
+     */
+    public function getSubscriptionId(): int {}
+
     /**
      * Get From URI
      * 

@@ -1922,14 +1922,14 @@ class GB28181Handler
         $code = $event->getCode();
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
+        $subscriptionId = $event->getSubscriptionId(); // eXosip2 sid
         $toUri = $event->getToUri();
         $deviceId = $this->extractDeviceId($toUri);
         $expires = $event->getExpires();
 
-        $this->log("收到出站 SUBSCRIBE 200 OK（平台订阅设备）: device={$deviceId}, call_id={$callId}, dialog_id={$dialogId}, expires={$expires}");
+        $this->log("收到出站 SUBSCRIBE 200 OK（平台订阅设备）: device={$deviceId}, call_id={$callId}, dialog_id={$dialogId}, subscription_id={$subscriptionId}, expires={$expires}");
 
-        // 委托给 CommandDispatcher 处理，它能通过 call_id (= subscription_id) 查找到 event_type 上下文
-        $this->commandDispatcher->handleSubscriptionResponse($callId, $dialogId, $code);
+        $this->commandDispatcher->handleSubscriptionResponse($subscriptionId, $dialogId, $code);
     }
 
     /**
