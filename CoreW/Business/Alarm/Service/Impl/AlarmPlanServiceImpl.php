@@ -33,17 +33,17 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
             throw CommonBizException::ERROR_PARAMETER_MISSING();
         }
 
-        // 过滤字段
+        // 过滤字段，空数组转为 null（表示匹配所有）
         $fields = [
             'name'                  => $data['name'],
             'status'                => $data['status'] ?? 1,
             'remark'                => $data['remark'] ?? null,
             'snapshot_interval_sec' => $data['snapshot_interval_sec'] ?? 0,
             'record_duration_sec'   => $data['record_duration_sec'] ?? 0,
-            'alarm_level'           => $data['alarm_level'] ?? null,
-            'alarm_method'          => $data['alarm_method'] ?? null,
-            'alarm_type'            => $data['alarm_type'] ?? null,
-            'alarm_eventtype'       => $data['alarm_eventtype'] ?? null,
+            'alarm_level'           => !empty($data['alarm_level']) ? $data['alarm_level'] : null,
+            'alarm_method'          => !empty($data['alarm_method']) ? $data['alarm_method'] : null,
+            'alarm_type'            => !empty($data['alarm_type']) ? $data['alarm_type'] : null,
+            'alarm_eventtype'       => !empty($data['alarm_eventtype']) ? $data['alarm_eventtype'] : null,
         ];
 
         // 验证数值范围
@@ -69,17 +69,17 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
             throw CommonBizException::ERROR_PARAMETER_NOT_FOUND();
         }
 
-        // 过滤可更新字段
+        // 过滤可更新字段，空数组转为 null（表示匹配所有）
         $fields = [
             'name'                  => $data['name'] ?? $plan['name'],
             'status'                => $data['status'] ?? $plan['status'],
             'remark'                => $data['remark'] ?? $plan['remark'],
             'snapshot_interval_sec' => $data['snapshot_interval_sec'] ?? $plan['snapshot_interval_sec'],
             'record_duration_sec'   => $data['record_duration_sec'] ?? $plan['record_duration_sec'],
-            'alarm_level'           => $data['alarm_level'] ?? $plan['alarm_level'],
-            'alarm_method'          => $data['alarm_method'] ?? $plan['alarm_method'],
-            'alarm_type'            => $data['alarm_type'] ?? $plan['alarm_type'],
-            'alarm_eventtype'       => $data['alarm_eventtype'] ?? $plan['alarm_eventtype'],
+            'alarm_level'           => array_key_exists('alarm_level', $data) ? (!empty($data['alarm_level']) ? $data['alarm_level'] : null) : $plan['alarm_level'],
+            'alarm_method'          => array_key_exists('alarm_method', $data) ? (!empty($data['alarm_method']) ? $data['alarm_method'] : null) : $plan['alarm_method'],
+            'alarm_type'            => array_key_exists('alarm_type', $data) ? (!empty($data['alarm_type']) ? $data['alarm_type'] : null) : $plan['alarm_type'],
+            'alarm_eventtype'       => array_key_exists('alarm_eventtype', $data) ? (!empty($data['alarm_eventtype']) ? $data['alarm_eventtype'] : null) : $plan['alarm_eventtype'],
         ];
 
         // 验证数值范围
