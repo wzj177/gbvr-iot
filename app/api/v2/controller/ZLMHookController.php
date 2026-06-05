@@ -108,7 +108,7 @@ class ZLMHookController extends BaseController
         $paramsStr = $request->post('params', null);
         $mediaServerId = $request->mediaServer['server_id'] ?? '';
 
-        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流事件', $request->post());
+//        $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流事件', $request->post());
 
         $result = [
             'code'         => 0,

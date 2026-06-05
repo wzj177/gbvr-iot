@@ -123,7 +123,7 @@ class CommandSubscriber
             }
         }
 
-        $this->logger->info("[CommandSubscriber] Received command: {$action}, device={$deviceId}", 'CommandSubscriber');
+        $this->logger->info("[CommandSubscriber] Received command: {$action}, device={$deviceId}, req_id={$requestId}", 'CommandSubscriber');
 
         // Forward to Worker for processing
         if ($server->sendToWorker($cmd)) {
@@ -131,7 +131,7 @@ class CommandSubscriber
                 $this->logger->debug("[CommandSubscriber] Command forwarded to Worker, req_id={$requestId}", 'CommandSubscriber');
             }
         } else {
-            $this->logger->error("[CommandSubscriber] Failed to forward command to Worker, req_id={$requestId}", 'CommandSubscriber');
+            $this->logger->error("[CommandSubscriber] Failed to forward command to Worker, action={$action}, device={$deviceId}, req_id={$requestId}", 'CommandSubscriber');
         }
     }
 }

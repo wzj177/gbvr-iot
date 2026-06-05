@@ -553,52 +553,71 @@ class DeviceManager
     private function saveCache() : void
     {
         try {
-            $devicesData = [];
-            foreach ($this->devices as $deviceId => $device) {
-                /**@var Device $device */
+            $fp = fopen($this->cacheFile . '.tmp', 'w');
+            if (!$fp) {
+                $this->log("无法打开缓存文件", 'ERROR');
+                return;
+            }
+
+            // 先统计在线设备数
+            $count = 0;
+            foreach ($this->devices as $device) {
                 if ($device->isOnline()) {
-                    $devicesData[] = [
-                        'device_id'            => $device->deviceId,
-                        'uri'                  => $device->uri,
-                        'ip'                   => $device->ip,
-                        'port'                 => $device->port,
-                        'user_agent'           => $device->info['user_agent'] ?? '',
-                        'registered_at'        => $device->registeredAt,
-                        'last_heartbeat'       => $device->lastHeartbeat,
-                        'expires'              => $device->expires,
-                        'channels'             => $device->channels,
-                        // 扩展配置字段
-                        'rtp_trans_mode'       => $device->rtpTransMode,
-                        'subscribe_catalog'    => $device->subscribeCatalog,
-                        'subscribe_alarm'      => $device->subscribeAlarm,
-                        'subscribe_position'   => $device->subscribePosition,
-                        'subscribe_ptz'        => $device->subscribePtz,
-                        'subscribe_expires'    => $device->subscribeExpires,
-                        'position_interval'    => $device->positionInterval,
-                        'catalog_interval'     => $device->catalogInterval,
-                        'last_catalog_at'      => $device->lastCatalogAt,
-                        'charset'              => $device->charset,
-                        'stream_index'         => $device->streamIndex,
-                        'filter_channel_types' => $device->filterChannelTypes,
-                        'record_mode'          => $device->recordMode,
-                        'catalog_structure'    => $device->catalogStructure,
-                        'subscription_status'  => $device->subscriptions,
-                    ];
+                    $count++;
                 }
             }
 
-            $cacheData = [
-                'timestamp' => time(),
-                'count'     => count($devicesData),
-                'devices'   => $devicesData,
-            ];
+            // 流式写入 JSON
+            fwrite($fp, '{"timestamp":' . time() . ',"count":' . $count . ',"devices":[');
 
-            file_put_contents(
-                $this->cacheFile,
-                json_encode($cacheData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
-            );
+            $first = true;
+            foreach ($this->devices as $deviceId => $device) {
+                /**@var Device $device */
+                if (!$device->isOnline()) {
+                    continue;
+                }
 
-//            $this->log("设备缓存已保存: {$cacheData['count']} 个设备", 'DEBUG');
+                $data = [
+                    'device_id'            => $device->deviceId,
+                    'uri'                  => $device->uri,
+                    'ip'                   => $device->ip,
+                    'port'                 => $device->port,
+                    'user_agent'           => $device->info['user_agent'] ?? '',
+                    'registered_at'        => $device->registeredAt,
+                    'last_heartbeat'       => $device->lastHeartbeat,
+                    'expires'              => $device->expires,
+                    'channels'             => $device->channels,
+                    'rtp_trans_mode'       => $device->rtpTransMode,
+                    'subscribe_catalog'    => $device->subscribeCatalog,
+                    'subscribe_alarm'      => $device->subscribeAlarm,
+                    'subscribe_position'   => $device->subscribePosition,
+                    'subscribe_ptz'        => $device->subscribePtz,
+                    'subscribe_expires'    => $device->subscribeExpires,
+                    'position_interval'    => $device->positionInterval,
+                    'catalog_interval'     => $device->catalogInterval,
+                    'last_catalog_at'      => $device->lastCatalogAt,
+                    'charset'              => $device->charset,
+                    'stream_index'         => $device->streamIndex,
+                    'filter_channel_types' => $device->filterChannelTypes,
+                    'record_mode'          => $device->recordMode,
+                    'catalog_structure'    => $device->catalogStructure,
+                    'subscription_status'  => $device->subscriptions,
+                ];
+
+                if (!$first) {
+                    fwrite($fp, ',');
+                }
+                $first = false;
+
+                // 逐设备编码写入，不累积整个数组
+                fwrite($fp, json_encode($data, JSON_UNESCAPED_UNICODE));
+            }
+
+            fwrite($fp, ']}');
+            fclose($fp);
+
+            // 原子替换
+            rename($this->cacheFile . '.tmp', $this->cacheFile);
         } catch (\Exception $e) {
             $this->log("保存缓存失败: {$e->getMessage()}", 'ERROR');
         }

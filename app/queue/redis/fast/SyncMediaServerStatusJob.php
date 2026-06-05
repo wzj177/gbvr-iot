@@ -52,10 +52,10 @@ class SyncMediaServerStatusJob implements Consumer
                 ]);
             }
 
-            $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_SYNC_MEDIA_SERVER_STATUS, '同步媒体服务器状态完成', [
-                'id'     => $mediaServerId,
-                'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
-            ]);
+//            $this->getLogService()->info(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_SYNC_MEDIA_SERVER_STATUS, '同步媒体服务器状态完成', [
+//                'id'     => $mediaServerId,
+//                'status' => $isOnline ? ServerStatusEnum::RUNNING->value : ServerStatusEnum::STOPPED->value,
+//            ]);
 
             return true;
         } catch (\Throwable $e) {

@@ -50,9 +50,7 @@ class DeviceToServerSubscribeHandler
                 'timestamp' => time(),
             ]);
 
-            $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-                'Expires' => 0,
-            ]);
+            $this->sipServer->sendNotifyResponse($event->getTid(), 200);
             return;
         }
 
@@ -60,9 +58,7 @@ class DeviceToServerSubscribeHandler
         if ($expires > 0 && $expires < $minExpires) {
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s (最小值)", 'WARNING');
 
-            $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires,
-            ]);
+            $this->sipServer->sendNotifyResponse($event->getTid(), 423);
             return;
         }
 
@@ -106,9 +102,7 @@ class DeviceToServerSubscribeHandler
         ]);
 
         // 返回 200 OK
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires,
-        ]);
+        $this->sipServer->sendNotifyResponse($event->getTid(), 200);
 
         $this->log("位置订阅成功: {$deviceId}, 有效期: {$expires}s" . ($interval ? ", 上报间隔: {$interval}s" : ""));
     }
@@ -135,9 +129,7 @@ class DeviceToServerSubscribeHandler
         // 检查订阅时间范围
         if ($expires > 0 && $expires < $minExpires) {
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires,
-            ]);
+            $this->sipServer->sendNotifyResponse($event->getTid(), 423);
             return;
         }
 
@@ -170,9 +162,7 @@ class DeviceToServerSubscribeHandler
         ]);
 
         // 返回 200 OK
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires,
-        ]);
+        $this->sipServer->sendNotifyResponse($event->getTid(), 200);
 
         $this->log("✓ 目录订阅成功: {$deviceId}, 有效期: {$expires}s");
     }
@@ -199,9 +189,7 @@ class DeviceToServerSubscribeHandler
         // 检查订阅时间范围
         if ($expires > 0 && $expires < $minExpires) {
             $this->log("订阅时间太短: {$expires}s < {$minExpires}s", 'WARNING');
-            $this->sipServer->sendResponse($event->getTid(), 423, 'Interval Too Small', [
-                'Min-Expires' => $minExpires,
-            ]);
+            $this->sipServer->sendNotifyResponse($event->getTid(), 423);
             return;
         }
 
@@ -252,9 +240,7 @@ class DeviceToServerSubscribeHandler
         ]);
 
         // 返回 200 OK
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
-            'Expires' => $expires,
-        ]);
+        $this->sipServer->sendNotifyResponse($event->getTid(), 200);
 
         $this->log("✓ 报警订阅成功: {$deviceId}, 有效期: {$expires}s" .
             ($alarmPriority ? ", 优先级: {$alarmPriority}" : "") .
