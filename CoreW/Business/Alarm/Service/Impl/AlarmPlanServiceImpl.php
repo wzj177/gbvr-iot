@@ -54,11 +54,6 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
             throw CommonBizException::ERROR_PARAMETER();
         }
 
-        // 验证至少有一个联动动作
-        if ($fields['snapshot_interval_sec'] == 0 && $fields['record_duration_sec'] == 0) {
-            throw CommonBizException::ERROR_PARAMETER();
-        }
-
         // 验证至少有一个报警匹配条件
         if (empty($fields['alarm_level']) && empty($fields['alarm_method'])) {
             throw CommonBizException::ERROR_PARAMETER();
@@ -92,11 +87,6 @@ class AlarmPlanServiceImpl extends BaseService implements AlarmPlanService
             throw CommonBizException::ERROR_PARAMETER();
         }
         if ($fields['record_duration_sec'] < 0) {
-            throw CommonBizException::ERROR_PARAMETER();
-        }
-
-        // 验证至少有一个联动动作
-        if ($fields['snapshot_interval_sec'] == 0 && $fields['record_duration_sec'] == 0) {
             throw CommonBizException::ERROR_PARAMETER();
         }
 
