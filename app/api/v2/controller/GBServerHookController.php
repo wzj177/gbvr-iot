@@ -74,6 +74,7 @@ class GBServerHookController extends BaseController
                 'preset_query_result' => $this->handlePresetQueryResult($body),
                 'config_download_result' => $this->handleConfigDownloadResult($body),
                 'mobile_position_report' => $this->handleMobilePositionReport($body),
+                'subscribe_response' => $this->handleSubscribeResponse($body),
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
 
@@ -1278,6 +1279,73 @@ class GBServerHookController extends BaseController
                 'trace'     => $e->getTraceAsString(),
             ]);
         }
+    }
+
+    /**
+     * 处理出站 SUBSCRIBE 200 OK 响应（平台订阅设备成功）
+     *
+     * 触发时机：
+     * 当信令网关发送 SUBSCRIBE（Catalog/Alarm/MobilePosition）到设备后，
+     * 设备返回 200 OK，网关通过 CommandDispatcher 将 dialog_id 和 event_type 回调到此处。
+     *
+     * 作用：
+     * 将 dialog_id 保存到 gv_device_subscribe_config 表，用于后续订阅续订。
+     *
+     * @param array $body 回调数据
+     */
+    private function handleSubscribeResponse(array $body) : void
+    {
+        $deviceId = $body['device_id'] ?? '';
+        $eventType = $body['event_type'] ?? '';
+        $dialogId = (int)($body['dialog_id'] ?? 0);
+        $subscriptionId = (int)($body['subscription_id'] ?? 0);
+        $expires = (int)($body['expires'] ?? 3600);
+        $success = $body['success'] ?? true;
+
+        if (!$deviceId) {
+            Log::channel('sip')->warning('subscribe_response without device_id', ['body' => $body]);
+            return;
+        }
+
+        if (!$success) {
+            Log::channel('sip')->warning('出站 SUBSCRIBE 失败', [
+                'device_id'  => $deviceId,
+                'event_type' => $eventType,
+                'status_code' => $body['status_code'] ?? 0,
+                'error'      => $body['error'] ?? '',
+            ]);
+            return;
+        }
+
+        if (!$eventType || !$dialogId) {
+            Log::channel('sip')->warning('subscribe_response missing event_type or dialog_id', ['body' => $body]);
+            return;
+        }
+
+        try {
+            $this->getSubscribeService()->updateDialogId($deviceId, $eventType, $dialogId, $subscriptionId, $expires);
+
+            Log::channel('sip')->info('出站 SUBSCRIBE 成功，已保存 dialog_id', [
+                'device_id'        => $deviceId,
+                'event_type'       => $eventType,
+                'dialog_id'        => $dialogId,
+                'subscription_id'  => $subscriptionId,
+                'expires'          => $expires,
+            ]);
+        } catch (\Exception $e) {
+            Log::channel('sip')->error('subscribe_response handler failed', [
+                'device_id' => $deviceId,
+                'error'     => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @return \CoreW\Business\Subscribe\Service\SubscribeService
+     */
+    private function getSubscribeService()
+    {
+        return $this->createService('Subscribe:SubscribeService');
     }
 
     /**

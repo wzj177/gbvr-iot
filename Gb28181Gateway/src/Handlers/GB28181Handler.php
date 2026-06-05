@@ -1355,7 +1355,7 @@ class GB28181Handler
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
 
-        $this->log("收到 SUBSCRIBE: 设备={$deviceId}, Event={$eventType}, Expires={$expires}");
+        $this->log("收到入站 SUBSCRIBE（设备订阅平台）: 设备={$deviceId}, Event={$eventType}, Expires={$expires}, Call-ID={$callId}, Dialog-ID={$dialogId}");
 
         // 检查设备是否注册
         $device = $this->deviceManager->getDeviceObject($deviceId);
@@ -1724,7 +1724,10 @@ class GB28181Handler
                        $type == EXOSIP_SUBSCRIPTION_GLOBALFAILURE) {
                 $callId = $event->getCallId();
                 $deviceId = $this->extractDeviceId($event->getToUri());
-                $this->log("SUBSCRIBE 失败: device={$deviceId}, code={$code}, call_id={$callId}", 'WARNING');
+                $this->log("出站 SUBSCRIBE 失败（平台订阅设备）: device={$deviceId}, code={$code}, call_id={$callId}", 'WARNING');
+
+                // 委托给 CommandDispatcher 处理，清理 pendingSubscribes 并通知 API 层
+                $this->commandDispatcher->handleSubscriptionError($callId, $code);
             }
         }
     }
@@ -1919,15 +1922,10 @@ class GB28181Handler
         $deviceId = $this->extractDeviceId($toUri);
         $expires = $event->getExpires();
 
-        $this->log("收到 SUBSCRIBE 200 OK: device={$deviceId}, call_id={$callId}, dialog_id={$dialogId}, expires={$expires}");
+        $this->log("收到出站 SUBSCRIBE 200 OK（平台订阅设备）: device={$deviceId}, call_id={$callId}, dialog_id={$dialogId}, expires={$expires}");
 
-        $this->postTask('subscribe_response', [
-            'device_id'  => $deviceId,
-            'call_id'    => $callId,
-            'dialog_id'  => $dialogId,
-            'expires'    => $expires,
-            'timestamp'  => time(),
-        ]);
+        // 委托给 CommandDispatcher 处理，它能通过 call_id (= subscription_id) 查找到 event_type 上下文
+        $this->commandDispatcher->handleSubscriptionResponse($callId, $dialogId, $code);
     }
 
     /**
