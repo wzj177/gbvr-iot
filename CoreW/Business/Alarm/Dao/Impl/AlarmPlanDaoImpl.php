@@ -13,10 +13,10 @@ class AlarmPlanDaoImpl extends AdvancedDaoImpl implements AlarmPlanDao
     {
         return [
             'serializes' => [
-                'alarm_level'     => 'json',
-                'alarm_method'    => 'json',
-                'alarm_type'      => 'json',
-                'alarm_eventtype' => 'json',
+                'alarm_level'     => 'mysql_json',
+                'alarm_method'    => 'mysql_json',
+                'alarm_type'      => 'mysql_json',
+                'alarm_eventtype' => 'mysql_json',
             ],
             'orderbys'   => [
                 'id',
