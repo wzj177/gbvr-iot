@@ -453,7 +453,7 @@ class GB28181Handler
                         'timeout'        => $this->config['heartbeat_timeout'],
                         'timestamp'      => $now,
                     ]);
-//                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
+                    //                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
                 }
             }
         }
@@ -533,7 +533,7 @@ class GB28181Handler
 
         try {
             $this->curlPost($heartbeatUrl, $payload);
-//            $this->log("Gateway heartbeat sent: gateway_id={$gatewayId}, device_count={$payload['device_count']}", 'DEBUG');
+            //            $this->log("Gateway heartbeat sent: gateway_id={$gatewayId}, device_count={$payload['device_count']}", 'DEBUG');
         } catch (\Throwable $e) {
             $this->log("Gateway heartbeat failed: {$e->getMessage()}", 'ERROR');
         }
@@ -931,14 +931,14 @@ class GB28181Handler
 
         // 验证设备ID格式（20位数字）
         if (!$this->isValidDeviceId($deviceId)) {
-            $this->log("无效的设备ID格式: {$deviceId}", 'WARNING');
+            $this->log("[sendResponse] 无效的设备ID格式: {$deviceId}", 'WARNING');
             $this->sipServer->sendResponse($event->getTid(), 400, 'Bad Request');
             return;
         }
 
         // 检查是否为注销请求（Expires: 0）
         if ($this->isUnregisterRequest($event)) {
-            $this->log("设备注销: {$deviceId}");
+            $this->log("[sendResponse] 设备注销: {$deviceId}");
 
             // 获取设备信息用于通知
             $device = $this->deviceManager->getDevice($deviceId);
@@ -988,6 +988,7 @@ class GB28181Handler
             }
 
             // 基本认证：使用 Digest MD5
+            $this->log("[sendResponse] 使用 Digest MD5", 'DEBUG');
             $result = $this->sipServer->sendResponse($event->getTid(), 401, 'Unauthorized', [
                 'WWW-Authenticate' => "Digest realm=\"{$realm}\", nonce=\"{$nonce}\", algorithm=MD5",
             ]);
@@ -1000,7 +1001,7 @@ class GB28181Handler
         // TODO: 验证 Authorization 头的合法性
         // 这里简化处理，实际应该验证 response 字段
         if (!$this->validateAuthorization($event, $deviceId)) {
-            $this->log("认证失败: {$deviceId}", 'ERROR');
+            $this->log("[sendResponse] 认证失败: {$deviceId}", 'ERROR');
             $this->sipServer->sendResponse($event->getTid(), 403, 'Forbidden');
             return;
         }
@@ -1075,6 +1076,7 @@ class GB28181Handler
         $this->deviceManager->recordHeartbeat($deviceId);
 
         // 发送注册成功响应
+        $this->log("[sendResponse] 发送注册成功响应: {$deviceId}", 'DEBUG');
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
             'Expires' => $this->config['register_expires'],
         ]);
@@ -1267,6 +1269,7 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
+        $this->log("[sendResponse] SESSION BYE 已处理");
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
 
@@ -1299,7 +1302,7 @@ class GB28181Handler
     public function handleInfo(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
-        $this->log("INFO消息: {$deviceId}", 'DEBUG');
+        $this->log("[sendResponse] INFO消息: {$deviceId}", 'DEBUG');
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
     }
 
@@ -1309,7 +1312,7 @@ class GB28181Handler
     public function handleUpdate(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
-        $this->log("UPDATE请求: {$deviceId}", 'DEBUG');
+        $this->log("[sendResponse] UPDATE请求: {$deviceId}", 'DEBUG');
 
         // UPDATE通常用于会话参数更新（如媒体参数）
         $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
@@ -1321,7 +1324,7 @@ class GB28181Handler
     public function handleRefer(\SipEvent $event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
-        $this->log("REFER转接: {$deviceId}", 'DEBUG');
+        $this->log("[sendResponse] REFER转接: {$deviceId}", 'DEBUG');
 
         // REFER用于呼叫转移
         $this->sipServer->sendResponse($event->getTid(), 202, 'Accepted');
@@ -1720,8 +1723,8 @@ class GB28181Handler
                 $type == EXOSIP_MESSAGE_GLOBALFAILURE) {
                 $this->log("MESSAGE 请求失败,可能是设备不支持该命令", 'WARNING');
             } else if ($type == EXOSIP_SUBSCRIPTION_REQUESTFAILURE ||
-                       $type == EXOSIP_SUBSCRIPTION_SERVERFAILURE ||
-                       $type == EXOSIP_SUBSCRIPTION_GLOBALFAILURE) {
+                $type == EXOSIP_SUBSCRIPTION_SERVERFAILURE ||
+                $type == EXOSIP_SUBSCRIPTION_GLOBALFAILURE) {
                 $callId = $event->getCallId();
                 $deviceId = $this->extractDeviceId($event->getToUri());
                 $this->log("出站 SUBSCRIBE 失败（平台订阅设备）: device={$deviceId}, code={$code}, call_id={$callId}", 'WARNING');
@@ -2947,11 +2950,9 @@ class GB28181Handler
      */
     private function sendMsgResponse(int $tid, int $code, string $context = '') : bool
     {
-        $result = $this->sipServer->sendResponse($tid, $code);
-        if (!$result) {
-            $this->log("sendResponse failed: tid={$tid}, code={$code}, context={$context}", 'WARNING');
-        }
-        return $result;
+        $this->log("[sendResponse] sendMsgResponse debug: tid={$tid}, code={$code}, context={$context}", 'DEBUG');
+
+        return $this->sipServer->sendResponse($tid, $code);
     }
 
     /**
