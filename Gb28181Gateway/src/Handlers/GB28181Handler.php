@@ -1269,8 +1269,9 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->log("[sendResponse] SESSION BYE 已处理");
-        $this->sipServer->sendResponse($event->getTid(), 200, 'OK');
+        // 注意：BYE 的 200 OK 由 eXosip 的 eXosip_automatic_action() 自动发送，
+        // 无需在此手动调用 sendResponse()，否则会因事务已完成而触发 ret=-6 错误。
+        $this->log("[BYE] SESSION BYE 已处理，200 OK 由底层自动发送");
     }
 
     /**
