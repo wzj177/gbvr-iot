@@ -2159,11 +2159,13 @@ class CommandDispatcher
 
             // 注册等待订阅响应的上下文（用于 onResponse 回调时匹配）
             $this->pendingSubscribes[$subscriptionId] = [
-                'request_id' => $requestId,
-                'device_id'  => $deviceId,
-                'event_type' => 'Catalog',
-                'expires'    => $expires,
-                'created_at' => time(),
+                'request_id'  => $requestId,
+                'device_id'   => $deviceId,
+                'event_type'  => 'Catalog',
+                'expires'     => $expires,
+                'params'      => ['expires' => $expires],
+                'retry_count' => 0,
+                'created_at'  => time(),
             ];
 
             // 立即返回，dialog_id 将通过异步回调推送
@@ -2218,11 +2220,21 @@ class CommandDispatcher
 
             // 注册等待响应上下文
             $this->pendingSubscribes[$subscriptionId] = [
-                'request_id' => $requestId,
-                'device_id'  => $deviceId,
-                'event_type' => 'Alarm',
-                'expires'    => $expires,
-                'created_at' => time(),
+                'request_id'  => $requestId,
+                'device_id'   => $deviceId,
+                'event_type'  => 'Alarm',
+                'expires'     => $expires,
+                'params'      => [
+                    'expires'              => $expires,
+                    'start_priority'       => $startAlarmPriority,
+                    'end_priority'         => $endAlarmPriority,
+                    'alarm_method'         => $alarmMethod,
+                    'alarm_type'           => $alarmType,
+                    'start_alarm_time'     => $startAlarmTime,
+                    'end_alarm_time'       => $endAlarmTime,
+                ],
+                'retry_count' => 0,
+                'created_at'  => time(),
             ];
 
             return $this->successResponse($requestId, [
@@ -2262,12 +2274,13 @@ class CommandDispatcher
 
             // 注册等待响应上下文
             $this->pendingSubscribes[$subscriptionId] = [
-                'request_id' => $requestId,
-                'device_id'  => $deviceId,
-                'event_type' => 'MobilePosition',
-                'expires'    => $expires,
-                'interval'   => $interval,
-                'created_at' => time(),
+                'request_id'  => $requestId,
+                'device_id'   => $deviceId,
+                'event_type'  => 'MobilePosition',
+                'expires'     => $expires,
+                'params'      => ['expires' => $expires, 'interval' => $interval],
+                'retry_count' => 0,
+                'created_at'  => time(),
             ];
 
             return $this->successResponse($requestId, [
@@ -2417,6 +2430,31 @@ class CommandDispatcher
 
         $this->log("Found pending subscribe context: " . json_encode($context));
 
+        // dialog_id=0 说明订阅未建立对话，重试一次
+        if ($dialogId <= 0) {
+            $retryCount = $context['retry_count'] ?? 0;
+            if ($retryCount < 1) {
+                $this->log("dialog_id=0，重新发送 SUBSCRIBE: device={$context['device_id']}, event={$context['event_type']}, retry={$retryCount}");
+                try {
+                    $device = $this->deviceManager->getDeviceObject($context['device_id']);
+                    if ($device) {
+                        $params = $context['params'] ?? [];
+                        $newSubscriptionId = $this->resendSubscribe($context['event_type'], $device, $params);
+                        if ($newSubscriptionId > 0) {
+                            $context['retry_count'] = $retryCount + 1;
+                            $this->pendingSubscribes[$newSubscriptionId] = $context;
+                            $this->log("重新订阅成功: new_subscription_id={$newSubscriptionId}");
+                            return;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $this->log("重新订阅失败: " . $e->getMessage(), 'WARNING');
+                }
+            } else {
+                $this->log("dialog_id=0 且已重试，放弃: device={$context['device_id']}, event={$context['event_type']}", 'WARNING');
+            }
+        }
+
         // 构造回调数据
         $callbackPayload = [
             'scene'           => 'subscribe_response',
@@ -2427,7 +2465,7 @@ class CommandDispatcher
             'dialog_id'       => $dialogId,
             'expires'         => $context['expires'] ?? 3600,
             'status_code'     => $statusCode,
-            'success'         => ($statusCode >= 200 && $statusCode < 300),
+            'success'         => ($statusCode >= 200 && $statusCode < 300) && $dialogId > 0,
             'timestamp'       => time(),
         ];
 
@@ -2435,6 +2473,32 @@ class CommandDispatcher
         $this->postTask('subscribe_response', $callbackPayload);
 
         $this->log("✓ Posted subscribe_response task for dialog_id: {$dialogId}");
+    }
+
+    /**
+     * 根据 event_type 重新发送 SUBSCRIBE
+     */
+    private function resendSubscribe(string $eventType, object $device, array $params) : int
+    {
+        return match ($eventType) {
+            'Catalog'        => $this->querySender->sendSubscribeCatalog($device, $params['expires'] ?? 3600),
+            'Alarm'          => $this->querySender->sendSubscribeAlarm(
+                $device,
+                $params['expires'] ?? 3600,
+                $params['start_priority'] ?? null,
+                $params['end_priority'] ?? null,
+                $params['alarm_method'] ?? null,
+                $params['alarm_type'] ?? null,
+                $params['start_alarm_time'] ?? null,
+                $params['end_alarm_time'] ?? null,
+            ),
+            'MobilePosition' => $this->querySender->sendSubscribeMobilePosition(
+                $device,
+                $params['expires'] ?? 3600,
+                $params['interval'] ?? 5,
+            ),
+            default => throw new \RuntimeException("Unknown event_type: {$eventType}"),
+        };
     }
 
     /**
