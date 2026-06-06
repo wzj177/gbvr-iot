@@ -1726,12 +1726,12 @@ class GB28181Handler
             } else if ($type == EXOSIP_SUBSCRIPTION_REQUESTFAILURE ||
                 $type == EXOSIP_SUBSCRIPTION_SERVERFAILURE ||
                 $type == EXOSIP_SUBSCRIPTION_GLOBALFAILURE) {
-                $callId = $event->getCallId();
+                $subscriptionId = $event->getSubscriptionId();
                 $deviceId = $this->extractDeviceId($event->getToUri());
-                $this->log("出站 SUBSCRIBE 失败（平台订阅设备）: device={$deviceId}, code={$code}, call_id={$callId}", 'WARNING');
+                $this->log("出站 SUBSCRIBE 失败（平台订阅设备）: device={$deviceId}, code={$code}, subscription_id={$subscriptionId}", 'WARNING');
 
                 // 委托给 CommandDispatcher 处理，清理 pendingSubscribes 并通知 API 层
-                $this->commandDispatcher->handleSubscriptionError($callId, $code);
+                $this->commandDispatcher->handleSubscriptionError($subscriptionId, $code);
             }
         }
     }
