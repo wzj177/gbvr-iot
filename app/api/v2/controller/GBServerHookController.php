@@ -65,8 +65,8 @@ class GBServerHookController extends BaseController
                 'catalog_update' => $this->handleCatalogUpdate($body),
                 'alarm_event' => $this->handleAlarmEvent($body),
                 'position_update' => $this->handlePositionUpdate($body),
-                'mobile_position_subscribe' => $this->handleMobilePositionSubscribe($body),
-                'mobile_position_unsubscribe' => $this->handleMobilePositionUnsubscribe($body),
+                'subscribe' => $this->handleInboundSubscribe($body),
+                'subscription_cancelled' => $this->handleSubscriptionCancelled($body),
                 'gateway_cmd_after' => $this->handleGatewayCmdAfter($body),
                 'broadcast_setup_rtp' => $this->handleBroadcastSetupRtp($body),
                 'start_send_rtp' => $this->handleStartSendRtp($body),
@@ -1190,38 +1190,39 @@ class GBServerHookController extends BaseController
     }
 
     /**
-     * 处理移动位置订阅确认
-     * 订阅成功后网关推送确认
+     * 处理设备向平台发起的入站 SUBSCRIBE（设备订阅平台事件）
+     * 场景：设备订阅平台的目录/报警/移动位置通知
      */
-    private function handleMobilePositionSubscribe(array $body) : void
+    private function handleInboundSubscribe(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
+        $eventType = $body['event_type'] ?? '';
         $expires = $body['expires'] ?? 0;
-        $interval = $body['interval'] ?? 5;
 
-        Log::channel('sip')->info('Mobile position subscribed', [
-            'device_id' => $deviceId,
-            'expires'   => $expires,
-            'interval'  => $interval,
+        Log::channel('sip')->info('Inbound SUBSCRIBE from device', [
+            'device_id'  => $deviceId,
+            'event_type' => $eventType,
+            'expires'    => $expires,
+            'dialog_id'  => $body['dialog_id'] ?? 0,
         ]);
 
-        // TODO: 更新订阅配置状态
-        // $this->getSubscribeService()->markSubscriptionActive($deviceId, 'mobile_position');
+        // TODO: 记录设备入站订阅到数据库（设备订阅平台，与平台订阅设备方向相反）
     }
 
     /**
-     * 处理移动位置取消订阅确认
+     * 处理设备取消入站 SUBSCRIBE
      */
-    private function handleMobilePositionUnsubscribe(array $body) : void
+    private function handleSubscriptionCancelled(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
+        $eventType = $body['event_type'] ?? '';
 
-        Log::channel('sip')->info('Mobile position unsubscribed', [
-            'device_id' => $deviceId,
+        Log::channel('sip')->info('Inbound SUBSCRIBE cancelled by device', [
+            'device_id'  => $deviceId,
+            'event_type' => $eventType,
         ]);
 
-        // TODO: 更新订阅配置状态
-        // $this->getSubscribeService()->markSubscriptionCancelled($deviceId, 'mobile_position');
+        // TODO: 更新订阅状态
     }
 
     /**
