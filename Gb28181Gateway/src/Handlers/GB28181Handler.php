@@ -1196,22 +1196,37 @@ class GB28181Handler
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
         $tid = $event->getTid();
+
+        // === 扫描攻击降噪：未注册设备的 INVITE 直接 404，不写 INFO、不投递任务 ===
+        // SIP 端口扫描器会高频发送 INVITE（audio VoIP SDP），deviceId 通常为空或非法。
+        // 提前拦截，避免每个扫描包都写多行日志 + postTask，阻塞事件循环。
+        // 注意：广播 INVITE 的 fromUri 是 channelId，需先放行交由 pendingBroadcast 判断。
+        $device = $this->deviceManager->getDevice($deviceId);
+        $isRegistered = $device && $device['registered'];
+        $hasPendingBroadcast = $this->commandDispatcher->findPendingBroadcast($deviceId) !== null;
+
+        if (!$isRegistered && !$hasPendingBroadcast) {
+            // 扫描流量：DEBUG 级别（生产 min_level=INFO 时不落盘），直接 404
+            $this->log("拒绝未注册设备 INVITE（疑似扫描）: deviceId={$deviceId} tid={$tid}", 'DEBUG');
+            $this->sipServer->sendCallAnswer($tid, 404, null, 'Not Found');
+            return;
+        }
+
         $this->log("收到INVITE: 设备{$deviceId} 通道{$channelId} bodyLen={$bodyLen} contentType={$contentType} callId={$callId} dialogId={$dialogId} tid={$tid}");
 
-        // 诊断：检查 body 详情
+        // 诊断：检查 body 详情（DEBUG 级别，生产默认不落盘）
         if ($bodyLen === 0) {
-            $this->log("DIAG: INVITE body is empty/null, body type=" . gettype($body));
+            $this->log("DIAG: INVITE body is empty/null, body type=" . gettype($body), 'DEBUG');
         } else {
-            $this->log("DIAG: INVITE body first 200 chars: " . substr($body, 0, 200));
+            $this->log("DIAG: INVITE body first 200 chars: " . substr($body, 0, 200), 'DEBUG');
         }
 
         // === 第一步：校验广播会话合法性（WVP 对齐） ===
         // 优先检查是否有待处理的广播会话（设备 INVITE 的 From 是 channelId）
         // 广播模式下：设备收到 Broadcast MESSAGE 后，由通道发送 INVITE
         // fromUri 的 deviceId 实际上就是 channelId
-        $pendingBroadcast = $this->commandDispatcher->findPendingBroadcast($deviceId);
-
-        if ($pendingBroadcast) {
+        if ($hasPendingBroadcast) {
+            $pendingBroadcast = $this->commandDispatcher->findPendingBroadcast($deviceId);
             // 广播模式：通过 pendingBroadcasts 匹配到
             // NVR 代替通道发送 INVITE，fromUri 是 NVR device_id，实际 channel_id 在 pendingBroadcast 中
             $this->log("广播 INVITE 匹配: fromDevice={$deviceId}, channelId={$pendingBroadcast['channel_id']}");
@@ -1219,13 +1234,7 @@ class GB28181Handler
             return;
         }
 
-        // 检查设备是否在线
-        $device = $this->deviceManager->getDevice($deviceId);
-        if (!$device || !$device['registered']) {
-            $this->log("设备未注册: {$deviceId}", 'ERROR');
-            $this->sipServer->sendCallAnswer($tid, 404, null, 'Not Found');
-            return;
-        }
+        // 到这里设备一定已注册（上面已拦截未注册且非广播的情况）
 
         // 判断是否为语音对讲请求（通过 Subject 头）
         $isBroadcast = stripos($subject, 'broadcast') !== false;
@@ -1258,10 +1267,20 @@ class GB28181Handler
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $callId = $event->getCallId();
 
-        $this->log("收到 BYE: $deviceId (Call-ID: $callId)");
-
         // 清理已处理的 INVITE 200 OK 记录（防止内存泄漏）
         unset($this->processedInviteCallIds[$callId]);
+
+        // === 扫描攻击降噪：未注册设备（deviceId 为空或非法）的 BYE 不投递任务 ===
+        // 扫描器 INVITE 已被 404 拒绝，其后续 BYE 不对应任何真实会话。
+        // 跳过 postTask 可避免每个扫描 BYE 触发一次 API HTTP 调用 + DB 查询。
+        // 注意：BYE 的 200 OK 由 eXosip_automatic_action() 自动发送，无需手动响应。
+        $device = $deviceId ? $this->deviceManager->getDevice($deviceId) : null;
+        if (!$device || !$device['registered']) {
+            $this->log("拒绝未注册设备 BYE（疑似扫描）: deviceId={$deviceId} callId={$callId}", 'DEBUG');
+            return;
+        }
+
+        $this->log("收到 BYE: $deviceId (Call-ID: $callId)");
 
         // 通知外部系统会话结束
         $this->postTask('session_bye', [
@@ -1270,8 +1289,6 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        // 注意：BYE 的 200 OK 由 eXosip 的 eXosip_automatic_action() 自动发送，
-        // 无需在此手动调用 sendResponse()，否则会因事务已完成而触发 ret=-6 错误。
         $this->log("[BYE] SESSION BYE 已处理，200 OK 由底层自动发送");
     }
 
