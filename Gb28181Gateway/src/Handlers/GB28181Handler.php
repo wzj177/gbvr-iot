@@ -1333,21 +1333,23 @@ class GB28181Handler
     }
 
     /**
-     * 处理订阅请求（SUBSCRIBE）
+     * 处理入站 SUBSCRIBE（方向：设备 → 平台）
      *
-     * 触发时机：当国标设备向服务器发送 SUBSCRIBE 请求时
-     * 事件类型：EXOSIP_IN_SUBSCRIPTION_NEW（IN_ 前缀表示 incoming 入站请求）
+     * 触发时机：EXOSIP_IN_SUBSCRIPTION_NEW — 设备主动向平台发起订阅
      *
-     * 使用场景（较少见，但需要支持）：
+     * 使用场景：
      * - 下级平台向上级平台订阅目录变更
      * - 设备订阅平台的报警推送
      * - 级联模式下的事件订阅
      *
-     * 订阅类型（通过 Event 头域判断）：
-     * - Event: Catalog        订阅目录变更
-     * - Event: Alarm          订阅报警事件
-     * - Event: MobilePosition 订阅位置上报（平台作为位置源）
-     * - Event: presence       兼容旧版位置订阅
+     * 完整流程：
+     *   设备 SUBSCRIBE → handleSubscribe()
+     *     订阅成功 → postTask('subscribe', ...)          → API hook: handleInboundSubscribe()
+     *     取消订阅 → postTask('subscription_cancelled', ...) → API hook: handleSubscriptionCancelled()
+     *   平台自动回复 200 OK（sendNotifyResponse）
+     *
+     * Event 头取值：
+     *   Catalog / Alarm / MobilePosition / presence
      *
      * @param \SipEvent $event SUBSCRIBE 事件
      */
@@ -1535,11 +1537,16 @@ class GB28181Handler
     }
 
     /**
+     * 处理订阅后的 NOTIFY 推送（方向：设备 → 平台）
      *
-     * 使用 Command 模式统一处理所有订阅相关的 NOTIFY 消息：
-     * - Catalog: 目录变更通知
-     * - Alarm: 报警事件通知
-     * - MobilePosition/presence: 移动设备位置通知
+     * 触发时机：平台订阅设备成功后，设备主动下发 NOTIFY 推送内容
+     * 注意：NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送，PHP 层不可再手动回复
+     *
+     * 完整流程：
+     *   设备 NOTIFY → handleSubscribeNotify()
+     *     notify_type=catalog         → postTask('catalog_update', ...)  → API hook: handleCatalogUpdate()
+     *     notify_type=alarm           → postTask('alarm_event', ...)     → API hook: handleAlarmEvent()
+     *     notify_type=mobile_position → postTask('position_update', ...) → API hook: handlePositionUpdate()
      *
      * @param \SipEvent $event NOTIFY 事件
      * @param string $deviceId 设备ID
@@ -1921,6 +1928,22 @@ class GB28181Handler
         }
     }
 
+    /**
+     * 处理出站 SUBSCRIBE 的 200 OK 响应（方向：平台 → 设备）
+     *
+     * 触发时机：EXOSIP_SUBSCRIPTION_ANSWERED — 平台向设备发送 SUBSCRIBE 后，设备回复 200 OK
+     *
+     * 完整流程：
+     *   平台 QuerySender::subscribe*() → 设备 200 OK → handleSubscribeResponse()
+     *     → CommandDispatcher::handleSubscriptionResponse(subscriptionId, dialogId)
+     *     → postTask('subscribe_response', ...)
+     *     → API hook: handleSubscribeResponse() → SubscribeService::updateDialogId()
+     *        （保存 dialog_id，供 SubscriptionRenewTask 每 10 分钟续订使用）
+     *
+     * 失败路径（4xx/5xx）：
+     *   handleResponse() → CommandDispatcher::handleSubscriptionError()
+     *     → postTask('subscribe_response', success=false)
+     */
     private function handleSubscribeResponse(\SipEvent $event) : void
     {
         $code = $event->getCode();

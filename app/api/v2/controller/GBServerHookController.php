@@ -48,33 +48,59 @@ class GBServerHookController extends BaseController
         try {
             // 需要返回数据的 scene 返回 array，其他返回 null
             $result = match ($scene) {
-                'sip_xml' => $this->handleSipXml($body),
-                'register' => $this->handleRegister($body),
+
+                // ── 设备生命周期 ──────────────────────────────────────────────
+                // GB28181Handler::handleRegister / handleUnRegister / handleExpired
+                'register'          => $this->handleRegister($body),
                 'device_unregister' => $this->handleUnRegister($body),
-                'device_expired' => $this->handleExpired($body),
-                'update_heartbeat' => $this->handleHeartbeat($body),
+                'device_expired'    => $this->handleExpired($body),
+                'update_heartbeat'  => $this->handleHeartbeat($body),
+                'device_status'     => $this->handleDeviceStatus($body),
+
+                // ── 设备信息查询响应 ──────────────────────────────────────────
+                // 设备收到 DeviceInfo / Catalog 查询后通过 MESSAGE 返回
                 'device_catalog' => $this->handleCatalog($body),
-                'device_info' => $this->handleDeviceInfo($body),
-                'media_ready' => $this->handleMediaReady($body),
-                'voice_established' => $this->handleVoiceEstablished($body),
-                'session_bye' => $this->handleSessionBye($body),
-                'device_status' => $this->handleDeviceStatus($body),
-                'record_info' => $this->handleRecordInfo($body),
-                'alarm' => $this->handleAlarm($body),
-                'command_confirmed' => $this->handleCommandConfirmed($body),
-                'catalog_update' => $this->handleCatalogUpdate($body),
-                'alarm_event' => $this->handleAlarmEvent($body),
-                'position_update' => $this->handlePositionUpdate($body),
-                'subscribe' => $this->handleInboundSubscribe($body),
-                'subscription_cancelled' => $this->handleSubscriptionCancelled($body),
-                'gateway_cmd_after' => $this->handleGatewayCmdAfter($body),
-                'broadcast_setup_rtp' => $this->handleBroadcastSetupRtp($body),
-                'start_send_rtp' => $this->handleStartSendRtp($body),
-                'broadcast_stop' => $this->handleBroadcastStop($body),
-                'preset_query_result' => $this->handlePresetQueryResult($body),
-                'config_download_result' => $this->handleConfigDownloadResult($body),
-                'mobile_position_report' => $this->handleMobilePositionReport($body),
+                'device_info'    => $this->handleDeviceInfo($body),
+                'record_info'    => $this->handleRecordInfo($body),
+                'alarm'          => $this->handleAlarm($body),
+                'command_confirmed'        => $this->handleCommandConfirmed($body),
+                'preset_query_result'      => $this->handlePresetQueryResult($body),
+                'config_download_result'   => $this->handleConfigDownloadResult($body),
+
+                // ── 媒体流 / 语音对讲 ─────────────────────────────────────────
+                'media_ready'        => $this->handleMediaReady($body),
+                'voice_established'  => $this->handleVoiceEstablished($body),
+                'session_bye'        => $this->handleSessionBye($body),
+                'broadcast_setup_rtp'=> $this->handleBroadcastSetupRtp($body),
+                'start_send_rtp'     => $this->handleStartSendRtp($body),
+                'broadcast_stop'     => $this->handleBroadcastStop($body),
+
+                // ── 订阅（出站：平台 → 设备）────────────────────────────────
+                // 流程：API 调用 → QuerySender::subscribe*() → 设备返回 200 OK
+                //       → GB28181Handler::handleSubscribeResponse()
+                //       → CommandDispatcher::handleSubscriptionResponse()
+                //       → postTask('subscribe_response', ...)
+                //       → SubscribeService::updateDialogId()（保存 dialog_id 供续订使用）
                 'subscribe_response' => $this->handleSubscribeResponse($body),
+
+                // ── 订阅（入站：设备 → 平台）────────────────────────────────
+                // 流程：设备主动发 SUBSCRIBE → GB28181Handler::handleSubscribe()
+                //       → postTask('subscribe', ...)  / postTask('subscription_cancelled', ...)
+                'subscribe'               => $this->handleInboundSubscribe($body),
+                'subscription_cancelled'  => $this->handleSubscriptionCancelled($body),
+
+                // ── NOTIFY 推送（订阅后设备主动下发）────────────────────────
+                // 流程：设备发 NOTIFY → GB28181Handler::handleSubscribeNotify()
+                //       → sceneMap 映射 → postTask(scene, ...)
+                'catalog_update'          => $this->handleCatalogUpdate($body),    // Event: Catalog
+                'alarm_event'             => $this->handleAlarmEvent($body),        // Event: Alarm
+                'position_update'         => $this->handlePositionUpdate($body),    // Event: presence（即时）
+                'mobile_position_report'  => $this->handleMobilePositionReport($body), // MobilePosition 上报（周期）
+
+                // ── 杂项 ────────────────────────────────────────────────────
+                'sip_xml'          => $this->handleSipXml($body),
+                'gateway_cmd_after'=> $this->handleGatewayCmdAfter($body),
+
                 default => Log::channel('sip')->warning('Unknown hook scene', ['scene' => $scene]),
             };
 
@@ -1146,39 +1172,53 @@ class GBServerHookController extends BaseController
     }
 
     /**
-     * 处理位置更新通知（NOTIFY with Event: presence）
-     * 移动设备周期性推送位置时触发
+     * 处理位置更新通知（NOTIFY with Event: MobilePosition/presence）
+     *
+     * 触发来源：GB28181Handler::handleSubscribeNotify() → sceneMap['mobile_position'] = 'position_update'
+     * body 结构来自 SubscribeNotifyCommand::handleMobilePosition()，字段在顶层（不嵌套）。
+     *
+     * 注意：MobilePosition 周期上报走 mobile_position_report，此处处理订阅推送的即时位置。
      */
     private function handlePositionUpdate(array $body) : void
     {
         $deviceId = $body['device_id'] ?? '';
-        $positionData = $body['position'] ?? $body['data'] ?? [];
+        $longitude = (float)($body['longitude'] ?? 0);
+        $latitude  = (float)($body['latitude'] ?? 0);
 
-        if (!$deviceId || empty($positionData)) {
-            Log::channel('sip')->warning('Position update missing data', [
-                'device_id' => $deviceId,
-            ]);
+        if (!$deviceId) {
+            Log::channel('sip')->warning('position_update missing device_id', ['body' => $body]);
             return;
         }
 
+        if (!$longitude && !$latitude) {
+            Log::channel('sip')->warning('position_update: longitude/latitude both zero', [
+                'device_id' => $deviceId,
+            ]);
+            // 仍然继续，设备可能在 0,0 附近（但实际概率极低，记录备查）
+        }
+
         try {
-            $position = [
-                'device_id'   => $deviceId,
-                'longitude'   => $positionData['longitude'] ?? 0,
-                'latitude'    => $positionData['latitude'] ?? 0,
-                'speed'       => $positionData['speed'] ?? 0,
-                'direction'   => $positionData['direction'] ?? 0,
-                'altitude'    => $positionData['altitude'] ?? 0,
-                'record_time' => $positionData['time'] ?? $positionData['alarm_time'] ?? date('Y-m-d H:i:s'),
+            $positionData = [
+                'device_id' => $deviceId,
+                'cmd_type'  => 'MobilePosition',
+                'time'      => $body['time'] ?? date('Y-m-d H:i:s'),
+                'longitude' => $longitude,
+                'latitude'  => $latitude,
+                'speed'     => (float)($body['speed'] ?? 0),
+                'direction' => (int)($body['direction'] ?? 0),
+                'altitude'  => (float)($body['altitude'] ?? 0),
+                'recv_time' => date('Y-m-d H:i:s'),
+                'raw_data'  => json_encode($body, JSON_UNESCAPED_UNICODE),
             ];
 
-            // TODO: 保存位置信息到数据库
-            // $this->getDevicePositionService()->savePosition($position);
+            $this->getDevicePositionService()->savePosition($positionData);
 
-            Log::channel('sip')->debug('Position update received', [
+            $this->getDeviceService()->updateDevicePosition($deviceId, $longitude, $latitude);
+
+            Log::channel('sip')->debug('Position update saved', [
                 'device_id' => $deviceId,
-                'longitude' => $position['longitude'],
-                'latitude'  => $position['latitude'],
+                'longitude' => $longitude,
+                'latitude'  => $latitude,
             ]);
 
         } catch (\Exception $e) {
