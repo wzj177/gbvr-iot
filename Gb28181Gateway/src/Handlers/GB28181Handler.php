@@ -1484,7 +1484,7 @@ class GB28181Handler
 
         if (!$device) {
             $this->log("NOTIFY 来自未注册设备: {$deviceId}", 'WARNING');
-            $this->sipServer->sendSubscriptionResponse($event->getTid(), 404);
+            // 注意：NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送，无需手动响应
             return;
         }
 
@@ -1530,13 +1530,10 @@ class GB28181Handler
             }
         }
 
-        // 兜底：返回 200 OK
-        $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
+        // 兜底：NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送，无需手动响应
     }
 
-
     /**
-     * 统一处理订阅通知（使用 SubscribeNotifyCommand）
      *
      * 使用 Command 模式统一处理所有订阅相关的 NOTIFY 消息：
      * - Catalog: 目录变更通知
@@ -1557,7 +1554,7 @@ class GB28181Handler
         $device = $this->deviceManager->getDeviceObject($deviceId);
         if (!$device) {
             $this->log("设备未注册: {$deviceId}", 'WARNING');
-            $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
+            // NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送
             return;
         }
 
@@ -1574,7 +1571,7 @@ class GB28181Handler
         // 消息体为空时直接返回
         if (empty($body)) {
             $this->log("{$eventTypeDesc}通知消息体为空", 'WARNING');
-            $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
+            // NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送
             return;
         }
 
@@ -1584,7 +1581,7 @@ class GB28181Handler
 
         if (!$xml) {
             $this->log("{$eventTypeDesc}通知 XML 解析失败", 'ERROR');
-            $this->sipServer->sendSubscriptionResponse($event->getTid(), 400);
+            // NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送
             return;
         }
 
@@ -1628,8 +1625,7 @@ class GB28181Handler
         $this->postTask($scene, $result);
 
         $this->log("✓ {$eventTypeDesc}通知已处理: {$deviceId}");
-
-        $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
+        // NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送
     }
 
     /**
@@ -1680,8 +1676,7 @@ class GB28181Handler
             ]);
         }
 
-        // 发送 200 OK
-        $this->sipServer->sendSubscriptionResponse($event->getTid(), 200);
+        // NOTIFY 的 200 OK 由 eXosip_automatic_action() 自动发送
     }
 
 
@@ -1769,11 +1764,13 @@ class GB28181Handler
         // 如果此 call_id 的 200 OK 已经处理过，说明这是设备重传的 200 OK
         // 只需重发 ACK，不再重复执行业务逻辑（避免重复 postTask、重复更新 dialog_id）
         if (isset($this->processedInviteCallIds[$callId])) {
-            $cachedDialogId = $this->processedInviteCallIds[$callId];
-            $effectiveDialogId = ($dialogId > 0) ? $dialogId : $cachedDialogId;
-            $this->log("200 OK 重传检测: call_id={$callId}, 重发 ACK (dialog_id={$effectiveDialogId})", 'DEBUG');
-            if ($effectiveDialogId > 0) {
-                $this->sipServer->sendAck($effectiveDialogId);
+            // 只使用当前事件的 dialog_id，不使用缓存值
+            // 避免 dialog_id 被 eXosip 复用（旧 INVITE dialog 关闭后新 SUBSCRIBE 占用同一 did）
+            if ($dialogId > 0) {
+                $this->log("200 OK 重传检测: call_id={$callId}, 重发 ACK (dialog_id={$dialogId})", 'DEBUG');
+                $this->sipServer->sendAck($dialogId);
+            } else {
+                $this->log("200 OK 重传检测: call_id={$callId}, dialog_id=0 跳过 ACK（对话已关闭）", 'DEBUG');
             }
             return;
         }
