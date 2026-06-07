@@ -200,8 +200,9 @@ class GB28181Handler
             $this->querySender,
             $this->deviceManager,
             [
-                'debug'     => $this->config['debug'] ?? false,
-                'server_id' => $this->config['server_id'],
+                'debug'        => $this->config['debug'] ?? false,
+                'server_id'    => $this->config['server_id'],
+                'api_hook_url' => $this->config['api_hock_url'] ?? '',
             ]
         );
 
@@ -1519,8 +1520,8 @@ class GB28181Handler
                     $cmdType = $result['cmd_type'] ?? 'Unknown';
                     $this->log("收到 NOTIFY 命令: $deviceId -> $cmdType");
 
-                    // 分发命令结果
-                    $this->dispatchCommand($event, $deviceId, $result);
+                    // 分发命令结果（NOTIFY 事务由 eXosip_automatic_action() 自动响应，跳过手动 sendResponse）
+                    $this->dispatchCommand($event, $deviceId, $result, true);
                     return;
 
                 } catch (\InvalidArgumentException $e) {
@@ -1621,7 +1622,13 @@ class GB28181Handler
         }
 
         // 推送通知到业务系统
-        $scene = "{$notifyType}_notify";
+        // notify_type → API hook scene 映射
+        $sceneMap = [
+            'catalog'         => 'catalog_update',
+            'alarm'           => 'alarm_event',
+            'mobile_position' => 'position_update',
+        ];
+        $scene = $sceneMap[$notifyType] ?? "{$notifyType}_notify";
         $this->postTask($scene, $result);
 
         $this->log("✓ {$eventTypeDesc}通知已处理: {$deviceId}");
@@ -1981,7 +1988,6 @@ class GB28181Handler
             'timestamp' => time(),
         ]);
 
-        $this->sendMsgResponse($event->getTid(), 200, "Keepalive device={$deviceId}");
     }
 
     private function handleRecordInfo(\SipEvent $event, string $deviceId, array $data) : void
@@ -1991,11 +1997,7 @@ class GB28181Handler
             'record_info' => $data,
             'timestamp'   => time(),
         ]);
-
-        $this->sendMsgResponse($event->getTid(), 200, "RecordInfo device={$deviceId}");
-    }
-
-    /**
+    }    /**
      * 处理目录响应
      */
     private function handleCatalog(\SipEvent $event, string $deviceId, array $result) : void
@@ -2038,8 +2040,6 @@ class GB28181Handler
             'devices'   => $items,
             'timestamp' => time(),
         ]);
-
-        $this->sendMsgResponse($event->getTid(), 200, "Catalog device={$deviceId}");
     }
 
     /**
@@ -2068,16 +2068,12 @@ class GB28181Handler
             'device_info' => $deviceInfo,
             'timestamp'   => time(),
         ]);
-
-        $this->sendMsgResponse($event->getTid(), 200, "DeviceInfo device={$deviceId}");
     }
 
     public function handleDeviceControl(\SipEvent $event, string $deviceId, array $result)
     {
         $resultStr = json_encode($result);
         $this->log("设备控制: $deviceId, result={$resultStr}");
-
-        $this->sendMsgResponse($event->getTid(), 200, "DeviceControl device={$deviceId}");
     }
 
     /**
@@ -2098,8 +2094,6 @@ class GB28181Handler
             'status'    => $status,
             'timestamp' => time(),
         ]);
-
-        $this->sendMsgResponse($event->getTid(), 200, "DeviceStatus device={$deviceId}");
     }
 
     /**
@@ -2123,8 +2117,6 @@ class GB28181Handler
             'data'      => $data,
             'timestamp' => time(),
         ]);
-
-        $this->sendMsgResponse($event->getTid(), 200, "Alarm device={$deviceId}");
     }
 
     // handleMobilePositionReport
@@ -2138,8 +2130,6 @@ class GB28181Handler
             'data'      => $data,
             'timestamp' => time(),
         ]);
-
-        $this->sendMsgResponse($event->getTid(), 200, "MobilePosition device={$deviceId}");
     }
 
 
@@ -2148,8 +2138,10 @@ class GB28181Handler
 
     /**
      * 分发命令到具体处理方法
+     *
+     * @param bool $skipResponse 为 true 时跳过手动 sendResponse（NOTIFY 事务由 eXosip_automatic_action() 自动响应）
      */
-    private function dispatchCommand(\SipEvent $event, string $deviceId, array $result) : void
+    private function dispatchCommand(\SipEvent $event, string $deviceId, array $result, bool $skipResponse = false) : void
     {
         $cmdType = $result['cmd_type'];
 
@@ -2185,7 +2177,6 @@ class GB28181Handler
                 $broadcastResult = $result['result'] ?? 'unknown';
                 $broadcastChannelId = $result['channel_id'] ?? '';
                 $this->log("广播响应: 设备={$deviceId}, 通道={$broadcastChannelId}, 结果={$broadcastResult}");
-                $this->sendMsgResponse($event->getTid(), 200, "Broadcast device={$deviceId}");
                 break;
             case 'PresetQuery':
                 $this->log("预置位查询响应: $deviceId, 数量=" . ($result['num'] ?? 0));
@@ -2195,7 +2186,6 @@ class GB28181Handler
                     'num'         => $result['num'] ?? 0,
                     'timestamp'   => time(),
                 ]);
-                $this->sendMsgResponse($event->getTid(), 200, "PresetQuery device={$deviceId}");
                 break;
             case 'ConfigDownload':
                 $this->log("配置查询响应: $deviceId");
@@ -2205,11 +2195,14 @@ class GB28181Handler
                     'basic_param' => $result['basic_param'] ?? [],
                     'timestamp'   => time(),
                 ]);
-                $this->sendMsgResponse($event->getTid(), 200, "ConfigDownload device={$deviceId}");
                 break;
             default:
                 $this->log("未处理的命令: $cmdType", 'WARNING');
-                $this->sendMsgResponse($event->getTid(), 200, "Unknown cmd={$cmdType} device={$deviceId}");
+        }
+
+        // MESSAGE 事务需要手动响应；NOTIFY 事务由 eXosip_automatic_action() 自动回 200 OK
+        if (!$skipResponse) {
+            $this->sendMsgResponse($event->getTid(), 200, "{$cmdType} device={$deviceId}");
         }
     }
 
