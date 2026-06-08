@@ -31,6 +31,12 @@ class Logger
     /** @var string 当前实际写入的文件路径 */
     private string $currentLogPath = '';
 
+    /** @var resource|null 当前日志文件句柄（持久打开，避免每次 open/close） */
+    private $logHandle = null;
+
+    /** @var string $logHandle 对应的路径（用于检测路径切换需重开句柄） */
+    private string $handlePath = '';
+
     /** @var bool 是否为文件输出模式（非 stdout/stderr） */
     private bool $isFileMode = false;
 
@@ -58,6 +64,14 @@ class Logger
         } else {
             $this->currentLogPath = $this->logFile;
         }
+    }
+
+    /**
+     * 进程退出时关闭日志句柄（flush 缓冲）
+     */
+    public function __destruct()
+    {
+        $this->closeHandle();
     }
 
     /**
@@ -95,7 +109,53 @@ class Logger
         $modulePrefix = $module ? "[{$module}] " : '';
         $logLine = "[{$time}] [PID:{$pid}] [{$level}] {$modulePrefix}{$message}\n";
 
-        file_put_contents($this->currentLogPath, $logLine, FILE_APPEND | LOCK_EX);
+        $handle = $this->getHandle();
+        if ($handle !== null) {
+            // fwrite 到持久句柄，避免每条日志 open/close。
+            // 单行写入通常是原子的（< PIPE_BUF），多 worker 追加同一文件不加锁，
+            // 极端情况下可能交错，但避免了 LOCK_EX 的锁竞争阻塞事件循环。
+            fwrite($handle, $logLine);
+        }
+    }
+
+    /**
+     * 获取当前日志写入句柄（持久打开，路径切换时自动重开）
+     *
+     * @return resource|null
+     */
+    private function getHandle()
+    {
+        // 路径未变且句柄有效，直接复用
+        if ($this->logHandle !== null && $this->handlePath === $this->currentLogPath) {
+            return $this->logHandle;
+        }
+
+        // 路径已切换（日期轮转或 setLogFile），关闭旧句柄
+        $this->closeHandle();
+
+        // 文件模式追加打开；stdout/stderr 直接打开对应流
+        $handle = @fopen($this->currentLogPath, $this->isFileMode ? 'a' : 'w');
+        if ($handle === false) {
+            return null;
+        }
+
+        $this->logHandle = $handle;
+        $this->handlePath = $this->currentLogPath;
+        return $handle;
+    }
+
+    /**
+     * 关闭当前日志句柄（stdout/stderr 不关闭，避免影响进程标准流）
+     */
+    private function closeHandle() : void
+    {
+        if ($this->logHandle !== null) {
+            if ($this->isFileMode) {
+                @fclose($this->logHandle);
+            }
+            $this->logHandle = null;
+            $this->handlePath = '';
+        }
     }
 
     /**

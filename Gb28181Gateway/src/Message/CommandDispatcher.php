@@ -2159,11 +2159,13 @@ class CommandDispatcher
 
             // 注册等待订阅响应的上下文（用于 onResponse 回调时匹配）
             $this->pendingSubscribes[$subscriptionId] = [
-                'request_id' => $requestId,
-                'device_id'  => $deviceId,
-                'event_type' => 'Catalog',
-                'expires'    => $expires,
-                'created_at' => time(),
+                'request_id'  => $requestId,
+                'device_id'   => $deviceId,
+                'event_type'  => 'Catalog',
+                'expires'     => $expires,
+                'params'      => ['expires' => $expires],
+                'retry_count' => 0,
+                'created_at'  => time(),
             ];
 
             // 立即返回，dialog_id 将通过异步回调推送
@@ -2218,11 +2220,21 @@ class CommandDispatcher
 
             // 注册等待响应上下文
             $this->pendingSubscribes[$subscriptionId] = [
-                'request_id' => $requestId,
-                'device_id'  => $deviceId,
-                'event_type' => 'Alarm',
-                'expires'    => $expires,
-                'created_at' => time(),
+                'request_id'  => $requestId,
+                'device_id'   => $deviceId,
+                'event_type'  => 'Alarm',
+                'expires'     => $expires,
+                'params'      => [
+                    'expires'              => $expires,
+                    'start_priority'       => $startAlarmPriority,
+                    'end_priority'         => $endAlarmPriority,
+                    'alarm_method'         => $alarmMethod,
+                    'alarm_type'           => $alarmType,
+                    'start_alarm_time'     => $startAlarmTime,
+                    'end_alarm_time'       => $endAlarmTime,
+                ],
+                'retry_count' => 0,
+                'created_at'  => time(),
             ];
 
             return $this->successResponse($requestId, [
@@ -2262,12 +2274,13 @@ class CommandDispatcher
 
             // 注册等待响应上下文
             $this->pendingSubscribes[$subscriptionId] = [
-                'request_id' => $requestId,
-                'device_id'  => $deviceId,
-                'event_type' => 'MobilePosition',
-                'expires'    => $expires,
-                'interval'   => $interval,
-                'created_at' => time(),
+                'request_id'  => $requestId,
+                'device_id'   => $deviceId,
+                'event_type'  => 'MobilePosition',
+                'expires'     => $expires,
+                'params'      => ['expires' => $expires, 'interval' => $interval],
+                'retry_count' => 0,
+                'created_at'  => time(),
             ];
 
             return $this->successResponse($requestId, [
@@ -2427,7 +2440,7 @@ class CommandDispatcher
             'dialog_id'       => $dialogId,
             'expires'         => $context['expires'] ?? 3600,
             'status_code'     => $statusCode,
-            'success'         => ($statusCode >= 200 && $statusCode < 300),
+            'success'         => ($statusCode >= 200 && $statusCode < 300) && $dialogId > 0,
             'timestamp'       => time(),
         ];
 
