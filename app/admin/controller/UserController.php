@@ -243,11 +243,11 @@ class UserController extends BaseController
     {
         $locked = (bool)$request->post('locked', false);
 
-        $user = $this->getUserService()->updateUser((int)$id, ['locked' => $locked ? 1 : 0]);
+        $this->getUserService()->lockUser((int)$id, $locked);
 
         $this->getLogService()->info(LogEnum::MODULE_USER, LogEnum::ACTION_TOGGLE_LOCK, $locked ? '锁定用户' : '解锁用户', ['id' => $id]);
 
-        return $this->createSuccessJsonResponse($user);
+        return $this->createSuccessJsonResponse([]);
     }
 
     /**

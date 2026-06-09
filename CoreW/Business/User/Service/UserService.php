@@ -108,7 +108,7 @@ interface UserService
 
     public function resetLoginFailed($userId);
 
-    public function lockUser($id);
+    public function lockUser($id, $locked = true);
 
     public function unlockUser($id);
 
