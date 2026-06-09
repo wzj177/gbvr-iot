@@ -1074,6 +1074,26 @@ class GB28181Handler
             $this->deviceManager->addDevice($deviceId, $deviceInfo);
         }
 
+        // === TCP/UDP 双进程分流：检查设备 rtp_trans_mode 与当前进程是否匹配 ===
+        // 每个网关进程有自己的传输模式（UDP 或 TCP），只应处理对应 rtp_trans_mode 的设备：
+        //   transport=UDP → 只接受 rtpTransMode=0 的设备
+        //   transport=TCP → 只接受 rtpTransMode=1 或 2 的设备
+        // 不匹配的设备：回 200 OK（避免设备重试），但移除出 DeviceManager，后续消息被忽略
+        $myTransport = strtoupper($this->config['transport'] ?? 'UDP');
+        $deviceObj = $this->deviceManager->getDeviceObject($deviceId);
+        $deviceTransMode = $deviceObj ? $deviceObj->rtpTransMode : 0;  // 默认 0=UDP
+
+        $transportMatch = $this->isTransportMatch($myTransport, $deviceTransMode);
+        if (!$transportMatch) {
+            $this->log("设备传输模式不匹配，当前进程={$myTransport}，设备 rtp_trans_mode={$deviceTransMode}，跳过: {$deviceId}", 'WARNING');
+            // 仍然回 200 OK（避免设备不断重试），但从内存移除
+            $this->sipServer->sendResponse($event->getTid(), 200, 'OK', [
+                'Expires' => $this->config['register_expires'],
+            ]);
+            $this->deviceManager->removeDevice($deviceId);
+            return;
+        }
+
         $this->deviceManager->recordHeartbeat($deviceId);
 
         // 发送注册成功响应
@@ -2539,6 +2559,27 @@ class GB28181Handler
     private function isValidDeviceId($deviceId) : bool|int
     {
         return preg_match('/^\d{20}$/', $deviceId);
+    }
+
+    /**
+     * 检查设备 rtp_trans_mode 与当前网关进程的传输模式是否匹配
+     *
+     * 映射关系：
+     *   transport=UDP → rtpTransMode=0 (UDP)
+     *   transport=TCP → rtpTransMode=1 (TCP被动) 或 2 (TCP主动)
+     *
+     * @param string $myTransport 当前进程的传输模式 'UDP' 或 'TCP'
+     * @param int $deviceTransMode 设备的 rtp_trans_mode 值 (0/1/2)
+     * @return bool
+     */
+    private function isTransportMatch(string $myTransport, int $deviceTransMode) : bool
+    {
+        if ($myTransport === 'TCP') {
+            // TCP 进程接受 rtpTransMode=1 或 2
+            return $deviceTransMode === 1 || $deviceTransMode === 2;
+        }
+        // UDP 进程（默认）接受 rtpTransMode=0
+        return $deviceTransMode === 0;
     }
 
     /**
