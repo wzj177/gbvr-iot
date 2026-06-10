@@ -2681,10 +2681,16 @@ class GB28181Handler
      */
     private function postTask(string $type, array $payload) : void
     {
+        $this->log("投递异步任务到 Task 进程: $type", 'DEBUG');
+        $payloadSize = strlen(serialize($payload));
+        if ($payloadSize > 1024 * 1024) {  // > 1MB 警告
+            $this->log("⚠️  大 payload: $type, size=" . round($payloadSize/1024) . "KB", 'WARNING');
+        }  else {
+            $this->log("投递任务负载: " . json_encode($payload), 'DEBUG');
+        }
         // 检查是否支持 addTask 方法（多进程模式）
         if (!method_exists($this->sipServer, 'addTask')) {
             // 单进程模式，直接同步处理
-            $this->log("单进程模式，同步处理任务: $type", 'DEBUG');
             return;
         }
 
