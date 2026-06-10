@@ -128,6 +128,10 @@ class UserServiceImpl extends BaseService implements UserService
             $this->createNewException(UserException::SYSTEM_USER_NOT_ALLOWED_DELETE());
         }
 
+        if (in_array('ROLE_SUPER_ADMIN', $user['roles'])) {
+            $this->createNewException(UserException::SYSTEM_USER_NOT_ALLOWED_DELETE());
+        }
+
         $this->getUserDao()->delete($id);
 
         $this->dispatchEvent('user.delete', new Event($user));
@@ -803,7 +807,7 @@ class UserServiceImpl extends BaseService implements UserService
         ]);
     }
 
-    public function lockUser($id)
+    public function lockUser($id, $locked = true)
     {
         $user = $this->getUser($id);
         if (empty($user)) {
@@ -813,8 +817,9 @@ class UserServiceImpl extends BaseService implements UserService
         if (in_array('ROLE_SUPER_ADMIN', $user['roles'])) {
             $this->createNewException(UserException::LOCK_DENIED());
         }
-        $this->getUserDao()->update($user['id'], ['locked' => 1]);
-        $this->dispatchEvent('user.lock', new Event($user));
+
+        $this->getUserDao()->update($user['id'], ['locked' => intval($locked)]);
+//        $this->dispatchEvent('user.lock', new Event($user));
 
         return true;
     }
