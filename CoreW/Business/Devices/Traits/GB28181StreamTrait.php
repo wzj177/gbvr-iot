@@ -132,10 +132,11 @@ trait GB28181StreamTrait
             $tcpMode = 1;
         }
 
-        // Slow-path：加锁后二次检查，防止并发双重创建（同一通道多人同时发起）
-        return $this->getLiveStreamLock()->exec(
+        // Slow-path：tryExec 非阻塞加锁，锁被占（stop 正在执行）时立即返回 null
+        // 避免 start 死等 stop 释放锁导致 7-8 秒阻塞
+        $result = $this->getLiveStreamLock()->tryExec(
             'live_stream:' . $channel['stream_id'],
-            function () use ($device, $channel, $mediaServer, $streamIp, $tcpMode) {
+            function () use ($channel, $mediaServer, $streamIp, $tcpMode, $device) {
                 // 二次检查：锁内可能已被另一进程创建
                 $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
                     $channel['stream_id'],
@@ -200,6 +201,13 @@ trait GB28181StreamTrait
             },
             10
         );
+
+        // tryExec 返回 null = 锁被占（stop 正在执行），提示前端稍后重试
+        if ($result === null) {
+            throw new \RuntimeException('流正在关闭中，请稍后重试', 503);
+        }
+
+        return $result;
     }
 
     /**
