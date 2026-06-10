@@ -84,32 +84,54 @@ trait GB28181StreamTrait
             throw new \InvalidArgumentException('该通道已关闭直播功能', 403);
         }
 
-        // Fast-path：会话已存在，无需加锁，直接复用（绝大多数并发观看走这里）
+        // Fast-path：会话已存在，验证 ZLM 流是否真的还活着，再决定复用还是重建
         //
-        // 已知低概率窗口：fast-path 的 increment 在锁外，若恰好与"最后一个观看者
-        // 在 stop 锁内判定 viewer_count<=1 并发 BYE"精确同时发生，新观看者可能拿到
-        // 一个刚被关闭的会话。后果可自愈（前端重试即重新建流），且不泄漏资源
-        // （BYE/端口已正常释放）。为保留 fast-path 无锁性能，不强制其进锁。
+        // 如果只查 DB session 就复用，可能 session 记录还在但 ZLM 流已经断了
+        // （stop 正在路上、设备停推、ZLM 端口已关等），导致返回空流的 play_urls。
+        // 加一步 ZLM getMediaList 检查，流不在了就清掉旧 session 走 slow-path 重建。
         $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
             $channel['stream_id'],
             StreamSessionType::LIVE->value
         );
         if ($activeSession) {
-            $this->getGb28181Service()->incrementViewerCount($channel['stream_id']);
-            Log::channel('gb_stream')->info('Channel already streaming, reuse session', [
+            // 检查 ZLM 流是否真的还活着
+            $streamAlive = $this->isStreamAliveInZlm($channel);
+            if ($streamAlive) {
+                $this->getGb28181Service()->incrementViewerCount($channel['stream_id']);
+                Log::channel('gb_stream')->info('Channel already streaming, reuse session', [
+                    'stream_id'  => $channel['stream_id'],
+                    'session_id' => $activeSession['id'],
+                    'ssrc'       => $activeSession['ssrc'],
+                ]);
+
+                return [
+                    'stream_id'         => $channel['stream_id'],
+                    'ssrc'              => $activeSession['ssrc'],
+                    'rtp_port'          => $activeSession['rtp_port'],
+                    'tcp_mode'          => $activeSession['tcp_mode'],
+                    'session_id'        => $activeSession['id'],
+                    'already_streaming' => true,
+                ];
+            }
+
+            // ZLM 流已断但 session 还在 → 清除僵尸 session，走 slow-path 重建
+            Log::channel('gb_stream')->warning('Session exists but ZLM stream dead, cleaning up for rebuild', [
                 'stream_id'  => $channel['stream_id'],
                 'session_id' => $activeSession['id'],
-                'ssrc'       => $activeSession['ssrc'],
             ]);
-
-            return [
-                'stream_id'         => $channel['stream_id'],
-                'ssrc'              => $activeSession['ssrc'],
-                'rtp_port'          => $activeSession['rtp_port'],
-                'tcp_mode'          => $activeSession['tcp_mode'],
-                'session_id'        => $activeSession['id'],
-                'already_streaming' => true,
-            ];
+            try {
+                $this->getDeviceService()->deleteSession($activeSession['id']);
+                $this->getDeviceService()->updateChannel($channel['id'], [
+                    'stream_status' => ChannelStreamStatus::IDLE->value,
+                    'updated_at'    => date('Y-m-d H:i:s'),
+                ]);
+            } catch (\Exception $e) {
+                Log::channel('gb_stream')->warning('Failed to clean dead session', [
+                    'stream_id' => $channel['stream_id'],
+                    'error'     => $e->getMessage(),
+                ]);
+            }
+            // 继续走下面的 slow-path 重建流
         }
 
         // Slow-path 前置校验（在锁外做，配置错误立即失败）
@@ -680,5 +702,36 @@ trait GB28181StreamTrait
     protected function getLiveStreamLock() : \CoreW\Business\Lock\RedisLock
     {
         return \CoreW\Core::instance()->offsetGet('lock.redis');
+    }
+
+    /**
+     * 检查 ZLM 上流是否真的还活着
+     *
+     * 通过 getMediaList 查询 ZLM，确认 rtp/{streamId} 流是否存在。
+     * 返回 true = 流在，可以复用 session；false = 流断了，需要重建。
+     *
+     * @param array $channel 通道信息（需要 media_server_id 和 stream_id）
+     */
+    protected function isStreamAliveInZlm(array $channel) : bool
+    {
+        $mediaServerId = $channel['media_server_id'] ?? '';
+        $streamId = $channel['stream_id'] ?? '';
+
+        if (!$mediaServerId || $mediaServerId === MediaServerType::NONE->value || !$streamId) {
+            return false;
+        }
+
+        try {
+            $mediaList = $this->getGb28181Service()->getMediaList($mediaServerId, $streamId, 'rtp');
+            // getMediaList 返回非空数组 = 流存在于 ZLM
+            return !empty($mediaList);
+        } catch (\Exception $e) {
+            // ZLM 查询失败（网络不通、ZLM 挂了），保守返回 false，触发重建
+            Log::channel('gb_stream')->warning('ZLM media list check failed', [
+                'stream_id' => $streamId,
+                'error'     => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 }
