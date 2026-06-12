@@ -111,9 +111,12 @@ class SystemLogServiceImpl extends BaseService implements SystemLogService
             'level'       => $level,
             'side'        => \config('app.id', 'common'),
         ];
-        $currentUser = $this->getCurrentUser();
-        if (!empty($currentUser['currentIp'])) {
-            $fields['ip'] = $currentUser['currentIp'];
+        try {
+            $currentUser = $this->getCurrentUser();
+            if (!empty($currentUser['currentIp'])) {
+                $fields['ip'] = $currentUser['currentIp'];
+            }
+        } catch (\Exception $e) {
         }
         if (!empty($fields['ip']) && !\is_local_client($fields['ip'])) {
             $areaInfo = $this->bfw->offsetGet('ip2region')->parseIpToArea($fields['ip']);
