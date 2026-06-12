@@ -860,6 +860,22 @@ class CommandDispatcher
         }
     }
 
+    /**
+     * 清理超时的待处理订阅请求（定时器调用）
+     *
+     * 设备长时间不回复 SUBSCRIBE 的 200 OK 时，清理 orphaned 条目防止内存泄漏
+     */
+    public function cleanExpiredPendingSubscribes(int $timeoutSeconds = 120) : void
+    {
+        $now = time();
+        foreach ($this->pendingSubscribes as $subscriptionId => $ctx) {
+            if (isset($ctx['created_at']) && ($now - $ctx['created_at'] > $timeoutSeconds)) {
+                $this->log("Pending subscribe expired: subId={$subscriptionId}, event=" . ($ctx['event_type'] ?? 'unknown'), 'WARNING');
+                unset($this->pendingSubscribes[$subscriptionId]);
+            }
+        }
+    }
+
 
     /**
      * 查询设备信息

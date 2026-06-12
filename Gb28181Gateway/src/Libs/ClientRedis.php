@@ -198,4 +198,26 @@ class ClientRedis
             return false;
         }
     }
+
+    /**
+     * 关闭 Redis 连接
+     */
+    public function close() : void
+    {
+        try {
+            if (isset($this->redis)) {
+                $this->redis->close();
+            }
+        } catch (\Exception $e) {
+            // 忽略关闭错误
+        }
+    }
+
+    /**
+     * 析构函数 - 确保连接被关闭
+     */
+    public function __destruct()
+    {
+        $this->close();
+    }
 }

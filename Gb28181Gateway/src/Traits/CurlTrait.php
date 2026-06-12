@@ -24,10 +24,10 @@ trait CurlTrait
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $result = curl_exec($ch);
-        curl_close($ch);
         if (curl_errno($ch)) {
             $this->log("CURL Error: " . curl_error($ch), 'ERROR');
         }
+        curl_close($ch);
 
         return $result;
     }
