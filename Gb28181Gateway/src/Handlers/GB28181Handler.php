@@ -381,9 +381,20 @@ class GB28181Handler
 
     /**
      * 将命令重新推回队列尾部，供另一个传输进程（UDP/TCP）消费
+     *
+     * 带重试次数限制：最多 requeue 2 次（_requeue_count >= 2 时丢弃），
+     * 防止 UDP/TCP 进程间的乒乓死循环
      */
     private function requeueCommand(array $message) : void
     {
+        // 检查重试次数，防止 UDP/TCP 进程间无限乒乓
+        $requeueCount = (int)($message['_requeue_count'] ?? 0);
+        if ($requeueCount >= 2) {
+            $this->log("requeueCommand: max retries reached, dropping. action=" . ($message['action'] ?? 'unknown')
+                . ", device=" . ($message['device_id'] ?? 'unknown'), 'WARNING');
+            return;
+        }
+
         $redisConfig = $this->config['redis'] ?? [];
         if (empty($redisConfig)) {
             $this->log("requeueCommand: no redis config, command dropped", 'ERROR');
@@ -398,13 +409,20 @@ class GB28181Handler
         $queueSuffix = $this->classifyAction($message['action'] ?? '');
         $queueKey = $baseQueue . $queueSuffix . $suffix;
 
+        // 递增重试计数
+        $message['_requeue_count'] = $requeueCount + 1;
+
+        $redis = null;
         try {
             $redis = new ClientRedis($redisConfig);
             $redis->connect();
             $redis->rPush($queueKey, json_encode($message));
-            $this->log("Command requeued: action={$message['action']}, device={$message['device_id']}, queue={$queueKey}", 'DEBUG');
+            $this->log("Command requeued (attempt={$message['_requeue_count']}): action={$message['action']}, device={$message['device_id']}, queue={$queueKey}", 'DEBUG');
         } catch (\Throwable $e) {
             $this->log("requeueCommand failed: " . $e->getMessage(), 'ERROR');
+        } finally {
+            // 确保关闭连接，避免长驻进程中的连接泄漏
+            $redis?->close();
         }
     }
 
@@ -430,78 +448,116 @@ class GB28181Handler
     {
         static $lastCheckTime = 0;
         static $lastCleanupTime = 0;
+        static $lastGcTime = 0;
 
         $now = time();
 
         // 检查设备心跳超时
         //        $this->log("Checking device heartbeat timeout:{$lastCheckTime}-{$this->config['check_interval']}");
-        if ($now - $lastCheckTime >= $this->config['check_interval']) {
-            $timeoutDevices = $this->deviceManager->checkTimeout();
-            $lastCheckTime = $now;
+        try {
+            if ($now - $lastCheckTime >= $this->config['check_interval']) {
+                $timeoutDevices = $this->deviceManager->checkTimeout();
+                $lastCheckTime = $now;
 
-            // 清理超时的待处理广播会话（30秒无设备 INVITE 响应则过期）
-            $this->commandDispatcher->cleanExpiredBroadcasts(30);
+                // 清理超时的待处理广播会话（30秒无设备 INVITE 响应则过期）
+                $this->commandDispatcher->cleanExpiredBroadcasts(30);
 
-            // 通知 API 更新超时设备状态为 expired
-            if (!empty($timeoutDevices)) {
-                $this->log("Checking device heartbeat timeout:{$lastCheckTime}");
-                $this->log("发现 " . count($timeoutDevices) . " 个心跳超时设备", 'WARNING');
-                foreach ($timeoutDevices as $device) {
-                    //                    $device = $this->deviceManager->getDevice($deviceId);
-                    $this->postTask('device_expired', [
-                        'device_id'      => $device['device_id'],
-                        'last_heartbeat' => $device['last_heartbeat'] ?? 0,
-                        'timeout'        => $this->config['heartbeat_timeout'],
-                        'timestamp'      => $now,
-                    ]);
-                    //                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
+                // 清理超时的活跃 INVITE 会话（超过 3600 秒未关闭的会话）
+                $this->commandDispatcher->cleanupTimeoutSessions(3600);
+
+                // 清理超时的待处理订阅（超过 120 秒未收到响应）
+                $this->commandDispatcher->cleanExpiredPendingSubscribes(120);
+
+                // 通知 API 更新超时设备状态为 expired
+                if (!empty($timeoutDevices)) {
+                    $this->log("Checking device heartbeat timeout:{$lastCheckTime}");
+                    $this->log("发现 " . count($timeoutDevices) . " 个心跳超时设备", 'WARNING');
+                    foreach ($timeoutDevices as $device) {
+                        //                    $device = $this->deviceManager->getDevice($deviceId);
+                        $this->postTask('device_expired', [
+                            'device_id'      => $device['device_id'],
+                            'last_heartbeat' => $device['last_heartbeat'] ?? 0,
+                            'timeout'        => $this->config['heartbeat_timeout'],
+                            'timestamp'      => $now,
+                        ]);
+                        //                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
+                    }
                 }
             }
+        } catch (\Throwable $e) {
         }
 
-        // TODO: 清理离线设备
-        $cleanupInterval = $this->config['check_offline_device_interval'] ?? 3600;
-        if ($now - $lastCleanupTime >= $cleanupInterval) {
-            $this->deviceManager->cleanupOfflineDevices();
+        // 清理离线设备 + 内存清理
+        try {
+            $cleanupInterval = $this->config['check_offline_device_interval'] ?? 3600;
+            if ($now - $lastCleanupTime >= $cleanupInterval) {
+                $lastCleanupTime = $now;
 
-            // 清理过期的 processedInviteCallIds（防止内存泄漏）
-            // 通过与 CommandDispatcher 的 activeSessions 对比，移除已不存在的 call_id
-            $activeSessions = $this->commandDispatcher->getActiveSessions();
-            $activeCallIds = [];
-            foreach ($activeSessions as $session) {
-                $activeCallIds[$session['call_id']] = true;
-            }
-            foreach ($this->processedInviteCallIds as $callId => $dialogId) {
-                if (!isset($activeCallIds[$callId])) {
-                    unset($this->processedInviteCallIds[$callId]);
+                $this->deviceManager->cleanupOfflineDevices();
+
+                // 清理过期的 processedInviteCallIds（防止内存泄漏）
+                // 通过与 CommandDispatcher 的 activeSessions 对比，移除已不存在的 call_id
+                $activeSessions = $this->commandDispatcher->getActiveSessions();
+                $activeCallIds = [];
+                foreach ($activeSessions as $session) {
+                    $activeCallIds[$session['call_id']] = true;
+                }
+                foreach ($this->processedInviteCallIds as $callId => $dialogId) {
+                    if (!isset($activeCallIds[$callId])) {
+                        unset($this->processedInviteCallIds[$callId]);
+                    }
+                }
+
+                // 清理超时的 pendingInviteSetup（Task 未返回结果，60秒超时）
+                foreach ($this->pendingInviteSetup as $taskId => $data) {
+                    if (isset($data['created_at']) && ($now - $data['created_at'] > 60)) {
+                        $this->log("清理超时 pendingInviteSetup: taskId={$taskId}", 'WARNING');
+                        unset($this->pendingInviteSetup[$taskId]);
+                    }
+                }
+
+                // 清理超时的 pendingBroadcastAck（设备未发 ACK，60秒超时）
+                foreach ($this->pendingBroadcastAck as $callId => $data) {
+                    if (isset($data['created_at']) && ($now - $data['created_at'] > 60)) {
+                        $this->log("清理超时 pendingBroadcastAck: callId={$callId}", 'WARNING');
+                        unset($this->pendingBroadcastAck[$callId]);
+                    }
                 }
             }
-            //            $offlineDevices = $this->deviceManager->cleanupOfflineDevices();
-            //            $lastCleanupTime = $now;
+        } catch (\Throwable $e) {
+        }
 
-            //  TODO：这里不需要了，通知 API 更新离线设备状态为 offline
-            //            if (!empty($offlineDevices)) {
-            //                $this->log("清理 " . count($offlineDevices) . " 个离线设备");
-            //                foreach ($offlineDevices as $deviceId => $device) {
-            //                    $this->postTask('device_offline', [
-            //                        'device_id' => $deviceId,
-            //                        'registered_at' => $device['registered_at'] ?? 0,
-            //                        'last_heartbeat' => $device['last_heartbeat'] ?? 0,
-            //                        'timestamp' => $now,
-            //                    ]);
-            //                    $this->log("设备已离线: {$deviceId}");
-            //                }
-            //            } else {
-            //                $this->log("无离线设备需要清理");
-            //            }
-            //        }
+        // 定期 GC（每 5 分钟）+ 内存监控（防长驻进程内存泄漏）
+        try {
+            if ($now - $lastGcTime >= 300) {
+                $lastGcTime = $now;
+
+                // 触发 PHP 垃圾回收
+                gc_collect_cycles();
+
+                // 内存监控日志
+                $memUsage = round(memory_get_usage(true) / 1024 / 1024, 2);
+                $memPeak = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
+                $this->log("[Memory] usage={$memUsage}MB peak={$memPeak}MB "
+                    . "activeSessions=" . count($this->commandDispatcher->getActiveSessions())
+                    . " processedInvites=" . count($this->processedInviteCallIds)
+                    . " pendingSetup=" . count($this->pendingInviteSetup)
+                    . " pendingAck=" . count($this->pendingBroadcastAck),
+                    'DEBUG');
+            }
+        } catch (\Throwable $e) {
+
         }
 
         // Gateway 心跳上报（每30秒）
-        $gatewayId = $this->config['gateway_id'] ?? null;
-        if ($gatewayId && ($now - $this->lastHeartbeatSent >= 30)) {
-            $this->sendGatewayHeartbeat();
-            $this->lastHeartbeatSent = $now;
+        try {
+            $gatewayId = $this->config['gateway_id'] ?? null;
+            if ($gatewayId && ($now - $this->lastHeartbeatSent >= 30)) {
+                $this->sendGatewayHeartbeat();
+                $this->lastHeartbeatSent = $now;
+            }
+        } catch (\Throwable $e) {
+
         }
     }
 
@@ -899,6 +955,7 @@ class GB28181Handler
                 'tcp_mode'        => $tcpMode,
                 'device_ip'       => $deviceIp,
                 'device_port'     => $devicePort,
+                'created_at'      => time(),
             ];
             $this->log("广播: 等待设备 ACK 后再推流 (broadcastPushAfterAck=true), callId={$callId}");
         } else {
@@ -2057,7 +2114,9 @@ class GB28181Handler
             'record_info' => $data,
             'timestamp'   => time(),
         ]);
-    }    /**
+    }
+
+    /**
      * 处理目录响应
      */
     private function handleCatalog(\SipEvent $event, string $deviceId, array $result) : void
@@ -2455,6 +2514,7 @@ class GB28181Handler
                 'device_ip'         => $deviceIp,
                 'device_port'       => $devicePort,
                 'broadcast_key'     => $broadcastKey,
+                'created_at'        => time(),
             ];
 
             $this->log("广播 INVITE: 已投递 broadcast_setup_rtp Task #{$taskId}, 等待 API 返回");
@@ -2725,8 +2785,8 @@ class GB28181Handler
         $this->log("投递异步任务到 Task 进程: $type", 'DEBUG');
         $payloadSize = strlen(serialize($payload));
         if ($payloadSize > 1024 * 1024) {  // > 1MB 警告
-            $this->log("⚠️  大 payload: $type, size=" . round($payloadSize/1024) . "KB", 'WARNING');
-        }  else {
+            $this->log("⚠️  大 payload: $type, size=" . round($payloadSize / 1024) . "KB", 'WARNING');
+        } else {
             $this->log("投递任务负载: " . json_encode($payload), 'DEBUG');
         }
         // 检查是否支持 addTask 方法（多进程模式）
