@@ -154,16 +154,6 @@ GB28181 协议视频管理平台
 
 如有相关问题，欢迎提交Issue或联系作者。
 
----
-
-以下功能已实现但需要更多实际场景验证：
-
-- **语音对讲**：流程参考WVP项目，但缺乏国标设备进行完整测试
-- **录像合并**：正在排期开发，主要涉及流媒体与国标API分离部署的场景测试
-- **信令兼容性**：新老版本信令大部分已实现（参考WVP和AI搜索完善），但需要更多设备验证
-- **报警事件**：已实现基础功能，需要实际设备测试验证
-
-如有相关问题，欢迎提交Issue或联系作者。
 
 ---
 
@@ -256,9 +246,10 @@ php gbs.php start
 
 ## 线上部署实操
 
-** 前端代码可以在前端仓库release下载最新的，也可以自己打包 **
+**前端代码可以在前端仓库release下载最新的，也可以自己打包**
 
 ### step 1 - api
+
 ```bash
 mkdir -p /www/gbs
 cd /www/gbs
@@ -312,7 +303,8 @@ php webman gb28181:server start --tcp -d
 #### 使用supervisor启动
 
 - udp
-``conf
+
+```conf
 [program:gbs_server]
 directory=/www/gbs/backend
 
