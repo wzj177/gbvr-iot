@@ -71,6 +71,18 @@ interface DeviceService
 
     public function decrementSessionViewerCount(string $streamId);
 
+    /**
+     * CAS（Compare-And-Set）递减 viewer_count（乐观锁）
+     *
+     * 用于替代悲观锁：仅当 viewer_count > 1 时才递减
+     * 返回数组：['action' => 'decremented' | 'closed' | 'not_found']
+     *
+     * @param string $streamId 流ID
+     * @param string $type 会话类型
+     * @return array ['action' => string, 'affected' => int]
+     */
+    public function casDecrementSessionViewerCount(string $streamId, string $type) : array;
+
     public function createSession(array $fields);
 
     public function updateSession($id, array $fields);

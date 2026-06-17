@@ -590,6 +590,39 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->decrement($stream['id'], 'viewer_count', 1);
     }
 
+    /**
+     * CAS（Compare-And-Set）递减 viewer_count（乐观锁）
+     *
+     * 用于替代悲观锁：仅当 viewer_count > 1 时才递减
+     * 返回数组：['action' => 'decremented' | 'closed' | 'not_found']
+     *
+     * @param string $streamId 流ID
+     * @param string $type 会话类型
+     * @return array ['action' => string, 'affected' => int]
+     */
+    public function casDecrementSessionViewerCount(string $streamId, string $type) : array
+    {
+        $affected = $this->getStreamSessionsDao()->casDecrementViewerCount($streamId, $type);
+
+        if ($affected > 0) {
+            // CAS 成功：viewer_count > 1，仅递减
+            return ['action' => 'decremented', 'affected' => $affected];
+        }
+
+        // CAS 失败：viewer_count <= 1 或不存在，需要真正关闭
+        $session = $this->getActiveSessionByStreamIdAndType($streamId, $type);
+        if (!$session) {
+            return ['action' => 'not_found', 'affected' => 0];
+        }
+
+        if ((int)$session['viewer_count'] <= 1) {
+            return ['action' => 'closed', 'session' => $session];
+        }
+
+        // 并发冲突：另一个进程已经递减了，返回重试
+        return ['action' => 'retry', 'affected' => 0];
+    }
+
     public function getSessionBySsrc(string $ssrc) : array
     {
         return $this->getStreamSessionsDao()->getBySsrc($ssrc);

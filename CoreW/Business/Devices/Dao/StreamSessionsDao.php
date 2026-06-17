@@ -28,4 +28,16 @@ interface StreamSessionsDao extends AdvancedDaoInterface
      * @return array 端口列表
      */
     public function getCoolingPorts(int $coolingTime = 20) : array;
+
+    /**
+     * CAS（Compare-And-Set）递减 viewer_count
+     *
+     * 用于乐观锁：仅当 viewer_count > 1 时才递减
+     * 返回影响行数：0 = 已是1或不存在（需要真正关闭），>0 = 递减成功
+     *
+     * @param string $streamId 流ID
+     * @param string $type 会话类型（live/playback/talk/download）
+     * @return int 影响行数
+     */
+    public function casDecrementViewerCount(string $streamId, string $type) : int;
 }
