@@ -35,7 +35,7 @@ class RedisLock implements LockInterface
      */
     public function tryExec (string $key, callable $fn, int $ex = 10) : mixed
     {
-        if (!$this->tryLock('lock_' . $key, '1', $ex)) {
+        if (!$this->tryLock($key, '1', $ex)) {
             return null;
         }
         try {
@@ -49,7 +49,8 @@ class RedisLock implements LockInterface
     {
         $redis = Redis::connection()->client();
 
-        return $redis->set($key, $value, ['nx', 'ex' => $ttl]);
+        // 统一加 lock_ 前缀，与 unlock 的 Lua 脚本一致
+        return $redis->set('lock_' . $key, $value, ['nx', 'ex' => $ttl]);
     }
 
     public function lock($key, $value = '1', $ex = 6)
