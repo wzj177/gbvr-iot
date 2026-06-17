@@ -750,7 +750,7 @@ class Gb28181Service
                 return null;
             }
 
-            // 创建会话记录
+            // 创建会话记录（乐观锁：依赖 uk_stream_type 唯一约束防并发创建）
             $sessionData = [
                 'session_id'      => Uuid::uuid4(),//uniqid($channel['device_id'] . '_' . $channel['channel_id'] . '_' . $channel['media_server_id'] . '_'),
                 'device_id'       => $channel['device_id'],
@@ -767,7 +767,36 @@ class Gb28181Service
                 'updated_at'      => date('Y-m-d H:i:s'),
             ];
 
-            $session = $this->getDeviceService()->createSession($sessionData);
+            try {
+                $session = $this->getDeviceService()->createSession($sessionData);
+            } catch (\Throwable $e) {
+                if (!$this->isUniqueConstraintViolation($e)) {
+                    throw $e;
+                }
+                // 并发冲突：另一进程已创建同 stream_id+type 的 session
+                // 清理自己刚打开的 RTP 端口，复用已存在的 session
+                Log::channel('gb_stream')->warning("[Gb28181Service] 会话创建冲突，复用已有会话: {$channel['stream_id']}");
+                $this->closeRtpServer($channel['stream_id'], $mediaServer['server_id']);
+
+                $existingSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
+                    $channel['stream_id'],
+                    StreamSessionType::LIVE->value
+                );
+
+                if ($existingSession) {
+                    $this->incrementViewerCount($channel['stream_id']);
+                    return [
+                        'session'   => $existingSession,
+                        'stream_id' => $channel['stream_id'],
+                        'ssrc'      => $existingSession['ssrc'],
+                        'rtp_port'  => $existingSession['rtp_port'],
+                        'reused'    => true,  // 标记为复用
+                    ];
+                }
+
+                // 罕见：约束冲突但又查不到活跃 session（可能已被清理），返回 null 让上层重试
+                return null;
+            }
 
             //  初始化 viewer 计数为 1
             $this->incrementViewerCount($channel['stream_id']);
@@ -852,7 +881,7 @@ class Gb28181Service
             //            $playbackSsrc = $this->getDeviceService()->generateUniqueSsrc();
             $playbackSsrc = $this->getSSRCFactory()->getPlayBackSsrc($mediaServer['server_id']);
 
-            // 创建会话记录
+            // 创建会话记录（乐观锁：依赖 uk_stream_type 唯一约束防并发创建）
             $sessionData = [
                 'session_id'      => Uuid::uuid4(),
                 'device_id'       => $deviceId,
@@ -871,7 +900,35 @@ class Gb28181Service
                 'updated_at'      => date('Y-m-d H:i:s'),
             ];
 
-            $session = $this->getDeviceService()->createSession($sessionData);
+            $sessionType = !$isDownload ? StreamSessionType::PLAYBACK->value : StreamSessionType::DOWNLOAD->value;
+
+            try {
+                $session = $this->getDeviceService()->createSession($sessionData);
+            } catch (\Throwable $e) {
+                if (!$this->isUniqueConstraintViolation($e)) {
+                    throw $e;
+                }
+                // 并发冲突：另一进程已创建同 stream_id+type 的 session
+                // 清理自己刚打开的 RTP 端口，复用已存在的 session
+                $logMsg = $isDownload ? "下载会话创建冲突，复用已有会话" : "回放会话创建冲突，复用已有会话";
+                Log::channel('gb_stream')->warning("[Gb28181Service] {$logMsg}: {$streamId}");
+                $this->closeRtpServer($streamId, $mediaServer['server_id']);
+
+                $existingSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($streamId, $sessionType);
+
+                if ($existingSession) {
+                    $this->incrementViewerCount($streamId);
+                    return [
+                        'session'   => $existingSession,
+                        'stream_id' => $streamId,
+                        'ssrc'      => $existingSession['ssrc'],
+                        'rtp_port'  => $existingSession['rtp_port'],
+                        'reused'    => true,
+                    ];
+                }
+
+                return null;
+            }
 
             //  初始化回放流 viewer 计数
             $this->incrementViewerCount($streamId);
@@ -1477,5 +1534,23 @@ class Gb28181Service
     protected function getSSRCFactory() : SSRCFactory
     {
         return $this->bfw['SSRCFactory'];
+    }
+
+    /**
+     * 判断异常是否为唯一约束冲突（并发创建重复 session）
+     *
+     * 兼容处理：Doctrine DBAL 的 UniqueConstraintViolationException 在不同配置/版本下
+     * 可能被转换也可能透传底层异常，因此辅以 message 兜底判断。
+     */
+    private function isUniqueConstraintViolation(\Throwable $e) : bool
+    {
+        if ($e instanceof \Doctrine\DBAL\Exception\UniqueConstraintViolationException) {
+            return true;
+        }
+
+        $message = $e->getMessage();
+        return str_contains($message, 'Duplicate entry')
+            || str_contains($message, '1062')
+            || str_contains($message, 'SQLSTATE[23000]');
     }
 }

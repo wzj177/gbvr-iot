@@ -67,12 +67,12 @@ trait GB28181StreamTrait
     }
 
     /**
-     * 开始实时视频核心逻辑（乐观锁版本）
+     * 开始实时视频核心逻辑
      *
      * 引用计数 + SIP 会话复用：N 个观看者共享同一个 ZLM RTP 端口和 SIP INVITE/BYE 生命周期。
-     * 使用乐观锁替代悲观锁：
-     *   fast-path → 无锁读已有会话（绝大多数调用）
-     *   slow-path → 创建会话（利用唯一约束防重）
+     * 无 Redis 分布式锁：并发 stop 已由单条 UPDATE 行锁兜住，start 无需再等任何锁。
+     *   fast-path → session 已存在且 ZLM 流活着则复用（绝大多数调用）
+     *   slow-path → 创建会话（并发创建由 DB 唯一约束在 service 层处理）
      *
      * @return array 返回会话信息
      * @throws \Exception
@@ -85,18 +85,12 @@ trait GB28181StreamTrait
         }
 
         // Fast-path：会话已存在，验证 ZLM 流是否真的还活着，再决定复用还是重建
-        //
-        // 如果只查 DB session 就复用，可能 session 记录还在但 ZLM 流已经断了
-        // （stop 正在路上、设备停推、ZLM 端口已关等），导致返回空流的 play_urls。
-        // 加一步 ZLM getMediaList 检查，流不在了就清掉旧 session 走 slow-path 重建。
         $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
             $channel['stream_id'],
             StreamSessionType::LIVE->value
         );
         if ($activeSession) {
-            // 检查 ZLM 流是否真的还活着
-            $streamAlive = $this->isStreamAliveInZlm($channel);
-            if ($streamAlive) {
+            if ($this->isStreamAliveInZlm($channel)) {
                 $this->getGb28181Service()->incrementViewerCount($channel['stream_id']);
                 Log::channel('gb_stream')->info('Channel already streaming, reuse session', [
                     'stream_id'  => $channel['stream_id'],
@@ -131,7 +125,6 @@ trait GB28181StreamTrait
                     'error'     => $e->getMessage(),
                 ]);
             }
-            // 继续走下面的 slow-path 重建流
         }
 
         // Slow-path 前置校验
@@ -154,59 +147,8 @@ trait GB28181StreamTrait
             $tcpMode = 1;
         }
 
-        // Slow-path：创建直播会话（无锁，依赖唯一约束防重）
-        return $this->createLiveSessionWithRetry($channel, $mediaServer, $streamIp, $tcpMode, $device, 0);
-    }
-
-    /**
-     * 创建直播会话（带重试机制处理并发冲突）
-     *
-     * @param array $channel
-     * @param array $mediaServer
-     * @param string $streamIp
-     * @param int $tcpMode
-     * @param array $device
-     * @param int $retryCount 重试次数
-     * @return array
-     * @throws \Exception
-     */
-    private function createLiveSessionWithRetry(
-        array $channel,
-        array $mediaServer,
-        string $streamIp,
-        int $tcpMode,
-        array $device,
-        int $retryCount
-    ) : array {
-        // 防止无限重试
-        if ($retryCount > 2) {
-            throw new \RuntimeException('创建直播会话失败：并发冲突过多', 503);
-        }
-
-        // 二次检查：可能已被另一进程创建
-        $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
-            $channel['stream_id'],
-            StreamSessionType::LIVE->value
-        );
-        if ($activeSession) {
-            $this->getGb28181Service()->incrementViewerCount($channel['stream_id']);
-            Log::channel('gb_stream')->info('Channel already streaming (race detected), reuse session', [
-                'stream_id'  => $channel['stream_id'],
-                'session_id' => $activeSession['id'],
-                'ssrc'       => $activeSession['ssrc'],
-            ]);
-
-            return [
-                'stream_id'         => $channel['stream_id'],
-                'ssrc'              => $activeSession['ssrc'],
-                'rtp_port'          => $activeSession['rtp_port'],
-                'tcp_mode'          => $activeSession['tcp_mode'],
-                'session_id'        => $activeSession['id'],
-                'already_streaming' => true,
-            ];
-        }
-
-        // 创建直播会话
+        // 创建直播会话（service 层 createLiveSessionAndOpenRtp 内部创建 session，
+        // 并发冲突时由唯一约束触发异常 → 自动清理 RTP 并复用已有 session，返回 reused=true）
         $sessionResult = $this->getGb28181Service()->createLiveSessionAndOpenRtp($channel, $mediaServer, $tcpMode);
         if (!$sessionResult) {
             throw new \RuntimeException('创建直播会话失败', 500);
@@ -216,36 +158,17 @@ trait GB28181StreamTrait
         $ssrc = $sessionResult['ssrc'];
         $streamId = $sessionResult['stream_id'];
 
-        // 插入 session 记录（利用唯一约束防重）
-        try {
-            $this->getDeviceService()->createSession([
+        // 并发复用：另一进程已建好会话，无需再发 INVITE
+        if (!empty($sessionResult['reused'])) {
+            $reusedSession = $sessionResult['session'];
+            return [
                 'stream_id'         => $streamId,
-                'type'               => StreamSessionType::LIVE->value,
-                'device_id'          => $channel['device_id'],
-                'channel_id'         => $channel['channel_id'],
-                'media_server_id'    => $channel['media_server_id'],
-                'ssrc'               => $ssrc,
-                'rtp_port'           => $zlmPort,
-                'tcp_mode'           => $tcpMode,
-                'viewer_count'       => 1,
-                'status'             => 'inviting',
-                'created_at'         => date('Y-m-d H:i:s'),
-                'updated_at'         => date('Y-m-d H:i:s'),
-            ]);
-        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
-            // 并发冲突：另一个进程已经创建了 session
-            // 清理自己创建的 RTP，重试
-            Log::channel('gb_stream')->warning('Session create race detected, cleaning up and retry', [
-                'stream_id' => $streamId,
-                'retry'     => $retryCount + 1,
-            ]);
-            $this->getGb28181Service()->closeRtpServer($streamId, $mediaServer['server_id']);
-            usleep(50000); // 等待 50ms
-            return $this->createLiveSessionWithRetry($channel, $mediaServer, $streamIp, $tcpMode, $device, $retryCount + 1);
-        } catch (\Exception $e) {
-            // 其他错误，清理 RTP
-            $this->getGb28181Service()->closeRtpServer($streamId, $mediaServer['server_id']);
-            throw new \RuntimeException('创建 session 失败: ' . $e->getMessage(), 500);
+                'ssrc'              => $reusedSession['ssrc'] ?? $ssrc,
+                'rtp_port'          => $reusedSession['rtp_port'] ?? $zlmPort,
+                'tcp_mode'          => $reusedSession['tcp_mode'] ?? $tcpMode,
+                'session_id'        => $reusedSession['id'] ?? null,
+                'already_streaming' => true,
+            ];
         }
 
         // 发送命令到信令网关（传递收流IP）
@@ -280,117 +203,71 @@ trait GB28181StreamTrait
     }
 
     /**
-     * 停止实时视频核心逻辑（乐观锁版本）
+     * 停止实时视频核心逻辑
      *
-     * 使用 CAS（Compare-And-Set）更新 viewer_count，替代悲观锁：
-     *   1. 先尝试 CAS 递减 viewer_count（仅当 > 1 时成功）
-     *   2. CAS 成功 → 还有其他观看者，直接返回
-     *   3. CAS 失败 → viewer_count <= 1，真正关闭会话
-     *
-     * 优点：无阻塞，高并发，无需 Redis 锁
+     * 用单条 UPDATE 的 InnoDB 行锁保证 viewer_count "读-改"原子性，无需 Redis 锁：
+     *   affected > 0 → 还有其他观看者，仅递减
+     *   affected = 0 → 最后一个观看者（或会话不存在），真正关闭
      *
      * @param array $channel
      * @return bool
-     * @throws \Exception
      */
     protected function stopLiveVideoCore(array $channel) : bool
     {
-        // 无 stream_id 或未关联媒体服务器，无需处理
         if (empty($channel['stream_id']) || $channel['media_server_id'] === MediaServerType::NONE->value) {
             return false;
         }
 
-        // 乐观锁：先尝试 CAS 递减 viewer_count
-        $result = $this->getDeviceService()->casDecrementSessionViewerCount(
+        // 单条 UPDATE 原子递减：仅当 viewer_count > 1 时命中，行锁保证并发安全
+        $affected = $this->getDeviceService()->casDecrementSessionViewerCount(
             $channel['stream_id'],
             StreamSessionType::LIVE->value
         );
 
-        switch ($result['action']) {
-            case 'decremented':
-                // CAS 成功：还有其他观看者，仅递减
-                Log::channel('gb_stream')->info('Stop live video: decremented viewer count (optimistic lock)', [
-                    'stream_id' => $channel['stream_id'],
-                ]);
-                return true;
-
-            case 'not_found':
-                // 会话不存在，无需处理
-                Log::channel('gb_stream')->info('Stop live video: session not found', [
-                    'stream_id' => $channel['stream_id'],
-                ]);
-                return false;
-
-            case 'retry':
-                // 并发冲突：另一个进程正在处理，短暂等待后重试
-                usleep(50000); // 等待 50ms
-                $result = $this->getDeviceService()->casDecrementSessionViewerCount(
-                    $channel['stream_id'],
-                    StreamSessionType::LIVE->value
-                );
-                // 重试后仍失败，当作 closed 处理
-                if ($result['action'] === 'decremented') {
-                    return true;
-                }
-                // 继续走 closed 逻辑
-                break;
-
-            case 'closed':
-                // CAS 失败：viewer_count <= 1，需要真正关闭
-                break;
+        // 还有其他观看者，仅递减
+        if ($affected > 0) {
+            Log::channel('gb_stream')->info('Stop live video: decremented viewer count', [
+                'stream_id' => $channel['stream_id'],
+            ]);
+            return true;
         }
 
-        // 真正关闭会话（最后一个观看者或会话残留）
-        try {
-            $gbResult = $this->getGb28181Service()->stopLiveVideo(
-                $channel['device_id'],
-                $channel['channel_id'],
-                $channel['stream_id']
-            );
+        // 最后一个观看者（或会话不存在）：发 BYE + 关 RTP + 删 session
+        $gbResult = $this->getGb28181Service()->stopLiveVideo(
+            $channel['device_id'],
+            $channel['channel_id'],
+            $channel['stream_id']
+        );
 
-            if ($gbResult) {
-                $closeResult = $this->getGb28181Service()->closeRtpServer(
-                    $channel['stream_id'],
-                    $channel['media_server_id']
-                );
+        $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
+            $channel['stream_id'],
+            StreamSessionType::LIVE->value
+        );
 
-                // 更新通道状态
-                $this->getDeviceService()->updateChannel($channel['id'], [
-                    'stream_status' => ChannelStreamStatus::IDLE->value,
-                    'updated_at'    => date('Y-m-d H:i:s'),
-                ]);
+        if ($gbResult) {
+            $closeResult = $this->getGb28181Service()->closeRtpServer($channel['stream_id'], $channel['media_server_id']);
+            $this->getDeviceService()->updateChannel($channel['id'], [
+                'stream_status' => ChannelStreamStatus::IDLE->value,
+                'updated_at'    => date('Y-m-d H:i:s'),
+            ]);
 
-                // 删除会话记录
-                if (isset($result['session'])) {
-                    $this->getDeviceService()->deleteSession($result['session']['id']);
-                } else {
-                    // 二次查找确保删除
-                    $session = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
-                        $channel['stream_id'],
-                        StreamSessionType::LIVE->value
-                    );
-                    if ($session) {
-                        $this->getDeviceService()->deleteSession($session['id']);
-                    }
-                }
-
-                if (($closeResult['hit'] ?? 0) === 1) {
-                    Log::channel('gb_stream')->info('Close RTP server: has exist record');
-                } else {
-                    Log::channel('gb_stream')->info('Close RTP server: no exist record');
-                }
-
-                return true;
+            if ($activeSession) {
+                $this->getDeviceService()->deleteSession($activeSession['id']);
             }
 
-            return false;
-        } catch (\Exception $e) {
-            Log::channel('gb_stream')->warning('Close RTP server failed', [
+            Log::channel('gb_stream')->info('Stop live video: closed', [
                 'stream_id' => $channel['stream_id'],
-                'error'     => $e->getMessage(),
+                'rtp_hit'   => $closeResult['hit'] ?? 0,
             ]);
-            return false;
+            return true;
         }
+
+        // BYE 发送失败也删除 session 记录，避免残留阻塞下次 start（唯一约束）
+        if ($activeSession) {
+            $this->getDeviceService()->deleteSession($activeSession['id']);
+        }
+
+        return false;
     }
 
 
@@ -482,7 +359,9 @@ trait GB28181StreamTrait
     }
 
     /**
-     * 停止录像回放核心逻辑（乐观锁版本）
+     * 停止录像回放核心逻辑
+     *
+     * 用单条 UPDATE 行锁保证 viewer_count 原子递减，无需 Redis 锁。
      *
      * @param string $deviceId
      * @param string $channelId
@@ -509,58 +388,34 @@ trait GB28181StreamTrait
             throw new \InvalidArgumentException('通道未关联媒体服务器', 400);
         }
 
-        // 乐观锁：先尝试 CAS 递减 viewer_count
-        $result = $this->getDeviceService()->casDecrementSessionViewerCount(
+        // 单条 UPDATE 原子递减：仅当 viewer_count > 1 时命中
+        $affected = $this->getDeviceService()->casDecrementSessionViewerCount(
             $streamId,
             StreamSessionType::PLAYBACK->value
         );
 
-        switch ($result['action']) {
-            case 'decremented':
-                // CAS 成功：还有其他观看者，仅递减
-                Log::channel('gb_stream')->info('Stop playback: decremented viewer count (optimistic lock)', [
-                    'stream_id' => $streamId,
-                ]);
-                return true;
-
-            case 'not_found':
-                // 会话不存在，无需处理
-                return false;
-
-            case 'retry':
-                // 并发冲突，短暂等待后重试
-                usleep(50000);
-                $result = $this->getDeviceService()->casDecrementSessionViewerCount(
-                    $streamId,
-                    StreamSessionType::PLAYBACK->value
-                );
-                if ($result['action'] === 'decremented') {
-                    return true;
-                }
-                break;
-
-            case 'closed':
-                // CAS 失败：需要真正关闭
-                break;
+        // 还有其他观看者，仅递减
+        if ($affected > 0) {
+            Log::channel('gb_stream')->info('Stop playback: decremented viewer count', [
+                'stream_id' => $streamId,
+            ]);
+            return true;
         }
 
-        // 真正关闭会话
+        // 最后一个观看者（或会话不存在）：真正关闭
         $stopResult = $this->getGb28181Service()->stopPlayback($deviceId, $channelId, $streamId);
+
+        $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
+            $streamId,
+            StreamSessionType::PLAYBACK->value
+        );
+
         if ($stopResult) {
             $this->getGb28181Service()->closeRtpServer($streamId, $channel['media_server_id']);
         }
 
-        // 删除会话
-        if (isset($result['session'])) {
-            $this->getDeviceService()->deleteSession($result['session']['id']);
-        } else {
-            $session = $this->getDeviceService()->getActiveSessionByStreamIdAndType(
-                $streamId,
-                StreamSessionType::PLAYBACK->value
-            );
-            if ($session) {
-                $this->getDeviceService()->deleteSession($session['id']);
-            }
+        if ($activeSession) {
+            $this->getDeviceService()->deleteSession($activeSession['id']);
         }
 
         return $stopResult;
@@ -808,11 +663,6 @@ trait GB28181StreamTrait
     protected function getMediaServerService() : MediaServerService
     {
         return $this->createService('MediaServer:MediaServerService');
-    }
-
-    protected function getLiveStreamLock() : \CoreW\Business\Lock\RedisLock
-    {
-        return \CoreW\Core::instance()->offsetGet('lock.redis');
     }
 
     /**
