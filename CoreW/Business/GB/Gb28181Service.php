@@ -916,6 +916,7 @@ class Gb28181Service
         // 尝试打开RTP服务器，最多尝试10次
         $maxAttempts = 10;
         $attempts = 0;
+        $lastFailMsg = '';
 
         while ($attempts < $maxAttempts) {
             // 调用ZLM打开RTP服务器
@@ -931,6 +932,18 @@ class Gb28181Service
                 $zlmClient->closeRtpServer($streamId);
             }
 
+            // ZLM 返回失败：很大概率是 stream_id 已存在（如设备一直推流但 session 表无记录）
+            // 主动 closeRtpServer 释放占用，下次循环重试
+            if ($result && $result['code'] !== 0) {
+                $lastFailMsg = $result['msg'] ?? ('code=' . ($result['code'] ?? 'null'));
+                Log::channel('gb_stream')->info("[Gb28181Service] openRtpServer 失败，尝试清理同名流后重试: stream={$streamId}, attempt={$attempts}, msg={$lastFailMsg}");
+                try {
+                    $zlmClient->closeRtpServer($streamId);
+                } catch (\Throwable $e) {
+                    // 清理失败不影响下次重试
+                }
+            }
+
             $attempts++;
 
             // 短暂等待后重试
@@ -938,10 +951,10 @@ class Gb28181Service
         }
 
         // 如果尝试了最大次数仍未找到合适端口，则返回失败
-        Log::channel('gb_stream')->error("[Gb28181Service] 无法分配可用端口，所有端口都在冷却中");
+        Log::channel('gb_stream')->error("[Gb28181Service] openRtpServer 重试 {$maxAttempts} 次失败: stream={$streamId}, lastMsg={$lastFailMsg}, excludePorts=" . count($excludePorts));
         return [
             'code' => -1,
-            'msg'  => '无法分配可用端口，所有端口都在冷却中',
+            'msg'  => '无法打开 RTP 服务器: ' . $lastFailMsg,
         ];
     }
 

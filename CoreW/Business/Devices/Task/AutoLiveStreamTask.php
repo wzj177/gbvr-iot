@@ -63,6 +63,19 @@ class AutoLiveStreamTask extends BaseCrontabTask
                     continue;
                 }
 
+                // ZLM 防误抢：如果 ZLM 端流已经活着（设备主动推 / 上次 session 被 hook 清理但流仍在），
+                // 直接跳过 startLiveVideoCore 避免撞"流已存在"。
+                // session 会在第一个真实用户 startLive 时由 createLiveSessionAndOpenRtp 自动复用并补建。
+                if ($this->isStreamAliveInZlm($channel)) {
+                    $this->log()->info('[AutoLive] ZLM 流已活，跳过 INVITE 等待用户首次复用', [
+                        'device_id'  => $channel['device_id'],
+                        'channel_id' => $channel['channel_id'],
+                        'stream_id'  => $channel['stream_id'],
+                    ]);
+                    $skipCount++;
+                    continue;
+                }
+
                 // 复用 trait 的 startLiveVideoCore（内含 close_live 检查）
                 $result = $this->startLiveVideoCore($device, $channel);
 
