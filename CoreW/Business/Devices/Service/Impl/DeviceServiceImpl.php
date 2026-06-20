@@ -590,6 +590,20 @@ class DeviceServiceImpl extends BaseService implements DeviceService
         return $this->getStreamSessionsDao()->decrement($stream['id'], 'viewer_count', 1);
     }
 
+    /**
+     * 原子递减 viewer_count（依赖 InnoDB 行锁，仅当 > 1 时才递减）
+     *
+     * 返回影响行数：>0 = 递减成功（还有观看者），0 = 需真正关闭（最后一人或不存在）
+     *
+     * @param string $streamId
+     * @param string $type
+     * @return int 影响行数
+     */
+    public function casDecrementSessionViewerCount(string $streamId, string $type) : int
+    {
+        return $this->getStreamSessionsDao()->casDecrementViewerCount($streamId, $type);
+    }
+
     public function getSessionBySsrc(string $ssrc) : array
     {
         return $this->getStreamSessionsDao()->getBySsrc($ssrc);

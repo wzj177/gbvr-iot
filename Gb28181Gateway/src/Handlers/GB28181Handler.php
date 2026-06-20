@@ -482,9 +482,11 @@ class GB28181Handler
                         ]);
                         //                    $this->log("设备心跳超时: {$device['device_id']}", 'WARNING');
                     }
+                    // TODO:清理设备
                 }
             }
         } catch (\Throwable $e) {
+            $this->log("tick: heartbeat check error: " . $e->getMessage(), 'ERROR');
         }
 
         // 清理离线设备 + 内存清理
@@ -502,10 +504,31 @@ class GB28181Handler
                 foreach ($activeSessions as $session) {
                     $activeCallIds[$session['call_id']] = true;
                 }
+                $cleanedCount = 0;
                 foreach ($this->processedInviteCallIds as $callId => $dialogId) {
                     if (!isset($activeCallIds[$callId])) {
                         unset($this->processedInviteCallIds[$callId]);
+                        $cleanedCount++;
                     }
+                }
+                if ($cleanedCount > 0) {
+                    $this->log("Cleaned {$cleanedCount} stale processedInviteCallIds", 'INFO');
+                }
+
+                // 强制限制 processedInviteCallIds 最大数量（防止无限增长）
+                $maxProcessedInvites = 1000;
+                if (count($this->processedInviteCallIds) > $maxProcessedInvites) {
+                    // 保留最新的 N 条，移除最旧的
+                    $toRemove = count($this->processedInviteCallIds) - $maxProcessedInvites;
+                    $removed = 0;
+                    foreach ($this->processedInviteCallIds as $callId => $dialogId) {
+                        unset($this->processedInviteCallIds[$callId]);
+                        $removed++;
+                        if ($removed >= $toRemove) {
+                            break;
+                        }
+                    }
+                    $this->log("Force-trimmed {$removed} old processedInviteCallIds (limit={$maxProcessedInvites})", 'WARNING');
                 }
 
                 // 清理超时的 pendingInviteSetup（Task 未返回结果，60秒超时）
@@ -525,6 +548,7 @@ class GB28181Handler
                 }
             }
         } catch (\Throwable $e) {
+            $this->log("tick: cleanup error: " . $e->getMessage(), 'ERROR');
         }
 
         // 定期 GC（每 5 分钟）+ 内存监控（防长驻进程内存泄漏）
@@ -533,20 +557,22 @@ class GB28181Handler
                 $lastGcTime = $now;
 
                 // 触发 PHP 垃圾回收
-                gc_collect_cycles();
+                $cycles = gc_collect_cycles();
 
-                // 内存监控日志
+                // 内存监控日志：php = Zend 堆，rss = 进程总驻留（含 C 扩展）
+                // rss - php 差额 = eXosip / Doctrine / Redis 等 C 层占用，是判断 C 泄漏的关键
                 $memUsage = round(memory_get_usage(true) / 1024 / 1024, 2);
                 $memPeak = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
-                $this->log("[Memory] usage={$memUsage}MB peak={$memPeak}MB "
+                $rssMb = $this->getProcessRssMb();
+                $this->log("[Memory] PID=" . getmypid() . " rss={$rssMb}MB php={$memUsage}MB peak={$memPeak}MB gc={$cycles} "
                     . "activeSessions=" . count($this->commandDispatcher->getActiveSessions())
                     . " processedInvites=" . count($this->processedInviteCallIds)
                     . " pendingSetup=" . count($this->pendingInviteSetup)
                     . " pendingAck=" . count($this->pendingBroadcastAck),
-                    'DEBUG');
+                    'INFO');
             }
         } catch (\Throwable $e) {
-
+            $this->log("tick: GC error: " . $e->getMessage(), 'ERROR');
         }
 
         // Gateway 心跳上报（每30秒）
@@ -664,7 +690,15 @@ class GB28181Handler
      */
     public function handleTask($taskId, $taskData) : array
     {
-        //        $this->log("Task #{$taskId} processing", 'DEBUG');
+        // Task 进程内存监控：每 100 个任务输出一次（含 RSS，覆盖 C 层泄漏）
+        static $taskCount = 0;
+        if (++$taskCount % 100 === 0) {
+            $rssMb = $this->getProcessRssMb();
+            $phpMb = round(memory_get_usage(true) / 1024 / 1024, 2);
+            $cycles = gc_collect_cycles();
+            $this->log("[TaskMemory] PID=" . getmypid() . " count={$taskCount} rss={$rssMb}MB php={$phpMb}MB gc={$cycles}", 'INFO');
+        }
+
         if (empty($taskData)) {
             return [
                 'success' => false,
@@ -3091,6 +3125,33 @@ class GB28181Handler
         $this->log("[sendResponse] sendMsgResponse debug: tid={$tid}, code={$code}, context={$context}", 'DEBUG');
 
         return $this->sipServer->sendResponse($tid, $code);
+    }
+
+    /**
+     * 获取当前进程的 RSS（常驻内存集，含 C 扩展 malloc 的内存）
+     *
+     * 用于发现 PHP 视角看不到的 C 层泄漏（eXosip dialog/transaction、Doctrine 内部缓存等）。
+     * memory_get_usage() 只统计 PHP-Zend 堆，差额就是 C 层占用。
+     *
+     * Linux: 读 /proc/self/status 的 VmRSS。其他系统返回 0.0。
+     */
+    private function getProcessRssMb() : float
+    {
+        $statusPath = '/proc/self/status';
+        if (!is_readable($statusPath)) {
+            return 0.0;
+        }
+
+        $content = @file_get_contents($statusPath);
+        if ($content === false) {
+            return 0.0;
+        }
+
+        if (preg_match('/VmRSS:\s+(\d+)\s+kB/', $content, $matches)) {
+            return round(((int)$matches[1]) / 1024, 2);
+        }
+
+        return 0.0;
     }
 
     /**

@@ -718,71 +718,80 @@ class Gb28181Service
      */
     public function createLiveSessionAndOpenRtp(array $channel, array $mediaServer, int $tcpMode = 1) : ?array
     {
-        if ($mediaServer['type'] === MediaServerType::ZLM->value) {
-            //  最小修改：检查流是否已存在且活跃
-            $info = $this->getRtpInfo($channel['stream_id'], $mediaServer['server_id']);
-            if ($info['exist'] ?? false) {
-                // 检查是否有活跃 session
-                $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($channel['stream_id'], StreamSessionType::LIVE->value);
+        if ($mediaServer['type'] !== MediaServerType::ZLM->value) {
+            return null;
+        }
 
-                if ($activeSession) {
-                    //  复用现有流，增加 viewer 计数
-                    $this->incrementViewerCount($channel['stream_id']);
-                    Log::channel('gb_stream')->info("[Gb28181Service] 复用现有流: {$channel['stream_id']}");
+        $streamId = $channel['stream_id'];
+        $serverId = $mediaServer['server_id'];
 
-                    return [
-                        'session'   => $activeSession,
-                        'stream_id' => $channel['stream_id'],
-                        'ssrc'      => $channel['ssrc'],
-                        'rtp_port'  => $activeSession['rtp_port'],
-                        'reused'    => true,  // 标记为复用
-                    ];
-                }
+        // 1. 查 ZLM 流是否已活着 + 是否有活跃 session → 复用
+        $info = $this->getRtpInfo($streamId, $serverId);
+        $streamAliveInZlm = (bool)($info['exist'] ?? false);
+        $activeSession = $this->getDeviceService()->getActiveSessionByStreamIdAndType($streamId, StreamSessionType::LIVE->value);
 
-                // 流存在但 session 不活跃（僵尸流），清理
-                Log::channel('gb_stream')->info("[Gb28181Service] 清理僵尸流: {$channel['stream_id']}");
-                $this->closeRtpServer($channel['stream_id'], $mediaServer['server_id']);
-            }
-
-            // 打开RTP服务器
-            $portResult = $this->openRtpServer($channel['stream_id'], $mediaServer['server_id'], $tcpMode);
-            if ($portResult['code'] !== 0) {
-                return null;
-            }
-
-            // 创建会话记录
-            $sessionData = [
-                'session_id'      => Uuid::uuid4(),//uniqid($channel['device_id'] . '_' . $channel['channel_id'] . '_' . $channel['media_server_id'] . '_'),
-                'device_id'       => $channel['device_id'],
-                'channel_id'      => $channel['channel_id'],
-                'ssrc'            => $channel['ssrc'],
-                'stream_id'       => $channel['stream_id'],
-                'media_server_id' => $channel['media_server_id'],
-                'type'            => StreamSessionType::LIVE->value,
-                'rtp_port'        => $portResult['port'],
-                'tcp_mode'        => $tcpMode,
-                'status'          => StreamSessionStatus::Inviting->value,
-                'started_at'      => date('Y-m-d H:i:s'),
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
-            ];
-
-            $session = $this->getDeviceService()->createSession($sessionData);
-
-            //  初始化 viewer 计数为 1
-            $this->incrementViewerCount($channel['stream_id']);
+        if ($streamAliveInZlm && $activeSession) {
+            $this->incrementViewerCount($streamId);
+            Log::channel('gb_stream')->info("[Gb28181Service] 复用现有流: {$streamId}");
 
             return [
-                'session'   => $session,
-                'stream_id' => $channel['stream_id'],
+                'session'   => $activeSession,
+                'stream_id' => $streamId,
                 'ssrc'      => $channel['ssrc'],
-                'rtp_port'  => $portResult['port'],
-                'reused'    => false,
+                'rtp_port'  => $activeSession['rtp_port'],
+                'reused'    => true,
             ];
         }
 
+        // 2. 清理僵尸状态（不要让清理动作把端口"冷却"再误伤自己）
+        if ($streamAliveInZlm && !$activeSession) {
+            // ZLM 流在但 session 没了：直接调 ZLM 关流，不走 closeRtpServer（避免标记 stopped 让端口进冷却）
+            Log::channel('gb_stream')->info("[Gb28181Service] 清理僵尸流: {$streamId}");
+            try {
+                $this->getZlmClientByServerId($serverId)->closeRtpServer($streamId);
+            } catch (\Throwable $e) {
+                Log::channel('gb_stream')->warning("[Gb28181Service] 清理僵尸流失败: {$streamId}, " . $e->getMessage());
+            }
+        }
+        if ($activeSession && !$streamAliveInZlm) {
+            // session 在但 ZLM 流断了：删 session 即可（ZLM 端无端口需关）
+            Log::channel('gb_stream')->info("[Gb28181Service] 清理残留 session: {$streamId}");
+            $this->getDeviceService()->deleteSession($activeSession['id']);
+        }
 
-        return null;
+        // 3. 打开 RTP 服务器（让 ZLM 自动分配新端口；端口冷却由真实的 stop 流程负责）
+        $portResult = $this->openRtpServer($streamId, $serverId, $tcpMode);
+        if ($portResult['code'] !== 0) {
+            return null;
+        }
+
+        // 4. 创建 session
+        $sessionData = [
+            'session_id'      => Uuid::uuid4(),
+            'device_id'       => $channel['device_id'],
+            'channel_id'      => $channel['channel_id'],
+            'ssrc'            => $channel['ssrc'],
+            'stream_id'       => $streamId,
+            'media_server_id' => $channel['media_server_id'],
+            'type'            => StreamSessionType::LIVE->value,
+            'rtp_port'        => $portResult['port'],
+            'tcp_mode'        => $tcpMode,
+            'status'          => StreamSessionStatus::Inviting->value,
+            'started_at'      => date('Y-m-d H:i:s'),
+            'created_at'      => date('Y-m-d H:i:s'),
+            'updated_at'      => date('Y-m-d H:i:s'),
+        ];
+
+        $session = $this->getDeviceService()->createSession($sessionData);
+        $this->incrementViewerCount($streamId);
+
+        return [
+            'session'   => $session,
+            'stream_id' => $streamId,
+            'ssrc'      => $channel['ssrc'],
+            'rtp_port'  => $portResult['port'],
+            'reused'    => false,
+        ];
     }
 
     /**
@@ -899,9 +908,7 @@ class Gb28181Service
     public function openRtpServer(string $streamId, string $serverId, int $tcpMode = 1) : array
     {
         $this->checkZlmState($serverId);
-
         $zlmClient = $this->getZlmClientByServerId($serverId);
-
         // 获取冷却中的端口
         $coolingPorts = $this->getDeviceService()->getCoolingPorts();
         $excludePorts = array_column($coolingPorts, 'rtp_port');
@@ -909,6 +916,7 @@ class Gb28181Service
         // 尝试打开RTP服务器，最多尝试10次
         $maxAttempts = 10;
         $attempts = 0;
+        $lastFailMsg = '';
 
         while ($attempts < $maxAttempts) {
             // 调用ZLM打开RTP服务器
@@ -924,6 +932,18 @@ class Gb28181Service
                 $zlmClient->closeRtpServer($streamId);
             }
 
+            // ZLM 返回失败：很大概率是 stream_id 已存在（如设备一直推流但 session 表无记录）
+            // 主动 closeRtpServer 释放占用，下次循环重试
+            if ($result && $result['code'] !== 0) {
+                $lastFailMsg = $result['msg'] ?? ('code=' . ($result['code'] ?? 'null'));
+                Log::channel('gb_stream')->info("[Gb28181Service] openRtpServer 失败，尝试清理同名流后重试: stream={$streamId}, attempt={$attempts}, msg={$lastFailMsg}");
+                try {
+                    $zlmClient->closeRtpServer($streamId);
+                } catch (\Throwable $e) {
+                    // 清理失败不影响下次重试
+                }
+            }
+
             $attempts++;
 
             // 短暂等待后重试
@@ -931,10 +951,10 @@ class Gb28181Service
         }
 
         // 如果尝试了最大次数仍未找到合适端口，则返回失败
-        Log::channel('gb_stream')->error("[Gb28181Service] 无法分配可用端口，所有端口都在冷却中");
+        Log::channel('gb_stream')->error("[Gb28181Service] openRtpServer 重试 {$maxAttempts} 次失败: stream={$streamId}, lastMsg={$lastFailMsg}, excludePorts=" . count($excludePorts));
         return [
             'code' => -1,
-            'msg'  => '无法分配可用端口，所有端口都在冷却中',
+            'msg'  => '无法打开 RTP 服务器: ' . $lastFailMsg,
         ];
     }
 
@@ -954,10 +974,19 @@ class Gb28181Service
      * @param string $mediaServerId 媒体服务器ID
      * @return array|null 关闭结果
      */
+    /**
+     * 关闭 RTP 服务器并清理 session
+     *
+     * 默认 delSession=true：直接删除 session 记录，端口立即可复用。
+     * ZLM 的 onStreamNoneReader / onRtpServerTimeout hook 也会做同样的清理（幂等）。
+     *
+     * 历史遗留的 delSession=false 模式（标记 status=stopped + 进 20 秒冷却）
+     * 容易让端口池被冷却列表占满，且无实际收益，已不建议使用。
+     */
     public function closeRtpServer(string $streamId, string $mediaServerId) : ?array
     {
-        // 关闭RTP服务器时同时释放端口
-        $this->releaseStreamSessionRtpPort($streamId);
+        // 关闭RTP服务器时同时清理 session
+        $this->releaseStreamSessionRtpPort($streamId, true);
 
         return $this->getZlmClientByServerId($mediaServerId)->closeRtpServer($streamId);
     }

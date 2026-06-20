@@ -71,6 +71,13 @@ interface DeviceService
 
     public function decrementSessionViewerCount(string $streamId);
 
+    /**
+     * 原子递减 viewer_count（依赖 InnoDB 行锁）
+     *
+     * 返回影响行数：>0 = 递减成功（还有观看者），0 = 需真正关闭（最后一人或不存在）
+     */
+    public function casDecrementSessionViewerCount(string $streamId, string $type) : int;
+
     public function createSession(array $fields);
 
     public function updateSession($id, array $fields);

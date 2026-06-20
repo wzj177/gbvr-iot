@@ -842,6 +842,11 @@ class CommandDispatcher
      */
     public function addActiveSession(string $streamId, array $session) : void
     {
+        // 确保 started_at 存在
+        if (!isset($session['started_at'])) {
+            $session['started_at'] = time();
+        }
+
         $this->activeSessions[$streamId] = $session;
         $this->log("Active session added: {$streamId} (type: {$session['type']}, call_id: {$session['call_id']})");
     }
@@ -2136,12 +2141,31 @@ class CommandDispatcher
     public function cleanupTimeoutSessions(int $timeout = 3600) : void
     {
         $now = time();
+        $cleanedCount = 0;
         foreach ($this->activeSessions as $key => $session) {
-            if ($now - $session['started_at'] > $timeout) {
-                $this->log("Cleanup timeout session: {$key}");
-                $this->sipServer->sendBye($session['call_id']);
-                unset($this->activeSessions[$key]);
+            // 防御性编程：如果没有 started_at，跳过这个会话
+            if (!isset($session['started_at'])) {
+                $this->log("Session {$key} missing started_at, skipping cleanup", 'WARNING');
+                continue;
             }
+
+            if ($now - $session['started_at'] > $timeout) {
+                $dialogId = $session['dialog_id'] ?? 0;
+                $result = $this->sipServer->sendBye($session['call_id'], $dialogId);
+
+                if ($result === false) {
+                    $this->log("Cleanup session: sendBye failed for {$key} (call_id={$session['call_id']}, dialog_id={$dialogId})", 'WARNING');
+                } else {
+                    $this->log("Cleanup timeout session: {$key} (call_id={$session['call_id']})");
+                }
+
+                unset($this->activeSessions[$key]);
+                $cleanedCount++;
+            }
+        }
+
+        if ($cleanedCount > 0) {
+            $this->log("Cleaned {$cleanedCount} timeout sessions", 'INFO');
         }
     }
 
