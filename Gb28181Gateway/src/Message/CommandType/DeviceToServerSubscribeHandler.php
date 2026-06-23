@@ -73,6 +73,7 @@ class DeviceToServerSubscribeHandler
         if (!empty($body)) {
             $body = $this->normalizeXmlEncoding($body, $device->charset);
             $xml = @simplexml_load_string($body);
+            libxml_clear_errors();
             if ($xml) {
                 $interval = isset($xml->Interval) ? (int)$xml->Interval : null;
             }
@@ -206,6 +207,7 @@ class DeviceToServerSubscribeHandler
             $device = $this->deviceManager->getDeviceObject($deviceId);
             $body = $this->normalizeXmlEncoding($body, $device->charset ?? 'UTF-8');
             $xml = @simplexml_load_string($body);
+            libxml_clear_errors();
             if ($xml) {
                 $alarmPriority = isset($xml->AlarmPriority) ? (string)$xml->AlarmPriority : null;
                 $alarmMethod = isset($xml->AlarmMethod) ? (string)$xml->AlarmMethod : null;
