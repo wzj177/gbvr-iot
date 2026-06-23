@@ -3179,7 +3179,7 @@ class GB28181Handler
      */
     private function parseXml(string $body) : ?\SimpleXMLElement
     {
-        $xml = $this->parseXml($body);
+        $xml = @simplexml_load_string($body);
         libxml_clear_errors();
         return $xml instanceof \SimpleXMLElement ? $xml : null;
     }
