@@ -575,6 +575,23 @@ class GB28181Handler
                     . " pendingSetup=" . count($this->pendingInviteSetup)
                     . " pendingAck=" . count($this->pendingBroadcastAck),
                     'INFO');
+
+                // 内存阈值自动重启：PHP/eXosip/libxml 长驻进程内存只增不减，
+                // 工业标准做法是定期由 Master 拉起新 Worker（同 php-fpm pm.max_requests / Workerman max_request）。
+                // 优先看 php=（Zend 堆，受 memory_limit 约束），其次看 rss=（进程总占用，含 C 扩展）。
+                // 任一超阈值即 exit(0)，Master 监控到 Worker 退出后会立即 fork 新进程。
+                $phpLimitMb = (float)($this->config['worker_php_restart_mb'] ?? 96);
+                $rssLimitMb = (float)($this->config['worker_rss_restart_mb'] ?? 220);
+                if ($memUsage >= $phpLimitMb || ($rssMb > 0 && $rssMb >= $rssLimitMb)) {
+                    $this->log("[Memory] 触发内存阈值，Worker 将优雅退出由 Master 重建: "
+                        . "php={$memUsage}MB(limit={$phpLimitMb}) rss={$rssMb}MB(limit={$rssLimitMb})",
+                        'WARNING');
+                    // 给日志缓冲一点时间落盘
+                    if (function_exists('fastcgi_finish_request')) {
+                        @fastcgi_finish_request();
+                    }
+                    exit(0);
+                }
             }
         } catch (\Throwable $e) {
             $this->log("tick: GC error: " . $e->getMessage(), 'ERROR');
