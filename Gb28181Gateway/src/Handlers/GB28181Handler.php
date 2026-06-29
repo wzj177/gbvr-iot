@@ -278,6 +278,11 @@ class GB28181Handler
     {
         $this->log("Worker started (PID: " . posix_getpid() . ")");
 
+        // 切换 libxml 到内部错误模式：simplexml 解析产生的 LibXMLError 进入 PHP 托管缓冲，
+        // 避免 @simplexml_load_string 的错误对象在长驻进程里无限累积导致内存泄漏
+        // （必须配合 parseXml() 里的 libxml_clear_errors() 才能真正释放）
+        libxml_use_internal_errors(true);
+
         //  捕获需要的变量到闭包
         $config = $this->config;
         $debug = $config['debug'] ?? false;
@@ -570,6 +575,23 @@ class GB28181Handler
                     . " pendingSetup=" . count($this->pendingInviteSetup)
                     . " pendingAck=" . count($this->pendingBroadcastAck),
                     'INFO');
+
+                // 内存阈值自动重启：PHP/eXosip/libxml 长驻进程内存只增不减，
+                // 工业标准做法是定期由 Master 拉起新 Worker（同 php-fpm pm.max_requests / Workerman max_request）。
+                // 优先看 php=（Zend 堆，受 memory_limit 约束），其次看 rss=（进程总占用，含 C 扩展）。
+                // 任一超阈值即 exit(0)，Master 监控到 Worker 退出后会立即 fork 新进程。
+                $phpLimitMb = (float)($this->config['worker_php_restart_mb'] ?? 96);
+                $rssLimitMb = (float)($this->config['worker_rss_restart_mb'] ?? 220);
+                if ($memUsage >= $phpLimitMb || ($rssMb > 0 && $rssMb >= $rssLimitMb)) {
+                    $this->log("[Memory] 触发内存阈值，Worker 将优雅退出由 Master 重建: "
+                        . "php={$memUsage}MB(limit={$phpLimitMb}) rss={$rssMb}MB(limit={$rssLimitMb})",
+                        'WARNING');
+                    // 给日志缓冲一点时间落盘
+                    if (function_exists('fastcgi_finish_request')) {
+                        @fastcgi_finish_request();
+                    }
+                    exit(0);
+                }
             }
         } catch (\Throwable $e) {
             $this->log("tick: GC error: " . $e->getMessage(), 'ERROR');
@@ -1247,7 +1269,7 @@ class GB28181Handler
         $body = $this->normalizeXmlEncoding($body, $device->charset);
 
         // 解析XML
-        $xml = @simplexml_load_string($body);
+        $xml = $this->parseXml($body);
         if (!$xml) {
             $this->log("XML解析失败", 'ERROR');
             if ($this->config['debug']) {
@@ -1638,7 +1660,7 @@ class GB28181Handler
             $body = $this->normalizeXmlEncoding($body, $device->charset);
 
             // 解析 XML
-            $xml = @simplexml_load_string($body);
+            $xml = $this->parseXml($body);
             if ($xml) {
                 try {
                     // 使用 MessageHandler 统一处理（和 handleMessage 相同的模式）
@@ -1713,7 +1735,7 @@ class GB28181Handler
 
         // 规范化编码并解析 XML
         $body = $this->normalizeXmlEncoding($body, $device->charset);
-        $xml = @simplexml_load_string($body);
+        $xml = $this->parseXml($body);
 
         if (!$xml) {
             $this->log("{$eventTypeDesc}通知 XML 解析失败", 'ERROR');
@@ -3160,5 +3182,22 @@ class GB28181Handler
     private function log(string $message, string $level = 'INFO') : void
     {
         $this->logger->log($message, $level, 'GB28181');
+    }
+
+    /**
+     * 安全解析 XML 并清理 libxml 错误缓冲
+     *
+     * GB28181 设备推送的 SIP MESSAGE（Keepalive/Catalog/Notify/Alarm）高频触发 XML 解析，
+     * 设备 XML 常有不规范内容（编码/命名空间/重复字段），libxml 会持续产生 LibXMLError 对象。
+     * 这些错误对象用 emalloc 分配、计入 PHP 堆、gc_collect_cycles 回收不了，
+     * 长驻进程里从不清理 → 内存持续增长直至 OOM。
+     *
+     * 每次解析后立即 libxml_clear_errors() 释放缓冲，杜绝累积。
+     */
+    private function parseXml(string $body) : ?\SimpleXMLElement
+    {
+        $xml = @simplexml_load_string($body);
+        libxml_clear_errors();
+        return $xml instanceof \SimpleXMLElement ? $xml : null;
     }
 }
