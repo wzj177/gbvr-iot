@@ -140,6 +140,18 @@ class GB28181Handler
     private int $lastHeartbeatSent = 0;
 
     /**
+     * Worker 启动时的 RSS 基线（MB）
+     *
+     * Worker 是 Master fork 出来的子进程，VmRSS 会继承 Master 的 COW 页（RSS 统计上算 Worker 的）。
+     * 若用绝对 RSS 判阈值，Master 涨到阈值后，新 fork 的 Worker 一启动就超阈值 → 立即 exit →
+     * Master 再 fork → 又超 → fork 炸弹死循环。
+     *
+     * 正确做法：Worker 只看自己的"增长"（当前 RSS - 基线），排除 Master 继承的部分。
+     * 基线在 handleWorkerStart 记录（此时 RSS = Master 继承 + Worker 初始化，不含消息处理累积）。
+     */
+    private float $workerRssBaseline = 0;
+
+    /**
      * 构造函数
      * @param ExoSip $sipServer SIP服务器实例
      * @param array $config 配置参数
@@ -282,6 +294,10 @@ class GB28181Handler
         // 避免 @simplexml_load_string 的错误对象在长驻进程里无限累积导致内存泄漏
         // （必须配合 parseXml() 里的 libxml_clear_errors() 才能真正释放）
         libxml_use_internal_errors(true);
+
+        // 记录 Worker RSS 基线（fork 自 Master 的继承内存 + Worker 自身初始化）。
+        // tick() 里只看增量（当前 RSS - 基线），排除继承，避免"假超阈值"导致的 fork 炸弹。
+        $this->workerRssBaseline = $this->getProcessRssMb();
 
         //  捕获需要的变量到闭包
         $config = $this->config;
@@ -569,22 +585,27 @@ class GB28181Handler
                 $memUsage = round(memory_get_usage(true) / 1024 / 1024, 2);
                 $memPeak = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
                 $rssMb = $this->getProcessRssMb();
+                // Worker 自身的 RSS 增长 = 当前 RSS - 启动基线（排除从 Master 继承的 COW 页）
+                $rssGrowth = $this->workerRssBaseline > 0 ? round($rssMb - $this->workerRssBaseline, 2) : 0;
                 $this->log("[Memory] PID=" . getmypid() . " rss={$rssMb}MB php={$memUsage}MB peak={$memPeak}MB gc={$cycles} "
+                    . "rssGrowth={$rssGrowth}MB baseline={$this->workerRssBaseline}MB "
                     . "activeSessions=" . count($this->commandDispatcher->getActiveSessions())
                     . " processedInvites=" . count($this->processedInviteCallIds)
                     . " pendingSetup=" . count($this->pendingInviteSetup)
                     . " pendingAck=" . count($this->pendingBroadcastAck),
                     'INFO');
 
-                // 内存阈值自动重启：PHP/eXosip/libxml 长驻进程内存只增不减，
-                // 工业标准做法是定期由 Master 拉起新 Worker（同 php-fpm pm.max_requests / Workerman max_request）。
-                // 优先看 php=（Zend 堆，受 memory_limit 约束），其次看 rss=（进程总占用，含 C 扩展）。
-                // 任一超阈值即 exit(0)，Master 监控到 Worker 退出后会立即 fork 新进程。
+                // Worker 内存阈值自重启（C 层 eXosip 泄漏兜底）：
+                // - php（Zend 堆）超阈值：防 PHP OOM，绝对值判断安全（PHP 堆是 Worker 私有，不继承）
+                // - rssGrowth（RSS 增量）超阈值：用【增量】而非绝对值，排除 Master 继承的 COW 页，
+                //   否则 Master 涨高后新 fork 的 Worker 一启动就超绝对阈值 → fork 炸弹死循环。
+                // 超限 exit(0)，Master 监控到 Worker 退出后 fork 新 Worker。
                 $phpLimitMb = (float)($this->config['worker_php_restart_mb'] ?? 96);
-                $rssLimitMb = (float)($this->config['worker_rss_restart_mb'] ?? 220);
-                if ($memUsage >= $phpLimitMb || ($rssMb > 0 && $rssMb >= $rssLimitMb)) {
-                    $this->log("[Memory] 触发内存阈值，Worker 将优雅退出由 Master 重建: "
-                        . "php={$memUsage}MB(limit={$phpLimitMb}) rss={$rssMb}MB(limit={$rssLimitMb})",
+                $rssGrowthLimitMb = (float)($this->config['worker_rss_growth_restart_mb'] ?? 300);
+                if ($memUsage >= $phpLimitMb || ($rssGrowth > 0 && $rssGrowth >= $rssGrowthLimitMb)) {
+                    $this->log("[Memory] 触发 Worker 内存阈值，退出由 Master 重建: "
+                        . "php={$memUsage}MB(limit={$phpLimitMb}) rssGrowth={$rssGrowth}MB(limit={$rssGrowthLimitMb}) "
+                        . "rss={$rssMb}MB baseline={$this->workerRssBaseline}MB",
                         'WARNING');
                     // 给日志缓冲一点时间落盘
                     if (function_exists('fastcgi_finish_request')) {

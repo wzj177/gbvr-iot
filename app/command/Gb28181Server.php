@@ -75,6 +75,7 @@ class Gb28181Server extends Command
             'sipId'                => $config['server_id'],
             'sipRealm'             => $config['server_domain'],
             'timer_interval'       => $config['timer_interval'],
+            'max_memory_mb'        => $config['max_memory_mb'] ?? 0,
         ];
 
         if (!empty($config['public_ip'])) {
