@@ -243,6 +243,13 @@ class LogEnum
     // Subscribe actions
     const ACTION_SUBSCRIBE_RESPONSE = 'subscribe_response';
 
+    // 补充：以下 action 代码中已使用但此前未纳入枚举，导致接口 /admin/system/log/actions 不返回、
+    // 前端筛选时这些日志无法按操作过滤（显示为"其它"）。统一补齐。
+    const ACTION_ASSIGN_MENUS = 'assign_menus';                       // 角色分配菜单权限
+    const ACTION_ASSIGN_ROLES = 'assign_roles';                       // 用户分配角色
+    const ACTION_BATCH_BIND_MEDIA_CHANNEL = 'batch_bind_media_channel'; // 批量绑定媒体服务器到通道
+    const ACTION_LOGOUT = 'logout';                                   // 会员退出
+
     public static function getActionItems() : array
     {
         return [
@@ -303,6 +310,7 @@ class LogEnum
                 self::ACTION_SEND_EMAIL_LOGIN_CODE     => '发送邮箱登录验证码',
                 self::ACTION_EMAIL_VERIFY_NOTIFICATION => '邮箱验证通知',
                 self::ACTION_UNBIND                    => '解绑',
+                self::ACTION_LOGOUT                    => '会员退出',
             ],
             self::MODULE_USER            => [
                 self::ACTION_ADD               => '新增',
@@ -316,6 +324,7 @@ class LogEnum
                 self::ACTION_BATCH_DELETE_USER => '批量删除用户',
                 self::ACTION_LOCK              => '锁定用户',
                 self::ACTION_UNBIND            => '解绑',
+                self::ACTION_ASSIGN_ROLES      => '分配用户角色',
             ],
             self::MODULE_MENU            => [
                 self::ACTION_ADD               => '新增',
@@ -336,6 +345,7 @@ class LogEnum
                 self::ACTION_DELETE_ROLE       => '删除角色',
                 self::ACTION_BATCH_DELETE_ROLE => '批量删除角色',
                 self::ACTION_INIT_CREATE_ROLE  => '初始化创建角色',
+                self::ACTION_ASSIGN_MENUS      => '分配菜单权限',
             ],
             self::MODULE_GB28181         => [
                 self::ACTION_UPDATE                      => '更新设备',
@@ -345,6 +355,7 @@ class LogEnum
                 self::ACTION_QUERY_CATALOG               => '查询目录',
                 self::ACTION_QUERY_RECORD                => '查询录像',
                 self::ACTION_BATCH_BIND_MEDIA            => '批量绑定媒体',
+                self::ACTION_BATCH_BIND_MEDIA_CHANNEL    => '批量绑定媒体到通道',
                 self::ACTION_GB_SERVER_HOOK              => 'GB服务器钩子',
                 self::ACTION_DEVICE_REGISTER             => '设备注册',
                 self::ACTION_DEVICE_UNREGISTER           => '设备注销',
