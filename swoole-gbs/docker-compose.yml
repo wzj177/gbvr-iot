@@ -1,0 +1,13 @@
+services:
+  gb28181-sip:
+    build: .
+    container_name: gb28181-sip
+    volumes:
+      - .:/app
+    working_dir: /app
+    ports:
+      - "15060:15060/udp"
+      - "20002-20050:20002-20050/udp"   # trimmed RTP range for local dev, see note below
+    command: php gbs-beta.php
+    tty: true
+    stdin_open: true
