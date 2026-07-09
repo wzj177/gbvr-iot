@@ -275,7 +275,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
         // Get strategy and add stream proxy
         $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
-        $result = $strategy->addStreamProxy($mediaServer, [
+        $zlmRequest = [
             'vhost'       => $proxy['vhost'],
             'app'         => $proxy['app'],
             'stream'      => $proxy['stream'],
@@ -285,9 +285,22 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             'timeout_sec' => $proxy['timeout_sec'],
             'enable_hls'  => (bool)$proxy['enable_hls'],
             'enable_mp4'  => (bool)$proxy['enable_mp4'],
-        ]);
+        ];
+        $result = $strategy->addStreamProxy($mediaServer, $zlmRequest);
 
         if (!$result['success']) {
+            $this->addLog(
+                $proxy['proxy_id'],
+                'start_failed',
+                "流代理 [{$proxy['name']}] 启动失败：" . ($result['message'] ?? ''),
+                [
+                    'source_url'   => $proxy['source_url'],
+                    'zlm_api'      => 'addStreamProxy',
+                    'zlm_request'  => $zlmRequest,
+                    'zlm_response' => $result,
+                ],
+                null, null, 'error'
+            );
             throw new StreamProxyException(
                 StreamProxyException::START_FAILED,
                 $result['message'] ?? 'Failed to start stream proxy'
@@ -311,12 +324,17 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             'zlm_key'  => $result['key'],
         ]);
 
-        // Log start event
+        // Log start event（记录 ZLM API 请求/返回，便于排查拉流问题）
         $this->addLog(
             $proxy['proxy_id'],
             'started',
             "流代理 [{$proxy['name']}] 已启动",
-            ['zlm_key' => $result['key'], 'source_url' => $proxy['source_url']],
+            [
+                'source_url'   => $proxy['source_url'],
+                'zlm_api'      => 'addStreamProxy',
+                'zlm_request'  => $zlmRequest,
+                'zlm_response' => $result,
+            ],
             null,
             null,
             'info'
@@ -344,9 +362,10 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Delete stream proxy from ZLM
+        $delResult = null;
         if (!empty($proxy['zlm_key'])) {
             $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
-            $strategy->delStreamProxy($mediaServer, $proxy['zlm_key']);
+            $delResult = $strategy->delStreamProxy($mediaServer, $proxy['zlm_key']);
         }
 
         // Update proxy status
@@ -362,12 +381,16 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             'proxy_id' => $proxy['proxy_id'],
         ]);
 
-        // Log stop event
+        // Log stop event（记录 ZLM API 请求/返回）
         $this->addLog(
             $proxy['proxy_id'],
             'stopped',
             "流代理 [{$proxy['name']}] 已停止",
-            null,
+            [
+                'zlm_api'      => 'delStreamProxy',
+                'zlm_request'  => ['key' => $proxy['zlm_key'] ?? ''],
+                'zlm_response' => ['success' => $delResult],
+            ],
             null,
             null,
             'info'
@@ -407,7 +430,11 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
 
-        $host = $mediaServer['stream_ip'] ?? $mediaServer['host'];
+        // 访问地址优先级：access_domain（媒体服务器配置的外部访问域名，可含端口）
+        // > stream_ip（拉流 IP）> host。去掉可能带的协议前缀。
+        $host = $mediaServer['access_domain'] ?? $mediaServer['stream_ip'] ?? $mediaServer['host'];
+        $host = preg_replace('#^https?://#', '', $host);
+
         $httpPort = $mediaServer['port'];
         $httpsPort = $mediaServer['https_port'] ?? 4443;
         $rtspPort = $mediaServer['rtsp_port'] ?? 554;
@@ -416,14 +443,17 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         $app = $proxy['app'];
         $stream = $proxy['stream'];
 
+        // 与 GB28181 的 ZLMClient::getPlayUrls 对齐：完整返回 http + https 两套，
+        // 由前端按当前页面协议（window.location.protocol === 'https:'）选择对应地址。
         return [
             'rtsp'      => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
             'rtmp'      => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
             'http_flv'  => "http://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
-            'ws_flv'    => "ws://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
-            'hls'       => "http://{$host}:{$httpPort}/{$app}/{$stream}/hls.m3u8",
             'https_flv' => "https://{$host}:{$httpsPort}/{$app}/{$stream}.live.flv",
+            'ws_flv'    => "ws://{$host}:{$httpPort}/{$app}/{$stream}.live.flv",
             'wss_flv'   => "wss://{$host}:{$httpsPort}/{$app}/{$stream}.live.flv",
+            'hls'       => "http://{$host}:{$httpPort}/{$app}/{$stream}/hls.m3u8",
+            'https_hls' => "https://{$host}:{$httpsPort}/{$app}/{$stream}/hls.m3u8",
         ];
     }
 

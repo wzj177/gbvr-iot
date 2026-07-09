@@ -22,6 +22,9 @@ class StreamProxyLogDaoImpl extends AdvancedDaoImpl implements StreamProxyLogDao
                 'id',
                 'created_at',
             ],
+            'datetime'   => [
+                'created_at',
+            ],
             'conditions' => [
                 'id = :id',
                 'id IN (:ids)',
@@ -34,9 +37,6 @@ class StreamProxyLogDaoImpl extends AdvancedDaoImpl implements StreamProxyLogDao
                 'created_at >= :created_at_GE',
                 'created_at <= :created_at_LE',
                 'message LIKE :message_LIKE',
-            ],
-            'timestamps' => [
-                'created_at',
             ],
         ];
     }

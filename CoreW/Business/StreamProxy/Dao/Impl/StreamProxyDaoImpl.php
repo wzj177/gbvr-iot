@@ -57,6 +57,10 @@ class StreamProxyDaoImpl extends AdvancedDaoImpl implements StreamProxyDao
                 'started_at',
                 'last_heartbeat_at',
             ],
+            'datetime'   => [
+                'created_at',
+                'updated_at',
+            ],
             'conditions' => [
                 'id = :id',
                 'id > :id_GT',
@@ -99,7 +103,7 @@ class StreamProxyDaoImpl extends AdvancedDaoImpl implements StreamProxyDao
                 'last_heartbeat_at IS NULL',
                 '(name LIKE :keywords OR description LIKE :keywords OR source_url LIKE :keywords)',
             ],
-            'timestamps' => [
+            'datetime' => [
                 'created_at',
                 'updated_at',
             ],
