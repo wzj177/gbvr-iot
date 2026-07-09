@@ -41,7 +41,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Verify media server exists
-        $mediaServer = $this->getMediaServerService()->getMediaServer($fields['media_server_id']);
+        $mediaServer = $this->getMediaServerService()->getMediaServerById($fields['media_server_id']);
         if (!$mediaServer) {
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
@@ -127,17 +127,22 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::PROXY_NOT_FOUND();
         }
 
-        // Cannot update certain fields when proxy is running
-        if ($proxy['status'] === 'online') {
-            $forbiddenFields = ['type', 'protocol', 'source_url', 'app', 'stream', 'media_server_id'];
-            foreach ($forbiddenFields as $field) {
-                if (isset($fields[$field])) {
-                    unset($fields[$field]);
-                }
+        // 标识字段（决定流在 ZLM 中的唯一性）不允许通过 update 修改，
+        // 否则会破坏已有流。如需更改请删除后重建。
+        // 注意：前端编辑常回传整个对象（含标识字段原值），所以"值真正变了"才报错，
+        // 值没变（等于原值）直接忽略，避免误伤正常编辑。
+        $identityFields = ['type', 'protocol', 'app', 'stream', 'media_server_id', 'vhost'];
+        foreach ($identityFields as $field) {
+            if (isset($fields[$field]) && (string)$fields[$field] !== (string)($proxy[$field] ?? '')) {
+                throw new StreamProxyException(
+                    StreamProxyException::INVALID_STATUS,
+                    "不允许修改标识字段 [{$field}]，如需更改请删除后重新创建"
+                );
             }
+            unset($fields[$field]); // 标识字段一律不写入（即使值未变）
         }
 
-        // Filter allowed fields
+        // Filter allowed fields（source_url 等运行参数允许改）
         $fields = ArrayToolkit::parts($fields, [
             'name', 'source_url', 'enable_auto_reconnect', 'max_retry_count',
             'timeout_sec', 'rtp_type', 'enable_hls', 'enable_mp4',
@@ -148,7 +153,42 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             return true;
         }
 
+        // 判断是否是影响 ZLM 拉流的关键参数变化（需要重新注册流）
+        $zlmAffectingFields = ['source_url', 'rtp_type', 'timeout_sec', 'enable_hls', 'enable_mp4'];
+        $needReregister = false;
+        if ($proxy['status'] === 'online') {
+            foreach ($zlmAffectingFields as $field) {
+                if (isset($fields[$field]) && (string)$fields[$field] !== (string)($proxy[$field] ?? '')) {
+                    $needReregister = true;
+                    break;
+                }
+            }
+        }
+
         $result = $this->getStreamProxyDao()->update($id, $fields);
+
+        // online 且关键参数变化 → stop(删旧 ZLM 流) + start(用新参数重新 addStreamProxy)
+        if ($needReregister) {
+            $this->addLog(
+                $proxy['proxy_id'],
+                'updating',
+                "流代理 [{$proxy['name']}] 运行参数变更，重新注册 ZLM 流",
+                ['changed_fields' => array_keys(array_intersect_key($fields, array_flip($zlmAffectingFields)))],
+                null, null, 'info'
+            );
+            try {
+                $this->restartProxy($id);
+            } catch (\Throwable $e) {
+                // 重注册失败不影响 DB 已更新的结果，但要记录错误供排查
+                $this->addLog(
+                    $proxy['proxy_id'],
+                    'update_failed',
+                    "流代理 [{$proxy['name']}] 重新注册 ZLM 流失败：" . $e->getMessage(),
+                    ['error' => $e->getMessage()],
+                    null, null, 'error'
+                );
+            }
+        }
 
         return !empty($result);
     }
@@ -228,7 +268,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Get media server config
-        $mediaServer = $this->getMediaServerService()->getMediaServer($proxy['media_server_id']);
+        $mediaServer = $this->getMediaServerService()->getMediaServerById($proxy['media_server_id']);
         if (!$mediaServer) {
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
@@ -298,7 +338,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Get media server config
-        $mediaServer = $this->getMediaServerService()->getMediaServer($proxy['media_server_id']);
+        $mediaServer = $this->getMediaServerService()->getMediaServerById($proxy['media_server_id']);
         if (!$mediaServer) {
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
@@ -362,7 +402,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Get media server config
-        $mediaServer = $this->getMediaServerService()->getMediaServer($proxy['media_server_id']);
+        $mediaServer = $this->getMediaServerService()->getMediaServerById($proxy['media_server_id']);
         if (!$mediaServer) {
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
@@ -403,7 +443,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Get media server config
-        $mediaServer = $this->getMediaServerService()->getMediaServer($proxy['media_server_id']);
+        $mediaServer = $this->getMediaServerService()->getMediaServerById($proxy['media_server_id']);
         if (!$mediaServer) {
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
@@ -458,7 +498,7 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         }
 
         // Get media server config
-        $mediaServer = $this->getMediaServerService()->getMediaServer($proxy['media_server_id']);
+        $mediaServer = $this->getMediaServerService()->getMediaServerById($proxy['media_server_id']);
         if (!$mediaServer) {
             return false;
         }

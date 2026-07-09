@@ -93,12 +93,15 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             $planId = $sourceId;
 
         } else {
-            // ===== 流代理录像（StreamProxy 绑定录像计划）=====
+            // ===== 流代理录像（StreamProxy）=====
+            // 只要 ZLM 回调了录像完成且能匹配到流代理就记录，不强制绑定录像计划。
+            // 用户开了 enable_mp4，ZLM 就会录像，后台理应有记录。
+            // record_plan_id 可为 0（手动 enable_mp4 录像）或对应录像计划（自动录像）。
             $proxies = $this->getStreamProxyService()->searchProxies(['app' => $app, 'stream' => $streamId], [], 0, 1);
             $proxy = $proxies[0] ?? null;
 
-            if (!$proxy || empty($proxy['record_plan_id'])) {
-                $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '找不到 stream 对应的流代理或未绑定录像计划', [
+            if (!$proxy) {
+                $this->getLogService()->warning(LogEnum::MODULE_RECORD_FILE, LogEnum::ACTION_CREATE_FROM_HOOK, '找不到 stream 对应的流代理', [
                     'stream_id' => $streamId,
                     'app'       => $app,
                 ]);
@@ -108,7 +111,7 @@ class RecordFileServiceImpl extends BaseService implements RecordFileService
             $sourceType = 'stream_proxy_record';
             $sourceId = $proxy['id'];
             $sourceDesc = '流代理录像';
-            $planId = (int)$proxy['record_plan_id'];
+            $planId = (int)($proxy['record_plan_id'] ?? 0);
         }
 
         // 解析文件路径和时间信息

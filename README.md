@@ -30,6 +30,8 @@ GB28181 协议视频管理平台
 - 演示地址：https://gbs.wanzij.cn
 - 账号：admin / 密码：qwe123456@vr
 
+### 交流群
+<img src="screenshots/qgroup.jpg" width="600" height="600">
 ## 核心功能
 
 ### 已完成的功能
