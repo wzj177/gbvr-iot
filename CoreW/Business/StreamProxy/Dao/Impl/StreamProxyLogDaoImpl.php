@@ -24,7 +24,6 @@ class StreamProxyLogDaoImpl extends AdvancedDaoImpl implements StreamProxyLogDao
             ],
             'datetime'   => [
                 'created_at',
-                'updated_at',
             ],
             'conditions' => [
                 'id = :id',
