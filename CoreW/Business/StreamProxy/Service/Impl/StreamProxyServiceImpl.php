@@ -452,10 +452,20 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         $host = $mediaServer['access_domain'] ?? $mediaServer['stream_ip'] ?? $mediaServer['host'];
         $host = preg_replace('#^https?://#', '', $host);
 
-        $httpPort = $mediaServer['port'];
+        $httpPort  = $mediaServer['port'];
         $httpsPort = $mediaServer['https_port'] ?? 4443;
-        $rtspPort = $mediaServer['rtsp_port'] ?? 554;
-        $rtmpPort = $mediaServer['rtmp_port'] ?? 1935;
+
+        // rtmp/rtsp 端口从 ZLM 实时读取，不存硬编码默认值避免端口配置不一致
+        $rtmpPort = 1935;
+        $rtspPort = 554;
+        try {
+            $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
+            $zlmConfig = $strategy->getConfig($mediaServer);
+            $rtmpPort = (int)($zlmConfig['rtmp']['port'] ?? $mediaServer['rtmp_port'] ?? 1935);
+            $rtspPort = (int)($zlmConfig['rtsp']['port'] ?? $mediaServer['rtsp_port'] ?? 554);
+        } catch (\Throwable $e) {
+            // 读取失败降级到默认值，不影响主流程
+        }
 
         $app = $proxy['app'];
         $stream = $proxy['stream'];
@@ -495,23 +505,53 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
 
-        $host = $mediaServer['stream_ip'] ?? $mediaServer['host'];
-        $rtmpPort = $mediaServer['rtmp_port'] ?? 1935;
-        $rtspPort = $mediaServer['rtsp_port'] ?? 554;
+        // access_domain 优先，去掉协议前缀
+        $host = $mediaServer['access_domain'] ?? $mediaServer['stream_ip'] ?? $mediaServer['host'];
+        $host = preg_replace('#^https?://#', '', $host);
 
-        $app = $proxy['app'];
+        $app    = $proxy['app'];
         $stream = $proxy['stream'];
+        $protocol = $proxy['protocol'] ?? 'rtmp'; // 用户建代理时选的协议
 
-        return [
-            'rtmp'      => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
-            'rtsp'      => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
-            'stream_id' => $stream,
-            'app'       => $app,
-            'tips'      => [
-                'obs_rtmp' => "在OBS中设置推流地址时，服务器填写: rtmp://{$host}:{$rtmpPort}/{$app}，串流密钥填写: {$stream}",
-                'ffmpeg'   => "使用FFmpeg推流: ffmpeg -re -i input.mp4 -c copy -f flv rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
-            ],
-        ];
+        // 从 ZLM 实时读端口（rtmp.port / rtsp.port），避免使用可能不对的默认值。
+        // 读取失败时降级到 mediaServer 表存储的字段或常用默认值。
+        $rtmpPort = 1935;
+        $rtspPort = 554;
+        try {
+            $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
+            $zlmConfig = $strategy->getConfig($mediaServer);
+            $rtmpPort = (int)($zlmConfig['rtmp']['port'] ?? $mediaServer['rtmp_port'] ?? 1935);
+            $rtspPort = (int)($zlmConfig['rtsp']['port'] ?? $mediaServer['rtsp_port'] ?? 554);
+        } catch (\Throwable $e) {
+            // 读不到就用默认值
+        }
+
+        // 只返回用户选择的协议地址，OBS 填哪个就给哪个
+        $urls = [];
+        if ($protocol === 'rtmp' || $protocol === 'rtsp') {
+            if ($protocol === 'rtmp') {
+                $urls['rtmp']        = "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}";
+                $urls['obs_server']  = "rtmp://{$host}:{$rtmpPort}/{$app}";
+                $urls['obs_key']     = $stream;
+            } else {
+                $urls['rtsp']        = "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}";
+                $urls['obs_server']  = "rtsp://{$host}:{$rtspPort}/{$app}";
+                $urls['obs_key']     = $stream;
+            }
+        } else {
+            // http-flv 等其它协议统一给 rtmp（ZLM 推流入口只支持 rtmp/rtsp）
+            $urls['rtmp']       = "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}";
+            $urls['obs_server'] = "rtmp://{$host}:{$rtmpPort}/{$app}";
+            $urls['obs_key']    = $stream;
+        }
+
+        $urls['stream_id'] = $stream;
+        $urls['app']       = $app;
+        $urls['protocol']  = $protocol;
+        $urls['ffmpeg']    = "ffmpeg -re -i input.mp4 -c copy -f " . ($protocol === 'rtsp' ? 'rtsp' : 'flv')
+            . " " . ($protocol === 'rtsp' ? $urls['rtsp'] ?? $urls['rtmp'] : $urls['rtmp']);
+
+        return $urls;
     }
 
     // ==================== Status Management ====================
