@@ -78,8 +78,9 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::DUPLICATE_APP_STREAM();
         }
 
-        // Set default values
-        $fields['status'] = 'stopped';
+        // push 类型由 OBS 推流驱动，状态经 ZLM hook 自动同步，创建后待 OBS 接入（offline）；
+        // pull 类型需手动 start（ZLM 主动拉），创建后为 stopped。
+        $fields['status'] = ($fields['type'] ?? 'pull') === 'push' ? 'offline' : 'stopped';
         $fields['record_plan_id'] = $fields['record_plan_id'] ?? 0;
         $fields['record_status'] = 0;
         $fields['enable_auto_reconnect'] = $fields['enable_auto_reconnect'] ?? 1;
@@ -259,11 +260,11 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::PROXY_ALREADY_STARTED();
         }
 
-        // Only pull type can be started
-        if ($proxy['type'] !== 'pull') {
+        // push 类型由 OBS 推流驱动，状态经 ZLM hook 自动同步，无需手动启动
+        if ($proxy['type'] === 'push') {
             throw new StreamProxyException(
-                StreamProxyException::START_FAILED,
-                'Only pull type proxies can be started'
+                StreamProxyException::INVALID_STATUS,
+                '推流(push)类型由 OBS 推流自动管理，无需手动启动，状态由 ZLM hook 同步'
             );
         }
 
@@ -355,6 +356,14 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::PROXY_ALREADY_STOPPED();
         }
 
+        // push 类型由 OBS 推流驱动，断开 OBS 即停，无需手动 stop
+        if ($proxy['type'] === 'push') {
+            throw new StreamProxyException(
+                StreamProxyException::INVALID_STATUS,
+                '推流(push)类型由 OBS 推流自动管理，断开 OBS 推流即停止，无需手动操作'
+            );
+        }
+
         // Get media server config
         $mediaServer = $this->getMediaServerService()->getMediaServerById($proxy['media_server_id']);
         if (!$mediaServer) {
@@ -406,6 +415,14 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::PROXY_NOT_FOUND();
         }
 
+        // push 类型由 OBS 推流驱动，无需重启
+        if ($proxy['type'] === 'push') {
+            throw new StreamProxyException(
+                StreamProxyException::INVALID_STATUS,
+                '推流(push)类型由 OBS 推流自动管理，无需重启'
+            );
+        }
+
         // Stop first if running
         if ($proxy['status'] === 'online') {
             $this->stopProxy($id);
@@ -435,10 +452,20 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
         $host = $mediaServer['access_domain'] ?? $mediaServer['stream_ip'] ?? $mediaServer['host'];
         $host = preg_replace('#^https?://#', '', $host);
 
-        $httpPort = $mediaServer['port'];
+        $httpPort  = $mediaServer['port'];
         $httpsPort = $mediaServer['https_port'] ?? 4443;
-        $rtspPort = $mediaServer['rtsp_port'] ?? 554;
-        $rtmpPort = $mediaServer['rtmp_port'] ?? 1935;
+
+        // rtmp/rtsp 端口从 ZLM 实时读取，不存硬编码默认值避免端口配置不一致
+        $rtmpPort = 1935;
+        $rtspPort = 554;
+        try {
+            $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
+            $zlmConfig = $strategy->getConfig($mediaServer);
+            $rtmpPort = (int)($zlmConfig['rtmp']['port'] ?? $mediaServer['rtmp_port'] ?? 1935);
+            $rtspPort = (int)($zlmConfig['rtsp']['port'] ?? $mediaServer['rtsp_port'] ?? 554);
+        } catch (\Throwable $e) {
+            // 读取失败降级到默认值，不影响主流程
+        }
 
         $app = $proxy['app'];
         $stream = $proxy['stream'];
@@ -478,23 +505,53 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             throw StreamProxyException::MEDIA_SERVER_NOT_FOUND();
         }
 
-        $host = $mediaServer['stream_ip'] ?? $mediaServer['host'];
-        $rtmpPort = $mediaServer['rtmp_port'] ?? 1935;
-        $rtspPort = $mediaServer['rtsp_port'] ?? 554;
+        // access_domain 优先，去掉协议前缀
+        $host = $mediaServer['access_domain'] ?? $mediaServer['stream_ip'] ?? $mediaServer['host'];
+        $host = preg_replace('#^https?://#', '', $host);
 
-        $app = $proxy['app'];
+        $app    = $proxy['app'];
         $stream = $proxy['stream'];
+        $protocol = $proxy['protocol'] ?? 'rtmp'; // 用户建代理时选的协议
 
-        return [
-            'rtmp'      => "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
-            'rtsp'      => "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}",
-            'stream_id' => $stream,
-            'app'       => $app,
-            'tips'      => [
-                'obs_rtmp' => "在OBS中设置推流地址时，服务器填写: rtmp://{$host}:{$rtmpPort}/{$app}，串流密钥填写: {$stream}",
-                'ffmpeg'   => "使用FFmpeg推流: ffmpeg -re -i input.mp4 -c copy -f flv rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}",
-            ],
-        ];
+        // 从 ZLM 实时读端口（rtmp.port / rtsp.port），避免使用可能不对的默认值。
+        // 读取失败时降级到 mediaServer 表存储的字段或常用默认值。
+        $rtmpPort = 1935;
+        $rtspPort = 554;
+        try {
+            $strategy = MediaServerStrategyFactory::create($mediaServer['type']);
+            $zlmConfig = $strategy->getConfig($mediaServer);
+            $rtmpPort = (int)($zlmConfig['rtmp']['port'] ?? $mediaServer['rtmp_port'] ?? 1935);
+            $rtspPort = (int)($zlmConfig['rtsp']['port'] ?? $mediaServer['rtsp_port'] ?? 554);
+        } catch (\Throwable $e) {
+            // 读不到就用默认值
+        }
+
+        // 只返回用户选择的协议地址，OBS 填哪个就给哪个
+        $urls = [];
+        if ($protocol === 'rtmp' || $protocol === 'rtsp') {
+            if ($protocol === 'rtmp') {
+                $urls['rtmp']        = "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}";
+                $urls['obs_server']  = "rtmp://{$host}:{$rtmpPort}/{$app}";
+                $urls['obs_key']     = $stream;
+            } else {
+                $urls['rtsp']        = "rtsp://{$host}:{$rtspPort}/{$app}/{$stream}";
+                $urls['obs_server']  = "rtsp://{$host}:{$rtspPort}/{$app}";
+                $urls['obs_key']     = $stream;
+            }
+        } else {
+            // http-flv 等其它协议统一给 rtmp（ZLM 推流入口只支持 rtmp/rtsp）
+            $urls['rtmp']       = "rtmp://{$host}:{$rtmpPort}/{$app}/{$stream}";
+            $urls['obs_server'] = "rtmp://{$host}:{$rtmpPort}/{$app}";
+            $urls['obs_key']    = $stream;
+        }
+
+        $urls['stream_id'] = $stream;
+        $urls['app']       = $app;
+        $urls['protocol']  = $protocol;
+        $urls['ffmpeg']    = "ffmpeg -re -i input.mp4 -c copy -f " . ($protocol === 'rtsp' ? 'rtsp' : 'flv')
+            . " " . ($protocol === 'rtsp' ? $urls['rtsp'] ?? $urls['rtmp'] : $urls['rtmp']);
+
+        return $urls;
     }
 
     // ==================== Status Management ====================
@@ -765,6 +822,48 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
 
     // ==================== Logging ====================
 
+    /**
+     * 由 ZLM hook 同步 push 推流的状态（OBS 接入/断开时由 hook 调用）
+     *
+     * on_publish           → online（OBS 推上来了）
+     * on_stream_changed(reg=0) → offline（OBS 断开了）
+     *
+     * 只处理 app=push 且在后台登记的推流代理；用户直接推到 push app 但未在后台登记的流会被忽略。
+     */
+    public function syncPushStreamStatus(string $app, string $stream, bool $online, string $mediaServerId = '') : bool
+    {
+        if ($app !== 'push') {
+            return false;
+        }
+        $proxies = $this->searchProxies(['app' => $app, 'stream' => $stream, 'type' => 'push'], [], 0, 1);
+        $proxy = $proxies[0] ?? null;
+        if (!$proxy) {
+            return false; // 非后台管理的 push 流，忽略
+        }
+
+        $updateFields = [
+            'status'            => $online ? 'online' : 'offline',
+            'last_heartbeat_at' => date('Y-m-d H:i:s'),
+        ];
+        if ($online) {
+            $updateFields['started_at'] = date('Y-m-d H:i:s');
+            $updateFields['error_message'] = null;
+            $updateFields['total_start_count'] = ($proxy['total_start_count'] ?? 0) + 1;
+        }
+        $this->getStreamProxyDao()->update($proxy['id'], $updateFields);
+
+        $this->addLog(
+            $proxy['proxy_id'],
+            $online ? 'stream_online' : 'stream_offline',
+            "推流 [{$proxy['name']}] " . ($online ? '已上线（OBS 推流接入）' : '已下线（OBS 断开）'),
+            ['app' => $app, 'stream' => $stream, 'media_server_id' => $mediaServerId],
+            null, null,
+            $online ? 'info' : 'warning'
+        );
+
+        return true;
+    }
+
     public function addLog(string $proxyId, string $eventType, string $message, ?array $details = null, ?int $userId = null, ?string $ipAddress = null, string $level = 'info') : array
     {
         $fields = [
@@ -772,7 +871,9 @@ class StreamProxyServiceImpl extends BaseService implements StreamProxyService
             'event_type' => $eventType,
             'level'      => $level,
             'message'    => $message,
-            'details'    => $details,
+            // details 列是 MySQL JSON 类型，null 会被框架写成空字符串 → "Invalid JSON text"。
+            // 兜底成空数组，json_encode 出 "[]" 合法。
+            'details'    => $details ?? [],
             'user_id'    => $userId,
             'ip_address' => $ipAddress,
         ];

@@ -52,6 +52,11 @@ interface StreamProxyService
 
     public function resetRetryCount(int $id) : bool;
 
+    /**
+     * 由 ZLM hook 同步 push 推流的状态（OBS 接入 → online / 断开 → offline）
+     */
+    public function syncPushStreamStatus(string $app, string $stream, bool $online, string $mediaServerId = '') : bool;
+
     // Logging
     public function addLog(string $proxyId, string $eventType, string $message, ?array $details = null, ?int $userId = null, ?string $ipAddress = null, string $level = 'info') : array;
 

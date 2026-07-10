@@ -11,6 +11,7 @@ use CoreW\Business\GB\Gb28181Service;
 use CoreW\Business\MediaServer\Service\MediaServerService;
 use CoreW\Business\Record\Service\RecordTaskService;
 use CoreW\Business\RecordFile\Service\RecordFileService;
+use CoreW\Business\StreamProxy\Service\StreamProxyService;
 use CoreW\Business\SystemLog\LogEnum;
 use CoreW\Business\User\Service\UserService;
 use support\Request;
@@ -121,10 +122,8 @@ class ZLMHookController extends BaseController
             $result = match (true) {
                 $app === 'rtp' => $this->handleRtpPublish($streamId, $mediaServerId, $result),
                 in_array($app, ['talk', 'broadcast']) => $this->handleVoicePublish($app, $streamId, $paramsStr, $result),
+                $app === 'push' => $this->handlePushPublish($streamId, $mediaServerId, $result),
                 default => $result,
-                // TODO: share token 逻辑 — 直播流分享给用户，token 带过期时间
-                // TODO: pushAuthority 配置 — 控制是否允许第三方推流
-                // TODO: 考虑用 user UUID 的 MD5 作为 push_key
             };
         } catch (\Throwable $e) {
             $this->getLogService()->error(LogEnum::MODULE_MEDIA_SERVER, LogEnum::ACTION_ON_PUBLISH, '推流鉴权异常', [
@@ -199,6 +198,20 @@ class ZLMHookController extends BaseController
 
         $result['enable_audio'] = true;
         $result['enable_mp4'] = false;
+        return $result;
+    }
+
+    /**
+     * OBS/FFmpeg push 推流接入处理
+     * 同步后台 StreamProxy(push 类型)状态为 online
+     */
+    private function handlePushPublish(string $streamId, string $mediaServerId, array $result) : array
+    {
+        try {
+            $this->getStreamProxyService()->syncPushStreamStatus('push', $streamId, true, $mediaServerId);
+        } catch (\Throwable $e) {
+            // 同步失败不影响 ZLM 接受推流
+        }
         return $result;
     }
 
@@ -382,15 +395,8 @@ class ZLMHookController extends BaseController
         if (in_array($app, ['talk', 'broadcast']) && strtolower($schema) === 'rtsp') {
             try {
                 if ($register) {
-                    //  流注册（上线）- 触发信令
-                    // 调用 VoiceTalkService 处理
-                    // 这里会：
-                    // 1. 查找对应的 session
-                    // 2. 调用 startSendRtpPassive（此时流已存在，不会报错）
-                    // 3. 发送 SIP INVITE (talk) 或 MESSAGE (broadcast)
                     $this->getVoiceTalkService()->handleStreamArrival($app, $stream, $mediaServerId);
                 } else {
-                    // 流注销（下线）- 清理资源
                     $this->getVoiceTalkService()->handleStreamDeparture($app, $stream, $mediaServerId);
                 }
             } catch (\Throwable $e) {
@@ -401,6 +407,16 @@ class ZLMHookController extends BaseController
                     'error'    => $e->getMessage(),
                     'trace'    => $e->getTraceAsString(),
                 ]);
+            }
+        }
+
+        // push 推流下线（OBS 断开）→ 更新后台状态为 offline
+        // 上线在 onPublish 里处理，这里只处理注销(register=0)
+        if ($app === 'push' && !$register) {
+            try {
+                $this->getStreamProxyService()->syncPushStreamStatus('push', $stream, false, $mediaServerId);
+            } catch (\Throwable $e) {
+                // 同步失败不影响 hook 返回
             }
         }
 
@@ -549,5 +565,10 @@ class ZLMHookController extends BaseController
     protected function getMediaServerService() : MediaServerService
     {
         return $this->getBiz()->service('MediaServer:MediaServerService');
+    }
+
+    protected function getStreamProxyService() : StreamProxyService
+    {
+        return $this->getBiz()->service('StreamProxy:StreamProxyService');
     }
 }
