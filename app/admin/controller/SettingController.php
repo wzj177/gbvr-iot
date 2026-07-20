@@ -33,8 +33,14 @@ class SettingController extends BaseController
     public function view(Request $request, $key)
     {
         if ($key === 'ip') {
-            $key = 'ip-check-list';
+            $blacklistIps = $this->getSettingService()->get('blacklist_ip', []);
+            $whitelistIps = $this->getSettingService()->get('whitelist_ip', []);
+            return $this->createSuccessJsonResponse([
+                'blackListIps' => implode("\n", !is_array($blacklistIps) ? [] : $blacklistIps),
+                'whiteListIps' => implode("\n", !is_array($whitelistIps) ? [] : $whitelistIps),
+            ]);
         }
+
         $data = $this->getSettingService()->get($key, null);
         if ($key === 'basic' && !empty($data)) {
             $data['site_logo_full'] = !empty($data['site_logo']) ? AssetHelper::getUploadUrl($data['site_logo']) : '';
