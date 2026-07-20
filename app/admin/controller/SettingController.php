@@ -33,11 +33,11 @@ class SettingController extends BaseController
     public function view(Request $request, $key)
     {
         if ($key === 'ip') {
-            $blacklistIps = $this->getSettingService()->get('blacklist_ip', '');
-            $whitelistIps = $this->getSettingService()->get('whitelist_ip', '');
+            $blacklistIps = $this->getSettingService()->get('blacklist_ip', []);
+            $whitelistIps = $this->getSettingService()->get('whitelist_ip', []);
             return $this->createSuccessJsonResponse([
-                'blacklistIps' => $blacklistIps,
-                'whitelistIps' => $whitelistIps,
+                'blacklistIps' => implode("\n", $blacklistIps),
+                'whitelistIps' => implode("\n", $whitelistIps),
             ]);
         }
 
