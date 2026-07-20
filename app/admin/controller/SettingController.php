@@ -32,6 +32,9 @@ class SettingController extends BaseController
 
     public function view(Request $request, $key)
     {
+        if ($key === 'ip') {
+            $key = 'ip-check-list';
+        }
         $data = $this->getSettingService()->get($key, null);
         if ($key === 'basic' && !empty($data)) {
             $data['site_logo_full'] = !empty($data['site_logo']) ? AssetHelper::getUploadUrl($data['site_logo']) : '';
