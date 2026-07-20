@@ -36,8 +36,8 @@ class SettingController extends BaseController
             $blacklistIps = $this->getSettingService()->get('blacklist_ip', []);
             $whitelistIps = $this->getSettingService()->get('whitelist_ip', []);
             return $this->createSuccessJsonResponse([
-                'blacklistIps' => implode("\n", !is_array($blacklistIps) ? [] : $blacklistIps),
-                'whitelistIps' => implode("\n", !is_array($whitelistIps) ? [] : $whitelistIps),
+                'blackListIps' => implode("\n", !is_array($blacklistIps) ? [] : $blacklistIps),
+                'whiteListIps' => implode("\n", !is_array($whitelistIps) ? [] : $whitelistIps),
             ]);
         }
 
