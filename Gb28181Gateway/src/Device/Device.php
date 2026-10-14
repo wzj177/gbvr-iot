@@ -2,7 +2,6 @@
 
 namespace Gb28181\GateWay\Device;
 
-use Gb28181\GateWay\Transport\SipClient;
 use Exception;
 
 /**

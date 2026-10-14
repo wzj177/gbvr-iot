@@ -32,7 +32,8 @@ use Gb28181\GateWay\Libs\Logger;
 
 class CommandDispatcher
 {
-    private \ExoSip $sipServer;
+    /** @var object SIP 引擎实例 */
+    private $sipServer;
     private QuerySender $querySender;
     private DeviceManager $deviceManager;
     private array $config;
@@ -44,7 +45,7 @@ class CommandDispatcher
     /**
      * 构造函数
      */
-    public function __construct(\ExoSip $sipServer, QuerySender $querySender, DeviceManager $deviceManager, array $config = [])
+    public function __construct($sipServer, QuerySender $querySender, DeviceManager $deviceManager, array $config = [])
     {
         $this->sipServer = $sipServer;
         $this->querySender = $querySender;

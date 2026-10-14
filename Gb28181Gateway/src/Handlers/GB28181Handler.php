@@ -2,7 +2,7 @@
 
 namespace Gb28181\GateWay\Handlers;
 
-use \ExoSip;
+use Gb28181\GateWay\Swoole\SipCodec;
 use Gb28181\GateWay\Device\DeviceManager;
 use Gb28181\GateWay\Handlers\LongTask\CommandSubscriber;
 use Gb28181\GateWay\Transport\TransportFactory;
@@ -26,7 +26,6 @@ use Gb28181\GateWay\Message\CommandType\ConfigDownloadCommand;
 use Gb28181\GateWay\Traits\CurlTrait;
 use Gb28181\GateWay\Wrappers\CallbackWrapper;
 use Gb28181\GateWay\Libs\Logger;
-use Gb28181\GateWay\Libs\ClientRedis;
 use Gb28181Gateway\src\Message\CommandType\DeviceSubscribeCommand;
 
 /**
@@ -103,7 +102,8 @@ class GB28181Handler
 {
     use CurlTrait;
 
-    private ExoSip $sipServer;
+    /** @var object SIP 引擎实例（exosip C 扩展或 Swoole 引擎，同一套方法契约） */
+    private $sipServer;
     private array $config;
     private ?DeviceManager $deviceManager = null;
     private ?MessageHandler $messageHandler = null;
@@ -153,10 +153,10 @@ class GB28181Handler
 
     /**
      * 构造函数
-     * @param ExoSip $sipServer SIP服务器实例
+     * @param object $sipServer SIP 引擎实例
      * @param array $config 配置参数
      */
-    public function __construct(ExoSip $sipServer, array $config = [])
+    public function __construct($sipServer, array $config = [])
     {
         $this->sipServer = $sipServer;
 
@@ -286,7 +286,7 @@ class GB28181Handler
     }
 
     # region SIP事件处理
-    public function handleWorkerStart(ExoSip $server) : void
+    public function handleWorkerStart($server) : void
     {
         $this->log("Worker started (PID: " . posix_getpid() . ")");
 
@@ -433,17 +433,20 @@ class GB28181Handler
         // 递增重试计数
         $message['_requeue_count'] = $requeueCount + 1;
 
-        $redis = null;
+        // 走统一传输层抽象（与命令订阅一致）：exosip 版为 phpredis，Swoole 版为协程实现（不阻塞事件循环）
+        $transport = null;
         try {
-            $redis = new ClientRedis($redisConfig);
-            $redis->connect();
-            $redis->rPush($queueKey, json_encode($message));
+            $transportType = $this->config['mq_type'] ?? 'redis';
+            $transportConfig = in_array($transportType, ['redis', 'redis_co'], true) ? $redisConfig : ($this->config['mq_config'] ?? []);
+            $transport = TransportFactory::create($transportType, $transportConfig);
+            $transport->connect();
+            $transport->push($queueKey, json_encode($message));
             $this->log("Command requeued (attempt={$message['_requeue_count']}): action={$message['action']}, device={$message['device_id']}, queue={$queueKey}", 'DEBUG');
         } catch (\Throwable $e) {
             $this->log("requeueCommand failed: " . $e->getMessage(), 'ERROR');
         } finally {
             // 确保关闭连接，避免长驻进程中的连接泄漏
-            $redis?->close();
+            $transport?->close();
         }
     }
 
@@ -1059,7 +1062,7 @@ class GB28181Handler
     /**
      * 处理设备注册（包括注销）
      */
-    public function handleRegister(\SipEvent $event) : void
+    public function handleRegister($event) : void
     {
         $fromUri = $event->getFromUri();
         $deviceId = $this->extractDeviceId($fromUri);
@@ -1263,7 +1266,7 @@ class GB28181Handler
     /**
      * 处理SIP MESSAGE（GB28181 XML消息）
      */
-    public function handleMessage(\SipEvent $event) : void
+    public function handleMessage($event) : void
     {
         //        $this->log("收到SIP MESSAGE: {$event->getFromUri()}, headers: {$event->getHeader('Call-ID')}");
         $body = $event->getBody();
@@ -1336,7 +1339,7 @@ class GB28181Handler
      * 2. 语音对讲(Talk): 设备主动发起INVITE, Subject包含talk (已弃用, GB28181-2022 移除)
      * 3. 视频点播: 服务器主动发起INVITE(由CommandDispatcher处理)
      */
-    public function handleInvite(\SipEvent $event) : void
+    public function handleInvite($event) : void
     {
         $fromUri = $event->getFromUri();
         $toUri = $event->getToUri();
@@ -1416,7 +1419,7 @@ class GB28181Handler
     /**
      * 处理会话结束BYE
      */
-    public function handleBye(\SipEvent $event) : void
+    public function handleBye($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $callId = $event->getCallId();
@@ -1453,7 +1456,7 @@ class GB28181Handler
      * 当 broadcastPushAfterAck=true 时，收到设备 ACK 后才触发 startSendRtp
      * 让 ZLM 向设备发送音频 RTP 流。
      */
-    public function handleAck(\SipEvent $event) : void
+    public function handleAck($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $callId = $event->getCallId();
@@ -1472,7 +1475,7 @@ class GB28181Handler
     /**
      * 处理INFO（PTZ控制等）
      */
-    public function handleInfo(\SipEvent $event) : void
+    public function handleInfo($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $this->log("[sendResponse] INFO消息: {$deviceId}", 'DEBUG');
@@ -1482,7 +1485,7 @@ class GB28181Handler
     /**
      * 处理UPDATE请求
      */
-    public function handleUpdate(\SipEvent $event) : void
+    public function handleUpdate($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $this->log("[sendResponse] UPDATE请求: {$deviceId}", 'DEBUG');
@@ -1494,7 +1497,7 @@ class GB28181Handler
     /**
      * 处理REFER转接
      */
-    public function handleRefer(\SipEvent $event) : void
+    public function handleRefer($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $this->log("[sendResponse] REFER转接: {$deviceId}", 'DEBUG');
@@ -1522,9 +1525,9 @@ class GB28181Handler
      * Event 头取值：
      *   Catalog / Alarm / MobilePosition / presence
      *
-     * @param \SipEvent $event SUBSCRIBE 事件
+     * @param $event SUBSCRIBE 事件
      */
-    public function handleSubscribe(\SipEvent $event) : void
+    public function handleSubscribe($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $eventType = $event->getHeader('Event') ?? 'unknown';
@@ -1648,7 +1651,7 @@ class GB28181Handler
      * 3. 通过 MessageHandler 分发到对应的 CommandType 处理
      * 4. 检查 Subscription-State 头判断订阅是否终止
      */
-    public function handleNotify(\SipEvent $event) : void
+    public function handleNotify($event) : void
     {
         $deviceId = $this->extractDeviceId($event->getFromUri());
         $eventType = $event->getHeader('Event') ?? '';
@@ -1719,13 +1722,13 @@ class GB28181Handler
      *     notify_type=alarm           → postTask('alarm_event', ...)     → API hook: handleAlarmEvent()
      *     notify_type=mobile_position → postTask('position_update', ...) → API hook: handlePositionUpdate()
      *
-     * @param \SipEvent $event NOTIFY 事件
+     * @param $event NOTIFY 事件
      * @param string $deviceId 设备ID
      * @param string $eventType Event 头的值
      * @param string $subscriptionState Subscription-State 头的值
      * @param string $body XML 消息体
      */
-    private function handleSubscribeNotify(\SipEvent $event, string $deviceId, string $eventType, string $subscriptionState, string $body) : void
+    private function handleSubscribeNotify($event, string $deviceId, string $eventType, string $subscriptionState, string $body) : void
     {
         $eventTypeDesc = SubscribeNotifyCommand::getEventTypeDesc($eventType);
         $this->log("{$eventTypeDesc}通知: {$deviceId}, State: {$subscriptionState}");
@@ -1820,7 +1823,7 @@ class GB28181Handler
      * - SnapshotComplete: 图像抓拍完成通知
      * - Keepalive: 媒体流心跳通知
      */
-    private function handleMediaStatusReport(\SipEvent $event, string $deviceId, array $result) : void
+    private function handleMediaStatusReport($event, string $deviceId, array $result) : void
     {
         $notifyType = $result['notify_type'] ?? '';
         $this->log("MediaStatus 通知: {$deviceId}, Type: {$notifyType}");
@@ -1869,7 +1872,7 @@ class GB28181Handler
      *  关键：处理设备对 INVITE 的 200 OK 响应（含 SDP）
      *  以及 MESSAGE 查询命令的 200 OK 响应
      */
-    public function handleResponse(\SipEvent $event) : void
+    public function handleResponse($event) : void
     {
         $code = $event->getCode();
         $type = $event->getType();
@@ -1940,7 +1943,7 @@ class GB28181Handler
      * 对于重传的 200 OK，UAC（服务器）必须重新发送 ACK，但不应重复执行业务逻辑。
      * 通过 processedInviteCallIds 跟踪已处理的 call_id 来实现去重。
      */
-    private function handleInviteResponse(\SipEvent $event) : void
+    private function handleInviteResponse($event) : void
     {
         $callId = $event->getCallId();
         $dialogId = $event->getDialogId();
@@ -2059,7 +2062,7 @@ class GB28181Handler
      * - 实际的执行结果会通过后续的 MESSAGE 请求返回（带 XML body）
      * - 这里只是确认"设备收到了指令"，不是"指令执行完成"
      */
-    private function handleMessageResponse(\SipEvent $event) : void
+    private function handleMessageResponse($event) : void
     {
         $code = $event->getCode();
         $callId = $event->getCallId();
@@ -2115,7 +2118,7 @@ class GB28181Handler
      *   handleResponse() → CommandDispatcher::handleSubscriptionError()
      *     → postTask('subscribe_response', success=false)
      */
-    private function handleSubscribeResponse(\SipEvent $event) : void
+    private function handleSubscribeResponse($event) : void
     {
         $code = $event->getCode();
         $callId = $event->getCallId();
@@ -2133,7 +2136,7 @@ class GB28181Handler
     /**
      * 处理超时事件
      */
-    public function handleTimeout(\SipEvent $event) : void
+    public function handleTimeout($event) : void
     {
         $type = $event->getType();
         $toUri = $event->getToUri();
@@ -2168,7 +2171,7 @@ class GB28181Handler
     /**
      * 处理心跳保活
      */
-    private function handleKeepalive(\SipEvent $event, string $deviceId, array $data) : void
+    private function handleKeepalive($event, string $deviceId, array $data) : void
     {
         $this->deviceManager->recordHeartbeat($deviceId);
 
@@ -2184,7 +2187,7 @@ class GB28181Handler
 
     }
 
-    private function handleRecordInfo(\SipEvent $event, string $deviceId, array $data) : void
+    private function handleRecordInfo($event, string $deviceId, array $data) : void
     {
         $this->postTask('record_info', [
             'device_id'   => $deviceId,
@@ -2196,7 +2199,7 @@ class GB28181Handler
     /**
      * 处理目录响应
      */
-    private function handleCatalog(\SipEvent $event, string $deviceId, array $result) : void
+    private function handleCatalog($event, string $deviceId, array $result) : void
     {
         $this->log("目录响应: $deviceId");
 
@@ -2241,7 +2244,7 @@ class GB28181Handler
     /**
      * 处理设备信息响应
      */
-    private function handleDeviceInfo(\SipEvent $event, string $deviceId, array $result) : void
+    private function handleDeviceInfo($event, string $deviceId, array $result) : void
     {
         $this->log("设备信息: $deviceId");
 
@@ -2266,7 +2269,7 @@ class GB28181Handler
         ]);
     }
 
-    public function handleDeviceControl(\SipEvent $event, string $deviceId, array $result)
+    public function handleDeviceControl($event, string $deviceId, array $result)
     {
         $resultStr = json_encode($result);
         $this->log("设备控制: $deviceId, result={$resultStr}");
@@ -2275,7 +2278,7 @@ class GB28181Handler
     /**
      * 处理设备状态响应
      */
-    private function handleDeviceStatus(\SipEvent $event, string $deviceId, array $data) : void
+    private function handleDeviceStatus($event, string $deviceId, array $data) : void
     {
         $this->log("设备状态: $deviceId");
 
@@ -2295,7 +2298,7 @@ class GB28181Handler
     /**
      * 处理报警信息
      */
-    private function handleAlarm(\SipEvent $event, string $deviceId, array $data) : void
+    private function handleAlarm($event, string $deviceId, array $data) : void
     {
         $this->log("报警信息: $deviceId", 'WARNING');
 
@@ -2316,7 +2319,7 @@ class GB28181Handler
     }
 
     // handleMobilePositionReport
-    private function handleMobilePositionReport(\SipEvent $event, string $deviceId, array $data) : void
+    private function handleMobilePositionReport($event, string $deviceId, array $data) : void
     {
         $this->log("【移动位置通知】设备ID=$deviceId,数据=" . json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
@@ -2337,7 +2340,7 @@ class GB28181Handler
      *
      * @param bool $skipResponse 为 true 时跳过手动 sendResponse（NOTIFY 事务由 eXosip_automatic_action() 自动响应）
      */
-    private function dispatchCommand(\SipEvent $event, string $deviceId, array $result, bool $skipResponse = false) : void
+    private function dispatchCommand($event, string $deviceId, array $result, bool $skipResponse = false) : void
     {
         $cmdType = $result['cmd_type'];
 
@@ -2421,13 +2424,13 @@ class GB28181Handler
      * Talk 模式流程：设备主动发送 INVITE 给服务端，包含 SDP Offer。
      * 服务端解析 SDP 后转发到 API 层处理。
      *
-     * @param \SipEvent $event SIP INVITE 事件
+     * @param $event SIP INVITE 事件
      * @param string $deviceId 设备ID
      * @param string $channelId 通道ID
      * @param string|null $sdpBody SDP body
      * @param string $mode 模式 (此处仅 'talk')
      */
-    private function handleVoiceInvite(\SipEvent $event, string $deviceId, string $channelId, ?string $sdpBody, string $mode) : void
+    private function handleVoiceInvite($event, string $deviceId, string $channelId, ?string $sdpBody, string $mode) : void
     {
         $bodyLen = $sdpBody ? strlen($sdpBody) : 0;
         $this->log("语音INVITE(Talk): {$deviceId} 模式:{$mode}, bodyLen={$bodyLen}");
@@ -2440,7 +2443,7 @@ class GB28181Handler
         }
 
         // 使用原生 SDP 解析器（支持 GB28181 扩展）
-        $deviceSdp = \ExoSip::parseSdp($sdpBody);
+        $deviceSdp = SipCodec::parseSdp($sdpBody);
         if (!$deviceSdp) {
             $this->log("SDP解析失败", 'ERROR');
             $this->sipServer->sendCallAnswer($event->getTid(), 400, null, 'Bad Request - Invalid SDP');
@@ -2505,12 +2508,12 @@ class GB28181Handler
      * 2. INVITE 的 From URI 可能是 NVR device_id（而非 channel_id），
      *    因此所有业务字段都从 pendingBroadcast 中获取
      *
-     * @param \SipEvent $event SIP INVITE 事件
+     * @param $event SIP INVITE 事件
      * @param string $fromDeviceId INVITE From URI 中的设备ID（可能是 NVR ID）
      * @param array $pendingBroadcast 待处理的广播会话数据
      */
     private function handleBroadcastInvite(
-        \SipEvent $event,
+        $event,
         string $fromDeviceId,
         array $pendingBroadcast,
         ?string $sdpBody = null
@@ -2543,7 +2546,7 @@ class GB28181Handler
         $devicePort = null;
 
         if ($sdpBody) {
-            $deviceSdp = \ExoSip::parseSdp($sdpBody);
+            $deviceSdp = SipCodec::parseSdp($sdpBody);
             if ($deviceSdp && isset($deviceSdp['medias'][0])) {
                 $deviceTransport = $deviceSdp['medias'][0]['proto'] ?? 'RTP/AVP';
                 $deviceSetup = $deviceSdp['medias'][0]['attributes']['setup'] ?? 'active';
@@ -2924,7 +2927,7 @@ class GB28181Handler
     /**
      * 判断是否为注销请求
      */
-    private function isUnregisterRequest(\SipEvent $event) : bool
+    private function isUnregisterRequest($event) : bool
     {
         return $event->getExpires() === 0;
     }
@@ -2932,7 +2935,7 @@ class GB28181Handler
     /**
      * 检查是否包含 Authorization 头（包括 Capability 和 Digest）
      */
-    private function hasAuthorizationHeader(\SipEvent $event) : bool
+    private function hasAuthorizationHeader($event) : bool
     {
         // 尝试不同的大小写变体
         $authHeader = $event->getHeader('Authorization')
@@ -2959,7 +2962,7 @@ class GB28181Handler
     /**
      * 验证 Authorization 头
      */
-    private function validateAuthorization(\SipEvent $event, string $deviceId) : bool
+    private function validateAuthorization($event, string $deviceId) : bool
     {
         $authHeader = $event->getHeader('Authorization');
         if (!$authHeader) {
@@ -2980,7 +2983,7 @@ class GB28181Handler
     /**
      * 验证 Digest MD5 认证
      */
-    private function validateDigestAuth(string $authHeader, \SipEvent $event, string $deviceId) : bool
+    private function validateDigestAuth(string $authHeader, $event, string $deviceId) : bool
     {
         // 解析 Digest 认证头
         $params = $this->parseDigestAuth($authHeader);
@@ -3035,7 +3038,7 @@ class GB28181Handler
      * GB28181: 如果UA中包含安全信息（如RSA、SHA-256），则支持数字证书认证
      * 否则使用基本的 Digest MD5 认证
      */
-    private function getDeviceCapability(\SipEvent $event) : ?string
+    private function getDeviceCapability($event) : ?string
     {
         $userAgent = $event->getHeader('User-Agent');
         if (!$userAgent) {
