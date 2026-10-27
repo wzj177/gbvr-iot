@@ -1,6 +1,9 @@
-FROM php:8.4-cli
+# Swoole 版 GB28181/ONVIF 网关镜像
+# 仅依赖 ext-swoole（协程自解析 SIP 栈，无 exosip C 扩展依赖）
+# 业务代码不打进镜像：挂载宿主项目目录（/app），vendor 缺失时 entrypoint 自动 composer install
+FROM php:8.3-cli
 
-# Swoole 编译依赖 + posix/pcntl（master 监督进程信号处理 / CommandSubscriber 优雅退出）
+# Swoole 编译依赖；pcntl/posix：Supervisor 信号处理与 fork
 RUN apt-get update && apt-get install -y \
     libpcre2-dev \
     libssl-dev \
@@ -15,10 +18,15 @@ RUN apt-get update && apt-get install -y \
 
 RUN docker-php-ext-install pcntl posix
 
-# 钉版本安装 Swoole 6.6（代码使用 Coroutine\Lock，需 >= 6.6；失败则回退 pecl 最新版）
+# 钉版本安装 Swoole（可用 --build-arg SWOOLE_VERSION=x.y.z 覆盖）；
+# 版本不存在或编译失败时回退 pecl 最新稳定版（引擎兼容 4.5+）
 ARG SWOOLE_VERSION=6.6.0
 RUN pecl install -D 'enable-openssl="yes" enable-swoole-curl="yes" enable-swoole-json="no"' swoole-${SWOOLE_VERSION} \
     || pecl install -D 'enable-openssl="yes" enable-swoole-curl="yes" enable-swoole-json="no"' swoole \
     && docker-php-ext-enable swoole
 
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["entrypoint.sh"]
 WORKDIR /app

@@ -96,6 +96,16 @@ $msg2 = SipCodec::parse(str_replace(['To: <sip:34020000002000000001@3402000000>'
 $b2 = SipCodec::buildResponse($msg2, 200, 'OK', '777', [], '', '', 'UA');
 check('200 裸 To 头补 tag', str_contains($b2, 'To: sip:34020000002000000001@3402000000;tag=777'));
 
+// To 头带非 tag 参数场景（如 ;transport=udp），tag 必须追加在参数之后且不破坏原结构
+$msg3 = SipCodec::parse(str_replace(
+    'To: <sip:34020000002000000001@3402000000>',
+    'To: <sip:34020000002000000001@3402000000>;transport=udp',
+    $register
+));
+$b3 = SipCodec::buildResponse($msg3, 200, 'OK', '888', [], '', '', 'UA');
+check('200 To 头带参数补 tag', str_contains($b3, 'To: <sip:34020000002000000001@3402000000>;transport=udp;tag=888'));
+check('200 To 带参数不产生畸形双括号', !str_contains($b3, '>>') && !str_contains($b3, 'udp>;tag='));
+
 echo "== SipCodec::buildRequest ==\n";
 
 $req = SipCodec::buildRequest(

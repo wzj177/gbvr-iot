@@ -160,12 +160,13 @@ final class SipCodec
         }
 
         $from = self::firstHeader($msg, 'From') ?? '';
-        $to = self::firstHeader($msg, 'To') ?? '';
+        $to   = self::firstHeader($msg, 'To') ?? '';
         if ($code >= 200 && $toTag !== '' && stripos($to, 'tag=') === false) {
-            $to = rtrim($to, '>') . '>;tag=' . $toTag;
-            if (strpos($to, '<') === false) {
-                // 无尖括号的裸 To 头，直接追加
-                $to = self::firstHeader($msg, 'To') . ';tag=' . $toTag;
+            // 兼容三种形态：<...>、<...>;params（如 ;transport=udp）、裸 addr
+            if (str_ends_with($to, '>')) {
+                $to = substr($to, 0, -1) . '>;tag=' . $toTag;
+            } else {
+                $to .= ';tag=' . $toTag;
             }
         }
         if ($from !== '') {

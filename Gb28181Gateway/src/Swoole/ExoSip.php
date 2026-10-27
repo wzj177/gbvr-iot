@@ -236,7 +236,7 @@ class ExoSip
             });
         }
 
-        // 定时协程（等价 onTimer）
+        // 定时协程（等价 onTimer）+ 内部 GC
         $interval = max(1, (int)$this->cfg['timer_interval']);
         Coroutine::create(function () use ($interval) {
             while ($this->running) {
@@ -244,7 +244,15 @@ class ExoSip
                 if (!$this->running) {
                     return;
                 }
-                $this->dispatch(function () {
+                $this->dispatch(function () use ($interval) {
+                    // GC：业务层异常未应答的事务（CallbackWrapper 吞异常后不会回 final）
+                    // 阈值须大于广播 setup_rtp hook 最坏链路（3 次重试 × (5 连接 + 10 超时) ≈ 48s）
+                    $now = time();
+                    foreach ($this->inTxns as $tid => $t) {
+                        if (($t['created'] ?? 0) + 120 < $now) {
+                            unset($this->inTxns[$tid]);
+                        }
+                    }
                     $this->fireSync($this->onTimer);
                 });
             }
@@ -750,11 +758,12 @@ class ExoSip
         $callid = $msg['header_map']['call-id'] ?? '';
 
         $txn = [
-            'msg'    => $msg,
-            'addr'   => $addr,
-            'connId' => $connId,
-            'cid'    => null,
-            'method' => $method,
+            'msg'     => $msg,
+            'addr'    => $addr,
+            'connId'  => $connId,
+            'cid'     => null,
+            'method'  => $method,
+            'created' => time(),   // 供 GC：业务层异常未应答的事务定期清理
         ];
 
         switch ($method) {

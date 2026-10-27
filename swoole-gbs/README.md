@@ -55,6 +55,9 @@ SIP/发现协议栈为自解析实现（不依赖协议框架），并补齐 eXo
 | `Gb28181Gateway/src/Swoole/SimpleLogger.php` | 轻量日志器（rebucca 版复用） |
 | `Gb28181Gateway/src/Onvif/` | WS-Discovery / OnvifClient(WSSE) / OnvifGateway |
 | `config/onvif.php` | ONVIF 配置（默认复用 gb28181 的 redis/hook） |
+| `swoole-gbs/dockerfile` + `entrypoint.sh` | 镜像：php8.3 + swoole(可钉版本) + pcntl/posix + composer 自动安装 |
+| `swoole-gbs/docker-compose.yml` | Mac/Docker Desktop 版（桥接 + 端口映射） |
+| `swoole-gbs/docker-compose.linux.yml` | Linux 服务器版（host 网络，SIP/组播直通） |
 | `swoole-gbs/tests/` | sipcodec_test.php（纯 PHP）/ engine_smoke_test.php（需 swoole） |
 
 ## 测试步骤（真实摄像头）
@@ -67,17 +70,33 @@ php webman gb28181:swoole status
 php webman gb28181:swoole stop
 ```
 
-### 2. docker（无需宿主机 swoole）
+### 2. docker（无需宿主机 swoole；镜像仅含 swoole，不集成 exosip）
+
+两个 compose 文件二选一：
 
 ```bash
+# Mac / Docker Desktop（桥接网络，端口映射方式）
 cd swoole-gbs
 docker compose up -d --build gb28181-sip
 docker logs -f gb28181-sip
+
+# Linux 服务器（host 网络：SIP 直通 + ONVIF 组播可用，推荐生产用这个）
+docker compose -f docker-compose.linux.yml up -d --build gb28181-sip
+
+# ONVIF 网关（--profile onvif）
+docker compose --profile onvif up -d --build onvif-gateway
+# Linux：
+docker compose -f docker-compose.linux.yml --profile onvif up -d --build onvif-gateway
 ```
 
-前提：宿主机 webman（8886）+ Redis + MySQL 已运行；compose 通过 `host.docker.internal`
-回连，服务器部署用环境变量覆盖（`GB_REDIS_HOST` / `GB_API_HOCK_URL` / `GB_API_TOKEN` 等，
-见 Gb28181SwooleServer.php）。
+说明：
+- 镜像 `php:8.3-cli` + pecl swoole（`--build-arg SWOOLE_VERSION=x.y.z` 可覆盖，失败自动回退最新稳定版）+ pcntl/posix + composer
+- 项目目录整体挂载到 /app；宿主没装 vendor 时 entrypoint 自动 `composer install --no-dev`
+- 回连宿主机服务默认 `host.docker.internal`（两个 compose 都已配好），服务器部署用环境变量覆盖：
+  `GB_REDIS_HOST / GB_REDIS_PORT / GB_REDIS_PASSWORD / GB_API_HOCK_URL / GB_API_PULL_URL / GB_API_TOKEN / GB_SIP_PORT / SWOOLE_VERSION`
+- **Mac 限制**：Docker Desktop 桥接网络收不到局域网 WS-Discovery 组播，ONVIF 自动发现在
+  Mac 容器里不可用。启动时关闭：`ONVIF_DISCOVERY_ENABLED=false docker compose --profile onvif up -d onvif-gateway`
+  （只用命令队列），或直接在 Mac 上原生 `php webman onvif:server start`。
 
 ### 3. 摄像头配置（与扩展版完全相同）
 

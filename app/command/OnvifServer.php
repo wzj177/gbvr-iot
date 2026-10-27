@@ -65,6 +65,7 @@ class OnvifServer extends Command
             'GB_API_HOCK_URL'   => ['api', 'hock_url'],
             'GB_API_TOKEN'      => ['api', 'token'],
             'ONVIF_BIND_IP'     => ['bind_ip'],
+            'ONVIF_DISCOVERY_ENABLED' => ['discovery_enabled'],
             'ONVIF_DEFAULT_USERNAME' => ['default_username'],
             'ONVIF_DEFAULT_PASSWORD' => ['default_password'],
         ];

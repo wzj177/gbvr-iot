@@ -1,48 +1,74 @@
+# Swoole 版网关 compose —— 桥接网络版（Mac / Docker Desktop 默认用这个）
+#
+# 用法：
+#   docker compose up -d --build gb28181-sip            # GB 网关
+#   docker compose --profile onvif up -d --build        # GB + ONVIF
+#
+# Linux 服务器（推荐 host 网络，SIP/组播最优）请改用：
+#   docker compose -f docker-compose.linux.yml up -d --build
+#
+# Mac 注意：Docker Desktop 的桥接网络收不到局域网 WS-Discovery 组播，
+#   ONVIF 自动发现在 Mac 容器里不可用——请启动时关闭发现、只用命令队列：
+#   ONVIF_DISCOVERY_ENABLED=false docker compose --profile onvif up -d onvif-gateway
+#   （或在 Mac 上原生运行：php webman onvif:server start）
+#
+# 回连宿主机服务（webman 8886 / Redis 6379）默认走 host.docker.internal，
+# 服务器部署用环境变量覆盖：GB_REDIS_HOST / GB_API_HOCK_URL / GB_API_TOKEN ...
+
+x-common-env: &common-env
+  GB_REDIS_HOST: ${GB_REDIS_HOST:-host.docker.internal}
+  GB_REDIS_PORT: ${GB_REDIS_PORT:-6379}
+  GB_REDIS_PASSWORD: ${GB_REDIS_PASSWORD:-}
+  GB_REDIS_DATABASE: ${GB_REDIS_DATABASE:-11}
+  GB_API_HOCK_URL: ${GB_API_HOCK_URL:-http://host.docker.internal:8886/api/v2/gb/server/hook}
+  GB_API_TOKEN: ${GB_API_TOKEN:-}
+
 services:
   gb28181-sip:
-    build: .
+    build:
+      context: .
+      args:
+        SWOOLE_VERSION: ${SWOOLE_VERSION:-6.6.0}
     container_name: gb28181-sip
-    # 挂载整个项目（webman 命令依赖 app/ + Gb28181Gateway/src + vendor + config）
     volumes:
       - ..:/app
     working_dir: /app
     ports:
       - "15060:15060/udp"
       - "15060:15060/tcp"
-    # 环境变量按部署环境覆盖（见 server.php 头部注释）：
-    #   GB_REDIS_HOST / GB_REDIS_PORT / GB_API_HOCK_URL / GB_API_PULL_URL / GB_API_TOKEN ...
     environment:
-      - GB_REDIS_HOST=${GB_REDIS_HOST:-host.docker.internal}
-      - GB_REDIS_PORT=${GB_REDIS_PORT:-6379}
-      - GB_API_HOCK_URL=${GB_API_HOCK_URL:-http://host.docker.internal:8886/api/v2/gb/server/hook}
-      - GB_API_PULL_URL=${GB_API_PULL_URL:-http://host.docker.internal:8886/api/v2/gb/devices/pull}
-      - GB_API_TOKEN=${GB_API_TOKEN:-}
+      <<: *common-env
+      GB_API_PULL_URL: ${GB_API_PULL_URL:-http://host.docker.internal:8886/api/v2/gb/devices/pull}
+      GB_SIP_PORT: ${GB_SIP_PORT:-15060}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: php webman gb28181:swoole start
+    init: true
     tty: true
     stdin_open: true
     restart: unless-stopped
 
   # ONVIF 网关：WS-Discovery 发现 + onvif:commands 命令消费
-  # 摄像头与网关需同一局域网（发现走链路本地组播）；host 网络模式下组播最可靠
   onvif-gateway:
-    build: .
+    build:
+      context: .
+      args:
+        SWOOLE_VERSION: ${SWOOLE_VERSION:-6.6.0}
     container_name: onvif-gateway
     volumes:
       - ..:/app
     working_dir: /app
     environment:
-      - GB_REDIS_HOST=${GB_REDIS_HOST:-host.docker.internal}
-      - GB_REDIS_PORT=${GB_REDIS_PORT:-6379}
-      - GB_API_HOCK_URL=${GB_API_HOCK_URL:-http://host.docker.internal:8886/api/v2/gb/server/hook}
-      - GB_API_TOKEN=${GB_API_TOKEN:-}
-      - ONVIF_DEFAULT_USERNAME=${ONVIF_DEFAULT_USERNAME:-admin}
-      - ONVIF_DEFAULT_PASSWORD=${ONVIF_DEFAULT_PASSWORD:-}
+      <<: *common-env
+      ONVIF_BIND_IP: ${ONVIF_BIND_IP:-0.0.0.0}
+      ONVIF_DISCOVERY_ENABLED: ${ONVIF_DISCOVERY_ENABLED:-true}
+      ONVIF_DEFAULT_USERNAME: ${ONVIF_DEFAULT_USERNAME:-admin}
+      ONVIF_DEFAULT_PASSWORD: ${ONVIF_DEFAULT_PASSWORD:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: php webman onvif:server start
+    init: true
     tty: true
     stdin_open: true
     restart: unless-stopped
-    profiles: ["onvif"]   # docker compose --profile onvif up 启用
+    profiles: ["onvif"]
