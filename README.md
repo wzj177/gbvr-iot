@@ -120,7 +120,7 @@ php webman gb28181:server start          # UDP 启动
 php webman gb28181:server start --tcp    # TCP 启动
 ```
 
-网关与 API 分机部署、`gbs.php` 独立入口等进阶用法见 [部署指南](docs/%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97.md)。
+网关与 API 分机部署、`gbs.php` 独立入口等进阶用法见 [部署指南](wiki/部署指南.md)。
 
 ## 文档导航
 
