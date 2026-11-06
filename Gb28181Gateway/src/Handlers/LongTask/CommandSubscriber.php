@@ -29,11 +29,11 @@ class CommandSubscriber
     /**
      * 运行订阅循环（在 Long Task 进程中调用）
      *
-     * @param \ExoSip $server SIP 服务器实例，用于 sendToWorker()
+     * @param object $server SIP 服务器实例，用于 sendToWorker()
      * @param string|array $queueKeys 队列键名（支持多队列，按优先级顺序，BLPOP 从第一个非空队列弹出）
      * @param int $timeout pop 超时时间（秒）
      */
-    public function run(\ExoSip $server, string|array $queueKeys = 'gb28181:commands', int $timeout = 1) : void
+    public function run($server, string|array $queueKeys = 'gb28181:commands', int $timeout = 1) : void
     {
         // 设置信号处理器
         pcntl_async_signals(true);
@@ -89,7 +89,7 @@ class CommandSubscriber
     /**
      * 处理接收到的消息
      */
-    private function handleMessage(\ExoSip $server, string $message) : void
+    private function handleMessage($server, string $message) : void
     {
         $cmd = @json_decode($message, true);
         if (!$cmd) {

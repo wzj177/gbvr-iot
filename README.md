@@ -1,11 +1,13 @@
 # GBVR-IOT
 
-基于 [php-exosip](https://github.com/wzj177/php-exosip) + [Webman](https://www.workerman.net/doc/webman) 实现的国标
-GB28181 协议视频管理平台
+基于 [php-exosip](https://github.com/wzj177/php-exosip) / Swoole 协程 + [Webman](https://www.workerman.net/doc/webman) 实现的国标
+GB28181 协议视频管理平台（含 ONVIF 网关）
 
 > 前端管理界面：[PHP-GB28181-UI](https://github.com/wzj177/PHP-GB28181-UI)
 >
 > PHP SIP 扩展：[php-exosip](https://github.com/wzj177/php-exosip)
+>
+> 信令网关双引擎：`gb28181:server`（exosip C 扩展，稳定版）/ `gb28181:swoole`（Swoole 协程版，beta/2.0.0 起，业务流程与扩展版完全一致）
 
 ## 效果预览
 
@@ -47,7 +49,8 @@ GB28181 协议视频管理平台
 ### 进行中功能
 
 - 国标级联：扩展层已经实现完整的sipClient，php层面有完整的胶水类，待完善一个完整客户端长链接
-- docker：后期完善docker镜像
+- Swoole 协程版网关：beta/2.0.0 已发布（`gb28181:swoole` / `onvif:server`），线上真机联调中
+- docker：网关镜像已支持（swoole-gbs/，linux/mac 双平台），api 整体镜像待完善
 
 ---
 
@@ -106,7 +109,8 @@ GB28181 协议视频管理平台
 ### 进行中功能
 
 - 国标级联：扩展层已经实现完整的sipClient，php层面有完整的胶水类，待完善一个完整客户端长链接
-- docker：后期完善docker镜像
+- Swoole 协程版网关：beta/2.0.0 已发布（`gb28181:swoole` / `onvif:server`），线上真机联调中
+- docker：网关镜像已支持（swoole-gbs/，linux/mac 双平台），api 整体镜像待完善
 
 ---
 
@@ -214,6 +218,27 @@ php start.php reload
 ```
 
 ## gbs启动
+
+信令网关有两个引擎版本，**共用同一套业务层**（GB28181Handler 等），hook 协议、Redis 命令队列
+格式完全一致，webman/API 侧无需任何改动即可切换；两个版本不可同时监听同一端口。
+
+### Swoole 协程版（beta/2.0.0 起，推荐新部署）
+
+```bash
+# UDP 启动（前台；--tcp 切 TCP；--gateway-id=xxx 集群模式拉远程配置）
+php webman gb28181:swoole start
+php webman gb28181:swoole status|stop|restart
+
+# ONVIF 网关（WS-Discovery 自动发现 + 命令队列）
+php webman onvif:server start
+```
+
+- 无需 exosip C 扩展，只需 ext-swoole（协程 Socket/Channel，4.5+；SIP 栈为纯 PHP 自解析实现）
+- Docker 部署（支持 Linux/Mac，镜像仅含 swoole）：见 [swoole-gbs/README.md](./swoole-gbs/README.md)，
+  compose 分 `docker-compose.yml`（Mac/Docker Desktop 桥接）与 `docker-compose.linux.yml`（Linux host 网络，生产推荐）
+- 架构与验证点清单详见 [swoole-gbs/README.md](./swoole-gbs/README.md)
+
+### exosip 扩展版（稳定版）
 
 ### 网关和api在同一台服务器
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Gb28181Gateway\src\SwooleServer;
+namespace Gb28181\GateWay\Swoole;
 
 class SimpleLogger
 {
