@@ -126,11 +126,11 @@ php webman gb28181:server start --tcp    # TCP 启动
 
 | 文档 | 内容 |
 |---|---|
-| [GB28181 信令网关指南](docs/GB28181%20%E4%BF%A1%E4%BB%A4%E7%BD%91%E5%85%B3%E6%8C%87%E5%8D%97.md) | 架构总览、RTP 传输模式选型、核心流程、API 集成 |
-| [部署指南](docs/%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97.md) | 线上部署实操：api / 网关 / ZLM / nginx / supervisor / 端口 |
-| [项目介绍](docs/%E9%A1%B9%E7%9B%AE%E4%BB%8B%E7%BB%8D.md) | 项目初衷、适用场景、常见问题、未测试功能清单 |
+| [GB28181 信令网关指南](wiki/GB28181信令网关指南.md) | 架构总览、RTP 传输模式选型、核心流程、API 集成 |
+| [部署指南](wiki/部署指南.md) | 线上部署实操：api / 网关 / ZLM / nginx / supervisor / 端口 |
+| [项目介绍](wiki/项目介绍.md) | 项目初衷、适用场景、常见问题、未测试功能清单 |
 | [Swoole 版网关](swoole-gbs/README.md) | Swoole/ONVIF 网关架构、验证点清单、Docker 部署 |
-| [php-exosip 扩展](docs/php-exosip-extension.md) | C 扩展 API 参考（扩展版引擎） |
+| [php-exosip 扩展](wiki/php-exosip-extension.md) | C 扩展 API 参考（扩展版引擎） |
 
 ## 相关仓库
 
